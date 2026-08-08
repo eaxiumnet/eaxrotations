@@ -312,6 +312,10 @@ local function build_state(context)
     end
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
     frost_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
+    -- Dead-lane fix (battery triage 2026-08-07): mana_gem_available was never
+    -- assigned, so ManaGem (gate: mana_gem_available && mana<=70) could never
+    -- fire — ManaGemConjure's "!available" gate kept conjuring instead.
+    frost_state.mana_gem_available = first_ready_mana_gem() ~= nil
 
     return spec_kit.safe_state(frost_state, FROST_SCHEMA)
 end

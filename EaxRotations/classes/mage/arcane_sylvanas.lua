@@ -254,6 +254,10 @@ local function build_state(context)
     s.evocation_available = me and NS.spell_ready and NS.spell_ready(ACTION.Evocation, me, { skip_range = true }) or false
     s.mana_gem_available = false
     if me then s.mana_gem_available = first_ready_mana_gem() ~= nil end
+    -- Dead-lane fix (battery triage 2026-08-07): healthstone_ready was never
+    -- assigned, so the Healthstone lane (hp<=28 && healthstone_ready>0) could
+    -- never fire in live play. Must be set before the emergency early-return.
+    s.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     s.arcane_power_available = me and NS.spell_ready and NS.spell_ready(ACTION.ArcanePower, me, { skip_range = true }) or false
     s.has_clearcasting = NS.buff_up and NS.buff_up(me, CLEARCASTING_BUFF) or false
 

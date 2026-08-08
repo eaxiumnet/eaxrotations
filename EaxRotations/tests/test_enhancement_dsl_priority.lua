@@ -68,7 +68,6 @@ NS.start_auto_attack = function() return true end
 NS.log = function() end
 NS.log_warning = function() end
 NS.rotation_registry = { register = function() end }
-NS.purge_should_cast = function() return false end
 NS.get_totem_info = function() return nil end
 NS.WeaponImbueManager = {
     mainhand_has_imbue = function() return false end,
@@ -126,6 +125,17 @@ package.loaded["shared/cooldown_planner_sylvanas"] = {
     is_major_offensive_cd_active = function() return false end,
 }
 package.loaded["common/utility/inventory_helper"] = { has_item = function() return nil end }
+-- Purge lane modules required by enhancement_sylvanas.lua (mirror the spec's
+-- middleware pattern); stub them like the other shared modules above.
+package.loaded["shared/purge_manager_sylvanas"] = {
+    has_purgeable_buff = function() return false end,
+    try_purge = function() return false end,
+}
+package.loaded["shared/offensive_dispel_sylvanas"] = {
+    PRIORITY_HIGH = 3,
+    PRIORITY_CRITICAL = 4,
+    find_best_dispel_target = function() return nil, 0, nil end,
+}
 
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")

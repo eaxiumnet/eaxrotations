@@ -244,6 +244,11 @@ local function build_state(context)
   resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
  end
  resto_state.tank = NS.healing_get_tank(entries, count) or resto_state.lowest
+ -- PreemptiveHeal.match reads state.entries/state.count (shared/preemptive_heal_sylvanas).
+ -- Sibling specs (druid/resto, paladin/holy) store the scan; without it the
+ -- PreemptiveChainHeal lane could never fire in live play either.
+ resto_state.entries = entries
+ resto_state.count = count
 
  -- AoE Heal cluster targeting: find optimal Chain Heal primary target
  if NS.AoEHeal and NS.AoEHeal.chain_heal_target then

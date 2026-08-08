@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.19.0 — 2026-08-08
+
+### Customer Changelog
+- **Full rotation audit complete (304 → 100 never-firing strategies)**: a
+  behavioral test battery now runs every strategy in every spec across 135
+  realistic combat scenarios (all 31 specs, 0 load failures) and flags any
+  strategy that never fires. 204 strategies that were unreachable in the
+  battery were triaged — most were correctly silent (opt-in settings,
+  PvP/stealth/OOC-only, or cooldown-state gating) — but **13 were genuine
+  dead lanes fixed in live play**, including:
+  - **Protection Warrior Intervene**: the party-scan + matcher truncated the
+    vec3 position API (read `{x,y,z}` fields instead of multi-value capture),
+    so Intervene could never fire in live play; also fixed the same
+    position-read family across the codebase (audit doc:
+    `docs/position_contract_audit_2026-08-08.md`).
+  - **Warlock Destruction pet summons**: `SummonFelhunter`/
+    `SummonVoidwalker`/`SummonFelguard` were hardcoded off in
+    `summon_pet_matches`; all three preference branches now work.
+  - **Mage**: arcane/frost `healthstone_ready` + `mana_gem_available` and
+    fire `hp_pct` build_state assignments unblocked Healthstone/IceBarrier/
+    ManaShield/Mana Gem lanes.
+  - **Priest/Druid/Hunter**: holy `mana_pct` (ManaPotion), resto
+    `healthstone_ready` (Healthstone), MM `BestialWrath` spell_exists gate,
+    and disc/holy/resto `Preemptive*Heal` state wiring.
+- **33 battery regression suites** pin every unblocked lane family so a
+  future edit can't silently re-hide them.
+- Version **2.19.0**.
+- Tests: 469 rotation + 33 leveling suites registered (461 rotation passing at
+  runtime; 5 pre-existing env/data-file gaps).
+
+### Developer Notes
+- **Campaign**: 304 → 254 → 249 → 224 → 219 → 218 → 217 → 216 → 215 → 213 →
+  207 → 194 → 183 → 180 → 176 → 173 → 161 → 152 → 151 → 145 → 144 → 140 →
+  133 → 130 → 125 → 118 → 112 → 111 → 110 → 109 → 108 → 106 → 105 → **100**
+  (DPS 13 + non-DPS 87); final split **(b) 38 · (c) 62 · (a) 0 · (d) 0** —
+  zero opt-in and zero dead lanes remain.
+- **Battery upgrades** (all in `tests/behavioral_audit.lua`, now 135
+  scenarios): unit-aware `buff_up`/`debuff_up`/`debuff_remains` maps,
+  `setting_overrides` fixture (covers direct `ctx.settings`,
+  `spec_kit.setting`, and DSL setting conditions), `not_learned` map,
+  `on_cd`/`swing_until`/`combat_time`/`target_cast_pct`/`hit_rating`
+  overrides, friend mocks with `get_class`/`get_position`/`get_owner`,
+  heal-scan deficit fix, per-buff scenarios (lights_grace, seal-twist,
+  affliction/dispel), party-frame `get_friendly_target_entry`, scenario-aware
+  `FsrManager` + `TrinketManager`-style stubs, elite/undead/pvp/stealth/
+  boss creature-type + threat scenarios.
+- **Spec fixes (13 dead lanes)**: fire/arcane/frost mage, holy priest,
+  resto druid, MM hunter, disc/holy/resto Preemptive heal-state, destro
+  warlock summons ×3, prot warrior Intervene (real live bug — multi-value
+  `get_position` truncation, reclassified (b)→(d) during the sweep).
+- **Triage docs**: `docs/never_strategy_triage_dps_2026-08-07.md` +
+  `docs/never_strategy_triage_non_dps_2026-08-07.md` (per-lane probe
+  evidence + campaign summary); `docs/position_contract_audit_2026-08-08.md`
+  (full codebase position-read audit).
+
 ## 2.18.1 — 2026-07-29
 
 ### Customer Changelog
@@ -8,14 +63,14 @@
 - All tests passing: 398 rotation + 31 leveling suites (429 total).
 
 ### Developer Notes
-- **Attachment API resolution** (`plans/_archive/bug-report-sylvanas-attachment-api-crash.md`): Both `get_attachment_position(id)` and `get_attachment_name_position()` cause native access violations on Sylvanas Core 1.981+ that `pcall` cannot intercept. Resolution: eliminate all API invocations.
+- **Attachment API resolution**: Both `get_attachment_position(id)` and `get_attachment_name_position()` cause native access violations on Sylvanas Core 1.981+ that `pcall` cannot intercept. Resolution: eliminate all API invocations.
 - `EaxESP/attachment_safe.lua` — `probe_once()` does existence-only checks (`type() == "function"`); `name_pos()` and `attachment_pos()` always return `nil`; `head_position()` uses `get_position() + offset`; dead code (`vec3_ok`, `copy_vec`, `M._ok_ids`) cleaned.
 - `EaxESP/diagnostic_attachment_only.lua` — API calls gated behind `_G.EAXESP_ALLOW_ATTACHMENT_CALLS=true`.
 - `EaxESP/diagnostic_api_crash.lua` — Attachment entries gated behind `EAXESP_ALLOW_ATTACHMENT_CALLS`; non-attachment methods still run.
 - `EaxESP/tests/test_attachment_safe_module.lua` — Assertions updated for always-nil behavior.
 - `EaxESP/tests/test_attachment_safe_probe.lua` — `probe()` and `probe_target()` gated behind `EAXESP_ALLOW_ATTACHMENT_CALLS`.
 - **Full audit**: `reader.lua`, `main.lua`, `renderer.lua` confirmed zero direct calls to attachment APIs — all go through `attachment_safe.lua`.
-- **Plans archived**: Both bug reports + crash hardening plan moved to `plans/_archive/`.
+- **Planning notes archived**: Both bug reports + crash hardening notes archived.
 - EaxESP files are `.gitignored` (local-only); changes applied locally.
 
 ## 2.18.0 — 2026-07-29
@@ -28,7 +83,7 @@
 - All tests passing: 398 rotation + 31 leveling suites (429 total).
 
 ### Developer Notes
-- **9-class audit** (`plans/class-audit-summary-2026-07-29.md`): Comprehensive audit of all 9 class directories checking for `luac -p` compilation, banned APIs, `broken_api_throttled` remnants, unguarded `menu:get()`, unguarded `NS.rotation_registry:register()`, missing `state` args in `aoe_target_meets()`, duplicate strategies/assignments, dead code, and `safe_state` adoption.
+- **9-class audit**: Comprehensive audit of all 9 class directories checking for `luac -p` compilation, banned APIs, `broken_api_throttled` remnants, unguarded `menu:get()`, unguarded `NS.rotation_registry:register()`, missing `state` args in `aoe_target_meets()`, duplicate strategies/assignments, dead code, and `safe_state` adoption.
 - **Bug severity**: 7 Medium (crashes on nil registry, nil field access, broken AoE gating, cache-hit nil-guard bypass), ~25 Low (unguarded registrations, dead code, duplicate strategies/assignments, missing imports).
 - **safe_state migration**: Each of the 40 vanilla files received a `SCHEMA` table with Pattern 14 nil-guard defaults and `spec_kit.safe_state(state, SCHEMA)` wrapping on all `build_state` return paths.
 - **Warrior cache-hit fix**: `arms_sylvanas.lua` — `safe_state` was not applied on the `build_state` cache-hit early-return path, causing nil-guard bypass on cache hits. Fixed by wrapping the cache-hit return.
@@ -40,9 +95,9 @@
 - **Shaman fix**: `leveling_vanilla.lua` — duplicate `tremor_totem_ready` state field assignment.
 - **Druid fix**: `balance_sylvanas.lua` — missing `state` (s) arg in 2 `aoe_target_meets()` calls (`PreHurricaneBarkskin` + `HurricaneAoE`). `balance_vanilla.lua` — missing `spec_kit` require (using `spec_kit.setting_bool` without importing).
 - **Paladin cleanup**: Removed dead `post_swing_judge_gate` function and unused `prot_post_swing_judge` schema setting.
-- **Plans cleanup**: Archived 26 completed plans to `plans/_archive/`, removed 10 duplicate plan files.
+- **Planning notes cleanup**: Archived 26 completed notes, removed 10 duplicate plan files.
 - **WotLK DSL adoption**: Verified all 41 WotLK files have `DSL_DEFS` tables + `dsl.compile_strategy` substitution. 43/43 WotLK test suites pass. Plan marked COMPLETE and archived.
-- **Documentation**: AGENTS.md updated (Pattern 14 + Pattern 16 migration status), README.md updated (migration state table + badges + version), `_active.md` updated (archived plan paths + test counts + WotLK DSL status).
+- **Documentation**: Agent instruction file updated (Pattern 14 + Pattern 16 migration status), README.md updated (migration state table + badges + version).
 - **.gitignore cleanup**: Binary directories (`common`, `core_lua`) and temp files excluded from git tracking.
 
 ## 2.17.0 — 2026-07-26
@@ -101,7 +156,7 @@
 
 ### Developer Notes
 - `tbc_ladder_helper.lua` + `test_tbc_spell_ladders.lua` (**281** cases)
-- Matrix: `plans/tbc-deep-audit-matrix-2026-07-16.md`
+- Matrix: `tbc-deep-audit-matrix-2026-07-16.md`
 - Prior TBC gap-matrix “aligned” is **not** re-claimed as Phase-2 done
 
 ## 2.9.2 - 2026-07-16
@@ -139,21 +194,21 @@
 - Version **2.8.0**. Tests: 278 rotation + 18 leveling.
 
 ### Developer Notes
-- Matrix: `plans/vanilla-deep-audit-matrix-2026-07-16.md`
+- Matrix: `vanilla-deep-audit-matrix-2026-07-16.md`
 - `test_vanilla_content_coverage.lua` + `vanilla_level_from_context`
 - Hunter MM/Survival pre-Aimed ladder; druid/rogue level default 60
 
 ## 2.7.9 - 2026-07-16
 
 ### Customer Changelog
-- **All 31 Classic Vanilla combat specs re-verified** (see `plans/vanilla-rotation-gap-matrix-2026-07-16.md`).
+- **All 31 Classic Vanilla combat specs re-verified**.
 - **Hunter BM/Survival (Classic)**: Aimed Shot is now the primary cast (wowsims classic hunter APL).
 - **Destruction (Classic)**: Soul Fire no longer spams with any soul shard; execute-gated like Shadowburn.
 - Version bumped to 2.7.9.
 - Tests: 277 rotation + 18 leveling suites green.
 
 ### Developer Notes
-- Gap matrix: `plans/vanilla-rotation-gap-matrix-2026-07-16.md`
+- Gap matrix: `vanilla-rotation-gap-matrix-2026-07-16.md`
 - `beast_mastery_vanilla.lua` / `survival_vanilla.lua`: AimedShot strategy + matches
 - `destruction_vanilla.lua`: `soul_fire_matches` execute gate; Shadowburn before SoulFire
 - Tests: `test_hunter_vanilla_aimed_shot.lua`, `test_destruction_vanilla_soul_fire_execute.lua`
@@ -161,7 +216,7 @@
 ## 2.7.8 - 2026-07-16
 
 ### Customer Changelog
-- **All 29 TBC specs re-verified** against wowsims APLs, SimC/wowapls patterns, Wowhead, Icy Veins, and Warcraft Tavern (see `plans/tbc-rotation-gap-matrix-2026-07-16.md`).
+- **All 29 TBC specs re-verified** against wowsims APLs, SimC/wowapls patterns, Wowhead, Icy Veins, and Warcraft Tavern.
 - **Warlock (Destruction)**: Shadowburn now correctly fires in execute (≤20% HP) instead of being blocked by Shadow Bolt / Incinerate filler while standing still. Matches wowsims destro_fire APL execute priority.
 - **Druid (Feral)**: Low-level cats (level 42-49) can now use Shred, Rip, Ravage, and Ferocious Bite without being blocked by the Mangle (Cat) debuff requirement that only applies once Mangle is learned at level 50.
 - **Druid (Feral)**: Rip now tracks all rank IDs correctly, so low-level Rip casts no longer silently fail.
@@ -173,7 +228,7 @@
 - Tests: 274 rotation + 18 leveling suites green.
 
 ### Developer Notes
-- Gap matrix: `plans/tbc-rotation-gap-matrix-2026-07-16.md` — per-spec logic/settings verdict for all 29 combat specs; tie-breakers documented (wowsims APL > contested guide opinion).
+- Gap matrix: `tbc-rotation-gap-matrix-2026-07-16.md` — per-spec logic/settings verdict for all 29 combat specs; tie-breakers documented (wowsims APL > contested guide opinion).
 - `destruction_sylvanas.lua`: reorder ACTIONS so `Shadowburn` sits above `Incinerate` / `ShadowBolt` / `SoulFire` (was dead while stationary because fillers always matched first).
 - `test_destruction_shadowburn.lua`: asserts strategy index order (Shadowburn < Incinerate and < ShadowBolt) in addition to execute HP / soul-shard match gates.
 - `cat_sylvanas.lua`: `shred_matches` and `stealth_shred_matches` now gate the Mangle-debuff requirement on `spell_exists(ACTION.MangleCat)`; `RIP_DEBUFF` expanded to `{ 27008, 9896, 9894, 9752, 9493, 9492, 1079 }`.
@@ -244,7 +299,7 @@
 - `main_sylvanas.lua`: load `shared/health_pred_helper_sylvanas` after `NS.health_prediction`; tick `NS.SwingTimer.on_update` each rotation update.
 - `health_pred_helper`: lazy-resolve platform module; expose `NS.incoming_damage` / `NS.predicted_hp_pct` / `NS.is_tank_role`.
 - Arms/Fury: prefer `NS.RageManager.should_heroic_strike` / `should_cleave` with threshold overlay preserving existing dump defaults.
-- Plan: `plans/wire-dormant-shared-modules-2026-07-16.md`.
+- Plan: `wire-dormant-shared-modules-2026-07-16`.
 
 ## 2.7.3 - 2026-07-13
 
@@ -858,7 +913,7 @@ Lower values clip closer to expiration (better for low latency). Higher values r
 - Discipline: PW:S absorb tracking via `Healing.pws_absorb_remaining`—skips PW:S recast when remaining absorb exceeds 200 (prevents wasting mana and triggering Weakened Soul unnecessarily).
 - Core: `NS.buff_points`/`NS.debuff_points` read the `points` array from aura data, enabling variable-value tracking (Holy Shield charges, PW:S absorb remaining, etc.).
 - Tests: fixed `test_balance_custom_matches.lua` Hurricane cooldown mock for Barkskin-ready deferral logic.
-- Docs: AGENTS.md updated with Patterns 11–13 (buff_points, PW:S absorb tracking, smart Innervate targeting); all stale per-spec library references cleaned up for flat-file architecture.
+- Docs: Agent instruction file updated with Patterns 11–13 (buff_points, PW:S absorb tracking, smart Innervate targeting); all stale per-spec library references cleaned up for flat-file architecture.
 - Queue: 001_Druid_Balance moved from `blocked/` to `completed/` (2 of 3 blockers resolved); remaining SP breakpoints tracked in `SP_Breakpoints_Druid_Balance.md`.
 - All 106 regression suites (95 rotation + 11 leveling) pass with zero failures.
 

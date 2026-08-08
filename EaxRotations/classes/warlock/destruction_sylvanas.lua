@@ -411,6 +411,9 @@ local function summon_pet_matches(context, action, state)
     if action.name == "SummonImp" then return pref == "imp" end
     if action.name == "SummonSuccubus" then return pref == "succubus" end
     -- Voidwalker/Felhunter/Felguard: only if explicitly preferred (not in auto mode)
+    if action.name == "SummonFelhunter" then return pref == "felhunter" end
+    if action.name == "SummonVoidwalker" then return pref == "voidwalker" end
+    if action.name == "SummonFelguard" then return pref == "felguard" end
     return false
 end
 

@@ -1,4 +1,4 @@
--- behavioral_audit.lua -- Behavioral battery harness for all 29 sylvanas spec files.
+-- behavioral_audit.lua -- Behavioral battery harness for all 31 sylvanas spec files.
 -- WHAT:  Loads every classes/<class>/<spec>_sylvanas.lua with a permissive mocked NS,
 --        then runs each spec's strategy table across a battery of realistic combat
 --        contexts exactly like the dispatcher (build state once, first match wins)
@@ -14,11 +14,23 @@
 -- NOTE: This harness runs in a LENIENT mock. A strategy that never fires is a
 -- TRIAGE CANDIDATE, not proof of a bug: it may be legitimately situational (stealth
 -- only, PvP only, out-of-combat only, opt-in setting off). Each candidate must be
--- reviewed against its match() function before any fix. See plans/behavioral-audit-all-29-specs-2026-08-06.md.
+-- reviewed against its match() function before any fix.
+--
+-- KNOWN LENIENCY: spell_exists()/is_spell_learned() return true for every spell,
+-- so unlearned-spell fallbacks (e.g. cat ClawFallback before Mangle) can never
+-- fire and spell-gated strategies may over-report coverage; snapshot-upgrade
+-- strategies (Rip/Rake Snapshot) need a prior in-combat cast the battery cannot
+-- reproduce. Treat those NEVER entries as mock limitations, not bugs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+-- Lua 5.4 compat: global unpack was moved to table.unpack (safe on 5.1/5.2 too)
+local unpack = table.unpack or unpack
+
 local M = {}
+
+-- Scenario clock: advanced by apply_battery_state so 1s module caches refresh.
+local _battery_now = 100.0
 
 -- ---------------------------------------------------------------------------
 -- Spec manifest: every sylvanas spec file under classes/.
@@ -71,15 +83,23 @@ local function _me_unit(class_id)
         get_health_percentage = function(self) return 100 end,
         get_health = function(self) return 10000 end,
         get_mana_percentage = function(self) return 100 end,
+        -- 0.4s sits inside both pooling (<=0.45) and powershift (>0.35) windows.
         energy_predicted = function(self) return 100 end,
-        energy_time_to_x = function(self, v) return 0.5 end,
+        energy_time_to_x = function(self, v) return 0.4 end,
         is_in_combat = function(self) return true end,
         get_distance = function(self, t) return 5 end,
         get_shapeshift_form_id = function(self) return 0 end,
         get_attack_power = function(self) return 500 end,
         get_player_stance = function(self) return 0 end,
         get_race_id = function(self) return 1 end,
-        get_position = function(self) return { x = 0, y = 0, z = 0 } end,
+        -- vec3 position (contract verified 2026-08-08): the platform's
+        -- get_position returns ONE vec3 TABLE {x,y,z} (with [1]/[2] index
+        -- aliases) — see shared/auto_loot (p.x,p.y,p.z), shared/targeting
+        -- (pos.x,pos.y,pos.z) and EaxESP (base.x or base[1]). The Intervene
+        -- close-out wrongly modeled multi-value returns; prot now reads the
+        -- table form too (protection:430/767), and shaman's my_pos.x reads
+        -- were already correct.
+        get_position = function(self) return { x = 0, y = 0, z = 0, [1] = 0, [2] = 0 } end,
         is_behind = function(self) return true end,
         get_armor = function(self) return 1000 end,
         is_moving = function(self) return false end,
@@ -115,9 +135,9 @@ local function _target()
     }
 end
 
-local function _friend(hp, dist)
+local function _friend(hp, dist, class_id)
     hp = type(hp) == "number" and hp or 100
-    return {
+    local f = {
         is_valid = function(self) return true end,
         is_dead = function(self) return hp <= 0 end,
         is_player = function(self) return true end,
@@ -129,7 +149,19 @@ local function _friend(hp, dist)
         get_max_power = function(self) return 0 end,
         get_name = function(self) return "AuditFriend" end,
         hp = hp,
+        -- vec3 position (contract verified 2026-08-08): one {x,y,z} table
+        -- with [1]/[2] aliases, matching the real API; prot's party scan
+        -- (protection:443) reads the table fields for Intervene's range gate.
+        get_position = function(self) return { x = 0, y = 0, z = 0, [1] = 0, [2] = 0 } end,
     }
+    -- Class-id (ranked #4): only present when a scenario sets it via the
+    -- `friend_class` override (druid/resto innervate + balance scan friends via
+    -- unit_class_id -> get_class to find a healer ally). Absent by default so
+    -- no other spec's class reads change.
+    if type(class_id) == "number" then
+        f.get_class = function(self) return class_id end
+    end
+    return f
 end
 
 -- ---------------------------------------------------------------------------
@@ -140,13 +172,27 @@ function M.build_ns(class_key)
     local ns = {}
     local profile = M.CLASS_PROFILE[class_key] or {}
     local class_id = profile.class_id or 0
-    ns.PLAYER_UNIT = {}
+    -- Scenario-aware player unit: holy/smite build_state derive
+    -- context.hp = health_pct(NS.PLAYER_UNIT), and the unit-aware health_pct
+    -- helper (import_helpers) reads unit.get_health_percentage when present.
+    -- An empty stub made that read fall back to 100 and CLOBBER the scenario's
+    -- low_self hp override, hiding every priest self-preservation lane.
+    -- Delegate to the state bank so it reflects ctx.hp after apply_battery_state.
+    ns.PLAYER_UNIT = {
+        get_health_percentage = function(self) return ns._bstate("hp", 100) end,
+        get_health = function(self) return ns._bstate("hp", 100) * 100 end,
+    }
     ns.POWER_MANA = 0
     ns.POWER_RAGE = 1
     ns.POWER_ENERGY = 3
     ns.POWER_COMBO = 4
     ns.POWER_FOCUS = 2
 
+    -- Warrior specs resolve ACTION ids through NS.WarriorSpells (mirrors
+    -- classes/warrior/class_sylvanas.lua SPELLS). Seeded just below, after
+    -- ns.spell_action is defined, so the entries are spell_action objects
+    -- (method surface = live fidelity) — see the WarriorSpells block near
+    -- ns.spell_action.
     ns.WarriorSpells = {}
     ns.PaladinSpells = {}
     ns.HunterSpells = {}
@@ -158,19 +204,46 @@ function M.build_ns(class_key)
     ns.DruidSpells = {}
     ns.CLASS_ID = M.CLASS_IDS
     ns.class_id = M.CLASS_IDS
-    ns.WarriorConstants = { STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 } }
+    ns.WarriorConstants = {
+        STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
+        -- Mirrors classes/warrior/class_sylvanas.lua so kebab's
+        -- Constants.BUFF_ID.SWEEPING_STRIKES index doesn't error on nil.
+        BUFF_ID = { SWEEPING_STRIKES = 12328 },
+    }
     ns.STANCE = ns.WarriorConstants.STANCE
 
     ns.log = function() end
     ns.debug = false
     ns.player_class_id = 0
 
-    ns.time_now = function() return 100.0 end
-    ns.game_time_ms = function() return 100000 end
-    ns.now_ms = function() return 100000 end
+    -- Scenario-aware clock: apply_battery_state advances _battery_now each
+    -- scenario so module-level 1s scan caches (e.g. hunter_core pet scan,
+    -- swing/mend cooldown gates) actually refresh between scenarios instead of
+    -- pinning to scenario #1's state forever.
+    ns.time_now = function() return _battery_now end
+    ns.game_time_ms = function() return _battery_now * 1000 end
+    ns.now_ms = function() return _battery_now * 1000 end
+    ns._battery_now = _battery_now
     ns.core = {
-        spell_book = { get_totem_info = function() return nil end },
-        object_manager = { get_visible_objects = function() return {} end },
+        -- Scenario-aware clock (2026-08-08): enhancement's TotemicCall caches
+        -- _core = NS.core at load time and throttles the visible-object scan
+        -- on _core.time(); without a time() here now=0 always and the 1s
+        -- throttle returns the stale cached result, never scanning.
+        time = function() return _battery_now end,
+        -- Scenario-aware (2026-08-08): enhancement's TotemicCall caches
+        -- _get_totem_info = NS.core.spell_book.get_totem_info at load time;
+        -- the totem_far scenario sets the totem_active bank key so the
+        -- has_totem gate passes. Default (no key) keeps the legacy nil.
+        spell_book = {
+            get_totem_info = function(slot)
+                if ns._bstate("totem_active") then return { have_totem = true } end
+                return nil
+            end,
+        },
+        -- Scenario-aware mirror of the load_spec _G.core stub: the visible
+        -- scan (enh TotemicCall, prot threat scan) must see the scenario's
+        -- visible_enemies list through the same bank.
+        object_manager = { get_visible_objects = function() return ns._bstate("visible_enemies", {}) end },
     }
 
     -- Warrior spec files call NS.import_helpers("try_cast", ...) at load; the
@@ -180,7 +253,7 @@ function M.build_ns(class_key)
         local names = { ... }
         local typed_map = {
             debuff_remains = 0, debuff_stacks = 0, buff_remains = 0,
-            health_pct = 100, buff_stacks = 0,
+            buff_stacks = 0,
         }
         local floaty = {
             player_control_locked = false, has_breakable_cc_nearby = false,
@@ -190,7 +263,19 @@ function M.build_ns(class_key)
         local results = {}
         for i = 1, #names do
             local n = names[i]
-            if typed_map[n] ~= nil then
+            if n == "health_pct" then
+                -- Unit-aware: read the scenario target/unit HP (scenarios set
+                -- target_hp), NOT a constant 100 — otherwise build_state
+                -- calls like kebab's context.target_hp = health_pct(target)
+                -- clobber the scenario override back to 100.
+                results[i] = function(unit)
+                    if unit and unit.get_health_percentage then
+                        local ok, v = pcall(unit.get_health_percentage, unit)
+                        if ok and type(v) == "number" then return v end
+                    end
+                    return 100
+                end
+            elseif typed_map[n] ~= nil then
                 results[i] = function() return typed_map[n] end
             elseif floaty[n] ~= nil then
                 results[i] = function() return floaty[n] end
@@ -201,11 +286,34 @@ function M.build_ns(class_key)
         return unpack(results)
     end
 
-    ns.spell_exists = function() return true end
+    -- Scenario-aware learned/exists mock (ranked #9): the low_level scenario
+    -- marks pre-level spells as NOT learned via the `not_learned` state-bank
+    -- key ({ [spell_id] = true }). Default (no key) keeps the legacy
+    -- everything-learned behavior, so non-leveling scenarios are untouched.
+    -- Both spell_exists and is_spell_learned share the check — a spell that
+    -- isn't learned yet also isn't in the spellbook (arcane
+    -- low_level_bolt_matches reads spell_exists(ArcaneBlast 30451); frost
+    -- frost_armor_matches reads is_spell_learned(MageArmor 27125/6117);
+    -- warlock needs_imp_fallback reads is_spell_learned(30146)/688).
+    -- Accepts numeric ids and spell_action tables (checks all rank ids — same
+    -- normalization as the bank-aware get_spell_cd; keep them in sync).
+    -- NOTE: the not_learned map is global per scenario (not spec-scoped), so
+    -- the ids a scenario marks must remain class-specific (the low_level map
+    -- is mage/warlock only).
+    local function not_learned(spell)
+        local nl = ns._bstate("not_learned", nil)
+        if type(nl) ~= "table" or not spell then return false end
+        local ids = type(spell) == "number" and { spell } or (type(spell) == "table" and spell.ids) or {}
+        for _, id in ipairs(ids) do
+            if nl[id] then return true end
+        end
+        return false
+    end
+    ns.spell_exists = function(spell) return not not_learned(spell) end
     ns.spell_ready = function(spell, target, opts)
         return ns.cooldown_remains(spell) <= 0
     end
-    ns.is_spell_learned = function() return true end
+    ns.is_spell_learned = function(spell) return not not_learned(spell) end
     ns.spell_cooldown_ready = function() return true end
     -- Scenario-driven cooldowns: scenarios set on_cd = { [spell_id] = seconds }.
     -- Accepts both numeric spell IDs and NS spell_action tables (kebab style).
@@ -227,7 +335,23 @@ function M.build_ns(class_key)
     ns.get_buff_stacks = function() return 0 end
     ns.get_debuff_stacks = function() return 0 end
     ns.aura_remains = function() return 0 end
-    ns.has_form = function() return true end
+    -- Form-aware has_form: form id comes from the scenario state bank (default
+    -- 0 = caster). Previously returned true unconditionally, which made every
+    -- druid spec believe it was shapeshifted: cat damage actions fired in every
+    -- scenario while form-gated strategies (CatForm, HealthPotion-while-cat,
+    -- powershift) could NEVER match. Map names to the same ids the specs use
+    -- (cat=3, bear=1, travel=4, moonkin=2).
+    local FORM_IDS = { caster = 0, bear = 1, moonkin = 2, cat = 3, travel = 4, aquatic = 5, flight = 6 }
+    ns.has_form = function(name)
+        local form = ns._bstate("form", 0) or 0
+        if name == nil then return form ~= 0 end
+        local want = FORM_IDS[name]
+        if want == nil then return false end
+        return form == want
+    end
+    ns.is_stealthed = function() return ns._bstate("is_stealthed", false) end
+    ns.pet_hp_pct = function() return ns._bstate("pet_hp", 100) end
+    ns.pet_alive = function() return not (ns._bstate("pet_dead", false) == true) end
     ns.get_player_stance = function() return 0 end
     ns.is_behind_target = function() return true end
     ns.get_combo_points = function() return 0 end
@@ -251,8 +375,32 @@ function M.build_ns(class_key)
     ns.get_item_count = function() return 1 end
     ns.use_item = function() return true end
 
-    ns.get_setting = function() return nil end
-    ns.get_any_setting = function() return nil end
+    ns.get_setting = function(key, default)
+        -- Scenario-aware: setting_overrides flow through the spec_kit fallback
+        -- chain (spec_kit.setting -> NS.get_setting), so e.g.
+        -- { holy_refresh_enabled = false } (fsr_pause) disables paladin
+        -- choose_blessing (BlessingRefresh would otherwise fire before
+        -- FSRPause — buffs_up makes every blessing "up" with exactly 120s
+        -- remaining == the refresh threshold). Unconfigured keys return nil.
+        local ov = ns._bstate("setting_overrides", nil)
+        if type(ov) == "table" and key and ov[key] ~= nil then return ov[key] end
+        return nil
+    end
+    -- Scenario-aware settings: `setting_overrides = { [setting_key] = value }`
+    -- (e.g. { seal_twisting_enabled = true }) flips get_any_setting for the
+    -- scenario; unconfigured keys return nil, so retri can_twist stays false
+    -- everywhere except the seal-twist scenarios (retribution_sylvanas.lua:403
+    -- falls back to the `true` default only when the setting is unreadable,
+    -- which we must NOT mimic battery-wide or SealTwistPrepCommand would fire
+    -- in every scenario at the default 0.5s swing).
+    ns.get_any_setting = function(ctx, key, key2, default)
+        local ov = ns._bstate("setting_overrides", nil)
+        if type(ov) == "table" then
+            if key and ov[key] ~= nil then return ov[key] end
+            if key2 and ov[key2] ~= nil then return ov[key2] end
+        end
+        return nil
+    end
 
     local _ok_kit, _spec_kit = pcall(require, "shared/spec_kit_sylvanas")
     local function _setting_bool(ctx, key, def)
@@ -313,7 +461,7 @@ function M.build_ns(class_key)
     ns.unit_faction = function() return 0 end
     ns.unit_is_boss = function() return false end
     ns.unit_interruptible = function() return true end
-    ns.unit_creature_type = function() return 7 end
+    ns.unit_creature_type = function() return ns._bstate("target_creature_type", 7) end
     ns.threat_status = function() return 0 end
     ns.is_threat_safe = function() return true end
     ns.get_party_members = function() return {} end
@@ -323,18 +471,59 @@ function M.build_ns(class_key)
     ns.get_pet_hp = function() return 100 end
     ns.has_pet = function() return false end
     ns.mana = ns.mana
-    ns.get_spell_cd = function() return 0 end
+    -- Bank-aware get_spell_cd (ranked #8): subtlety's Preparation matcher
+    -- requires a major CD burned (vanish_cd/sprint_cd/evasion_cd derived from
+    -- NS.get_spell_cd in build_state); this stub was hardwired 0 so the CD
+    -- was never "burned" and Preparation could never fire. Now reads on_cd
+    -- like cooldown_remains (same table; DIFFERENT scan semantics — this one
+    -- checks ALL rank ids so scenarios may key by any rank, e.g. 1856 =
+    -- Vanish low rank, ids[1] the TBC top rank 26889, while cooldown_remains
+    -- stays ids[1]-only for its top-rank-keyed scenarios). Only
+    -- subtlety_sylvanas/subtlety_vanilla consume get_spell_cd, so no other
+    -- spec is affected.
+    ns.get_spell_cd = function(spell)
+        local on_cd = ns._bstate("on_cd", nil)
+        if type(on_cd) == "table" and spell then
+            local ids
+            if type(spell) == "number" then
+                ids = { spell }
+            elseif type(spell) == "table" then
+                ids = spell.ids
+            end
+            for _, id in ipairs(ids or {}) do
+                if on_cd[id] then return on_cd[id] end
+            end
+        end
+        return 0
+    end
     ns.get_spell_cooldown = function() return 0 end
     ns.get_spell_id = function() return 0 end
     ns.is_spell_in_range = function() return true end
-    ns.get_time_until_swing = function() return 0.5 end
-    ns.get_time_until_oh_swing = function() return 0.5 end
+    ns.get_time_until_swing = function() return ns._bstate("swing_until", 0.5) end
+    ns.get_time_until_oh_swing = function() return ns._bstate("swing_until", 0.5) end
     ns.swing_progress = function() return 0.5 end
-    ns.swing_time_until = function() return 0.5 end
+    ns.swing_time_until = function() return ns._bstate("swing_until", 0.5) end
     ns.get_totem_info = function() return false end
     ns.register_on_spell_cast = function() return true end
     ns.register_class_middleware = function() end
-    ns.get_friendly_target_entry = function() end
+    -- Scenario-aware (2026-08-08): the healer FriendlyTarget lanes (disc +
+    -- holy priest, holy paladin, resto druid + shaman) gate on
+    -- state.friendly_target_ready / state.friendly_target, populated from
+    -- NS.get_friendly_target_entry (core/units.lua:129 — { unit, hp_pct,
+    -- effective_hp, is_player } of the current target when it is friendly).
+    -- The friendly_target scenario presents a friendly unit below the 90%
+    -- threshold; absent the flag every spec keeps the nil-entry behavior
+    -- (hostile/default targets never produce an entry). Keyed on
+    -- friendly_target_hp ALONE (a number is non-nil only when the scenario
+    -- sets it) — deliberately NOT a friendly_target boolean, which would
+    -- collide with healing_sylvanas.lua:454 reading context.friendly_target
+    -- as a UNIT.
+    ns.get_friendly_target_entry = function()
+        local hp = ns._bstate("friendly_target_hp", nil)
+        if not hp then return nil end
+        local unit = _friend(hp, 30)
+        return { unit = unit, hp_pct = hp, effective_hp = hp, is_player = true }
+    end
     ns.find_dead_party_ally = function() return nil end
     ns.reset_api_health = function() end
     ns.get_local_player = ns.GetPlayer
@@ -348,12 +537,49 @@ function M.build_ns(class_key)
     ns.is_breakable_cc_active = function() return false end
     ns.has_healing_reduction_debuff = function() return false end
     ns.get_best_heal_target = function() return nil end
-    ns.healing_count_below_hp = function() return 0 end
-    ns.healing_get_lowest_hp = function() return nil end
-    ns.healing_get_tank = function() return nil end
+    ns.healing_count_below_hp = function(entries, count, threshold)
+        threshold = threshold or 100
+        if not entries then return 0 end
+        local n = 0
+        for i = 1, (count or #entries) do
+            if entries[i] and (entries[i].effective_hp or 100) < threshold then n = n + 1 end
+        end
+        return n
+    end
+    ns.healing_get_lowest_hp = function(entries, count, threshold)
+        if not entries or not count or count <= 0 then return nil end
+        threshold = threshold or 100
+        local best, best_hp = nil, 999
+        for i = 1, count do
+            local e = entries[i]
+            if e and e.effective_hp then
+                local hp = e.effective_hp
+                if hp <= threshold and hp < best_hp then best, best_hp = e, hp end
+            end
+        end
+        return best
+    end
+    ns.healing_get_tank = function(entries, count)
+        if not entries or not count or count <= 0 then return nil end
+        for i = 1, count do
+            local e = entries[i]
+            if e and e.is_tank then return e end
+        end
+        return entries[1]
+    end
     ns.get_local_player = ns.GetPlayer
     ns.get_energy = ns.energy
-    ns.safe_field = function(v, d) if v == nil then return d end return v end
+    -- Real safe_field(obj, key) semantics (shared/safe_helpers_sylvanas.lua:
+    -- 45): returns obj[key] or nil. Every consumer passes (obj, key) — druid
+    -- unit_class_id(unit, "get_class"), offensive_dispel, ooc_manager, mage/
+    -- warrior middleware. The old (value, default) shape returned the whole
+    -- object, making unit_class_id pcall a table (always error -> nil).
+    ns.safe_field = function(obj, key)
+        if obj == nil then return nil end
+        local ok, value = pcall(function() return obj[key] end)
+        if not ok then return nil end
+        return value
+    end
     ns.same_unit = ns.same_unit
     ns.not_same_unit = ns.not_same_unit
     ns.setting_bool = function(ctx, key, def) return _setting_bool(ctx, key, def) end
@@ -369,7 +595,29 @@ function M.build_ns(class_key)
     ns.HealerDeficit = { deficit_of = function() return 0 end }
     ns.TrinketManager = { try_use = function() return false end }
     ns.RageManager = { should_dump = function() return true end }
-    ns.StanceManager = { ensure_stance = function() return true end }
+    -- Mirrors shared/stance_manager_sylvanas.lua semantics: get_optimal_stance
+    -- returns a stance NAME (string) or nil; should_switch returns false when
+    -- already in the desired stance. Unblocks protection StanceSwitch
+    -- (prot build_state reads SM.get_optimal_stance into desired_stance).
+    ns.StanceManager = {
+        ensure_stance = function() return true end,
+        get_optimal_stance = function(context, state)
+            local stance = (state and state.stance) or (context and context.stance) or 2
+            if stance ~= 2 then return "defensive" end
+            return nil
+        end,
+        should_switch = function(context, state, desired)
+            if not desired then return false end
+            local stance = (state and state.stance) or (context and context.stance) or 1
+            local desired_id = desired == "defensive" and 2
+                or (desired == "berserker" and 3)
+                or (desired == "battle" and 1)
+                or nil
+            if not desired_id then return false end
+            if stance == desired_id then return false end
+            return true
+        end,
+    }
     ns.SnapThreat = { try = function() return false end }
     ns.PvPBurstWindow = { should_burst = function() return false end }
     ns.StopCast = { stop_if_needed = function() return false end }
@@ -383,14 +631,26 @@ function M.build_ns(class_key)
     ns.Targeting = { pick = function() return nil end }
     ns.WeaponImbueManager = { apply = function() return false end }
     ns.OffensiveDispelDB = {
+        -- Priority tiers mirror shared/offensive_dispel_sylvanas.lua so specs
+        -- that gate on OffensiveDispelDB.PRIORITY_HIGH work in the battery.
+        PRIORITY_CRITICAL = 4,
+        PRIORITY_HIGH = 3,
+        PRIORITY_MEDIUM = 2,
+        PRIORITY_LOW = 1,
         should_purge = function() return ns._bstate("enemy_buffed", false) end,
+        -- Real module returns (best_id, priority, best_name); rogue ShivPurge
+        -- reads all three, so the stub must return a name too or shiv_purge_name
+        -- stays nil and the whole purge lane is invisible.
         find_best_dispel_target = function(target)
-            if ns._bstate("enemy_buffed", false) then return target, 10 end
-            return nil
+            if ns._bstate("enemy_buffed", false) then return target, 10, "Bloodlust" end
+            return nil, 0, nil
         end,
         is_breakable_cc_active = function() return false, nil end,
         is_casting_preemptive_cc = function() return false, nil end,
     }
+    -- Note: NS.purge_should_cast / NS.PurgeManager stubs were considered but
+    -- removed — enhancement_sylvanas.lua now mirrors the middleware gate
+    -- (OffensiveDispelDB + purge_manager) and no spec reads those helpers.
     ns.SwingDiagnostics = {
         on_update = function() end,
         register_seals = function() end,
@@ -402,27 +662,138 @@ function M.build_ns(class_key)
     ns.HunterCore = { on_update = function() end }
     ns.HunterAdaptive = { on_update = function() end }
     ns.HunterClipTracker = { on_update = function() end }
-    ns.PaladinHealing = {
-        should_cast = function() return false end,
-        scan_healing_targets = function() return {}, 0 end,
-    }
-        ns.PriestHealing = {
-        should_cast = function() return false end,
-        scan_healing_targets = function() return {}, 0 end,
-        healing_count_below_hp = function() return 0 end,
-        healing_get_lowest_hp = function() return nil end,
-        healing_get_tank = function() return nil end,
-        count_subgroup_below_hp = function() return 0 end,
-    }
-    ns.ShamanHealing = {
-        should_cast = function() return false end,
-        scan_healing_targets = function() return {}, 0 end,
-        select_heal = function() return nil end,
-    }
-    ns.DruidHealing = {
-        should_cast = function() return false end,
-        scan_healing_targets = function() return {}, 0 end,
-    }
+    -- Scenario-driven heal-scan stubs (healer triage upgrade): the per-class
+    -- Healing modules expose the triage surface the specs' build_state reads.
+    -- Entries mirror the scenario's friends_hp (default { 55, 70, 85 }) plus a
+    -- player entry. CONTRACT: entry[2] is ALWAYS the tank (is_tank/role="tank")
+    -- so tank ~= lowest (PreHeal/Emergency PWS lanes) — scenario authors must
+    -- keep the tank at friends_hp index 2 or add a tank_low-style override;
+    -- the player entry (is_self, hp from ctx.hp) enables PurifySelf/self-cure.
+    -- Per-debuff-type affliction flags come from the scenario `afflicted` table
+    -- (poison/disease/curse/magic) — this unblocks the dispel/cleanse/cure lanes.
+    local function _heal_entries()
+        -- Default to an INJURED group (55/70/85) so the heal lanes that gate on
+        -- state.lowest/tank fire in the base scenarios (mirrors the prior scan
+        -- behavior). The `group_healthy` scenario (friends_hp 100s) presents a
+        -- fully-healthy group so the Idle*/Solo* DPS lanes stay observable.
+        local hps = ns._bstate("friends_hp", nil)
+        if not hps or type(hps) ~= "table" or #hps == 0 then hps = { 55, 70, 85 } end
+        local aff = ns._bstate("afflicted", nil) or {}
+        local a = { poison = aff.poison == true, disease = aff.disease == true,
+                    curse = aff.curse == true, magic = aff.magic == true }
+        local friend_class = ns._bstate("friend_class", nil)
+        local entries, count = {}, 0
+        for i, hp in ipairs(hps) do
+            count = count + 1
+            -- Low-HP targets carry a short TTD so TTD-gated urgency lanes
+            -- (druid NaturesSwiftness) are observable; healthy ones do not.
+            local ttd = (hp <= 30) and 3 or 999
+            entries[count] = {
+                unit = _friend(hp, 30, friend_class), hp = hp, effective_hp = hp, max_hp = 10000,
+                time_to_die = ttd, future_hp = hp, death_risk = 0, will_die_soon = false,
+                -- Deficit must mirror the real scan semantics (heal modules set
+                -- deficit = max_hp - current_hp): a low-HP entry needs a
+                -- positive deficit or every deficit_of(...) > 0 gate (paladin
+                -- LightGraceBuild/LightGraceChain) is battery-dead. Percentage
+                -- scale (100 - effective_hp) is consistent with effective_hp.
+                -- NOTE: percentage scale is fine for `> 0` gates only; do not
+                -- compare against raw-HP constants (LARGE/MEDIUM/LIGHT_HEAL_
+                -- DEFICIT are raw-scale in live play).
+                deficit = math.max(0, 100 - hp), effective_deficit = math.max(0, 100 - hp),
+                is_tank = (i == 2), role = (i == 2) and "tank" or "dps",
+                is_player = false, is_self = false,
+                is_valid = true, is_friendly = true, hostile = false,
+                has_weakened_soul = false, has_renew = false, renew_remains = 0,
+                has_poison = a.poison, has_disease = a.disease, has_curse = a.curse,
+                has_magic = a.magic, needs_cleanse = a.poison or a.disease or a.curse or a.magic,
+            }
+        end
+        count = count + 1
+        local ph = ns._bstate("hp", 100)
+        entries[count] = {
+            unit = ns.PLAYER_UNIT, hp = ph, effective_hp = ph, max_hp = 10000,
+            time_to_die = 999, future_hp = ph, death_risk = 0, will_die_soon = false,
+            deficit = math.max(0, 100 - ph), effective_deficit = math.max(0, 100 - ph),
+            is_tank = false, role = "dps",
+            is_player = true, is_self = true,
+            is_valid = true, is_friendly = true, hostile = false,
+            has_weakened_soul = false, has_renew = false, renew_remains = 0,
+            has_poison = a.poison, has_disease = a.disease, has_curse = a.curse,
+            has_magic = a.magic, needs_cleanse = a.poison or a.disease or a.curse or a.magic,
+        }
+        return entries, count
+    end
+    local function _afflicted_flag(key)
+        local aff = ns._bstate("afflicted", nil)
+        return type(aff) == "table" and aff[key] == true
+    end
+    local function _heal_module()
+        return {
+            should_cast = function() return true end,
+            scan_healing_targets = _heal_entries,
+            count_below_hp = function(threshold)
+                local entries, count = _heal_entries()
+                return ns.healing_count_below_hp(entries, count, threshold)
+            end,
+            count_subgroup_below_hp = function(threshold)
+                local entries, count = _heal_entries()
+                return ns.healing_count_below_hp(entries, count, threshold)
+            end,
+            healing_count_below_hp = function(threshold)
+                local entries, count = _heal_entries()
+                return ns.healing_count_below_hp(entries, count, threshold)
+            end,
+            get_lowest_hp_target = function(threshold)
+                local entries, count = _heal_entries()
+                return ns.healing_get_lowest_hp(entries, count, threshold)
+            end,
+            get_tank_target = function()
+                local entries, count = _heal_entries()
+                return ns.healing_get_tank(entries, count)
+            end,
+            get_cleanse_target = function()
+                local entries, count = _heal_entries()
+                for i = 1, count do
+                    if entries[i].needs_cleanse then return entries[i] end
+                end
+                return nil
+            end,
+            all_members_above_hp = function(threshold)
+                local entries, count = _heal_entries()
+                for i = 1, count do
+                    if (entries[i].effective_hp or 100) < threshold then return false end
+                end
+                return true
+            end,
+            has_disease = function() return _afflicted_flag("disease") end,
+            has_poison = function() return _afflicted_flag("poison") end,
+            has_curse = function() return _afflicted_flag("curse") end,
+            has_magic = function() return _afflicted_flag("magic") end,
+            has_dangerous_dispel = function() return _afflicted_flag("magic") end,
+            has_weakened_soul = function() return false end,
+            has_renew = function() return false end,
+            renew_remains = function() return 0 end,
+            has_pws = function() return false end,
+            pws_absorb_remaining = function() return 0 end,
+            predict_effective_deficit = function() return 0 end,
+            group_mana_avg = function() return ns._bstate("mana_pct", 100) end,
+            is_in_raid = function() return false end,
+            is_in_party = function() return true end,
+            select_heal = function(context, state, lowest)
+                local entry = lowest or { unit = ns.PLAYER_UNIT, effective_hp = 60 }
+                return {
+                    spell = ns.spell_action({ 1064, 1062, 25423, 25422, 25421, 25420, 1061, 1060, 421, 930, 913, 943, 604 }, "ChainHeal"),
+                    name = "ChainHeal",
+                    unit = entry.unit,
+                    effective_hp = entry.effective_hp or 60,
+                }
+            end,
+        }
+    end
+    ns.PaladinHealing = _heal_module()
+    ns.PriestHealing = _heal_module()
+    ns.ShamanHealing = _heal_module()
+    ns.DruidHealing = _heal_module()
     ns.class_middleware = {}
     ns.unified_registry = {}
     ns.unified_state_builders = {}
@@ -444,14 +815,70 @@ function M.build_ns(class_key)
         obj.rank_ids = function() return ids end
         return obj
     end
-    ns.get_equipped_item_id = function() return 0 end
-    ns.EQUIPMENT_SLOTS = { HEAD = 1 }
+
+    -- Warrior spell resolution (mirrors classes/warrior/class_sylvanas.lua
+    -- SPELLS rank tables). The primary-on-cooldown filler lanes
+    -- (Devastate/Rend/HeroicStrike) gate on
+    -- `ss_ready == false and revenge_ready == false`, which the battery can
+    -- only exercise when ShieldSlam/Revenge resolve to real ids and appear in
+    -- a scenario's on_cd table (30356 = ShieldSlam top rank, 30357 = Revenge
+    -- top rank — the low-rank 23922/6572 are never read since cooldown_remains
+    -- uses ids[1]). Built via ns.spell_action so ACTION entries carry the same
+    -- method surface (id/rank/cooldown/is_known) as live SPELLS entries.
+    ns.WarriorSpells = {
+        ShieldSlam = ns.spell_action({ 30356, 25258, 23925, 23924, 23923, 23922 }, "ShieldSlam"),
+        Revenge = ns.spell_action({ 30357, 25269, 25288, 11601, 11600, 7379, 6574, 6572 }, "Revenge"),
+        -- Taunt (ranked #6): the elite_taunt_cd scenario puts Taunt on CD via
+        -- on_cd = { [355] = 6 }; without a real spell_action entry the spec's
+        -- ACTION.Taunt has no ids and cooldown_remains can't resolve 355, so
+        -- taunt_ready stays true and TauntSecondary's "Taunt on CD" gate never
+        -- passes. Mirrors class_sylvanas.lua (ids = { 355 }).
+        Taunt = ns.spell_action({ 355 }, "Taunt"),
+        -- Devastate (close-out ranked #1): WITHOUT this entry the spec's
+        -- define("Devastate") falls back to spell_action(nil) -> ids { nil }
+        -- -> cooldown_remains can never resolve an on_cd key -> dev_ready
+        -- stays true in every scenario -> SunderArmor's pre-Devastate
+        -- fallback (prot:531 `if state.dev_ready then return false end`) can
+        -- never fire. The `not_learned` map does NOT help here: it only gates
+        -- spell_exists/is_spell_learned, while dev_ready comes from the
+        -- cooldown-only spell_ready mock. Seeding the ids makes the
+        -- sunder_fallback scenario's on_cd { [30022] = 6 } resolvable.
+        -- Mirrors class_sylvanas.lua (ids = { 30022, 30016, 20243 }).
+        Devastate = ns.spell_action({ 30022, 30016, 20243 }, "Devastate"),
+    }
+    -- Druid spell resolution for the balance multi-DoT spread lanes: the
+    -- spread matchers explicitly gate on `SPELLS.Moonfire`/`SPELLS.InsectSwarm`
+    -- existing (the main DoT lanes use the lenient NS.action_matches path and
+    -- fire regardless, but the spreads return false on nil). Rank ids mirror
+    -- classes/druid/class_sylvanas.lua (27013/26988 top ranks — the same ids
+    -- the multidot scenario's debuff_remains_map uses).
+    ns.DruidSpells = {
+        Moonfire = ns.spell_action({ 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
+        InsectSwarm = ns.spell_action({ 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
+    }
+    -- Scenario-aware equipped-item mock: the mutilate_daggers scenario sets
+    -- equipped_daggers = true and get_equipped_item_id returns a real dagger
+    -- item id (776, from shared/dagger_set_sylvanas DAGGER_IDS) for the
+    -- MAIN_HAND/OFF_HAND slots, so assassination's build_state derives
+    -- state.has_daggers = true (assn:234-240 reads both hands + is_dagger
+    -- map). Default 0 preserves the legacy no-weapon behavior everywhere else.
+    -- NOTE: kebab's has_offhand_weapon also reads slot 17, so it sees the
+    -- dagger in mutilate_daggers too — benign (kebab has 0 never-firing lanes
+    -- and no exclusivity pin reads has_offhand).
+    ns.get_equipped_item_id = function(slot)
+        if ns._bstate("equipped_daggers", false)
+            and (slot == ns.EQUIPMENT_SLOTS.MAIN_HAND or slot == ns.EQUIPMENT_SLOTS.OFF_HAND) then
+            return 776
+        end
+        return 0
+    end
+    ns.EQUIPMENT_SLOTS = { HEAD = 1, MAIN_HAND = 16, OFF_HAND = 17 }
     ns.broken_api_throttled = function() return false end
     ns.is_interruptible = function() return true end
     ns.target_casting = function() return ns._bstate("target_is_casting", false) end
     ns.is_in_melee_range = function() return true end
     ns.cp_debug = function() end
-    ns.time_until_swing = function() return 0.5 end
+    ns.time_until_swing = function() return ns._bstate("swing_until", 0.5) end
     ns.has_health_potion = false
     ns.gcd_remains = function() return 0 end
     ns.get_gcd = function() return 1.5 end
@@ -481,14 +908,184 @@ function M.build_ns(class_key)
         if v == nil then return def end
         return v
     end
+    -- FSR manager (ranked #6): the real shared/fsr_manager_sylvanas loads and
+    -- its game-state reads (is_inside_fsr via last-cast time, get_regen_delta
+    -- via _core.spell_book power regen) return false/0 in the battery, so the
+    -- 5 FSRPause healer lanes could never fire. Preload a scenario-driven
+    -- stub backed by the state bank (the fsr_pause scenario sets the flags);
+    -- each spec module captures THIS table at require() time, so the closures
+    -- see the current scenario's bank on every build_state/match call.
+    -- load_spec restores package.loaded after dofile so other suites get the
+    -- real module back.
+    package.loaded["shared/fsr_manager_sylvanas"] = {
+        is_inside_fsr = function() return ns._bstate("fsr_inside", false) == true end,
+        seconds_until_fsr = function() return ns._bstate("fsr_seconds", 0) end,
+        get_regen_delta = function() return ns._bstate("fsr_regen_delta", 0) end,
+        should_pause_for_fsr = function(state, context)
+            local ok = ns._bstate("fsr_pause_ok", false) == true
+            return ok, ok and "battery: inside FSR window" or "battery: outside FSR window"
+        end,
+        is_fsr_pause_enabled = function() return ns._bstate("fsr_pause_ok", false) == true end,
+    }
+    -- TSHelper (ranked #1): the real shared/ts_helper_sylvanas reads live
+    -- target_selector state, so get_dps_targets returns empty in the battery
+    -- and the multi-DoT spread lanes (warlock find_dot_target, shadow
+    -- _find_multidot_target, balance _multidot_enemy_list) could never find a
+    -- second unit. Preload a stub whose get_dps_targets returns the scenario's
+    -- enemy list (ctx.enemies — populated for 2+ enemy scenarios, ranked #7);
+    -- specs capture THIS table at require() time. get_heal_targets stays
+    -- empty: the heal-scan stubs replace scan_healing_targets wholesale and
+    -- must not see phantom allies.
+    package.loaded["shared/ts_helper_sylvanas"] = {
+        get_dps_targets = function(limit)
+            local list = ns._bstate("enemies", {})
+            if type(list) ~= "table" then return {} end
+            return list
+        end,
+        get_heal_targets = function(limit) return {} end,
+    }
     -- Buffs/debuffs: buffs_up scenarios report auras present, otherwise down.
-    ns.buff_up = function() return ns._bstate("buffs_up", false) end
-    ns.buff_remains = function() if ns._bstate("buffs_up", false) then return 20 end return 0 end
+    -- Per-buff remains: the `buff_remains_map` override ({ [buff_id] = seconds })
+    -- takes precedence — this is the per-buff state mechanism (paladin holy
+    -- LightGraceChain gates on lights_grace_remains in (0, 2.5), id 31834;
+    -- future per-buff lanes — clearcasting, Surge of Light, Inner Focus —
+    -- reuse it). NOTE: aura_remains/debuff_remains intentionally stay on the
+    -- buffs_up fallback (no map lookup) — extend the map if a future lane
+    -- gates on those APIs.
+    -- buff_up is map-aware (ranked #5): combat's BladeFlurry needs SnD up
+    -- (SND_BUFF {6774, 5171}) AND Blade Flurry's own buff down (13877) — both
+    -- read ns.buff_up, so the all-or-nothing buffs_up fallback self-blocks
+    -- (buffs_up=true marks BF already-up; buffs_up=false leaves SnD down). The
+    -- battle_ready scenario sets buff_remains_map = { [6774]=20, [5171]=20 }
+    -- → has_snd=true, has_blade_flurry=false. Map-miss ids fall back to
+    -- buffs_up exactly as before, so non-map scenarios stay byte-identical.
+    -- Shared with has_player_buff below (same map-first + buffs_up fallback
+    -- semantics, identical normalization) — keep them on ONE helper so they
+    -- can't drift apart.
+    local function map_aware_buff(ids)
+        local map = ns._bstate("buff_remains_map", nil)
+        if type(ids) == "number" then ids = { ids } end
+        if type(map) == "table" then
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return true end
+            end
+        end
+        return ns._bstate("buffs_up", false)
+    end
+    ns.buff_up = function(unit, ids) return map_aware_buff(ids) end
+    ns.buff_remains = function(unit, ids)
+        local map = ns._bstate("buff_remains_map", nil)
+        -- callers pass either a list of ids or a single numeric id (e.g. bear
+        -- THORNS_BUFF); normalize so ipairs never sees a number.
+        if type(ids) == "number" then ids = { ids } end
+        if type(map) == "table" then
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return map[id] end
+            end
+        end
+        if ns._bstate("buffs_up", false) then return 20 end
+        return 0
+    end
     ns.aura_remains = function() if ns._bstate("buffs_up", false) then return 20 end return 0 end
-    ns.debuff_up = function() if ns._bstate("buffs_up", false) then return true end return false end
-    ns.debuff_remains = function() if ns._bstate("buffs_up", false) then return 20 end return 0 end
-    ns.has_player_buff = function() return ns._bstate("buffs_up", false) end
+    -- Per-target DoT model (ranked #1): the `debuff_remains_map` override
+    -- ({ [debuff_id] = seconds }) marks the PRIMARY target as carrying those
+    -- debuffs while peers stay clean, so multi-DoT spread lanes see
+    -- primary-dotted + peer-undotted simultaneously. Previously `buffs_up`
+    -- marked EVERY target dotted (deadlocking the spreads: primary-dot gate
+    -- passes but find_dot_target sees the peer as already-dotted) and no
+    -- scenario could set the primary's dot remains at all. Peers and
+    -- map-less scenarios keep the buffs_up fallback unchanged, so Rupture /
+    -- WintersChill / poison-stack consumers are byte-identical.
+    ns.debuff_up = function(unit, ids)
+        local map = ns._bstate("debuff_remains_map", nil)
+        local prim = ns._bstate("primary_target", nil)
+        if unit == prim and type(map) == "table" then
+            if type(ids) == "number" then ids = { ids } end
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return true end
+            end
+        end
+        if ns._bstate("buffs_up", false) then return true end
+        return false
+    end
+    ns.debuff_remains = function(unit, ids)
+        local map = ns._bstate("debuff_remains_map", nil)
+        local prim = ns._bstate("primary_target", nil)
+        if unit == prim and type(map) == "table" then
+            if type(ids) == "number" then ids = { ids } end
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return map[id] end
+            end
+        end
+        if ns._bstate("buffs_up", false) then return 20 end
+        return 0
+    end
+    ns.has_player_buff = function(ids) return map_aware_buff(ids) end
+    -- Stealth helper (ranked #7): the real shared/stealth_helper_sylvanas
+    -- caches `NS = _G.EaxRotations` at ITS first require() — the first spec
+    -- that loads it (druid cat, run order) — so every later rogue spec's
+    -- is_stealthed_for_class() read the FIRST spec's state bank, stale across
+    -- specs and scenario-order-dependent (combat CheapShot/Garrote fired or
+    -- not depending on which process/order ran). Stub it scenario-driven like
+    -- fsr/ts_helper: has_player_buff is map-aware, so stealth maps to the
+    -- current spec's own bank (stealth_opener's buff_remains_map [1784], or
+    -- the buffs_up fallback). load_spec restores package.loaded afterwards.
+    package.loaded["shared/stealth_helper_sylvanas"] = {
+        STEALTH_BUFF_IDS = { 1787, 1786, 1785, 1784 },
+        PROWL_BUFF_IDS = { 9913, 6783, 5215 },
+        is_stealthed = function()
+            return ns.has_player_buff({ 1787, 1786, 1785, 1784, 9913, 6783, 5215, 20580 })
+        end,
+        is_stealthed_for_class = function(class)
+            local ids = class == "druid" and { 9913, 6783, 5215 } or { 1787, 1786, 1785, 1784 }
+            return ns.has_player_buff(ids)
+        end,
+        try = function() return true end,
+    }
+    -- has_buff: map-only (NO buffs_up fallback) — holy's PrayerOfMending
+    -- (holy_sylvanas.lua:786) and hunter BM Misdirection (beast_mastery:556)
+    -- use it as an anti-overwrite gate. The fsr_pause scenario carries the PoM
+    -- buff id (33076) so PoM (position 5, before FSRPause at 13) stops
+    -- stealing the lane; every other scenario has no map entry so the return
+    -- is false — byte-identical to the pre-map behavior. (No buffs_up fallback:
+    -- unlike has_player_buff, these callers must NOT see "all buffs up" in
+    -- buffs_up scenarios or Misdirection/PoM would silently stop firing there.)
+    ns.has_buff = function(unit, ids)
+        local map = ns._bstate("buff_remains_map", nil)
+        if type(ids) == "number" then ids = { ids } end
+        if type(map) == "table" then
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return true end
+            end
+        end
+        return false
+    end
     ns.get_buff_stacks = function() if ns._bstate("buffs_up", false) then return 1 end return 0 end
+    -- buff_stacks alias: shaman resto reads NS.buff_stacks for water/earth
+    -- shield charges (water_shield_matches refreshes at 0 charges); without
+    -- it charges read nil->0 and WaterShield fires before FSRPause even in
+    -- buffs_up scenarios. Mirroring get_buff_stacks (1 when buffs_up) also
+    -- keeps earth-shield refresh suppressed (remains 20 > 5 + charges 1).
+    ns.buff_stacks = function() if ns._bstate("buffs_up", false) then return 1 end return 0 end
+    -- Scenario-driven debuff stacks (poison_stacks scenario). Scoped by aura
+    -- ids so one spec's stacks never bleed into another (e.g. mage AB stacks /
+    -- frost Winter's Chill must stay 0 when only deadly-poison stacks are set).
+    ns.debuff_stacks = function(unit, ids)
+        local v = ns._bstate("debuff_stacks", 0)
+        if not (v and v > 0) then return 0 end
+        -- Strict id-scoping: a scenario that raises stacks MUST carry the aura
+        -- ids, otherwise unrelated readers (mage AB stacks, frost Winter's
+        -- Chill) would spuriously see the value.
+        local aura_ids = ns._bstate("debuff_aura_ids", nil)
+        if type(aura_ids) ~= "table" or type(ids) ~= "table" then return 0 end
+        for _, id in ipairs(ids) do
+            for _, aid in ipairs(aura_ids) do
+                if id == aid then return v end
+            end
+        end
+        return 0
+    end
+    ns.get_debuff_stacks = ns.debuff_stacks
     -- Numeric reads delegate to the scenario state bank.
     ns.power_current = function(p) return ns._bpower(p or M.POWER.MANA, 100) end
     ns.get_power = function(p) return ns._bpower(p or M.POWER.MANA, 100) end
@@ -594,13 +1191,101 @@ M.SCENARIOS = {
     { name = "standard" },
     { name = "combo_build",      overrides = { combo_points = 0, energy = 60, focus = 60 } },
     { name = "energy_low",       overrides = { combo_points = 0, energy = 30 } },
-    { name = "aoe",              overrides = { enemy_count = 4, enemies_count = 4 } },
-    { name = "execute",          overrides = { target_hp = 8, ttd = 6, target_ttd = 6 } },
+    { name = "aoe",              overrides = { enemy_count = 4, enemies_count = 4, stance = 1 } },
+    { name = "execute",          overrides = { target_hp = 8, ttd = 6, target_ttd = 6, on_cd = { [30330] = 6, [1680] = 10 } } },
+    { name = "cd_pressure",      overrides = { on_cd = { [30356] = 6, [30357] = 5, [30330] = 6, [1680] = 10, [11585] = 1, [30335] = 6 } } },
+    { name = "leveling_execute", overrides = { level = 25, player_level = 25, is_leveling = true, target_hp = 8, ttd = 6, target_ttd = 6 } },
+    { name = "swing_window",     overrides = { swing_until = 1.0, on_cd = { [30330] = 6, [1680] = 10, [11585] = 1, [30335] = 6 } } },
+    -- Primary-on-cooldown fillers (triage upgrade): prot Devastate/Rend/
+    -- HeroicStrike gate on `ss_ready == false and revenge_ready == false`
+    -- (ShieldSlam 30356 / Revenge 30357 on cd); stance=2 (defensive) matches
+    -- live tanking and rage=100 clears the HS dump floor (default 70 == the
+    -- HEROIC_STRIKE_RAGE_DUMP constant, a razor edge). Requires the
+    -- WarriorSpells seed. (Devastate fires here: dev_ready true, ss/rev on CD.)
+    { name = "prot_filler_cd",   overrides = { stance = 2, rage = 100, on_cd = { [30356] = 6, [30357] = 5 } } },
+    -- Close-out ranked #1 (2026-08-08): SunderArmor's pre-Devastate fallback
+    -- needs dev_ready false (prot:531) — Devastate {30022,...} on CD — PLUS
+    -- ss_ready/revenge_ready false (prot:533) so the filler branch fires.
+    -- NOT the not_learned map: it only gates spell_exists/is_spell_learned,
+    -- while dev_ready comes from the cooldown-only spell_ready mock. The
+    -- Devastate entry in the WarriorSpells seed makes the [30022] key
+    -- resolvable by cooldown_remains (ids[1]). Devastate itself is silenced
+    -- in THIS scenario only (dev_ready false) — harmless, it fires in
+    -- prot_filler_cd and elsewhere.
+    { name = "sunder_fallback",  overrides = { stance = 2, rage = 100, on_cd = { [30022] = 6, [30356] = 6, [30357] = 5 } } },
+    -- Tank triage (ranked #6): elite classification (1) + an un-tanked target
+    -- (target_get_target = false → target:get_target() nil) + visible
+    -- un-tanked enemies (visible_enemies) make the smart-taunt lanes
+    -- observable. Taunt needs Taunt ready; TauntSecondary needs Taunt on CD
+    -- (355) + no_threat_target from the visible-objects scan + enemy_count ≥ 3.
+    -- MockingBlow/ChallengingShout share the elite gates and clear here too.
+    { name = "elite_target",   overrides = { target_classification = 1, enemy_count = 3, enemies_count = 3, target_get_target = false, visible_enemies = true } },
+    { name = "elite_taunt_cd", overrides = { target_classification = 1, enemy_count = 3, enemies_count = 3, target_get_target = false, visible_enemies = true, on_cd = { [355] = 6 } } },
+    -- Tank triage (last (c) item): prot IntimidatingShout needs min_enemies 3
+    -- (protection:505 via s.enemy_count) AND state.hp <= 50 (matcher:825).
+    -- elite_target has the 3 enemies but hp 100; low_self has hp 15 but 1
+    -- enemy — only this combo clears it (and fires exclusively here: no other
+    -- scenario combines enemy_count >= 3 with hp <= 50).
+    -- NOTE: this is a SUPERSET of elite_target + low_self — low-self-gated
+    -- prot lanes (e.g. HealthPotion) may also fire here even though they are
+    -- pinned elsewhere; do NOT pin such a lane to this scenario.
+    { name = "elite_low_self", overrides = { target_classification = 1, hp = 15, player_hp = 15, enemy_count = 3, enemies_count = 3 } },
+    -- Ice Block (45438) on cooldown + low HP (triage upgrade): arcane/frost
+    -- ColdSnap defensive lanes gate on `not spell_ready(IceBlock)` and hp <= 35.
+    { name = "cold_snap_cd",     overrides = { on_cd = { [45438] = 60 }, hp = 15, player_hp = 15 } },
     { name = "low_mana",         overrides = { mana_pct = 10, player_mana = 300, player_mana_pct = 10, has_potions = true } },
     { name = "low_self",         overrides = { hp = 15, player_hp = 15, has_potions = true } },
+    -- Mana emergency floor (healer triage upgrade): elemental/restoration
+    -- default mana_emergency to strict `< 5` (MANA_EMERGENCY_DEFAULT=5) and
+    -- holy's ManaBelow5Wand blocks at `>= 5`, so the scenario must set 4 — a
+    -- 5 would leave all four wand lanes invisible. Unblocks ManaEmergencyWand
+    -- x3 (elemental/enhancement/restoration) + holy ManaBelow5Wand.
+    { name = "mana_critical",     overrides = { mana_pct = 4, player_mana = 120, player_mana_pct = 4 } },
     { name = "moving",           overrides = { is_moving = true } },
     { name = "target_casting",   overrides = { target_is_casting = true } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
+    -- Rogue stealth openers (ranked #7): combat Garrote needs stealth + a
+    -- casting target; subtlety CheapShot needs stealth + the explicit
+    -- opener_preference (auto resolves garrote-on-caster / ambush-elsewhere,
+    -- so the pref is what isolates CheapShot). buff_remains_map [1784]
+    -- (Stealth) is map-first, so no buffs_up fallback claims the lane.
+    { name = "stealth_opener", overrides = { buff_remains_map = { [1784] = 10 }, target_is_casting = true, setting_overrides = { opener_preference = "cheap_shot" } } },
+    -- PvP combo scenarios (warrior/rogue triage, 2026-08-08): the remaining
+    -- rogue (b) lanes need ONE extra flag on top of an existing scenario.
+    -- NOTE: the pvp_low_hp combo from the triage ({ is_pvp, hp = 15 }) is
+    -- ALREADY satisfied by defensive_casting — combat/subtlety Blind cleared
+    -- there and are exclusivity-pinned (fires-in(1)), so a separate scenario
+    -- would only break that pin; do not add it.
+    -- pvp_stealth_opener: assassin PvP_CheapShotOpen needs stealth_active
+    -- (NS.has_player_buff(STEALTH_BUFF = {1787..1784}) — map-driven, so the
+    -- is_stealthed bank key does NOT feed it) + is_pvp. The stealth_opener
+    -- scenario has the stealth map but no is_pvp; `stealth`/`pvp` have one
+    -- flag each. This is the only is_pvp + stealth-map combo. No
+    -- target_is_casting / opener_preference, so the combat Garrote + subtlety
+    -- CheapShot pins (stealth_opener exclusivity) are untouched.
+    { name = "pvp_stealth_opener", overrides = { is_pvp = true, buff_remains_map = { [1784] = 10 } } },
+    -- pvp_gap_close: assassin PvP_SprintGapClose needs is_pvp AND
+    -- target_distance >= 15 (pvp = dist 5; gap_close = 15 but not pvp).
+    -- This is the only is_pvp + range combo. Already-firing lanes that read
+    -- dist >= 15 (subtlety sprint_gap, warrior Intercept) legitimately gain a
+    -- fires-in here — never-list unchanged.
+    { name = "pvp_gap_close",     overrides = { is_pvp = true, target_distance = 15 } },
+    -- Rogue Preparation reset (ranked #8): subtlety's matcher needs
+    -- state.hp <= 40 (subtlety_prep_hp default) AND a major CD burned
+    -- (vanish_cd/sprint_cd/evasion_cd from state). vanish_cd derives from
+    -- NS.get_spell_cd, now bank-aware; prep_ready puts Vanish on CD (1856,
+    -- any rank) at low HP. Preparation fires ONLY here (no other scenario has
+    -- a Vanish/Sprint/Evasion CD entry).
+    { name = "prep_ready",   overrides = { hp = 15, player_hp = 15, on_cd = { [1856] = 60 } } },
+    -- Alt/leveling lanes (ranked #9): the low_level scenario marks pre-level
+    -- spells as NOT learned (not_learned map) so the leveling fallbacks become
+    -- observable: arcane FireballLeveling/FrostboltLeveling (is_leveling +
+    -- spell_exists(ArcaneBlast 30451) false), frost FrostArmor (MageArmor
+    -- 27125/6117 not learned — pre-34 fallback), warlock demonology SummonImp
+    -- (SummonFelguard 30146 not learned + Imp 688 learned, OOC, no pet).
+    -- Every lane fires ONLY here (no other scenario sets is_leveling together
+    -- with a not-learned entry; OOC no-pet lanes already exist).
+    { name = "low_level",    overrides = { level = 20, player_level = 20, is_leveling = true, in_combat = false, not_learned = { [30451] = true, [27125] = true, [6117] = true, [30146] = true } }, no_pet = true },
     { name = "buffs_up",         overrides = { buffs_up = true, combo_points = 0 } },
     { name = "pull",             overrides = { in_combat = false, buffs_up = true, is_stealthed = true, combo_points = 0 } },
     { name = "short_ttd",        overrides = { target_ttd = 2, ttd = 2, target_hp = 20, combo_points = 5, energy = 60 } },
@@ -609,7 +1294,73 @@ M.SCENARIOS = {
     { name = "pvp_interrupt",    overrides = { is_pvp = true, target_is_casting = true, combo_points = 3 } },
     { name = "berserker_interrupt", overrides = { stance = 3, target_is_casting = true } },
     { name = "potions_ready",    overrides = { has_potions = true } },
-    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 100, 100, 100 } } },
+    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 80, 90, 95 }, afflicted = { poison = true, disease = true, curse = true, magic = true } } },
+    -- Healer group-damage scenarios (healer triage upgrade): friends_hp bands
+    -- are tuned per lane family — group_light (62/72/85: GH + PreHeal + RenewTank),
+    -- group_critical (30/45/60 + low self: BindingHeal + Emergency PWS),
+    -- group_aoe (4 injured: PrayerOfHealing + CircleOfHealing + ChainHeal),
+    -- group_healthy (100s: nobody injured → idle-DPS lanes fire),
+    -- tank_low (entry[2] = tank at 30: disc PowerWordShieldTank + PainSuppression),
+    -- mana_tide_window (healthy group + low mana: resto ManaTideTotem).
+    { name = "group_healthy",   overrides = { friends_hp = { 100, 100, 100 }, friend_class = 11 } },
+    -- Per-buff state (ranked #2): Light's Grace active at 1.5s remaining —
+    -- paladin holy LightGraceChain gates on lights_grace_remains in (0, 2.5)
+    -- (buff id 31834); the default injured group (55/70/85) satisfies the
+    -- tank-deficit gate. General mechanism: any buff_remains_map entry.
+    { name = "lights_grace",    overrides = { buff_remains_map = { [31834] = 1.5 } } },
+    -- Seal-twist state (ranked #5): retri SealTwistBlood needs the Command seal
+    -- up (buff 27170), no Blood seal, and swing <= twist window (0.45s);
+    -- SealTwistPrepCommand needs the Blood seal up (31892), Judgement on CD
+    -- > 1.5s (id 20271), and swing in (0.45, 1.2]. can_twist only flips on here
+    -- (via setting_overrides) so both lanes stay silent in every other scenario.
+    { name = "seal_twist_blood", overrides = { setting_overrides = { seal_twisting_enabled = true }, buff_remains_map = { [27170] = 5 }, swing_until = 0.4 } },
+    { name = "seal_twist_prep",  overrides = { setting_overrides = { seal_twisting_enabled = true }, buff_remains_map = { [31892] = 5 }, swing_until = 0.9, on_cd = { [20271] = 2.0 } } },
+    -- Friend class-id (ranked #4): the group scenarios present a healer ally
+    -- (class 11) so druid/resto's innervate scan (is_healer_entry via
+    -- unit_class_id -> get_class) can pick a non-self healer; mana_tide_window's
+    -- low mana makes InnervateHealer fire. InnervateSelf stays observable via
+    -- the non-group low-mana scenarios (low_mana/mana_critical), which keep
+    -- friends class-less.
+    { name = "group_light",     overrides = { friends_hp = { 62, 72, 85 }, friend_class = 11 } },
+    { name = "group_critical",  overrides = { hp = 50, player_hp = 50, friends_hp = { 30, 45, 60 }, friend_class = 11 } },
+    { name = "group_aoe",       overrides = { friends_hp = { 40, 55, 65, 75 }, friend_class = 11 } },
+    { name = "tank_low",        overrides = { friends_hp = { 55, 30, 80 }, friend_class = 11 } },
+    { name = "mana_tide_window", overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 10, player_mana = 300, player_mana_pct = 10, friend_class = 11 } },
+    -- FSR pause window (ranked #6): mid-Five-Second-Rule pause — inside FSR
+    -- (fsr_inside), positive regen delta (fsr_regen_delta), healthy group
+    -- (friends 100s so no triage heal fires first), mana 30 (<= the 35 gate
+    -- but above the emergency floors). buffs_up=true is load-bearing: shaman
+    -- WaterShield/LightningShield and paladin AuraManagement/BlessingRefresh
+    -- all read "shield/aura already up" and would otherwise match before
+    -- FSRPause. ManaTide (16190) + Innervate (29166) on cd — used in the
+    -- window; without them ManaTideTotem (mana <= 60) / InnervateSelf /
+    -- RebirthBattleRez (no dead-ally model — see report) steal the lane;
+    -- Bloodlust (2825) fires on healthy groups. player_mana_pct drives holy's
+    -- context.mana_pct (no NS.unit_mana_pct fallback — disc has one); the PoM
+    -- buff id (33076) in the map blocks holy PrayerOfMending (position 5) via
+    -- the map-aware ns.has_buff; holy_refresh_enabled/holy_blessing_light
+    -- false block paladin BlessingRefresh + BlessingOfLightTank (blessings
+    -- read "up" at exactly the 120s refresh boundary). buff_stacks (new)
+    -- keeps shaman WaterShield from refreshing at 0 charges.
+    -- Unblocks FSRPause x5 (holy/disc priest, holy paladin, resto
+    -- druid/shaman) + retri Ret_JudgementWisdom_LowMana (incidental).
+    { name = "fsr_pause",      overrides = { mana_pct = 30, player_mana_pct = 30, friends_hp = { 100, 100, 100 }, buffs_up = true, fsr_inside = true, fsr_seconds = 3.0, fsr_regen_delta = 20, fsr_pause_ok = true, buff_remains_map = { [33076] = 15 }, setting_overrides = { holy_refresh_enabled = false, holy_blessing_light = false }, on_cd = { [16190] = 60, [29166] = 60, [26994] = 60, [2825] = 600 } } },
+    -- Emergency group + HoT buffs: druid resto SwiftmendEmergency /
+    -- TranquilityEmergency (3 targets <= 25) / NaturesSwiftnessHealingTouch
+    -- (buff present); NaturesSwiftness (buff absent) via group_critical's
+    -- <= 30 target + short TTD.
+    { name = "group_emergency", overrides = { buffs_up = true, friends_hp = { 18, 22, 24 } } },
+    -- Pushback: enemy in range casting on the player. Unblocks the priest
+    -- PreHeal lanes (disc + holy pre_heal_matches gate on _check_pushback,
+    -- which scans NS.GetEnemiesInRange for a casting enemy). Tank band
+    -- {62,72,85} puts entry[2] = 72 inside PreHeal's [60, 95] window.
+    { name = "pushback",        overrides = { enemies_casting = true, target_is_casting = true, friends_hp = { 62, 72, 85 } } },
+    -- Friendly target (ranked): NS.get_friendly_target_entry returns a
+    -- friendly unit at 60% (below the 90 threshold) so the 5 healer
+    -- FriendlyTarget lanes (disc + holy priest, holy paladin, resto druid +
+    -- shaman) become observable. Group stays healthy so the spot-heal lanes
+    -- don't steal the frame; hp must stay < 90 and > 0.
+    { name = "friendly_target", overrides = { friendly_target_hp = 60, friends_hp = { 100, 100, 100 }, lowest_hp = 100 } },
     { name = "enemy_buffed",     overrides = { enemy_buffed = true } },
     { name = "me_casting",       overrides = { me_casting = true, friends_hp = { 25, 60, 80 }, lowest_hp = 25 } },
     { name = "battle_stance",    overrides = { stance = 1 } },
@@ -623,6 +1374,293 @@ M.SCENARIOS = {
     { name = "ooc_buffs",        overrides = { in_combat = false }, no_target = true },
     { name = "pvp",              overrides = { is_pvp = true } },
     { name = "leveling",         overrides = { level = 25, player_level = 25, is_leveling = true } },
+    -- Form scenarios (druid): cat/bear/moonkin/travel put the spec into the
+    -- matching form so form-gated strategies become reachable.
+    { name = "cat_form",            overrides = { form = 3, energy = 60, combo_points = 3 } },
+    { name = "cat_form_5cp",        overrides = { form = 3, energy = 60, combo_points = 5 } },
+    { name = "cat_form_low_energy", overrides = { form = 3, energy = 25, combo_points = 4, mana_pct = 30 } },
+    { name = "cat_form_low_energy_5cp", overrides = { form = 3, energy = 25, combo_points = 5 } },
+    { name = "cat_mangle_up",       overrides = { form = 3, energy = 80, combo_points = 2, buffs_up = true } },
+    { name = "cat_stealth",         overrides = { form = 3, is_stealthed = true, combo_points = 0, in_combat = false, buffs_up = true } },
+    { name = "cat_stealth_pvp",     overrides = { form = 3, is_stealthed = true, combo_points = 0, in_combat = false, is_pvp = true } },
+    { name = "cat_burst",           overrides = { form = 3, should_burst = true, combat_time = 3 } },
+    { name = "cat_short_ttd",       overrides = { form = 3, target_ttd = 2, ttd = 2, target_hp = 20, combo_points = 5, energy = 60 } },
+    { name = "cat_execute",         overrides = { form = 3, target_hp = 15, ttd = 4, combo_points = 5, energy = 25, has_potions = true } },
+    { name = "cat_emergency",       overrides = { form = 3, energy = 8, combo_points = 2, mana_pct = 40 } },
+    { name = "cat_gap",             overrides = { form = 3, target_distance = 15, energy = 70 } },
+    { name = "cat_2target",         overrides = { form = 3, enemy_count = 2, enemies_count = 2, energy = 70, combo_points = 3 } },
+    { name = "cat_target_casting",  overrides = { form = 3, target_is_casting = true, energy = 60, combo_points = 3 } },
+    { name = "cat_pvp_interrupt",   overrides = { form = 3, is_pvp = true, target_is_casting = true, energy = 60, combo_points = 3 } },
+    { name = "pvp_ooc",             overrides = { in_combat = false, is_pvp = true } },
+    { name = "bear_form",           overrides = { form = 1, rage = 50 } },
+    { name = "bear_low_self",       overrides = { form = 1, rage = 60, hp = 15 } },
+    { name = "bear_aoe",            overrides = { form = 1, rage = 60, enemy_count = 4, enemies_count = 4 } },
+    { name = "moonkin_form",        overrides = { form = 2, mana_pct = 90 } },
+    { name = "travel_form",         overrides = { form = 4, is_moving = true, in_combat = false, target_distance = 28 } },
+    -- Enemy-buffed + PvP: purge / Shiv purge / Mass Dispel lanes.
+    { name = "purge_buffed",        overrides = { enemy_buffed = true, is_pvp = true } },
+    -- Dead pet, out of combat: Revive Pet / pet summon lanes.
+    { name = "pet_dead_ooc",        overrides = { pet_hp = 0, pet_dead = true, in_combat = false }, no_target = true },
+    -- No pet at all (never summoned): Call Pet / demon summoning lanes.
+    { name = "pet_absent",          overrides = { in_combat = false }, no_target = true, no_pet = true },
+    -- Destro pet-preference summons: SummonFelhunter/SummonVoidwalker/
+    -- SummonFelguard only fire when destro_pet_preference is explicitly set to
+    -- that pet (auto mode resolves to imp/succubus only). One scenario per
+    -- pref so each lane is observable; no_target + in_combat=false match the
+    -- OOC summon gates (dead/absent pet via pet_dead_ooc/pet_absent above).
+    { name = "destro_pet_felhunter",  overrides = { in_combat = false, setting_overrides = { destro_pet_preference = "felhunter" } }, no_target = true, no_pet = true },
+    { name = "destro_pet_voidwalker", overrides = { in_combat = false, setting_overrides = { destro_pet_preference = "voidwalker" } }, no_target = true, no_pet = true },
+    { name = "destro_pet_felguard",   overrides = { in_combat = false, setting_overrides = { destro_pet_preference = "felguard" } }, no_target = true, no_pet = true },
+    -- SummonSuccubus (the last (a) warlock lane): fires only when the pref is
+    -- explicitly "succubus" (auto resolves to imp via the Incinerate-learned
+    -- heuristic), so the succubus-pref scenario makes it observable.
+    { name = "destro_pet_succubus",  overrides = { in_combat = false, setting_overrides = { destro_pet_preference = "succubus" } }, no_target = true, no_pet = true },
+    -- Low rage: warrior executes / rage-gated finishers under pressure.
+    { name = "low_rage",            overrides = { rage = 15 } },
+    -- Burst windows: DamagePotion / cooldown lanes gated on should_burst.
+    -- has_potions added (triage upgrade): DamagePotion lanes gate on
+    -- context.has_damage_potion, which only has_potions=true sets — without it
+    -- the potion lane was invisible in every spec (9 DamagePotion never-lanes).
+    { name = "burst",               overrides = { should_burst = true, buffs_up = true, has_potions = true } },
+    -- Gap close: warrior Charge / Intercept / sprint lanes need range.
+    { name = "gap_close",           overrides = { target_distance = 15 } },
+    { name = "berserker_gap",       overrides = { stance = 3, target_distance = 15 } },
+    { name = "pull_gap",            overrides = { in_combat = false, target_distance = 15 } },
+    -- Triage battery upgrades (2026-08-07): scenario COMBINATIONS the battery
+    -- could not previously express — stance+execute (Recklessness), defensive+
+    -- low-HP (ShieldWall), rage-capped (RageDumpSafetyNet), poison-stack
+    -- (Envenom lanes), berserker+AoE (fury BattleStance), and melee-range
+    -- targets (keeps me:get_distance-bound FrostNova/ConeOfCold reachable).
+    { name = "berserker_execute",   overrides = { stance = 3, target_hp = 8, ttd = 6, target_ttd = 6 } },
+    -- Recklessness (fury) refuses to fire below 20s TTD AND before 60s combat
+    -- without a major-CD window — needs berserker + LONG fight, not execute.
+    { name = "berserker_long",      overrides = { stance = 3, combat_time = 90, ttd = 60, target_ttd = 60 } },
+    { name = "defensive_low_self",  overrides = { stance = 2, hp = 15 } },
+    -- Close-out triage (2026-08-08, ranked #2): prot Disarm needs is_pvp
+    -- (ACTIONS requires_pvp) + disarm_class_ok (target:get_class() melee id
+    -- in DISARM_CLASS_IDS {1,2,4,7} — class 1 = warrior). The matcher's
+    -- on_burst trigger needs disarm_burst_name (via enemy_buffed), so we use
+    -- the cheaper `disarm_trigger = "always"` setting override instead — this
+    -- avoids enemy_buffed entirely, so no purge-buffed lane collateral (the
+    -- purge_buffed scenario keeps its exclusivity). target_class is only
+    -- applied here, so warlock ShadowWard (needs 5/9) and hunter ViperSting
+    -- middleware stay silent in every other scenario.
+    { name = "pvp_disarm", overrides = { is_pvp = true, target_class = 1, setting_overrides = { disarm_trigger = "always" } } },
+    -- Campaign ranked-(b) #1 (2026-08-08): warlock ShadowWard (affl + demo)
+    -- needs hp <= shadow_ward_hp (default 70) + a shadow-caster target class
+    -- in SHADOW_CASTER_CLASS_IDS {5,9} = Priest, Warlock
+    -- (shared/warlock_shadow_ward_sylvanas.lua pcall's target:get_class()
+    -- when enemy_shadow_caster is unset) + is_pvp for affliction's
+    -- use_group_aware gate (demo skips it). Reuses the pvp_disarm
+    -- target_class -> target:get_class() mechanism; class 9 is NOT in prot
+    -- DISARM_CLASS_IDS {1,2,4,7}, so Disarm stays blocked here, and hunter
+    -- ViperSting's string-class guard skips numeric ids.
+    { name = "shadow_caster", overrides = { is_pvp = true, target_class = 9, hp = 50, player_hp = 50 } },
+    -- Campaign follow-up (2026-08-08): shaman/enhancement TotemicCall. The
+    -- real get_position contract is a vec3 TABLE (verified vs auto_loot /
+    -- targeting / EaxESP), so the matcher's my_pos.x reads are CORRECT; the
+    -- battery path needs a totem present (totem_active -> get_totem_info
+    -- have_totem) + a distant totem object in the visible scan (totem_far ->
+    -- mock at 30,30 = 1800 sq > 400 yd-sq gate).
+    { name = "totem_far",     overrides = { totem_active = true, totem_far = true, visible_enemies = true } },
+    -- Close-out triage (2026-08-08, ranked #3): prot Intervene needs is_group
+    -- (protection:757) + is_pvp (warrior_intervene_pvp_only default true) + a
+    -- low-hp in-range ally via the party scan (state.lowest_allied from
+    -- get_party_members). The party stub presents the _friend(30, 5) ally only
+    -- here (party_low_ally flag), so no other spec's party reads change; the
+    -- me + ally get_position multi-value mocks satisfy the 25-yard range gate.
+    { name = "group_ally_low", overrides = { is_group = true, is_pvp = true, party_low_ally = true, friend_hp = 30 } },
+    -- Defensive-casting PvP (warrior/rogue triage 2026-08-08): prot Pummel +
+    -- SpellReflection read state.target_is_casting, which prot derives from
+    -- target:is_casting_spell() (wired in build_scenario_target — arms reads
+    -- ctx.target_is_casting, so only prot was blocked). SpellReflection's
+    -- ACTIONS metadata is requires_pvp = true, so the scenario carries is_pvp
+    -- (a tank reflecting under spell pressure); stance 2 + hp 15 mirror the
+    -- defensive_low_self family. The is_pvp + hp flags incidentally clear
+    -- rogue combat/subtlety Blind (hp 15 ≤ combat_blind_hp 40 / subtlety 35) —
+    -- the pvp_low_hp combo from the triage, same gate family, not a leak.
+    { name = "defensive_casting", overrides = { stance = 2, target_is_casting = true, hp = 15, player_hp = 15, is_pvp = true } },
+    { name = "rage_capped",         overrides = { rage = 100 } },
+    { name = "poison_stacks",       overrides = { debuff_stacks = 5, debuff_aura_ids = { 27187, 27186, 26968, 26967, 25349, 25347, 11356, 11355, 11354, 11353, 11352, 11351, 11350, 11349, 2819, 2837, 2818, 2835 }, buffs_up = true, combo_points = 5, energy = 60 } },
+    { name = "berserker_aoe",       overrides = { stance = 3, enemy_count = 4, enemies_count = 4 } },
+    -- Melee-range target: keeps me:get_distance-bound self-peel lanes reachable
+    -- (mage FrostNova / ConeOfCold need dist<=10 AND the AoE cone gate needs
+    -- enemy_count>=2, so this carries both).
+    { name = "target_melee",        overrides = { target_distance = 5, enemy_count = 3, enemies_count = 3 } },
+    -- Undead target (healer triage upgrade): creature-type 6 (undead) + 2
+    -- enemies. Unblocks the ShackleUndead x4 (priest), TurnEvil x2,
+    -- Exorcism + HolyWrath (prot), and Ret_HolyWrath_AoE lanes — all gate on
+    -- state.target_creature_type in DEMON_OR_UNDEAD {3,6}; the HolyWrath lanes
+    -- additionally need enemy_count >= 2. (Docs labeled this "classification=3";
+    -- the specs read get_creature_type, and undead is 6.)
+    { name = "undead_target",      overrides = { target_creature_type = 6, enemy_count = 2, enemies_count = 2, setting_overrides = { use_exorcism = true } } },
+    -- Multi-DoT spread (ranked #1): the PRIMARY target carries the DoTs
+    -- (debuff_remains_map → unit-aware debuff_up/debuff_remains) while the
+    -- second enemy is clean, so warlock find_dot_target / shadow
+    -- _find_multidot_target / balance _multidot_enemy_list pick the peer.
+    -- ttd 30 selects Curse of Agony in auto curse mode (select_curse: ttd < 60
+    -- → agony). balance spreads share this via balance_multidot_enabled.
+    { name = "multidot",         overrides = { enemy_count = 2, enemies_count = 2, target_hp = 60, ttd = 30, target_ttd = 30, debuff_remains_map = { [27216] = 8, [27218] = 8, [30405] = 8, [30911] = 8, [27215] = 8, [26988] = 8, [27013] = 8 }, setting_overrides = { balance_multidot_enabled = true } } },
+    -- shadow MultiDot maintenance (opt-in shadow_multidot_mode=2 via the
+    -- settings fixture) — primary has SW:P/VT, peer is clean.
+    { name = "shadow_multidot",  overrides = { enemy_count = 2, enemies_count = 2, target_hp = 60, debuff_remains_map = { [25368] = 8, [34917] = 8 }, setting_overrides = { shadow_multidot_mode = 2 } } },
+    -- shadow cleave-mode SW:P/VT spread (shadow_combat_mode="cleave" + 3
+    -- enemies — the Spread matchers require enemy_count >= 3).
+    { name = "shadow_cleave",    overrides = { enemy_count = 3, enemies_count = 3, target_hp = 60, debuff_remains_map = { [25368] = 8, [34917] = 8 }, setting_overrides = { shadow_combat_mode = "cleave" } } },
+    -- Low-mana Wand (ranked #3): warlock/affliction Wand fires only when mana
+    -- < 30 AND hp < 35 (Life Tap unsafe) AND in_combat — no prior scenario
+    -- combined all three. mana_pct 4 (< aff_wand_mana 30), hp 15 (<
+    -- LIFE_TAP_SAFETY_HP 35). hp 100 correctly keeps it blocked (prefer Life
+    -- Tap → Shadow Bolt), so the lane stays exclusive to this scenario.
+    { name = "wand_low_mana",   overrides = { mana_pct = 4, hp = 15 } },
+    -- AB-stack conserve (ranked #4): mage/arcane FrostboltConserve fires when
+    -- phase == conserve AND ab_stacks >= 3 AND ab_remains > cast_time (~1.0).
+    -- ab_stacks reads NS.debuff_stacks(me, ARCANE_BLAST_DEBUFF = {36032, 36033,
+    -- 36034}) → scenario debuff_stacks 4 + those aura ids (id-scoped so mage
+    -- AB stacks can't leak into rogue poison stacks); ab_remains reads
+    -- NS.debuff_remains → buffs_up fallback 20. mana_pct 15 keeps phase
+    -- conserve: with the ranked-#2 bank max_mana (15000), mtte_burn ≈ 14 ≥ 5
+    -- AND buffs_up=true sets bloodlust_active=true, whose burn-override needs
+    -- mana_pct >= 20 — 15 stays under both, so can_burn stays false and the
+    -- phase never flips to burn (mana 15 >= 10 also avoids the emergency
+    -- branch, and FrostboltConserve has no mana gate).
+    { name = "ab_stack_conserve", overrides = { mana_pct = 15, buffs_up = true, debuff_stacks = 4, debuff_aura_ids = { 36032, 36033, 36034 } } },
+    -- Battle-ready SnD (ranked #5): rogue/combat BladeFlurry needs Slice and
+    -- Dice up (SND_BUFF {6774, 5171}) while Blade Flurry itself is DOWN
+    -- (13877) — the map-aware ns.buff_up reads buff_remains_map so the two
+    -- are independently observable. 3 enemies satisfies the min_targets gate
+    -- (combat_blade_flurry_count default 1); cooldowns_enabled defaults true.
+    { name = "battle_ready",    overrides = { buff_remains_map = { [6774] = 20, [5171] = 20 }, enemy_count = 3, enemies_count = 3 } },
+    -- Settings-modeling (ranked #7): opt-in (a) lanes become observable by
+    -- flipping their spec settings via the ctx.settings merge above. Each key
+    -- is spec-scoped so shared scenarios never leak into other specs.
+    -- auto_dispel: druid balance/cat RemoveCurse (balance reads
+    -- ctx.settings.balance_auto_dispel DIRECTLY; cat via cat_auto_dispel).
+    { name = "auto_dispel",      overrides = { setting_overrides = { balance_auto_dispel = true, cat_auto_dispel = true } } },
+    -- blessings: retri Ret_BlessingKings_Self/Party (both default false); the
+    -- party lane's find_ally falls back to self in the battery (candidate_members
+    -- returns a number, not a table, so no party scan happens).
+    { name = "blessings",        overrides = { setting_overrides = { blessing_of_kings_self = true, blessing_of_kings_party = true } } },
+    -- Pre-classified (a) opt-in lanes (focused triage 2026-08-08, warrior/rogue
+    -- pass): each previously never-firing lane is gated on a spec setting PLUS
+    -- a state the battery's default context can't express. One scenario per
+    -- lane, keys spec-scoped so nothing leaks across specs.
+    -- fury Overpower: setting + BT/WW on CD (matcher delays when bt_cd/ww_cd
+    -- < 1.5 — default context has both at 0, so the lane could never fire even
+    -- with the setting flipped). on_cd ids are ACTION.Bloodthirst.ids[1]
+    -- (30335) and ACTION.Whirlwind (1680); Battle stance + rage 70 are the
+    -- defaults.
+    { name = "fury_overpower",  overrides = { setting_overrides = { fury_overpower_weave = true }, on_cd = { [30335] = 6, [1680] = 10 } } },
+    -- fury SwingDesync: setting + swing_until >= DESYNC_SLAM_WINDOW (1.6);
+    -- default swing 0.5 < 1.6 blocks it. 2.0 also clears the bt/ww reserve +
+    -- rage-cap windows (rage 70 default, no on_cd).
+    { name = "fury_swing_desync", overrides = { setting_overrides = { fury_swing_desync = true }, swing_until = 2.0 } },
+    -- kebab SunderMaintain: setting (read DIRECTLY from ctx.settings by
+    -- kebab's settings_for) + defensive stance (matcher requires
+    -- context.stance == DEFENSIVE; default battle 1 blocks it).
+    { name = "kebab_sunder",    overrides = { setting_overrides = { sunder_armor_mode = "maintain" }, stance = 2 } },
+    -- assn ColdBloodEnvenom: setting + SnD up + 5 deadly-poison stacks
+    -- (debuff_aura_ids scoped) + combo 5 / energy 60. SnD must be up while
+    -- Cold Blood is NOT (matcher: `if state.has_cold_blood then return false`)
+    -- — so the buff_remains_map carries ONLY the SnD ids (6774/5171) and
+    -- buffs_up stays false, otherwise Cold Blood looks already-active.
+    -- combat_blade_flurry_count = 99 keeps combat's BladeFlurry (whose gate
+    -- ALSO reads SnD up via the same 6774/5171 ids) exclusive to battle_ready
+    -- — target_count 1 < 99 blocks it here; assassin never reads that key.
+    { name = "cold_blood",      overrides = { setting_overrides = { assassin_cold_blood_auto = true, combat_blade_flurry_count = 99 }, buff_remains_map = { [6774] = 20, [5171] = 20 }, debuff_stacks = 5, debuff_aura_ids = { 27187, 27186, 26968, 26967, 25349, 25347, 11356, 11355, 11354, 11353, 11352, 11351, 11350, 11349, 2819, 2837, 2818, 2835 }, combo_points = 5, energy = 60 } },
+    -- assn ThistleTea: setting + energy <= 40 + combo <= 3 (energy_low shape;
+    -- the setting alone flips it on, verified match=true in energy_low).
+    { name = "thistle_tea",     overrides = { setting_overrides = { assassin_thistle_tea = true }, energy = 30, combo_points = 0 } },
+    -- hit_cap_deficit: the HitCapPriority lanes (combat/arms/fury — identical
+    -- matcher: state.hit_cap_rating_needed - context.hit_rating, fires when
+    -- the deficit exceeds 30) need a non-nil hit_rating. Caps: melee specs 142
+    -- (hunter_ranged/paladin_melee also 142); mage_caster is 202 — still
+    -- clears at rating 50 (deficit 152 > 30).
+    { name = "hit_cap_deficit", overrides = { hit_rating = 50 } },
+    -- mutilate_daggers: assassin Mutilate's has_daggers needs a dagger in BOTH
+    -- hands (assn:234-240 reads get_equipped_item_id for MAIN_HAND/OFF_HAND +
+    -- the is_dagger map). equipped_daggers=true makes the mock return 776 for
+    -- both slots; energy 90 default keeps energy_low false (cost 60 gate).
+    { name = "mutilate_daggers", overrides = { equipped_daggers = true } },
+    -- Remaining (a) opt-in gates (2026-08-08 close-out): four scenarios clear
+    -- the last 6 opt-in lanes. Keys are spec-scoped (arms reads
+    -- use_sunder_armor; fury reads sunder_mode; arms+prot read
+    -- use_commanding_shout; combat/subtlety read their own expose key).
+    -- arms SunderArmor ALSO needs DEFENSIVE stance (its build_action has
+    -- required_stance = STANCE.DEFENSIVE — battle-stance default blocks it
+    -- even with the setting); prot SunderArmor is unaffected (dev_ready gate,
+    -- no use_sunder_armor read).
+    { name = "arms_sunder",     overrides = { setting_overrides = { use_sunder_armor = true }, stance = 2 } },
+    -- fury SunderArmor: sunder_mode "maintain" (default "off" blocks;
+    -- "maintain" has no rage gate — the "low" branch requires rage >= 60,
+    -- which rage 70 would satisfy anyway; min_rage 15 build_action passes).
+    { name = "fury_sunder",     overrides = { setting_overrides = { sunder_mode = "maintain" } } },
+    -- CommandingShout x2: arms (matcher: setting + rage >= 10, battle stance
+    -- fine) and prot (DSL `{ type = "setting" }` condition — evaluated via
+    -- spec_kit.setting, which reads ctx.settings first; has_commanding_shout /
+    -- has_battle_shout falsy defaults + commanding_ready true all pass).
+    { name = "commanding_shout", overrides = { setting_overrides = { use_commanding_shout = true } } },
+    -- ExposeArmor x2: combat (expose_armor_ready true via spell_ready +
+    -- expose_assigned from combat_expose_assigned) + subtlety (setting + combo
+    -- 5 default >= 4 + ttd 60 default >= 20 + no sunder).
+    { name = "expose_armor",    overrides = { setting_overrides = { combat_expose_assigned = true, subtlety_expose_assigned = true } } },
+    -- Warlock opt-in fixture (ranked #11): the 9 CurseOf* lanes are gated on
+    -- select_curse() which only returns elements/recklessness/weakness when
+    -- warlock_curse_mode is set to that value (auto mode resolves to
+    -- agony/doom). One scenario per mode so each lane is observable; the mode
+    -- key is warlock-scoped so no other spec reads it. All 9 probe-verified
+    -- to fire with the mode override.
+    { name = "curse_mode_elements",     overrides = { setting_overrides = { warlock_curse_mode = "elements" } } },
+    { name = "curse_mode_recklessness", overrides = { setting_overrides = { warlock_curse_mode = "recklessness" } } },
+    { name = "curse_mode_weakness",     overrides = { setting_overrides = { warlock_curse_mode = "weakness" } } },
+    -- Warlock Healthstone (affl/demo/destro, shared warlock_healthstone
+    -- helper): the matcher gates on healthstone_hp > 0 AND hp <= threshold
+    -- (default 0 -> never). hp 25 + healthstone_hp 40 makes all three
+    -- observable; probe-verified. (low_self hp 15 already exists; this adds
+    -- the warlock-specific threshold setting.)
+    { name = "low_self_healthstone", overrides = { hp = 25, setting_overrides = { healthstone_hp = 40 } } },
+    -- High-threat context (ranked #12): Soulshatter (shared
+    -- warlock_soulshatter helper) gates on `(threat_pct or 0) >= 80` OR
+    -- `has_aggro`; priest Fade (threshold 80) and rogue Feint (90) are the
+    -- same threat-drop family and may legitimately clear too (realistic —
+    -- they were only invisible because the battery never set threat).
+    -- hunter FeignDeath reads state.threat_level via hunter_core, so it does
+    -- NOT clear from these ctx keys (verified below).
+    { name = "threat_high", overrides = { threat_pct = 95, threat_status = 3, has_aggro = true } },
+    -- Retri seal choice = "command" (seal_preference drives should_use_blood →
+    -- preferred_damage_seal): Ret_SealCommand_Primary fires when the Command
+    -- seal is ABSENT; Ret_HotC_Opener_Judge needs the Crusader seal up (map
+    -- 27158) with combat_time < 8 and no Crusader debuff on the target.
+    { name = "seal_command_apply", overrides = { setting_overrides = { seal_preference = "command" }, buff_remains_map = { [27158] = 5 }, combat_time = 3 } },
+    -- Command seal ACTIVE + a second melee enemy (context.enemies fixture):
+    -- Ret_JudgeSecondary_CommandCleave (swing in the judge band, mana >= 30).
+    { name = "seal_command_active", overrides = { setting_overrides = { seal_preference = "command" }, buff_remains_map = { [27170] = 5 }, swing_until = 0.9, enemy_count = 2, enemies_count = 2, mana_pct = 40 } },
+    -- Hunter toggles: AdaptiveRotation x3 (use_adaptive_rotation + the
+    -- NS.HunterAdaptive stub), Volley + ExplosiveTrap (use_volley /
+    -- use_explosive_trap; 4 enemies for the AoE gates).
+    { name = "hunter_toggles",   overrides = { setting_overrides = { use_adaptive_rotation = true, use_volley = true, use_explosive_trap = true }, enemy_count = 4, enemies_count = 4 } },
+    -- Arcane burn phase (ranked #2): the battery's get_max_power now returns
+    -- the bank max_mana (15000 default) so mage/arcane's burn phase is
+    -- mathematically reachable (mtte_burn ≈ 50.6 ≥ 5). can_burn additionally
+    -- needs available_mana ≥ burn_mana_needed = 760·ttd/1.5 = 30400 at ttd 60;
+    -- available = current_mana + (regen+49)·ttd/2 = 45000 + 1470 → the
+    -- scenarios drive current_mana via player_mana 45000 (base ctx defaults
+    -- player_mana 100 → available 1570 < 30400 → can_burn stays false in
+    -- every other scenario, so phase stays conserve there). ArcanePower
+    -- (12042) on cd makes PresenceOfMind's ap_on_cd sync gate pass; IcyVeins
+    -- NOT on cd so its own lane fires. Unblocks ArcanePower + PresenceOfMind
+    -- + IcyVeins. NOTE: kept LAST in SCENARIOS — arcane's build_state
+    -- mutates a module-level phase that carries across scenarios (real engine
+    -- semantics: phase is a state machine), so placing the burn scenarios
+    -- after hunter_toggles means no later scenario inherits a leaked burn
+    -- phase. (buffs_up scenarios like burst also reach burn via the
+    -- bloodlust_active override — realistic, not a leak.)
+    { name = "burn_ready",      overrides = { player_mana = 45000, mana_pct = 100, ttd = 60, target_ttd = 60, on_cd = { [12042] = 180 } } },
+    -- Burn + IcyVeins (12472) on cd > 3s: ColdSnapIVReset fires (its matcher
+    -- needs icy_veins_remains > 3 AND ColdSnap ready); IcyVeins itself
+    -- self-blocks here (its matcher requires IV not on cd), so each lane
+    -- stays exclusive to its own scenario.
+    { name = "burn_coldsnap",   overrides = { player_mana = 45000, mana_pct = 100, ttd = 60, target_ttd = 60, on_cd = { [12042] = 180, [12472] = 180 } } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -643,20 +1681,86 @@ local function _scenario_me(profile, ctx)
         if p == M.POWER.MANA then return ctx.player_mana or ctx.mana_pct or 100 end
         return 100
     end
+    -- Arcane burn phase (ranked #2): the battery previously hardwired
+    -- get_max_power to 100, so mage/arcane s.max_mana = 100 → mtte_burn ≈ 0.3
+    -- < 5 → should_conserve always true → phase could never become "burn" and
+    -- ArcanePower/PresenceOfMind/IcyVeins/ColdSnapIVReset could never fire.
+    -- Realistic 15000 pool (scenario-overridable via `max_mana`) makes the
+    -- burn phase reachable (mtte_burn ≈ 50.6 ≥ 5; can_burn needs a big
+    -- current_mana, driven by the burn scenarios' player_mana 45000).
+    -- Non-MANA power types (energy/rage/focus/combo) keep the legacy 100 so
+    -- cat's ENERGY_CAP read and warrior rage math are unchanged.
+    me.get_max_power = function(self, p)
+        if p == M.POWER.MANA then -- M.POWER.MANA == 0 (power type 0 = mana)
+            return ctx.max_mana or 15000
+        end
+        return 100
+    end
     me.is_casting = function(self) return ctx.me_casting == true end
     me.is_channeling = function(self) return ctx.me_casting == true end
+    -- Pet accessors (warlock specs read me:has_pet() / me:get_pet() directly;
+    -- the NS-level pet binding alone left the whole warlock pet lane invisible).
+    me.has_pet = function(self) return ctx.pet ~= nil and not (ctx.pet_dead == true) end
+    me.get_pet = function(self) return ctx.pet end
+    -- Range/stance reads bound to the scenario context (triage upgrade):
+    -- me:get_distance() reflects ctx.target_distance so gap/melee gates see a
+    -- realistic range instead of a hardwired 5 (unblocks mage Slow, makes
+    -- FrostNova/ConeOfCold range-gated); get_player_stance reflects ctx.stance
+    -- (warrior stance scenarios, druid form-as-stance).
+    me.get_distance = function(self, t) return ctx.target_distance or ctx.target_range or 5 end
+    me.get_player_stance = function(self) return ctx.stance or 0 end
+    me.get_stance = function(self) return ctx.stance or 0 end
     return me
 end
 
 -- Scenario-aware target clone: HP reflects target_hp, casting reflects
 -- target_is_casting, and get_target() reports the player (engaged target).
+-- In PvP scenarios the target IS a player unit (unlocks Shiv purge player
+-- checks, garrote/cheap-shot openers, PvP-only gates).
 local function build_scenario_target(ctx)
     local target = _target()
     target.get_health_percentage = function(self) return ctx.target_hp or 100 end
     target.get_health = function(self) return (ctx.target_hp or 100) * 100 end
     target.is_casting = function(self) return ctx.target_is_casting == true end
     target.is_channeling = function(self) return ctx.target_is_casting == true end
-    target.get_target = function(self) return ctx.me end
+    -- Defensive-casting (warrior/rogue triage 2026-08-08): prot build_state
+    -- derives state.target_is_casting from target:is_casting_spell()
+    -- (protection_sylvanas.lua:310) while arms reads ctx.target_is_casting —
+    -- that's why arms/fury Pummel fired in berserker_interrupt but prot
+    -- Pummel/SpellReflection never could. Wire the same ctx flag here (the
+    -- scenario target is built AFTER the overrides merge, so
+    -- ctx.target_is_casting is final). Only prot + warrior middleware read
+    -- is_casting_spell on the TARGET (affliction/demonology read the PET's,
+    -- which has no method — unaffected), so collateral is confined to prot.
+    target.is_casting_spell = function(self) return ctx.target_is_casting == true end
+    -- get_target() reports the player (engaged target) unless the scenario
+    -- overrides it: the elite_target/elite_taunt_cd scenarios set
+    -- target_get_target = false ("nobody is currently being attacked") so
+    -- Taunt's already-tanking gate passes (ranked #6). Default stays ctx.me.
+    target.get_target = function(self)
+        if ctx.target_get_target == false then return nil end
+        return ctx.target_get_target or ctx.me
+    end
+    target.is_player = function(self) return ctx.is_pvp == true end
+    -- get_class (close-out triage 2026-08-08): prot Disarm's disarm_class_ok
+    -- (protection:358) pcall's target:get_class() and needs a melee class id
+    -- in DISARM_CLASS_IDS {1,2,4,7}. Absent by default (mirrors the
+    -- friend_class pattern) so no other get_class consumer changes — warlock
+    -- ShadowWard wants {5,9}, and hunter ViperSting middleware only checks the
+    -- class when `type(class_key) == "string"` (numeric ids skip that guard),
+    -- so both stay untouched. Bonus: a future target_class = 5/9 scenario
+    -- would make warlock ShadowWard observable with zero new wiring.
+    if type(ctx.target_class) == "number" then
+        target.get_class = function(self) return ctx.target_class end
+    end
+    -- Creature type reflects the scenario (undead_target scenario sets 6) so
+    -- the ShackleUndead / TurnEvil / HolyWrath / Exorcism lanes are observable.
+    -- NOTE: undead is creature-type 6 (WoW enum), not 3 — 3 is DEMON; the
+    -- specs' DEMON_OR_UNDEAD / UNDEAD_OR_DEMON tables accept {3, 6}.
+    target.get_creature_type = function(self) return ctx.target_creature_type or 7 end
+    -- kebab build_state derives context.in_melee_range from target:is_in_melee_range();
+    -- without it the DemoShout/melee gates always read false in the battery.
+    target.is_in_melee_range = function(self) return (ctx.target_distance or ctx.target_range or 5) <= 5 end
     return target
 end
 
@@ -675,7 +1779,54 @@ function M.build_context_for(class_key, scenario)
         is_moving=true, is_stealthed=true, target_is_casting=true,
         stance=true, buffs_up=true, faction=true, pet_hp=true, pet_dead=true,
         lowest_hp=true, has_potions=true, friends_afflicted=true,
-        enemy_buffed=true, me_casting=true,
+        enemy_buffed=true, me_casting=true, on_cd=true, swing_until=true, afflicted=true,
+        form=true, target_distance=true, should_burst=true,
+        debuff_stacks=true, debuff_aura_ids=true, combat_time=true,
+        target_creature_type=true, enemies_casting=true, buff_remains_map=true,
+        debuff_remains_map=true, not_learned=true,
+        friend_class=true, setting_overrides=true,
+        fsr_inside=true, fsr_seconds=true, fsr_regen_delta=true, fsr_pause_ok=true,
+        -- Friendly-target context (ranked): friendly_target_hp presents a
+        -- friendly unit via NS.get_friendly_target_entry so the 5 healer
+        -- FriendlyTarget lanes (disc + holy priest, holy paladin, resto druid
+        -- + shaman) become observable; it is the unit's pct (must be < the 90
+        -- threshold). No separate boolean — the hp presence is the signal.
+        friendly_target_hp=true,
+        max_mana=true,
+        -- Threat context (ranked #12): high-threat scenarios make the threat-
+        -- drop lanes (Soulshatter, priest Fade, rogue Feint) observable. These
+        -- keys feed ctx.threat_pct / ctx.has_aggro / ctx.threat_status reads;
+        -- lanes like hunter FeignDeath read state.threat_level instead (via
+        -- hunter_core.should_feign_death) so they stay silent here.
+        -- threat_level is currently forward-looking (no battery lane reads
+        -- ctx.threat_level yet — hunter uses state.threat_level).
+        threat_pct=true, threat_status=true, has_aggro=true, threat_level=true,
+        -- Elite-target context (ranked #6): target_classification feeds the
+        -- smart-taunt matchers (warrior Taunt/TauntSecondary/MockingBlow,
+        -- paladin RighteousDefense, druid cat rip-elite gate); target_get_target
+        -- models an un-tanked target (false = nobody). visible_enemies is
+        -- consumed directly in build_context_for (mock unit list, not a scalar).
+        target_classification=true, target_get_target=true,
+        -- Close-out triage (2026-08-08): target_class feeds the scenario
+        -- target's get_class (prot Disarm disarm_class_ok gate); only prot
+        -- reads it, so it stays scoped.
+        target_class=true,
+        -- Close-out triage (2026-08-08, ranked #3): is_group drives prot
+        -- Intervene's group gate (protection:757) and party_low_ally presents
+        -- a low-hp ally through get_party_members so the party scan populates
+        -- lowest_allied. Both are prot-scoped reads.
+        is_group=true, party_low_ally=true, friend_hp=true,
+        -- Stat/weapon mocks (2026-08-08 focused triage): hit_rating feeds the
+        -- HitCapPriority matchers (combat/arms/fury read context.hit_rating and
+        -- gate on deficit = hit_cap_rating_needed - hit_rating > 30 — default
+        -- ctx has no rating so they could never fire); equipped_daggers feeds
+        -- the dagger mock above for assassin Mutilate.
+        hit_rating=true, equipped_daggers=true,
+        -- Totemic Call (2026-08-08): totem_active drives the
+        -- core.spell_book.get_totem_info stub (has_totem gate); totem_far
+        -- appends a distant totem mock to the visible-objects scan. Both are
+        -- shaman/enhancement-scoped reads.
+        totem_active=true, totem_far=true,
     }
     for k, v in pairs(overrides) do
         if k == "friends_hp" then
@@ -683,12 +1834,34 @@ function M.build_context_for(class_key, scenario)
         elseif k == "has_potions" then
             ctx.has_health_potion = true
             ctx.has_mana_potion = true
+            ctx.has_damage_potion = true
+            ctx.has_potions = true
         elseif known[k] then
             ctx[k] = v
         end
     end
+    -- Settings-modeling fixture (ranked #7): merge setting_overrides into
+    -- ctx.settings so ALL read channels see them — direct `ctx.settings[key]`
+    -- reads (balance RemoveCurse, hunter AdaptiveRotation via
+    -- NS.setting_bool), spec_kit.setting/setting_bool (context.settings is
+    -- FIRST in the resolution chain), and the DSL `{ type = "setting" }`
+    -- condition evaluator (spec_kit.setting). The scenario-aware
+    -- ns.get_setting/get_any_setting stubs remain the fallback for callers
+    -- that pass the ctx directly. Keys are spec-scoped, so an override never
+    -- leaks into another spec's gates.
+    if type(overrides.setting_overrides) == "table" then
+        for k, v in pairs(overrides.setting_overrides) do
+            ctx.settings[k] = v
+        end
+    end
+    if ctx.target_distance then ctx.target_range = ctx.target_distance end
     -- Warriors start in Battle Stance (1); stance scenarios flip it.
     if class_key == "warrior" and ctx.stance == 0 then ctx.stance = 1 end
+    -- Druids: stance IS form (bear=1, moonkin=2, cat=3, travel=4). Keep them
+    -- in sync so shared scenarios that set stance (e.g. aoe→1) can't make a
+    -- druid spec believe it is in bear form, and form scenarios actually flip
+    -- stance-based checks.
+    if class_key == "druid" then ctx.stance = ctx.form or 0 end
     -- Scenario-aware player + target
     ctx.me = _scenario_me(profile, ctx)
     ctx.target = build_scenario_target(ctx)
@@ -701,16 +1874,79 @@ function M.build_context_for(class_key, scenario)
         ctx.target_hp = 100
         ctx.range = 0
     end
-    -- Pets (hunter + warlock)
-    if profile.pet then
+    -- Secondary enemies (ranked #7): multi-enemy scenarios present the
+    -- target's peers so lanes that scan `context.enemies` (retri
+    -- find_secondary_enemy → Ret_JudgeSecondary_CommandCleave, multi-target
+    -- DoT-spread lanes) see a realistic enemy list instead of the empty
+    -- default. The clone is a fresh unit sharing the scenario's closures, so
+    -- `enemy ~= context.target` holds and distance/HP reads are scenario-true.
+    -- FOOTGUN: this fixture makes `enemies` non-empty in EVERY 2+ enemy
+    -- scenario (aoe, group_aoe, undead_target, hunter_toggles, ...). Lanes
+    -- that scan it will start firing battery-wide — the multi-DoT spread
+    -- lanes (shadow MultiDot*/balance *Spread) must stay silent until a
+    -- per-debuff afflictable-targets model exists; verify any future
+    -- enemies-scanning lane fires ONLY in its intended scenario.
+    if (ctx.enemy_count or ctx.enemies_count or 1) >= 2 then
+        ctx.enemies = { ctx.target, build_scenario_target(ctx) }
+    end
+
+    -- Warrior threat-scan mocks (ranked #6): TauntSecondary's no_threat_target
+    -- derives from the protection visible-objects scan (get_threat_targets,
+    -- fed by core.object_manager.get_visible_objects and throttled by
+    -- core.time — both stubbed in load_spec). Scenarios opt in via
+    -- `visible_enemies = true`. Mocks must be enemies of the player
+    -- (is_enemy_with → true) NOT currently targeting the player (get_target
+    -- nil — the _target base already returns nil) or the scan treats them as
+    -- already-tanked. No get_owner/get_position, so the shaman enhancement
+    -- totem-recall scan (which skips owner-less objects) is unaffected.
+    -- NOTE: TauntSecondary additionally requires prot_state.enemy_count >= 3
+    -- (from ctx.enemy_count), so a visible_enemies scenario must also set
+    -- enemy_count >= 3 — the two elite scenarios do (3).
+    if overrides.visible_enemies then
+        local count = ctx.enemy_count or ctx.enemies_count or 2
+        local list = {}
+        for i = 1, count do
+            local e = _target()
+            e.is_enemy_with = function() return true end
+            -- Real game objects always expose get_owner() (nil for units) —
+            -- the enh TotemicCall scan calls obj:get_owner() unconditionally
+            -- (enhancement_sylvanas.lua:1265), so owner-less mocks must
+            -- return nil here or the scan errors instead of skipping them.
+            e.get_owner = function() return nil end
+            list[i] = e
+        end
+        -- Totemic Call (campaign follow-up 2026-08-08): the enh totem-recall
+        -- scan (enhancement_sylvanas.lua:1225-1277) iterates visible objects,
+        -- keeps only those with get_owner() (summoned), and fires when one
+        -- sits beyond TOTEM_CALL_DISTANCE (20 yd -> 400 sq). Enemy mocks have
+        -- no get_owner (skipped); the totem_far flag appends a distant totem
+        -- at (30, 30) -> 1800 sq > 400 so the recall fires.
+        if overrides.totem_far then
+            list[#list + 1] = {
+                is_valid = function() return true end,
+                get_owner = function() return {} end,
+                get_position = function() return { x = 30, y = 30, z = 0, [1] = 30, [2] = 30 } end,
+            }
+        end
+        ctx.visible_enemies = list
+    end
+    -- Pets (hunter + warlock) — skipped when the scenario says the pet was
+    -- never summoned (no_pet) so Call Pet / summon lanes are reachable.
+    if profile.pet and not scenario.no_pet then
         local pet_hp = ctx.pet_hp or 100
         local pet = _target()
         pet.get_health_percentage = function(self) return pet_hp end
         pet.get_health = function(self) return pet_hp * 100 end
         pet.is_dead = function(self) return pet_hp <= 0 end
+        -- Warlock specs gate pet state on pet:is_alive(); without it the live
+        -- pet lane read pet_alive=false and pet_hp_pct=100 in every scenario.
+        pet.is_alive = function(self) return pet_hp > 0 end
         pet.get_distance = function(self) return 20 end
         ctx.pet = pet
         ctx.pet_dead = ctx.pet_dead == true or pet_hp <= 0
+    else
+        ctx.pet = nil
+        ctx.pet_dead = true
     end
     local is_healer = class_key == "priest" or class_key == "shaman"
         or class_key == "paladin" or class_key == "druid"
@@ -741,6 +1977,11 @@ end
 -- every match/state read reflects this scenario's realistic state.
 -- ---------------------------------------------------------------------------
 function M.apply_battery_state(ns, ctx, class_key)
+    -- Advance the scenario clock: module-level 1s scan caches (hunter_core pet
+    -- scan, purge delay cache, swing gates) must see a fresh timestamp per
+    -- scenario or they freeze on the first scenario's observations.
+    _battery_now = _battery_now + 2.0
+    ns._battery_now = _battery_now
     ns._battery = {
         power = {
             [M.POWER.MANA] = ctx.player_mana or ctx.mana_pct or 100,
@@ -756,7 +1997,87 @@ function M.apply_battery_state(ns, ctx, class_key)
         hp = ctx.hp or 100,
         mana_pct = ctx.mana_pct or 100,
         on_cd = ctx.on_cd,
+        in_combat = ctx.in_combat == true,
+        is_stealthed = ctx.is_stealthed == true,
+        target_is_casting = ctx.target_is_casting == true,
+        me_casting = ctx.me_casting == true,
+        swing_until = ctx.swing_until,
+        enemy_buffed = ctx.enemy_buffed == true,
+        friends_afflicted = ctx.friends_afflicted == true,
+        friends_hp = ctx.friends_hp,
+        afflicted = ctx.afflicted or {},
+        pet_hp = ctx.pet_hp or 100,
+        pet_dead = ctx.pet_dead == true,
+        has_potions = ctx.has_potions == true,
+        level = ctx.level or ctx.player_level or 70,
+        is_leveling = ctx.is_leveling == true,
+        debuff_stacks = ctx.debuff_stacks or 0,
+        debuff_aura_ids = ctx.debuff_aura_ids,
+        not_learned = ctx.not_learned,
+        target_creature_type = ctx.target_creature_type or 7,
+        buff_remains_map = ctx.buff_remains_map,
+        -- Multi-DoT spread model (ranked #1): the TSHelper stub returns this
+        -- enemy list, and debuff_up/debuff_remains consult the primary-target
+        -- dot map before the buffs_up fallback.
+        enemies = ctx.enemies,
+        primary_target = ctx.target,
+        debuff_remains_map = ctx.debuff_remains_map,
+        visible_enemies = ctx.visible_enemies,
+        friend_class = ctx.friend_class,
+        setting_overrides = ctx.setting_overrides,
+        -- Equipped-weapon mock (2026-08-08): the mutilate_daggers scenario's
+        -- equipped_daggers flag lands here so the get_equipped_item_id stub
+        -- (which reads _bstate) returns a dagger id for both hands → assn
+        -- has_daggers = true → Mutilate observable.
+        equipped_daggers = ctx.equipped_daggers == true,
+        -- Totemic Call (2026-08-08): ns.core.spell_book.get_totem_info reads
+        -- this bank key (enh cached the stub at load time); the totem_far
+        -- scenario sets it so the has_totem gate passes.
+        totem_active = ctx.totem_active == true,
+        fsr_inside = ctx.fsr_inside == true,
+        fsr_seconds = ctx.fsr_seconds or 0,
+        fsr_regen_delta = ctx.fsr_regen_delta or 0,
+        fsr_pause_ok = ctx.fsr_pause_ok == true,
+        -- Friendly-target context (2026-08-08): friendly_target_hp feeds
+        -- NS.get_friendly_target_entry so the healer FriendlyTarget lanes
+        -- (disc + holy priest, holy paladin, resto druid + shaman) get a
+        -- friendly unit below the 90 threshold. Keyed on the hp alone (no
+        -- boolean — avoids colliding with context.friendly_target-as-unit).
+        friendly_target_hp = ctx.friendly_target_hp,
     }
+    -- Party members: holy MassDispel (holy_sylvanas.lua:1031) scans
+    -- context.party_members for dangerous magic via Healing.has_dangerous_dispel.
+    -- Present the scenario's friends as the party when the group carries magic
+    -- affliction (the friends_afflicted scenario) so the scan finds a target;
+    -- other scenarios keep party_members empty so the matcher stays silent (and
+    -- ally-scanning paladin lanes keep their current battery behavior). Any
+    -- healer module's scan returns identical entries (same _heal_entries factory
+    -- + state bank), so ns.PriestHealing is just a convenient accessor.
+    local _afflicted_t = ctx.afflicted or {}
+    if _afflicted_t.magic == true then
+        local heal_mod = ns.PriestHealing
+        local entries = heal_mod and heal_mod.scan_healing_targets and heal_mod.scan_healing_targets()
+        if type(entries) == "table" then
+            ctx.party_members = {}
+            for i = 1, #entries do ctx.party_members[i] = entries[i].unit end
+        end
+    end
+    -- Scenario-aware unit_alive: pet reads reflect pet_dead so the dead-pet
+    -- lane (Revive Pet, Call Pet, Mend Pet suppression) is observable.
+    ns.unit_alive = function(unit)
+        if unit == ctx.pet then return not (ctx.pet_dead == true) end
+        return true
+    end
+    -- Enemy scan: priest pre_heal_matches gates on _check_pushback, which
+    -- iterates NS.GetEnemiesInRange looking for a casting enemy. Absent this
+    -- stub the scan is empty and PreHeal can never fire. Only the `pushback`
+    -- scenario presents a casting enemy; everything else stays empty so other
+    -- enemies-in-range consumers (fade fallback, defensive middleware) keep
+    -- their current battery behavior.
+    ns.GetEnemiesInRange = function(range)
+        if ctx.enemies_casting ~= true then return {} end
+        return { ctx.target }
+    end
     -- Pets (hunter + warlock)
     if ctx.pet ~= nil then
         ns.has_pet = function() return not (ctx.pet_dead == true) end
@@ -771,74 +2092,31 @@ function M.apply_battery_state(ns, ctx, class_key)
         ns.get_pet_hp = function() return 100 end
     end
     ns.has_health_potion = ctx.has_health_potion == true
-    -- Healers: bind healing scans to the current friend roster. Scans return
-    -- ENTRIES ({ unit, hp, effective_hp }) exactly like the live modules, so
-    -- the NS.healing_* rankers below produce a usable lowest/tank entry.
+    -- Heal-scan stubs live in build_ns and are driven by the state bank
+    -- (_bstate "friends_hp" / "afflicted"): only scenarios that SET friends_hp
+    -- (friends_damaged, me_casting, group_*, friends_afflicted) present injured
+    -- allies, so solo/healthy scenarios keep the idle-DPS lanes observable and
+    -- injured-group scenarios drive the *Heal/cleanse lanes. This replaces the
+    -- earlier always-injured scan (every healer scenario reported 55/70/85 hp
+    -- friends, which silenced every Idle*/Solo* DPS lane).
     local friends = ctx.friends or {}
-    local function heal_scan()
-        local ents = {}
-        for i, f in ipairs(friends) do
-            local hp = (type(f) == "table" and f.hp) or 100
-            ents[i] = {
-                unit = f,
-                hp = hp,
-                effective_hp = hp,
-                health_pct = hp,
-                has_renew = false,
-                has_buff = false,
-                has_poison = ctx.friends_afflicted == true,
-                has_disease = ctx.friends_afflicted == true,
-                has_magic = ctx.friends_afflicted == true,
-            }
-        end
-        return ents, #ents
+    -- NS-level party accessors fall back to the populated ctx.party_members
+    -- (holy MassDispel scans it) so both entry points see the same party.
+    local party = ctx.party_members or friends
+    -- Intervene close-out (2026-08-08, ranked #3): the group_ally_low scenario
+    -- presents one low-hp ally (30%, within range) through the party scan so
+    -- prot build_state (protection:428-449) populates state.lowest_allied —
+    -- the Intervene matcher needs is_group + a low-hp in-range ally. Only prot
+    -- reads get_party_members, so this stays scoped (priest middleware uses
+    -- NS.GetPartyMembers, a separate stub).
+    if ctx.party_low_ally == true then
+        party = { _friend(ctx.friend_hp or 30, 5) }
     end
-    local function lowest_entry(ents, _count, threshold)
-        local best = nil
-        for _, e in ipairs(ents or {}) do
-            local hp = (e and e.effective_hp) or (e and e.hp) or 100
-            if hp < (threshold or 92) then
-                if not best or hp < best.effective_hp then best = e end
-            end
-        end
-        return best
-    end
-    local function count_below(ents, _count, threshold)
-        local n = 0
-        for _, e in ipairs(ents or {}) do
-            if ((e and e.effective_hp) or (e and e.hp) or 100) < (threshold or 85) then n = n + 1 end
-        end
-        return n
-    end
-    if ns.PriestHealing then
-        ns.PriestHealing.scan_healing_targets = heal_scan
-        ns.PriestHealing.should_cast = function() return true end
-        ns.PriestHealing.healing_count_below_hp = count_below
-        ns.PriestHealing.healing_get_lowest_hp = function(entries, count, th) return lowest_entry(entries, count, th) end
-        ns.PriestHealing.healing_get_tank = function(entries, count) return entries and entries[1] end
-        ns.PriestHealing.count_subgroup_below_hp = function(th) return count_below(heal_scan()) end
-    end
-    if ns.PaladinHealing then
-        ns.PaladinHealing.scan_healing_targets = heal_scan
-        ns.PaladinHealing.should_cast = function() return true end
-    end
-    if ns.ShamanHealing then
-        ns.ShamanHealing.scan_healing_targets = heal_scan
-        ns.ShamanHealing.should_cast = function() return true end
-        ns.ShamanHealing.select_heal = function() return lowest_entry(heal_scan()) or { unit = nil, hp = 100 } end
-    end
-    if ns.DruidHealing then
-        ns.DruidHealing.scan_healing_targets = heal_scan
-        ns.DruidHealing.should_cast = function() return true end
-    end
+    ns.get_party_members = function() return party end
+    ns.party_members = function() return party end
     if ns.HealerDeficit then
         ns.HealerDeficit.deficit_of = function(u) return math.max(0, 100 - (u and u.hp or 100)) end
     end
-    ns.get_party_members = function() return friends end
-    ns.party_members = function() return friends end
-    ns.healing_count_below_hp = count_below
-    ns.healing_get_lowest_hp = function(e, c, th) return lowest_entry(e, c, th) end
-    ns.healing_get_tank = function(e, c) return e and e[1] end
 end
 
 -- ---------------------------------------------------------------------------
@@ -850,6 +2128,16 @@ function M.load_spec(class_key, spec_key)
     if not f then return nil, "missing file " .. path end
     f:close()
 
+    -- Seed binary-only game modules spec files require (present in the live
+    -- client but absent from this repo). Without this, hunter specs' item
+    -- lanes (Healthstone / potions / trinkets) silently read nil helpers and
+    -- the battery reports them never-firing even though they work in game.
+    package.loaded["common/utility/inventory_helper"] = {
+        has_item = function(id) return true end,
+        get_item_count = function(id) return 1 end,
+        is_item_ready = function(id) return true end,
+    }
+
     local ns = M.build_ns(class_key)
     _G.EaxRotations = ns
     local had_core = _G.core
@@ -857,9 +2145,40 @@ function M.load_spec(class_key, spec_key)
         spell_book = {
             get_totem_info = function() return nil end,
         },
+        -- Scenario-aware clock (ranked #6): protection's TauntSecondary threat
+        -- scan throttles on core.time(). Wire it to the advancing _battery_now
+        -- so the scan runs fresh per scenario instead of freezing on the first
+        -- (constant 0 previously → scan never ran → no_threat_target nil).
+        -- Module-level 1s caches (enhancement totem recall, aura_cache) now
+        -- re-evaluate per scenario; their battery results are constant (false
+        -- / empty), so never-lists are byte-identical and no exclusivity-pinned
+        -- lane's fires_in changed (all 12 battery regression tests green).
+        time = function() return _battery_now end,
+        object_manager = {
+            -- Visible enemies for the protection threat scan; empty everywhere
+            -- except the elite_target/elite_taunt_cd scenarios (which populate
+            -- ctx.visible_enemies). Other consumers (enhancement totem scan,
+            -- aura_probe get_local_player, auto_loot get_all_objects) are
+            -- pcall/owner-guarded and see {} / nil as before.
+            get_visible_objects = function() return ns._bstate("visible_enemies", {}) end,
+        },
     }
     local ok, result = pcall(dofile, path)
-    _G.core = had_core
+    -- Keep the stub installed when there was no pre-existing core: runtime
+    -- reads during dispatch (protection's threat-scan throttle calls
+    -- core.time() live) would otherwise see nil and freeze the scan at now=0,
+    -- leaving no_threat_target nil forever. Restore a caller-provided core if
+    -- one exists; otherwise leave the stub in place. The stub is benign
+    -- (spell_book.get_totem_info nil, get_visible_objects {} unless a scenario
+    -- sets visible_enemies) and the rotation runner snapshots/restores _G
+    -- between suites, so no sibling test sees it.
+    _G.core = had_core or _G.core
+    -- The FSR/TSHelper stubs are captured by the spec module at require()
+    -- time; restore the real modules for any later suite in the same process
+    -- (all tests share one dofile process).
+    package.loaded["shared/fsr_manager_sylvanas"] = nil
+    package.loaded["shared/ts_helper_sylvanas"] = nil
+    package.loaded["shared/stealth_helper_sylvanas"] = nil
     if not ok then
         return nil, tostring(result)
     end
@@ -897,18 +2216,28 @@ function M.run_spec(class_key, spec_key, scenarios)
         local state = ctx
         if build_state then
             local ok, st = pcall(build_state, ctx)
-            if ok and type(st) == "table" then state = st end
+            if not ok then
+                -- build_state crashes were silently swallowed (state fell back
+                -- to ctx); record them so the battery surfaces state-builder
+                -- runtime bugs, not just match() errors.
+                dispatch_errors[#dispatch_errors + 1] =
+                    "build_state@" .. sc.name .. ": " .. tostring(st)
+            elseif type(st) == "table" then
+                state = st
+            end
         end
-        -- Dispatcher semantics: first match that returns true wins (stop).
-        -- We record only the FIRST fired strategy per scenario (mirrors engine),
-        -- but ALSO count how many strategies match so coverage is meaningful.
+        -- Dispatcher semantics: the real engine fires on any TRUTHY matcher
+        -- return; the battery previously required `m == true`, which silently
+        -- hid strategies whose matchers return an object (hunter MM/survival
+        -- AdaptiveRotation return `c.target`). Truthy check mirrors the engine
+        -- and can only shrink the never-list (pinned lanes all return boolean).
         for _, s in ipairs(strategies) do
             if type(s) == "table" and type(s.name) == "string" and type(s.matches) == "function" then
                 local ok, m = pcall(s.matches, ctx, state)
                 if not ok then
                     dispatch_errors[#dispatch_errors + 1] =
                         (s.name or "?") .. "@" .. sc.name .. ": " .. tostring(m)
-                elseif m == true then
+                elseif m then
                     fired[s.name] = fired[s.name] + 1
                     fired_in[s.name][sc.name] = true
                 end

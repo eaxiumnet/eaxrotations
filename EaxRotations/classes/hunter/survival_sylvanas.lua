@@ -313,6 +313,9 @@ local function build_state(context)
     sv_state.volley_ready = target and spell_ready(ACTION.Volley, target) or false
     sv_state.readiness_ready = me and spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     sv_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me))
+    -- hp_pct was never assigned: Healthstone (hp<=28) and Deterrence (hp<=25)
+    -- matched against the 100 default forever, so both lanes were dead in live.
+    sv_state.hp_pct = context.hp or (me and NS.health_pct and NS.health_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count
     sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)

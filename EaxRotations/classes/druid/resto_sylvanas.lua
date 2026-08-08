@@ -148,6 +148,7 @@ local RESTO_SCHEMA = {
 local resto_state = {
  entries = nil,
  count = 0,
+ healthstone_ready = 0,
  tank = nil,
  lowest = nil,
  lowest_tank = nil,
@@ -492,6 +493,10 @@ local function build_state(context)
  end
  resto_state.is_group = context.is_group or false
  resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
+ -- Healthstone lane reads state.healthstone_ready; it was never assigned here
+ -- (only computed inside execute), so the gate `(.. or 0) > 0` stayed 0 and
+ -- the lane could never fire in live play.
+ resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
  local mana_conserve_pct = spec_kit.setting_number(context, "resto_mana_conserve_pct", MANA_CONSERVE_PCT)
  local mana_emergency_pct = spec_kit.setting_number(context, "resto_mana_emergency_pct", MANA_EMERGENCY_PCT)
  local mana_critical_pct = spec_kit.setting_number(context, "resto_mana_critical_pct", MANA_CRITICAL_PCT)

@@ -185,7 +185,11 @@ local TRACK_HUMANOIDS_BUFF = { 5225 }
 local WOLFSHEAD_BUFF = { 29940, 17770 }
 local WOLFSHEAD_HELM_ID = 8345
 local CLEARCASTING_COST_FLOOR = 0
-local STEALTH_PREVENT_TYPES = { ["Humanoid"] = true, ["Beast"] = true }
+-- Numeric creature-type IDs (matches the codebase convention, e.g.
+-- protection DEMON_OR_UNDEAD = { [3]=true, [6]=true }): 7=Humanoid, 1=Beast.
+-- Was string-keyed ("Humanoid"/"Beast") while get_creature_type() returns a
+-- number, so the lookup always missed and FaerieFireStealthLock never fired.
+local STEALTH_PREVENT_TYPES = { [7] = true, [1] = true }
 
 local cat_state = {
     now = 0,

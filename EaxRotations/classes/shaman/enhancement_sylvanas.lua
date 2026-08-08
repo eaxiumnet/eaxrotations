@@ -24,6 +24,11 @@ local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
+local _pm_ok, purge_manager = pcall(require, "shared/purge_manager_sylvanas")
+if not _pm_ok or type(purge_manager) ~= "table" then
+    purge_manager = { has_purgeable_buff = function() return false end, try_purge = function() return false end }
+end
+local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 -- spec_kit migration #21
@@ -1454,7 +1459,23 @@ local strategies = {
     -- 7b. Utility totems (fear break, spell absorb)
     { name = "TremorTotem", matches = tremor_totem_matches, execute = function(ctx) return NS.try_cast(TREMOR_TOTEM_SPELL, NS.PLAYER_UNIT, "[ENHANCEMENT] Tremor Totem") end },
     { name = "GroundingTotem", matches = grounding_totem_matches, execute = function(ctx) return NS.try_cast(ACTION.GroundingTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grounding Totem") end },
-    { name = "Purge", matches = function(ctx, s) return s.in_combat and s.target and NS.purge_should_cast and NS.purge_should_cast(s.target) end, execute = function(ctx, s) return NS.try_cast(ACTION.Purge, s.target, "[ENHANCEMENT] Purge") end },
+    -- Purge: mirrors the shaman middleware gate. Previously gated on
+    -- NS.purge_should_cast (never defined anywhere in the engine) AND on
+    -- s.target (build_state never sets a target field), so the lane was dead
+    -- in live play. Use the OffensiveDispelDB priority scan + purge_manager
+    -- flat list like middleware_sylvanas.lua does.
+    { name = "Purge", matches = function(ctx)
+        if not spec_kit.setting_bool(ctx, "use_purge", true) then return false end
+        if not ctx.target then return false end
+        local pvp_only = spec_kit.setting_bool(ctx, "purge_pvp_only", false)
+        if pvp_only == true and not (ctx.is_pvp or false) then return false end
+        if (ctx.mana_pct or 100) < spec_kit.setting_number(ctx, "purge_min_mana_pct", 20) then return false end
+        if OffensiveDispelDB and OffensiveDispelDB.find_best_dispel_target then
+            local _, priority = OffensiveDispelDB.find_best_dispel_target(ctx.target, NS)
+            if priority and priority >= OffensiveDispelDB.PRIORITY_HIGH then return true end
+        end
+        return purge_manager.has_purgeable_buff(ctx.target)
+    end, execute = function(ctx) return NS.try_cast(ACTION.Purge, ctx.target, "[ENHANCEMENT] Purge") end },
 
     -- v1.2.1: racials
     { name = "BloodFury", matches = blood_fury_matches, execute = function(ctx) return NS.try_cast({ 33697, 20572 }, NS.PLAYER_UNIT, "[ENHANCEMENT] Blood Fury", { skip_range = true }) end },

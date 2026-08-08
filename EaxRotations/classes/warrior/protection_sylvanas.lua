@@ -426,10 +426,16 @@ local function build_state(context)
  prot_state.lowest_allied = nil
  if prot_state.is_group and me then
   local party_scan = NS.get_party_members or NS.party_members
-  local me_pos_ok, me_x, me_y = pcall(function()
+  -- NOTE (2026-08-08): get_position returns ONE vec3 table {x,y,z} (with
+  -- [1]/[2] index aliases) — see shared/auto_loot + shared/targeting. The
+  -- previous pcall multi-capture (me_x, me_y) got me_x=table, me_y=nil and
+  -- silently skipped the whole scan in live play; read the table fields.
+  local me_pos_ok, me_pos = pcall(function()
    if me.get_position then return me:get_position() end
-   return nil, nil
+   return nil
   end)
+  local me_x = me_pos and (me_pos.x or me_pos[1]) or nil
+  local me_y = me_pos and (me_pos.y or me_pos[2]) or nil
   if party_scan and me_pos_ok and me_x and me_y then
    local members = party_scan(me, NS) or {}
    local best_ally = nil
@@ -439,10 +445,11 @@ local function build_state(context)
     if member and NS.not_same_unit(member, me) then
      local ok_hp, hp = pcall(function() return NS.unit_health_pct(member) end)
      if ok_hp and hp and hp < best_hp then
-      local ok_pos, ax, ay = pcall(function()
+      local ok_pos, apos = pcall(function()
        if member.get_position then return member:get_position() end
-       return nil, nil
+       return nil
       end)
+      local ax, ay = apos and (apos.x or apos[1]) or nil, apos and (apos.y or apos[2]) or nil
       if ok_pos and ax and ay then
        local ddx, ddy = me_x - ax, me_y - ay
        local dist_sq = ddx * ddx + ddy * ddy
@@ -764,8 +771,22 @@ local function intervene_matches_fn(context, state)
  if (ally.effective_hp or 100) > hp_threshold then return false end
  local me = context.me or (NS.GetPlayer and NS.GetPlayer())
  if not me then return false end
- local dx, dy = me.get_position and me:get_position()
- local ax, ay = ally.unit.get_position and ally.unit:get_position()
+ -- NOTE (2026-08-08): get_position returns ONE vec3 table {x,y,z} (with
+ -- [1]/[2] index aliases) — verified vs shared/auto_loot, shared/targeting
+ -- and EaxESP (base.x or base[1]). The ORIGINAL `local dx, dy =
+ -- me.get_position and me:get_position()` truncated to one value and deaded
+ -- this matcher in the battery; the follow-up multi-value capture ALSO deaded
+ -- it in live play (dy = nil against a table-returning API). Read the table
+ -- fields with an index fallback, keeping the existence guard.
+ -- Explicit existence guard (NOT the and-form): get_position returns a
+ -- single vec3 table, but the and-form truncates multi-value returns —
+ -- exactly the family of bug this NOTE is documenting.
+ local me_pos = nil
+ if me.get_position then me_pos = me:get_position() end
+ local dx, dy = me_pos and (me_pos.x or me_pos[1]), me_pos and (me_pos.y or me_pos[2])
+ local ally_pos = nil
+ if ally.unit.get_position then ally_pos = ally.unit:get_position() end
+ local ax, ay = ally_pos and (ally_pos.x or ally_pos[1]), ally_pos and (ally_pos.y or ally_pos[2])
  if not (dx and dy and ax and ay) then return false end
  local ddx, ddy = dx - ax, dy - ay
  if ddx*ddx + ddy*ddy > 625 then return false end

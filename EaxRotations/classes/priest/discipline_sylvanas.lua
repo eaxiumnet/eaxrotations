@@ -260,6 +260,11 @@ local function build_state(context)
   disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
  end
  disc_state.tank = NS.healing_get_tank(entries, count) or disc_state.lowest
+ -- PreemptiveHeal.match reads state.entries/state.count (shared/preemptive_heal_sylvanas).
+ -- Sibling specs (druid/resto, paladin/holy) store the scan; without it the
+ -- PreHeal/PreemptiveGreaterHeal lanes could never fire in live play either.
+ disc_state.entries = entries
+ disc_state.count = count
  disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, spec_kit.setting_number(context, "discipline_aoe_hp", 85))
  -- Subgroup count for Prayer of Healing: in raids, only count your own party
  -- Now uses core.party frames backed count for accuracy

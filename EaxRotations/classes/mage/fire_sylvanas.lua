@@ -97,6 +97,7 @@ local fire_state = {
     pyroblast_ready = false,
     combustion_ready = false,
     mana_pct = 100,
+    hp_pct = 100,
     mana_gem_available = false,
     remove_curse_ready = false,
     healthstone_ready = 0,
@@ -138,6 +139,10 @@ local function build_state(context)
     end
     fire_state.combustion_ready = NS.spell_ready(ACTION.Combustion, NS.PLAYER_UNIT, { skip_range = true })
     fire_state.mana_pct = context.mana_pct or 100
+    -- Dead-lane fix (battery triage 2026-08-07): hp_pct was never assigned, so
+    -- Healthstone (hp<=28), IceBarrier (hp<=60) and ManaShield (hp<=40) all
+    -- read the 100 default forever and could never fire in live play.
+    fire_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     fire_state.remove_curse_ready = NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
     fire_state.mana_gem_available = first_ready_mana_gem() ~= nil
     if target then

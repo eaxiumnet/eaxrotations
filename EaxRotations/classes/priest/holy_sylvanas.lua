@@ -264,6 +264,10 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
  context.hp = health_pct(NS.PLAYER_UNIT)
  context.mana_pct = context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
+ -- Mirror discipline (disc_state.mana_pct): the ManaPotion / rank-selection
+ -- gates read state.mana_pct, which was never assigned here — safe_state's
+ -- schema default (100) shadowed the real value and ManaPotion stayed dead.
+ holy_state.mana_pct = context.mana_pct or (player and NS.unit_mana_pct and NS.unit_mana_pct(player)) or 100
 
  if Healing.scan_healing_targets then
   local profile_key = "holy_scan_healing_targets"
@@ -332,6 +336,11 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
     end
    end
   end
+  -- PreemptiveHeal.match reads state.entries/state.count (shared/preemptive_heal_sylvanas).
+  -- Sibling specs (druid/resto, paladin/holy) store the scan; without it the
+  -- PreHeal/PreemptiveGreaterHeal lanes could never fire in live play either.
+  holy_state.entries = entries
+  holy_state.count = count
   if spec_kit.setting_bool(context, "debug_profile", false) then Profiler.stop(profile_key) end
  end
 

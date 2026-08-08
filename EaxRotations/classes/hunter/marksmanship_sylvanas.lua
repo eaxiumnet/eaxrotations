@@ -332,6 +332,9 @@ local function build_state(context)
     mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
     mm_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me))
+    -- hp_pct was never assigned: Healthstone (hp<=28) and Deterrence (hp<=25)
+    -- matched against the 100 default forever, so both lanes were dead in live.
+    mm_state.hp_pct = context.hp or (me and NS.health_pct and NS.health_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count
     mm_state.is_ooc = not mm_state.in_combat
@@ -475,7 +478,12 @@ local function viper_sting_matches(context, s)
 end
 
 local function bestial_wrath_matches(context, s)
-    return false
+    -- Bestial Wrath is a Beast-Mastery-tree talent: Marksmanship only has it
+    -- on mixed builds that actually spent points there. Gate on the spell
+    -- being known instead of a hardcoded false (which killed even mixed
+    -- builds and read as a dead lane in the battery triage).
+    if not (NS.spell_exists and NS.spell_exists(ACTION.BestialWrath)) then return false end
+    return true
 end
 
 local function readiness_matches(context, s)

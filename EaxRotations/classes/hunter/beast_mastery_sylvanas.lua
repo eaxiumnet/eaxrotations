@@ -316,6 +316,9 @@ local function build_state(context)
     state.in_combat = context.in_combat or false
     state.enemy_count = context.enemy_count or context.enemies_count
     state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me))
+    -- hp_pct was never assigned: Healthstone (hp<=28) and Deterrence (hp<=25)
+    -- matched against the 100 default forever, so both lanes were dead in live.
+    state.hp_pct = context.hp or (me and NS.health_pct and NS.health_pct(me)) or 100
     state.threat_level = context.threat_level or 0
 
     -- Pet state
