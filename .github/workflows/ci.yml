@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  verify-all:
+    name: Verify (luac + audits + battery + probe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Lua 5.1
+        # The game runtime is LuaJIT (~Lua 5.1); parse-gate with the same
+        # version the local pre-commit hook uses.
+        uses: leafo/gh-actions-lua@v12
+        with:
+          luaVersion: "5.1"
+
+      - name: Install LuaRocks
+        # Companion action to leafo/gh-actions-lua — auto-detects the Lua
+        # installation from the step above. v6 defaults to LuaRocks 3.13.0.
+        uses: leafo/gh-actions-luarocks@v6
+
+      - name: Install luafilesystem (lfs)
+        # Hard requirement: the clean-checkout dependency probe fails closed
+        # without lfs, and 4 rotation suites + the behavioral battery use it.
+        run: luarocks install luafilesystem
+
+      - name: luac -p syntax gate (all EaxRotations .lua)
+        # Mirrors pre-commit step [1/4] and run_all_checks.sh step [2/7].
+        # NOTE: self-contained on tracked files — tools/, AGENTS.md and .github/
+        # are untracked by design, so the workflow runs the tracked gate
+        # directly instead of shelling out to the local tools/ scripts.
+        run: |
+          find EaxRotations -name '*.lua' -print0 | while IFS= read -r -d '' f; do
+            luac -p "$f" || { echo "FAIL: luac -p $f"; exit 1; }
+          done
+
+      - name: verify_all matrix (rotation + leveling + WotLK tests + 4 audits + pinned-rank self-tests + behavioral battery + clean-checkout probe)
+        # Single entry point that fails only on *unexpected* failures: spawns
+        # every tracked runner (run_rotation_tests, run_leveling_tests,
+        # run_wotlk_tests, the sylvanas/vanilla-contamination/
+        # vanilla-existence/wotlk audits + their --self-test pinned-rank modes,
+        # behavioral_audit, and run_clean_checkout_probe) and parses each one's
+        # own totals. test_sod_source_audit self-provisions its gitignored
+        # .omo/evidence via the tracked generator, so no untracked inputs are
+        # needed on a clean checkout.
+        run: lua EaxRotations/tests/run_verify_all.lua
