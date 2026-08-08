@@ -42,6 +42,12 @@ jobs:
             luac -p "$f" || { echo "FAIL: luac -p $f"; exit 1; }
           done
 
+      - name: badge-drift check (README + PVP registered totals)
+        # Mirrors pre-commit step [4/4] and run_all_checks.sh step [5/7].
+        # tools/update_badges.lua is tracked; AGENTS.md is documented
+        # local-only, so the tool skips its section with a note when absent.
+        run: lua tools/update_badges.lua --check
+
       - name: verify_all matrix (rotation + leveling + WotLK tests + 4 audits + pinned-rank self-tests + behavioral battery + clean-checkout probe)
         # Single entry point that fails only on *unexpected* failures: spawns
         # every tracked runner (run_rotation_tests, run_leveling_tests,
