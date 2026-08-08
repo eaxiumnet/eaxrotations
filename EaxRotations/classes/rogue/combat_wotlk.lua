@@ -15,8 +15,8 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
-    SinisterStrike = define("SinisterStrike", { 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
-    Eviscerate = define("Eviscerate", { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    SinisterStrike = define("SinisterStrike", { 48638, 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
+    Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     BladeFlurry = define("BladeFlurry", 13877, "BladeFlurry"),
     KillingSpree = define("KillingSpree", 51690, "KillingSpree"),
 }

@@ -14,10 +14,10 @@ local SPELLS = NS.PriestSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    PowerWordShield = define("PowerWordShield", { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
+    PowerWordShield = define("PowerWordShield", { 48066, 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
     Penance = define("Penance", 47540, "Penance"),
     PrayerOfMending = define("PrayerofMending", 33076, "PrayerofMending"),
-    Renew = define("Renew", { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+    Renew = define("Renew", { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
 }
 
 local WEAKENED_SOUL_DEBUFF = { 6788 }

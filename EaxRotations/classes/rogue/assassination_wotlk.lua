@@ -16,9 +16,9 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     HungerForBlood = define("HungerForBlood", 51662, "HungerForBlood"),
-    Mutilate = define("Mutilate", { 34413, 34412, 34411, 1329 }, "Mutilate"),
-    Envenom = define("Envenom", { 32645, 32684 }, "Envenom"),
-    Rupture = define("Rupture", { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+    Mutilate = define("Mutilate", { 48666, 34413, 34412, 34411, 1329 }, "Mutilate"),
+    Envenom = define("Envenom", { 57993, 32645, 32684 }, "Envenom"),
+    Rupture = define("Rupture", { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
     TricksOfTheTrade = define("TricksOfTheTrade", 57934, "TricksOfTheTrade"),
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
 }

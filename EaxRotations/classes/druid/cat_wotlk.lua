@@ -16,13 +16,13 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     FaerieFireFeral = define("FaerieFireFeral", { 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
-    Ravage = define("Ravage", { 27005, 9867, 9866, 6787, 6785 }, "Ravage"),
-    MangleCat = define("MangleCat", { 33983, 33982, 33876 }, "MangleCat"),
-    Rake = define("Rake", { 27003, 9904, 1824, 1823, 1822 }, "Rake"),
-    Rip = define("Rip", { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
+    Ravage = define("Ravage", { 48579, 27005, 9867, 9866, 6787, 6785 }, "Ravage"),
+    MangleCat = define("MangleCat", { 48566, 33983, 33982, 33876 }, "MangleCat"),
+    Rake = define("Rake", { 48574, 27003, 9904, 1824, 1823, 1822 }, "Rake"),
+    Rip = define("Rip", { 49800, 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
     SavageRoar = define("SavageRoar", 52610, "SavageRoar"),
-    FerociousBite = define("FerociousBite", { 24248, 31018, 22829, 22828, 22827, 22568 }, "FerociousBite"),
-    Shred = define("Shred", { 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
+    FerociousBite = define("FerociousBite", { 48576, 24248, 31018, 22829, 22828, 22827, 22568 }, "FerociousBite"),
+    Shred = define("Shred", { 48572, 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
 }
 
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }

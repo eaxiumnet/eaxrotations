@@ -14,11 +14,11 @@ local SPELLS = NS.WarlockSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    Immolate = define("Immolate", { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+    Immolate = define("Immolate", { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
     ChaosBolt = define("ChaosBolt", 50796, "ChaosBolt"),
-    Incinerate = define("Incinerate", { 32231, 29722 }, "Incinerate"),
+    Incinerate = define("Incinerate", { 47838, 32231, 29722 }, "Incinerate"),
     Conflagrate = define("Conflagrate", { 30912, 27266, 18932, 18931, 18930, 17962 }, "Conflagrate"),
-    SoulFire = define("SoulFire", { 30545, 27211, 17924, 6353 }, "SoulFire"),
+    SoulFire = define("SoulFire", { 47825, 30545, 27211, 17924, 6353 }, "SoulFire"),
 }
 
 local IMMOLATE_CAST_TIME = type(ACTION.Immolate) == "table"

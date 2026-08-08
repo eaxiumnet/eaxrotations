@@ -15,7 +15,7 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     BeaconOfLight = define("BeaconOfLight", 53563, "BeaconOfLight"),
-    HolyShock = define("HolyShock", { 33074, 33073, 33072, 33071, 33070, 20473 }, "HolyShock"),
+    HolyShock = define("HolyShock", { 48821, 33074, 33073, 33072, 33071, 33070, 20473 }, "HolyShock"),
     -- FoL/HL ranks verified lexxer (removed FoL/HL mixups 1022-1025 HoP, 19993 invalid, HL IDs that are FoL).
     FlashOfLight = define("FlashOfLight", { 48785, 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
     HolyLight = define("HolyLight", { 48782, 27136, 27135, 25292, 10329, 10328, 3472, 1026, 647, 639, 635 }, "HolyLight"),

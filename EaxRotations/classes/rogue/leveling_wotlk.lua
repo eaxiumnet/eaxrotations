@@ -22,8 +22,8 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
-    SinisterStrike = define("SinisterStrike", { 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
-    Eviscerate = define("Eviscerate", { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    SinisterStrike = define("SinisterStrike", { 48638, 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
+    Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     -- WotLK max rank Rupture (48672) prepended over the TBC rank list.
     Rupture = define("Rupture", { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
     -- Fan of Knives (51723): WotLK physical AoE around the rogue (8yd, 50 energy).
@@ -31,7 +31,7 @@ local ACTION = {
     Gouge = define("Gouge", { 11286, 11285, 8629, 1777, 1776 }, "Gouge"),
     Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
     Stealth = define("Stealth", { 1787, 1786, 1785, 1784 }, "Stealth"),
-    Ambush = define("Ambush", { 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
+    Ambush = define("Ambush", { 48691, 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
 }
 
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }

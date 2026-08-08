@@ -22,14 +22,14 @@ local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     SealOfCommand = define("SealOfCommand", { 27170, 20920, 20919, 20918, 20915, 20375 }, "SealOfCommand"),
     SealOfVengeance = define("SealOfVengeance", 31801, "SealOfVengeance"),
-    SealOfRighteousness = define("SealOfRighteousness", 21084, "SealOfRighteousness"),
+    SealOfRighteousness = define("SealOfRighteousness", 25742, "SealOfRighteousness"),
     BlessingOfMight = define("BlessingOfMight", { 48932, 48931, 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }, "BlessingOfMight"),
     DevotionAura = define("DevotionAura", { 48942, 48941, 27149, 10293, 10292, 10291, 10290, 643, 465 }, "DevotionAura"),
     Judgement = define("Judgement", { 20271, 53407, 53408 }, "Judgement"),
     CrusaderStrike = define("CrusaderStrike", 35395, "CrusaderStrike"),
     DivineStorm = define("DivineStorm", 53385, "DivineStorm"),
     Consecration = define("Consecration", { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
-    HammerOfWrath = define("HammerOfWrath", { 48807, 27180, 24239, 24274, 24275 }, "HammerOfWrath"),
+    HammerOfWrath = define("HammerOfWrath", { 48806, 27180, 24239, 24274, 24275 }, "HammerOfWrath"),
 }
 
 local SEAL_OF_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }

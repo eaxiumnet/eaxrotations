@@ -14,10 +14,10 @@ local SPELLS = NS.PriestSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    Renew = define("Renew", { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+    Renew = define("Renew", { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
     PrayerOfMending = define("PrayerofMending", 33076, "PrayerofMending"),
-    FlashHeal = define("FlashHeal", { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
-    GreaterHeal = define("GreaterHeal", { 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
+    FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    GreaterHeal = define("GreaterHeal", { 48063, 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
     GuardianSpirit = define("GuardianSpirit", 47788, "GuardianSpirit"),
 }
 

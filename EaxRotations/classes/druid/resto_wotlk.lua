@@ -14,11 +14,11 @@ local SPELLS = NS.DruidSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    Rejuvenation = define("Rejuvenation", { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
+    Rejuvenation = define("Rejuvenation", { 48441, 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
     WildGrowth = define("WildGrowth", 48438, "WildGrowth"),
-    Regrowth = define("Regrowth", { 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }, "Regrowth"),
+    Regrowth = define("Regrowth", { 48443, 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }, "Regrowth"),
     Swiftmend = define("Swiftmend", 18562, "Swiftmend"),
-    Lifebloom = define("Lifebloom", 33763, "Lifebloom"),
+    Lifebloom = define("Lifebloom", { 48451, 33763 }, "Lifebloom"),
 }
 
 local REJUVENATION_BUFF = { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }

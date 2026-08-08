@@ -15,11 +15,11 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     MoonkinForm = define("MoonkinForm", 24858, "MoonkinForm"),
-    InsectSwarm = define("InsectSwarm", { 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
-    Moonfire = define("Moonfire", { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
+    InsectSwarm = define("InsectSwarm", { 48468, 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
+    Moonfire = define("Moonfire", { 48463, 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
     Starfall = define("Starfall", 48505, "Starfall"),
-    Wrath = define("Wrath", { 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
-    Starfire = define("Starfire", { 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
+    Wrath = define("Wrath", { 48461, 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
+    Starfire = define("Starfire", { 48465, 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
 }
 
 local MOONKIN_FORM_BUFF = { 24858 }

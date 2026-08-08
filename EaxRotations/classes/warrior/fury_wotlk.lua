@@ -22,7 +22,7 @@ local ACTION = {
     Bloodthirst = define("Bloodthirst", { 30335, 25251, 23894, 23893, 23892, 23881 }, "Bloodthirst"),
     Whirlwind = define("Whirlwind", 1680, "Whirlwind"),
     Slam = define("Slam", { 47475, 25242, 25241, 11605, 11604, 8820, 1464 }, "Slam"),
-    Execute = define("Execute", { 47498, 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
+    Execute = define("Execute", { 47471, 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
     DeathWish = define("DeathWish", { 12292, 12328 }, "DeathWish"),
     BattleShout = define("BattleShout", { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
 }

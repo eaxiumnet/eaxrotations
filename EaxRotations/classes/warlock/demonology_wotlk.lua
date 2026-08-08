@@ -15,10 +15,10 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     Metamorphosis = define("Metamorphosis", 47241, "Metamorphosis"),
-    Immolate = define("Immolate", { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
-    Corruption = define("Corruption", { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
-    ShadowBolt = define("ShadowBolt", { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
-    SoulFire = define("SoulFire", { 30545, 27211, 17924, 6353 }, "SoulFire"),
+    Immolate = define("Immolate", { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+    Corruption = define("Corruption", { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+    ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    SoulFire = define("SoulFire", { 47825, 30545, 27211, 17924, 6353 }, "SoulFire"),
 }
 
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }

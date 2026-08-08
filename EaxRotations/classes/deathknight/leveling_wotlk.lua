@@ -22,22 +22,22 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     IcyTouch = define("IcyTouch", { 49909, 49802, 49903, 49904, 49905, 49906 }, "IcyTouch"),
-    PlagueStrike = define("PlagueStrike", { 49922, 49917, 49918, 49919, 49920, 49921 }, "PlagueStrike"),
+    PlagueStrike = define("PlagueStrike", { 49921, 49917, 49918, 49919, 49920 }, "PlagueStrike"),
     -- Blood Strike ranks (lexxer): 45902 r1 … 49930 max. Removed invalid 49932/49931.
     BloodStrike = define("BloodStrike", { 49930, 49929, 49928, 49927, 49926, 45902 }, "BloodStrike"),
-    DeathStrike = define("DeathStrike", { 49998, 49999, 45463, 49924 }, "DeathStrike"),
-    HeartStrike = define("HeartStrike", { 55263, 55050, 55259, 55260, 55261, 55262 }, "HeartStrike"),
+    DeathStrike = define("DeathStrike", { 49999, 49998, 45463, 49924 }, "DeathStrike"),
+    HeartStrike = define("HeartStrike", { 55262, 55050, 55258, 55259, 55260, 55261 }, "HeartStrike"),
     Obliterate = define("Obliterate", { 51425, 49020, 51423, 51424 }, "Obliterate"),
     HowlingBlast = define("HowlingBlast", { 51411, 49184, 51209, 51210, 51211, 51212, 51409, 51410 }, "HowlingBlast"),
     ScourgeStrike = define("ScourgeStrike", { 55271, 55090, 55265, 55270 }, "ScourgeStrike"),
-    DeathCoil = define("DeathCoil", { 47541, 49892, 49893, 49894, 49895 }, "DeathCoil"),
+    DeathCoil = define("DeathCoil", { 49895, 47541, 49892, 49893, 49894 }, "DeathCoil"),
     HornOfWinter = define("HornOfWinter", { 57623, 57330 }, "HornOfWinter"),
     MindFreeze = define("MindFreeze", 47528, "MindFreeze"),
     BloodPresence = define("BloodPresence", 48266, "BloodPresence"),
     -- AoE + runic-power dump (verified vs class_sylvanas.lua rank lists).
     Pestilence = define("Pestilence", { 50842 }, "Pestilence"),
-    DeathAndDecay = define("DeathAndDecay", { 43265, 49936, 49937, 49938 }, "DeathAndDecay"),
-    BloodBoil = define("BloodBoil", { 48721, 49939, 49940, 49941 }, "BloodBoil"),
+    DeathAndDecay = define("DeathAndDecay", { 49938, 43265, 49936, 49937 }, "DeathAndDecay"),
+    BloodBoil = define("BloodBoil", { 49941, 48721, 49939, 49940 }, "BloodBoil"),
     RuneStrike = define("RuneStrike", { 56815 }, "RuneStrike"),
     EmpowerRuneWeapon = define("EmpowerRuneWeapon", 47568, "EmpowerRuneWeapon"),
 }

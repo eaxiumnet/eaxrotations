@@ -15,10 +15,10 @@ local SPELLS = NS.DruidSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    MangleBear = define("MangleBear", { 33987, 33986, 33878 }, "MangleBear"),
-    Lacerate = define("Lacerate", 33745, "Lacerate"),
-    SwipeBear = define("SwipeBear", { 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
-    Maul = define("Maul", { 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, "Maul"),
+    MangleBear = define("MangleBear", { 48564, 33987, 33986, 33878 }, "MangleBear"),
+    Lacerate = define("Lacerate", { 48568, 33745 }, "Lacerate"),
+    SwipeBear = define("SwipeBear", { 48562, 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
+    Maul = define("Maul", { 48480, 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, "Maul"),
     FeralFaerieFire = define("FaerieFireFeral", { 27011, 17392, 17391, 17390, 16857 }, "FeralFaerieFire"),
 }
 

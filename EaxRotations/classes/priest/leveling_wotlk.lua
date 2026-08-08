@@ -19,11 +19,11 @@ local ACTION = {
     PowerWordShield = define("PowerWordShield", { 48066, 48065, 25218, 25217, 10901, 10900, 600, 592, 548, 17 }, "PowerWordShield"),
     Shadowform = define("Shadowform", 15473, "Shadowform"),
     ShadowWordPain = define("ShadowWordPain", { 48125, 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
-    MindBlast = define("MindBlast", { 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
-    MindFlay = define("MindFlay", { 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
-    Smite = define("Smite", { 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
+    MindBlast = define("MindBlast", { 48127, 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
+    MindFlay = define("MindFlay", { 48156, 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
+    Smite = define("Smite", { 48123, 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
     Penance = define("Penance", 47540, "Penance"),
-    FlashHeal = define("FlashHeal", { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
     Shoot = define("Shoot", 5019, "Shoot"),
 }
 

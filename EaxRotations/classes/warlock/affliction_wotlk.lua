@@ -14,12 +14,12 @@ local SPELLS = NS.WarlockSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    UnstableAffliction = define("UnstableAffliction", { 30405, 30404, 30108 }, "UnstableAffliction"),
-    Haunt = define("Haunt", 48181, "Haunt"),
-    Corruption = define("Corruption", { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
-    CurseOfAgony = define("CurseOfAgony", { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
-    DrainSoul = define("DrainSoul", { 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
-    ShadowBolt = define("ShadowBolt", { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    UnstableAffliction = define("UnstableAffliction", { 47843, 30405, 30404, 30108 }, "UnstableAffliction"),
+    Haunt = define("Haunt", { 59164, 48181 }, "Haunt"),
+    Corruption = define("Corruption", { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+    CurseOfAgony = define("CurseOfAgony", { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    DrainSoul = define("DrainSoul", { 47855, 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
+    ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
 }
 
 local UNSTABLE_AFFLICTION_DEBUFF = { 30405, 30404, 30108 }

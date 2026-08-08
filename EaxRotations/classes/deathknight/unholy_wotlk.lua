@@ -26,15 +26,15 @@ local SPELLS = NS.DeathKnightSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    IcyTouch          = define("IcyTouch",          { 45477, 49903, 49904, 49909 }, "IcyTouch"),
-    PlagueStrike      = define("PlagueStrike",      { 49917, 49918, 49919, 49920, 49921 }, "PlagueStrike"),
-    ScourgeStrike     = define("ScourgeStrike",     { 55090, 55265, 55270, 55271 }, "ScourgeStrike"),
-    BloodStrike       = define("BloodStrike",       { 45902, 49926, 49927, 49928, 49929, 49930 }, "BloodStrike"),
-    DeathCoil         = define("DeathCoil",         { 47541, 49892, 49893, 49894, 49895 }, "DeathCoil"),
+    IcyTouch          = define("IcyTouch",          { 49909, 45477, 49903, 49904 }, "IcyTouch"),
+    PlagueStrike      = define("PlagueStrike",      { 49921, 49917, 49918, 49919, 49920 }, "PlagueStrike"),
+    ScourgeStrike     = define("ScourgeStrike",     { 55271, 55090, 55265, 55270 }, "ScourgeStrike"),
+    BloodStrike       = define("BloodStrike",       { 49930, 45902, 49926, 49927, 49928, 49929 }, "BloodStrike"),
+    DeathCoil         = define("DeathCoil",         { 49895, 47541, 49892, 49893, 49894 }, "DeathCoil"),
     Pestilence        = define("Pestilence",        { 50842 }, "Pestilence"),
-    DeathAndDecay     = define("DeathAndDecay",     { 43265, 49936, 49937, 49938 }, "DeathAndDecay"),
+    DeathAndDecay     = define("DeathAndDecay",     { 49938, 43265, 49936, 49937 }, "DeathAndDecay"),
     SummonGargoyle    = define("SummonGargoyle",    49206, "SummonGargoyle"),
-    HornOfWinter      = define("HornOfWinter",      { 57330, 57623 }, "HornOfWinter"),
+    HornOfWinter      = define("HornOfWinter",      { 57623, 57330 }, "HornOfWinter"),
     EmpowerRuneWeapon = define("EmpowerRuneWeapon", 47568, "EmpowerRuneWeapon"),
     BoneShield        = define("BoneShield",        49222, "BoneShield"),
     RaiseDead         = define("RaiseDead",         46584, "RaiseDead"),
@@ -45,7 +45,7 @@ local ACTION = {
 
 local FROST_FEVER         = { 55095 }
 local BLOOD_PLAGUE        = { 55078 }
-local HORN_OF_WINTER_BUFF = { 57330, 57623 }
+local HORN_OF_WINTER_BUFF = { 57623, 57330 }
 local BONE_SHIELD_BUFF    = { 49222 }
 
 local unholy_state = {

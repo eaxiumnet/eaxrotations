@@ -17,11 +17,11 @@ local SPELLS = NS.PriestSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    VampiricTouch = define("VampiricTouch", { 34917, 34916, 34914 }, "VampiricTouch"),
-    ShadowWordPain = define("ShadowWordPain", { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
-    DevouringPlague = define("DevouringPlague", { 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
-    MindBlast = define("MindBlast", { 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
-    MindFlay = define("MindFlay", { 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
+    VampiricTouch = define("VampiricTouch", { 48160, 34917, 34916, 34914 }, "VampiricTouch"),
+    ShadowWordPain = define("ShadowWordPain", { 48125, 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
+    DevouringPlague = define("DevouringPlague", { 48300, 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
+    MindBlast = define("MindBlast", { 48127, 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
+    MindFlay = define("MindFlay", { 48156, 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
 }
 
 local VAMPIRIC_TOUCH_DEBUFF = { 34917, 34916, 34914 }

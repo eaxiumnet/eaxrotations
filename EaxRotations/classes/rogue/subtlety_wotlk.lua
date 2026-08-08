@@ -16,9 +16,9 @@ local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     Premeditation = define("Premeditation", 14183, "Premeditation"),
     ShadowDance = define("ShadowDance", 51713, "ShadowDance"),
-    Ambush = define("Ambush", { 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
-    Backstab = define("Backstab", { 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
-    Eviscerate = define("Eviscerate", { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    Ambush = define("Ambush", { 48691, 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
+    Backstab = define("Backstab", { 48657, 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
+    Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
 }
 
 local SHADOW_DANCE_BUFF = { 51713 }

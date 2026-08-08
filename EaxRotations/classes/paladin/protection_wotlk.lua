@@ -15,7 +15,10 @@ local SPELLS = NS.PaladinSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    AvengersShield = define("AvengersShield", { 48827, 48999, 48826, 32700, 32699, 31935 }, "AvengersShield"),
+    -- 48999 removed (2026-08-08): wowhead WotLK Classic spell=48999 is Warrior
+    -- Counterattack, NOT Avenger's Shield — a rank-list typo (see
+    -- tests/run_wotlk_audit_tests.lua WOTLK_REJECTED_IDS).
+    AvengersShield = define("AvengersShield", { 48827, 48826, 32700, 32699, 31935 }, "AvengersShield"),
     HammerOfTheRighteous = define("HammerOfTheRighteous", 53595, "HammerOfTheRighteous"),
     ShieldOfRighteousness = define("ShieldOfRighteousness", { 53600, 61411 }, "ShieldOfRighteousness"),
     Consecration = define("Consecration", { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
