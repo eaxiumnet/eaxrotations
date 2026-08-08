@@ -177,7 +177,7 @@ Verified PvP-related test files:
 | `test_interrupt_spec_integration.lua` | Per-spec interrupt wiring |
 | `test_shadow_silence_interrupt.lua` | Priest Silence interrupt |
 
-Total: 219 rotation tests, 13 leveling tests (all passing as of v2.3.1).
+Total: 469 rotation suites + 33 leveling suites registered (461/466 passing at runtime; 5 env/pre-existing data-file gaps).
 
 ---
 
@@ -251,4 +251,4 @@ Ranked by impact. Highest = most noticeable in arena/battleground performance.
 
 ---
 
-EaxRotations v2.3.1 — CC-BY-4.0 License — Built for TBC Classic Anniversary
+EaxRotations v2.19.0 — CC-BY-4.0 License — Built for TBC Classic Anniversary
