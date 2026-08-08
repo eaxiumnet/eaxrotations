@@ -120,9 +120,6 @@ end
 -- Uses NS.has_dispel_type_debuff when available; falls back to manual scan.
 local DANGEROUS_MAGIC_DEBUFF_IDS = {
     12826 -- Polymorph
-    , 61305 -- Polymorph (Black Cat)
-    , 61721 -- Polymorph (Rabbit)
-    , 61780 -- Polymorph (Turkey)
     , 26373 -- Hibernate
     , 19386 -- Wyvern Sting
     , 14326 -- Sleep

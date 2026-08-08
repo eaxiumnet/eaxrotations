@@ -1,8 +1,8 @@
 -- cat_sylvanas.lua — Druid Feral Cat (melee DPS) rotation for TBC Anniversary (2.5.5).
 -- WHAT:  cat-form DPS rotation (Rake / Shred builders, Rip FB bite-window gating,
---         Mangle + SR cycle, Berserk / Tiger's Fury cooldowns, Powershift).
+--         Mangle + SR cycle, Tiger's Fury cooldowns, Powershift).
 -- WHEN:  combat, in cat form, energy and target valid.
--- WHY:   mirrors wowsims/tbc-new feralcat APL + Icy Veins/Wowhead TBC Feral: maintain Mangle + SR, Rip at 5CP long TTD, FB otherwise, Mangle/Shred builder, powershift, Berserk/TF CDs.
+-- WHY:   mirrors wowsims/tbc-new feralcat APL + Icy Veins/Wowhead TBC Feral: maintain Mangle + SR, Rip at 5CP long TTD, FB otherwise, Mangle/Shred builder, powershift, TF CDs.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update allocs.
 --          snapshot_sylvanas handles Rip / Rake snapshot capture.
 
@@ -107,7 +107,6 @@ local ACTION = {
     Rip             = define("Rip",             { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
     Shred           = define("Shred",           { 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
     TigersFury      = define("TigersFury",      { 9846, 9845, 6793, 5217 }, "TigersFury"),
-    Berserk         = define("Berserk",         { 50334 }, "Berserk"),  -- TBC Anniv cat Berserk for burst (aligns with SimC/wowsims during BL/high windows)
     TrackHumanoids  = define("TrackHumanoids",  { 5225 }, "TrackHumanoids"),
     TravelForm      = define("TravelForm",      { 783 }, "TravelForm"),
 }
@@ -165,7 +164,6 @@ local POUNCE_DEBUFF = { 27006, 9827, 9005 }
 local MAIM_DEBUFF = { 22570 }
 local OMEN_OF_CLARITY_BUFF = { 16864 }
 local TIGERS_FURY_BUFF = { 9846, 9845, 6793, 5217 }
-local BERSERK_BUFF = { 50334 }
 local DASH_BUFF = { 33357, 9821, 1850 }
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 
@@ -220,7 +218,6 @@ local cat_state = {
     has_track_humanoids = false,
     has_wolfshead = false,
     has_bloodlust = false,
-    has_berserk = false,
     rip_remains = 0,
     rake_remains = 0,
     mangle_remains = 0,
@@ -296,7 +293,6 @@ local CAT_SCHEMA = {
     has_track_humanoids = false,
     has_wolfshead = false,
     has_bloodlust = false,
-    has_berserk = false,
     rip_remains = 0,
     rake_remains = 0,
     mangle_remains = 0,
@@ -732,7 +728,6 @@ build_state = function(context)
     state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
     state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or spec_kit.setting_bool(context, "cat_wolfshead_helm", false)
     state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
-    state.has_berserk = NS.buff_up(me, BERSERK_BUFF) or false
     state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
     state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
     state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
@@ -1278,16 +1273,6 @@ local function claw_matches(context, action)
     return true
 end
 
-local function berserk_matches(context, action)
-    local state = build_state(context)
-    if not state.target then return false end
-    if state.has_berserk then return false end
-    if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
-    -- Align with sources (SimC/wowsims/icyveins): use during burst windows (BL, high AP, or pull) for max value
-    if state.has_bloodlust or state.should_burst or (state.combat_time or 0) < 5 then return true end
-    return false
-end
-
 local function powershift_matches(context, action)
     local state = build_state(context)
     if not state.should_powershift then return false end
@@ -1365,7 +1350,6 @@ local ACTIONS = {
     { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
 
     { name = "TigersFury", spell = ACTION.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = function() return false end },
-    { name = "Berserk", spell = ACTION.Berserk, target = "self", required_form = "cat", requires_target = false, cooldown = 180, matches = berserk_matches },
     { name = "Powershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = powershift_matches },
     { name = "EmergencyPowershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = emergency_powershift_matches },
 
