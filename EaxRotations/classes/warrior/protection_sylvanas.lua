@@ -968,8 +968,8 @@ local ACTIONS = {
     { name = "TauntSecondary",        requires_in_combat = true },
     { name = "MockingBlow",           requires_in_combat = true },
     { name = "ChallengingShout",        requires_in_combat = true, requires_target = false, min_enemies = 3 },
-    { name = "DemoralizingShout",     requires_in_combat = true, requires_target = false },
     { name = "ThunderClap",           requires_in_combat = true, requires_target = false },
+    { name = "DemoralizingShout",     requires_in_combat = true, requires_target = false },
     { name = "Devastate",             requires_in_combat = true },
     { name = "SunderArmor",           requires_in_combat = true },
     { name = "Execute",               requires_in_combat = true },
@@ -1144,20 +1144,21 @@ local strategies = {
   end,
  },
 
- -- 4b) Survival debuff upkeep (TBC guide: Demo Shout + Thunder Clap "always
- -- up", placed above Devastate filler -- ~18% dmg cut + ~20% atk-speed slow).
- {
-  name = "DemoralizingShout",
-  matches = function(context, state) return demo_shout_matches_fn(context, state) end,
-  execute = function(context)
-   return NS.try_cast(ACTION.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
-  end,
- },
+ -- 4b) Survival debuff upkeep (wowsims/tbc protection dispatch: Thunder Clap
+ -- checked BEFORE Demo Shout; both placed above Devastate filler -- ~18% dmg
+ -- cut + ~20% atk-speed slow).
  {
   name = "ThunderClap",
   matches = function(context, state) return thunderclap_matches_fn(context, state) end,
   execute = function(context)
    return NS.try_cast(ACTION.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { skip_range = true, expected_cooldown = THUNDERCLAP_CD })
+  end,
+ },
+ {
+  name = "DemoralizingShout",
+  matches = function(context, state) return demo_shout_matches_fn(context, state) end,
+  execute = function(context)
+   return NS.try_cast(ACTION.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
   end,
  },
  -- 5) Sunder / Devastate stack maintenance

@@ -107,6 +107,10 @@ for _, e in ipairs(manifest.ENTRIES) do
     -- typo'd name is weaker than intended (that name is silently skipped by
     -- check_name_order). Requiring all-of-them keeps the pin provably live.
     if e.reference_names then
+        test(e.key .. ": reference_names pin is non-empty", function()
+            assert_true(#e.reference_names > 0,
+                e.key .. ": reference_names must not be empty (tests nothing)")
+        end)
         test(e.key .. ": reference_names pin matches ALL real strategies", function()
             local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
             local names = manifest.strategy_names(strategies)

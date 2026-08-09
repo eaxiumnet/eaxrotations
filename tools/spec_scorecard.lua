@@ -579,7 +579,8 @@ for _, k in ipairs(apl_keys) do
         or (k == 'tbc/fury' and 'Go: sim/warrior_dps_rotation.go')
         or (k == 'tbc/bear' and 'Go: sim/druid_tank_rotation.go')
         or (k == 'tbc/paladin/protection' and 'Go: sim/paladin_protection_rotation.go')
-        or (k == 'tbc/warrior/protection' and 'Go: sim/warrior_dps_rotation.go') or '-'
+        or (k == 'tbc/warrior/protection' and 'Go: sim/warrior/protection/rotation.go')
+        or (k == 'tbc/caster' and 'Go: sim/druid/balance/rotation.go (damage-chain subset)') or '-'
     add('| ' .. k .. ' | ' .. fixture .. ' | ' .. APL_STATUS[k] .. ' | '
         .. tostring(APL_EVIDENCE[k] or '-') .. ' |')
 end

@@ -637,18 +637,43 @@ M.ENTRIES = {
         },
         reference_names = { "HolyShield", "Consecration", "Judgement", "SealRighteousness", "Exorcism" },
     },
-    -- warrior protection: sim/warrior_dps_rotation.go normalRotation casts
-    -- ShieldSlam as the prot priority, then tryMaintainDebuffs applies
-    -- Devastate/SunderArmor (Revenge is not modeled by the sim — excluded).
+    -- warrior protection: DEDICATED sim/warrior/protection/rotation.go
+    -- doRotation: ShieldSlam -> Bloodthirst -> MortalStrike -> Revenge ->
+    -- Shout -> ThunderClap -> DemoShout -> Devastate -> SunderArmor.
+    -- (Corrected 2026-08-09: the earlier pin cited sim/warrior_dps_rotation.go
+    -- and claimed "Revenge is not modeled by the sim" — WRONG; the dedicated
+    -- protection file DOES model Revenge. Bloodthirst/MortalStrike are
+    -- arms/fury talents absent from the prot rotation. Shout (Battle Shout) is
+    -- a buff-maintenance lane our rotation places far below the sim's mid-chain
+    -- check — excluded with that honest reason. ThunderClap is checked before
+    -- DemoShout in the dispatch; our ACTIONS table was REVERSED and is now
+    -- reordered to match (pure order move, 2026-08-09) so both are pinnable.)
     {
         key = "tbc/warrior/protection",
         class_id = 1,
         spec_file = "EaxRotations/classes/warrior/protection_sylvanas.lua",
         spells = "WarriorSpells",
         actions = {
-            ShieldSlam = 30356, Devastate = 30022, SunderArmor = 25225,
+            ShieldSlam = 30356, Revenge = 30357, ThunderClap = 25264,
+            DemoralizingShout = 25203, Devastate = 30022, SunderArmor = 25225,
         },
-        reference_names = { "ShieldSlam", "Devastate", "SunderArmor" },
+        reference_names = { "ShieldSlam", "Revenge", "ThunderClap", "DemoralizingShout", "Devastate", "SunderArmor" },
+    },
+    -- druid caster: solo/leveling Moonfire/Wrath rotation (no wowsims "caster"
+    -- preset exists — the only druid caster dispatch is the balance moonkin
+    -- rotation). Pin the damage chain shared with the balance Go dispatch
+    -- (FaerieFire -> Moonfire -> primary filler): Hurricane/InsectSwarm/Starfire
+    -- are the raid branches the leveling rotation deliberately omits, and
+    -- Barkskin/Thorns/Innervate are defensives excluded like potions.
+    {
+        key = "tbc/caster",
+        class_id = 11,
+        spec_file = "EaxRotations/classes/druid/caster_sylvanas.lua",
+        spells = "DruidSpells",
+        actions = {
+            FaerieFire = 26993, Moonfire = 26988, Wrath = 26985,
+        },
+        reference_names = { "FaerieFire", "Moonfire", "Wrath" },
     },
 }
 
@@ -673,7 +698,12 @@ function M.compute()
                 -- Vacuity guard (mirrors test_apl_conformance.lua): check_name_order
                 -- SILENTLY SKIPS names absent from our rotation, so a typo'd pin
                 -- would otherwise compute "pass" while testing nothing. Every
-                -- pinned name must resolve — else fail with the offenders.
+                -- pinned name must resolve — else fail with the offenders. An
+                -- EMPTY pin is equally vacuous (mirrors the #ids==0 guard on the
+                -- fixture path below).
+                if #e.reference_names == 0 then
+                    error("reference_names pin is empty (tests nothing)")
+                end
                 local missing = {}
                 for _, n in ipairs(e.reference_names) do
                     if not known[n] then missing[#missing + 1] = n end

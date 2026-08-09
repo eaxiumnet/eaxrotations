@@ -84,7 +84,8 @@ extra strategies (potions/defensives/moving variants).
 | `tbc/fury` | `sim/warrior_dps_rotation.go` `normalRotation` | Execute → Bloodthirst → Whirlwind → Overpower |
 | `tbc/bear` | `sim/druid_tank_rotation.go` `doRotation` | FaerieFire → DemoralizingRoar → Mangle → Lacerate |
 | `tbc/paladin/protection` | `sim/paladin_protection_rotation.go` `OnGCDReady` | HolyShield → Consecration → Judgement → Seal → Exorcism |
-| `tbc/warrior/protection` | `sim/warrior_dps_rotation.go` `normalRotation` | ShieldSlam → Devastate → SunderArmor |
+| `tbc/warrior/protection` | `sim/warrior/protection/rotation.go` `doRotation` | ShieldSlam → Revenge → Devastate → SunderArmor |
+| `tbc/caster` | `sim/druid/balance/rotation.go` `doRotation` (damage-chain subset) | FaerieFire → Moonfire → Wrath |
 
 Notes:
 - **Bear**: Swipe is AoE/AP-gated and Maul is queued on-next-swing (both
@@ -92,14 +93,32 @@ Notes:
   matches the Go dispatch's check order (previously reversed in our file).
 - **Prot paladin**: the seal is applied on the Judgement branch of the Go
   dispatch; Avenger's Shield is a 30s CD outside the GCD chain and excluded.
-- **Prot warrior**: Revenge is not modeled by the wowsims warrior sim
-  (DPS-focused), so it is excluded from the pin; ShieldSlam is the prot
-  priority above the Sunder/Devastate debuff maintenance.
-- **Assassination / subtlety**: the wowsims/tbc rogue sim is **combat-only**
-  (its `Builder` is fixed to SinisterStrike; no Mutilate/Backstab/Envenom in
-  the Go rotation) — no defensible dispatch exists, they remain `pending`.
-- **Caster / kebab** (hybrid/fun specs) and the healers have no wowsims
-  rotation — they remain `pending`.
+- **Prot warrior**: pinned against the DEDICATED `sim/warrior/protection/rotation.go`
+  (`doRotation`: ShieldSlam → Bloodthirst → MortalStrike → Revenge → Shout →
+  ThunderClap → DemoShout → Devastate → SunderArmor). Revenge IS modeled (the
+  earlier batch-3 note claiming otherwise was wrong — that pin cited the DPS
+  dispatch file). Bloodthirst/MortalStrike are arms/fury talents absent from the
+  prot rotation; Shout (Battle Shout) is a buff-maintenance lane our rotation
+  places far below the sim's mid-chain check — excluded with that honest reason.
+  The pin includes ThunderClap + DemoralizingShout: the dispatch checks ThunderClap
+  BEFORE DemoShout, and our ACTIONS table was reversed (DemoShout first); it was
+  reordered to match the sim as a pure order move (2026-08-09) so both are
+  pinnable and the pin stays provably live.
+- **Assassination / subtlety**: the wowsims/tbc tree has exactly ONE rogue
+  rotation — `sim/rogue/rotation.go` — which is **combat-only**: its `Builder`
+  is fixed to SinisterStrike (no Mutilate/Backstab/Envenom anywhere in the Go
+  rotation or `sim/rogue/` tree) — no defensible dispatch exists, `pending`.
+- **Caster**: NO `sim/druid/caster*` preset exists in the wowsims/tbc tree (only
+  balance/feral/tank). The caster pin uses the damage-chain subset shared with
+  the balance moonkin dispatch (FaerieFire → Moonfire → Wrath); Hurricane /
+  InsectSwarm / Starfire raid branches and defensives are excluded.
+- **Kebab** (custom DW-arms variant): no `sim/warrior/*` preset models a
+  dual-wield arms build (tree has only dps + protection) — no defensible
+  dispatch, `pending`.
+- **Healers** (druid/resto, paladin/holy, priest/holy + discipline, shaman/
+  restoration): the wowsims/tbc tree contains NO healer rotation directories —
+  only balance/feral/tank, protection/retribution, shadow/smite, elemental/
+  enhancement, dps — so they remain `pending` by absence of evidence.
 - **FireBlast** is an *opt-in* weave (`WeaveFireBlast` defaults to `false` in
   `ui/mage/inputs.ts`), so it is deliberately NOT in the `tbc/fire` pin — our
   rotation keeps FireBlast as a movement/instant lane below Fireball, matching
