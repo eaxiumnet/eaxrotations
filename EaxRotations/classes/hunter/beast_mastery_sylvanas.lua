@@ -91,10 +91,13 @@ end
 -- Safe API wrappers (mirror leveling_sylvanas pattern): a single API failure
 -- (e.g. native spell_helper path) must never blank the whole build_state.
 --
--- TEMP DIAGNOSTIC (2026-08-06): the live client still shows BM auto-attack only.
--- These wrappers swallow any routine API error with no visible trace, which
--- makes the live failure invisible. warn_swallowed() re-emits the error text
--- (throttled 2s like safe()). REMOVE once the live root cause is identified.
+-- DIAGNOSTIC (2026-08-06): the live client showed BM auto-attack only. These
+-- wrappers swallow any routine API error with no visible trace, which made the
+-- live failure invisible; warn_swallowed() re-emits the error text (throttled
+-- 2s like safe()). One root cause was identified and fixed (2026-08-09): the
+-- is_item_ready forward-declaration shadowing deaded the Trinket lane live.
+-- Keep warn_swallowed as a throttled safety net for other potential live API
+-- errors — it is harmless and costs nothing when no error occurs.
 local _last_swallowed_warn = 0
 local function warn_swallowed(label, err)
     local now = (NS.time_now and NS.time_now()) or 0
@@ -455,7 +458,7 @@ end
 -- ============================================================================
 -- Helper: check item cooldown (trinkets, potions)
 -- ============================================================================
-local function is_item_ready(me, item_id)
+is_item_ready = function(me, item_id)
     if not me or not item_id then return false end
     local cd_fn = me.get_item_cooldown
     if cd_fn then

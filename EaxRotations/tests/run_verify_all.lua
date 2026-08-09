@@ -36,8 +36,14 @@
 --         elem_shock_moving, elem_shock_pvp — cleared hunter Readiness x3 +
 --         SerpentStingRefresh x2, holy clearcast/surge, elem moving shocks —
 --         then the 2026-08-09 healer (c) close-out (holy_*/smite_*/shadow_*/
---         resto_* scenarios) cleared the 13 healer lanes 91->78. When a lane
---         is cleared or a scenario is added, update these expectations here,
+--         resto_* scenarios) cleared the 13 healer lanes 91->78, and the
+--         batch-2 (c) close-out (hurricane_aoe/rebirth_dead_ally/bear_*/
+--         cat_*/bm_trinket/mm_aimed_opener/prot_*/ret_cleanse_self/elem_*/
+--         enh_interrupt/enh_low_mana scenarios + the BM Trinket is_item_ready
+--         dead-lane fix) cleared 18 more 78->60 (RakeSnapshot/RipSnapshot /
+--         FireNovaReplacement remain (c)-pinned unpinnable: module-local
+--         snapshot/totem state the battery cannot drive). When a lane is
+--         cleared or a scenario is added, update these expectations here,
 --         otherwise verify_all will (correctly) fail until they are bumped.
 
 local R = "EaxRotations/tests"
@@ -222,7 +228,7 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 78)", never == 78 },
+                { "never-firing " .. never .. " (expected 60)", never == 60 },
             }
         end,
     },

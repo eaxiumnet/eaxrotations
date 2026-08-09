@@ -134,18 +134,23 @@ print("PASS: sharp negatives (no far object / no totem both block)")
 
 -- ============================================================================
 -- Cross-spec consistency: prot Intervene still fires under the vec3 contract,
--- and elemental's TotemicCall (a DIFFERENT matcher: moving + has_totems) stays
--- silent in totem_far.
+-- and elemental's TotemicCall (a DIFFERENT matcher: moving + has_totems) fires
+-- ONLY in its own elem_totemic_call scenario — never in enh's totem_far
+-- (elemental was cleared by the (c) batch-2 campaign, 2026-08-09).
 -- ============================================================================
 local rp = aud.run_spec("warrior", "protection")
 assert_true(rp.fires_in["Intervene"] and rp.fires_in["Intervene"]["group_ally_low"],
     "prot Intervene must still fire in group_ally_low under the vec3 contract")
 local re = aud.run_spec("shaman", "elemental")
-local en = {}
-for _, n in ipairs(re.never) do en[#en+1] = n end
-local elem_never = table.concat(en, ",")
-assert_true(elem_never:find("TotemicCall") ~= nil,
-    "elemental TotemicCall must remain never-firing (different matcher — out of scope)")
-print("PASS: cross-spec consistency (Intervene intact; elemental TotemicCall untouched)")
+local elem_tc = re.fires_in["TotemicCall"]
+assert_true(type(elem_tc) == "table" and elem_tc["elem_totemic_call"] == true,
+    "elemental TotemicCall must fire in its own elem_totemic_call scenario (batch-2 clear)")
+assert_true(elem_tc["totem_far"] == nil,
+    "elemental TotemicCall must NOT fire in enh's totem_far scenario (different matcher)")
+local ec = 0
+for _ in pairs(elem_tc) do ec = ec + 1 end
+assert_true(ec == 1,
+    "elemental TotemicCall must fire ONLY in elem_totemic_call, got " .. ec .. " scenarios")
+print("PASS: cross-spec consistency (Intervene intact; elemental TotemicCall exclusive to elem_totemic_call)")
 
 print("ALL PASS: test_totemic_call_lane_regression")

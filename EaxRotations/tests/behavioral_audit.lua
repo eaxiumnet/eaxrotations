@@ -18,11 +18,16 @@
 -- only, PvP only, out-of-combat only, opt-in setting off). Each candidate must be
 -- reviewed against its match() function before any fix.
 --
--- KNOWN LENIENCY: spell_exists()/is_spell_learned() return true for every spell,
--- so unlearned-spell fallbacks (e.g. cat ClawFallback before Mangle) can never
--- fire and spell-gated strategies may over-report coverage; snapshot-upgrade
--- strategies (Rip/Rake Snapshot) need a prior in-combat cast the battery cannot
--- reproduce. Treat those NEVER entries as mock limitations, not bugs.
+-- KNOWN LENIENCY (UPDATED 2026-08-09): spell_exists()/is_spell_learned() are
+-- map-aware via the not_learned bank (a scenario can mark an id unlearned, so
+-- fallbacks like cat ClawFallback before Mangle ARE observable — see
+-- cat_claw_fallback). Residual leniency: snapshot-upgrade strategies (Rip/Rake
+-- Snapshot) read the module-local snapshot_state populated only by a prior
+-- in-combat cast the battery cannot reproduce, and enh FireNovaReplacement
+-- reads module-local totem_state.fire_nova_active set by the totem-drop
+-- lifecycle — all three are genuinely unpinnable (classified (c) in
+-- tools/spec_scorecard.lua LANE_CLASS with rationale). Treat those NEVER
+-- entries as mock limitations, not bugs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -594,7 +599,15 @@ function M.build_ns(class_key, era)
         local unit = _friend(hp, 30)
         return { unit = unit, hp_pct = hp, effective_hp = hp, is_player = true }
     end
-    ns.find_dead_party_ally = function() return nil end
+    -- (c) close-out (2026-08-09): balance RebirthBattleRez (balance:381-386)
+    -- reads `_find_dead()` and needs a dead PLAYER ally for the is_player gate
+    -- (dead:is_player()). The dead_ally scenario presents _friend(0, 5) — hp 0
+    -- makes is_dead true, is_player stays true; absent the flag we keep the
+    -- legacy nil so every other find_dead consumer is unchanged.
+    ns.find_dead_party_ally = function()
+        if ns._bstate("dead_ally", false) then return _friend(0, 5) end
+        return nil
+    end
     ns.reset_api_health = function() end
     ns.get_local_player = ns.GetPlayer
     ns.dump_class_spells = function() end
@@ -663,7 +676,18 @@ function M.build_ns(class_key, era)
     ns.DispelManager = { try_dispel = function() return ns._bstate("friends_afflicted", false) end, should_dispel = function() return ns._bstate("friends_afflicted", false) end }
     ns.Triage = { score = function() return 0 end, rank = function() return {} end }
     ns.HealerDeficit = { deficit_of = function() return 0 end }
-    ns.TrinketManager = { try_use = function() return false end }
+    -- (c) close-out (2026-08-09): BM Trinket (beast_mastery:378-385) reads
+    -- NS.TrinketManager.get_equipped_trinkets for trinket_1_id; the battery
+    -- stub only had try_use, so trinket_1_id stayed nil and the lane could
+    -- never fire even with trinket_mode = slot1. The has_trinket scenario
+    -- presents one equipped item (id 1); is_item_ready below returns true.
+    ns.TrinketManager = {
+        try_use = function() return false end,
+        get_equipped_trinkets = function()
+            if ns._bstate("has_trinket", false) then return { { item_id = 1 } } end
+            return nil
+        end,
+    }
     ns.RageManager = { should_dump = function() return true end }
     -- Mirrors shared/stance_manager_sylvanas.lua semantics: get_optimal_stance
     -- returns a stance NAME (string) or nil; should_switch returns false when
@@ -952,6 +976,12 @@ function M.build_ns(class_key, era)
     ns.DruidSpells = {
         Moonfire = ns.spell_action({ 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
         InsectSwarm = ns.spell_action({ 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
+        -- (c) close-out (2026-08-09): balance HurricaneAoE (balance:421) does
+        -- `if not SPELLS.Hurricane then return false end` — the battery
+        -- DruidSpells had no Hurricane, so the lane was structurally dead even
+        -- with aoe+mana+barkskin in place. 27011 is the TBC max rank (matches
+        -- the class_sylvanas ladder).
+        Hurricane = ns.spell_action({ 27011, 27012, 27013 }, "Hurricane"),
     }
     -- Scenario-aware equipped-item mock: the mutilate_daggers scenario sets
     -- equipped_daggers = true and get_equipped_item_id returns a real dagger
@@ -1118,6 +1148,30 @@ function M.build_ns(class_key, era)
         return 0
     end
     ns.has_player_buff = function(ids) return map_aware_buff(ids) end
+    -- (c) close-out (2026-08-09): retribution Cleanse/Purify lanes read
+    -- NS.has_player_debuff(COMMON_CLEANSE) (retribution:265-267); the early
+    -- stub returned false always, so Ret_Cleanse_Self / Ret_Purify_SelfFallback
+    -- / Ret_Cleanse_Ally were structurally dead. Map-aware over the new
+    -- player_debuff_remains_map bank (scenario-driven); absent the map every
+    -- caller keeps the legacy false. has_target_debuff mirrors it for
+    -- unit_has_debuff(me) so find_ally can match the player when self is the
+    -- debuffed unit (Cleanse_Ally falls back to me with no party members).
+    ns.has_player_debuff = function(ids)
+        local map = ns._bstate("player_debuff_remains_map", nil)
+        if type(map) == "table" then
+            if type(ids) == "number" then ids = { ids } end
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return true end
+            end
+        end
+        return false
+    end
+    ns.has_target_debuff = function(unit, ids)
+        -- Cleanse_Ally's unit_has_debuff(me, ...) passes the PLAYER; reuse the
+        -- player-debuff map so a self-afflicted scenario fires it (find_ally
+        -- falls back to me when the battery presents no party members).
+        return ns.has_player_debuff(ids)
+    end
     -- Stealth helper (ranked #7): the real shared/stealth_helper_sylvanas
     -- caches `NS = _G.EaxRotations` at ITS first require() — the first spec
     -- that loads it (druid cat, run order) — so every later rogue spec's
@@ -1923,6 +1977,42 @@ M.SCENARIOS = {
     -- scenario satisfies both: mana 27 (>= 25 and < 30), 2 injured, lowest_hp
     -- 50. injured_count/mana_tide_ready are new bank keys.
     { name = "resto_triage",    overrides = { injured_count = 2, lowest_hp = 50, mana_pct = 27, mana_tide_ready = true } },
+
+    -- (c) close-out batch 2 (2026-08-09): the 18 remaining TBC (c) lanes.
+    -- druid/balance: HurricaneAoE (aoe + mana + Barkskin active so the
+    -- ready-Barkskin deferral gate passes); RebirthBattleRez (dead player
+    -- ally via find_dead_party_ally).
+    { name = "hurricane_aoe",   overrides = { enemy_count = 4, enemies_count = 4, mana_pct = 60, buff_remains_map = { [22812] = 10 } } },
+    { name = "rebirth_dead_ally", overrides = { in_combat = true, dead_ally = true } },
+    -- druid/bear: Swipe (aoe + rage + short TTD so the Lacerate pre-stack gate
+    -- passes); EnrageCombat (rage-starved, non-boss, single target).
+    { name = "bear_swipe_aoe",  overrides = { form = 1, in_combat = true, enemy_count = 4, enemies_count = 4, rage = 40, ttd = 5 } },
+    { name = "bear_enrage",     overrides = { form = 1, in_combat = true, rage = 10, hp = 100, enemy_count = 1, ttd = 60 } },
+    -- druid/cat: ClawFallback (Mangle unlearned); MangleFiller (not behind so
+    -- the Shred-preference gate passes).
+    { name = "cat_claw_fallback", overrides = { form = 3, combo_points = 0, energy = 60, not_learned = { [33983] = true } } },
+    { name = "cat_mangle_filler", overrides = { form = 3, combo_points = 0, energy = 60, is_behind = false } },
+    -- hunter: BM Trinket (combat + equipped trinket + slot1 mode); MM
+    -- InCombatAimedShot (fresh-combat opener, no Serpent Sting).
+    { name = "bm_trinket",      overrides = { in_combat = true, has_trinket = true, setting_overrides = { trinket_mode = "slot1" } } },
+    { name = "mm_aimed_opener", overrides = { in_combat = true, combat_time = 0.2 } },
+    -- paladin/protection: AvengingWrath (use_cooldowns enabled, ttd above the
+    -- 15s expiry gate); LayOnHands (self below the 10% threshold).
+    { name = "prot_cd_window",  overrides = { in_combat = true, ttd = 60, setting_overrides = { use_cooldowns = true } } },
+    { name = "prot_low_self",   overrides = { in_combat = true, hp = 5, player_hp = 5 } },
+    -- paladin/retribution: cleanse/purify self + ally (player-debuff map).
+    { name = "ret_cleanse_self", overrides = { player_debuff_remains_map = { [1330] = 5 } } },
+    -- shaman/elemental: ChainHeal (group injured); ElementalMastery (burst
+    -- window + enabled); TotemicCall (moving + totems up).
+    { name = "elem_group_injured", overrides = { in_combat = true, group_injured = true } },
+    { name = "elem_burst_cd",   overrides = { in_combat = true, should_burst = true, setting_overrides = { elemental_use_elemental_mastery = true } } },
+    { name = "elem_totemic_call", overrides = { in_combat = true, is_moving = true, has_totems = true } },
+    -- shaman/enhancement: EarthShock interrupt (target casting in the kick
+    -- window); ShamanisticRage (low mana defensive use + the per-CD toggle
+    -- setting enabled — the DSL condition requires it, the battery settings
+    -- fixture defaults to unset).
+    { name = "enh_interrupt",   overrides = { in_combat = true, target_is_casting = true, target_cast_pct = 60 } },
+    { name = "enh_low_mana",    overrides = { in_combat = true, mana_pct = 30, player_mana_pct = 30, ttd = 60, setting_overrides = { enhancement_cd_shamanistic_rage = true } } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -2000,6 +2090,13 @@ local function build_scenario_target(ctx)
     target.get_health = function(self) return (ctx.target_hp or 100) * 100 end
     target.is_casting = function(self) return ctx.target_is_casting == true end
     target.is_channeling = function(self) return ctx.target_is_casting == true end
+    -- (c) close-out (2026-08-09, batch 2): enh EarthShock interrupt mode reads
+    -- target:get_cast_pct() (enhancement:459-462) and gates on
+    -- kick_min_pct..kick_max_pct (40..80 default). The legacy mock had no
+    -- get_cast_pct, so cast_pct stayed 0 and the lane could never fire even
+    -- with target_is_casting=true. Scenario-overridable via target_cast_pct;
+    -- default 60 sits inside the kick window when the target is casting.
+    target.get_cast_pct = function(self) return ctx.target_cast_pct or 60 end
     -- Defensive-casting (warrior/rogue triage 2026-08-08): prot build_state
     -- derives state.target_is_casting from target:is_casting_spell()
     -- (protection_sylvanas.lua:310) while arms reads ctx.target_is_casting —
@@ -2061,6 +2158,16 @@ function M.build_context_for(class_key, scenario)
         debuff_stacks=true, debuff_aura_ids=true, combat_time=true,
         target_creature_type=true, enemies_casting=true, buff_remains_map=true,
         debuff_remains_map=true, not_learned=true,
+        -- (c) close-out (2026-08-09, batch 2): cat MangleFiller reads
+        -- context.is_behind (cat:514) so the battery target's always-true
+        -- is_behind no longer blocks it; elem ChainHeal reads context.
+        -- group_injured; elem TotemicCall reads context.has_totems; enh
+        -- EarthShock reads target:get_cast_pct() via the scenario target;
+        -- ret cleanse reads player_debuff_remains_map via has_player_debuff;
+        -- balance Rebirth reads dead_ally via find_dead_party_ally; BM Trinket
+        -- reads has_trinket via TrinketManager.get_equipped_trinkets.
+        is_behind=true, group_injured=true, has_totems=true, target_cast_pct=true,
+        player_debuff_remains_map=true, dead_ally=true, has_trinket=true,
         friend_class=true, setting_overrides=true,
         -- Healer (c) close-out (2026-08-09): lifebloom feeds the heal-scan
         -- stub's Lifebloom let-bloom fields (resto druid LifebloomLetBloom).
@@ -2327,6 +2434,11 @@ function M.apply_battery_state(ns, ctx, class_key)
         not_learned = ctx.not_learned,
         target_creature_type = ctx.target_creature_type or 7,
         buff_remains_map = ctx.buff_remains_map,
+        player_debuff_remains_map = ctx.player_debuff_remains_map,
+        -- (c) close-out (2026-08-09): dead_ally feeds find_dead_party_ally
+        -- (balance Rebirth); has_trinket feeds TrinketManager (BM Trinket).
+        dead_ally = ctx.dead_ally == true,
+        has_trinket = ctx.has_trinket == true,
         -- Multi-DoT spread model (ranked #1): the TSHelper stub returns this
         -- enemy list, and debuff_up/debuff_remains consult the primary-target
         -- dot map before the buffs_up fallback.

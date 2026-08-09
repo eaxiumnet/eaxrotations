@@ -42,18 +42,29 @@ end
 local LANE_CLASS = {
     druid = {
         balance = {
-            HurricaneAoE = 'c', MoonkinForm = 'a', PvP_Cyclone = 'b',
-            PvP_EntanglingRoots = 'b', PvP_NaturesGrasp = 'b', RebirthBattleRez = 'c',
+            -- (c) close-out (2026-08-09, batch 2): HurricaneAoE + RebirthBattleRez
+            -- cleared by the hurricane_aoe / rebirth_dead_ally scenarios (battery
+            -- now stubs DruidSpells.Hurricane + find_dead_party_ally) — pins removed.
+            MoonkinForm = 'a', PvP_Cyclone = 'b',
+            PvP_EntanglingRoots = 'b', PvP_NaturesGrasp = 'b',
         },
         bear = {
-            Barkskin = 'a', ChallengingRoar = 'b', EnrageCombat = 'c',
+            -- (c) close-out (2026-08-09, batch 2): Swipe + EnrageCombat cleared
+            -- by the bear_swipe_aoe / bear_enrage scenarios (form=1 + rage) — pins
+            -- removed.
+            Barkskin = 'a', ChallengingRoar = 'b',
             FaerieFirePull = 'b', FeralChargePull = 'b', Growl = 'b',
-            PrePullEnrage = 'b', Swipe = 'c',
+            PrePullEnrage = 'b',
         },
         cat = {
-            ClawFallback = 'c', MangleFiller = 'c', RakeSnapshot = 'c',
-            RipSnapshot = 'c', RipTrick = 'a', ShredTrick = 'a',
-            TrackHumanoids = 'b', TravelForm = 'b',
+            -- (c) close-out (2026-08-09, batch 2): ClawFallback + MangleFiller
+            -- cleared by the cat_* scenarios — pins removed. RakeSnapshot +
+            -- RipSnapshot remain (c): both read the module-local snapshot_state
+            -- (cat:247-254) populated only by record_bleed_snapshot on a real
+            -- cast — the battery never casts, so state.rake_ap/rip_ap stay 0 and
+            -- the matchers' `<= 0` gate is genuinely unpinnable via fixtures.
+            RakeSnapshot = 'c', RipSnapshot = 'c', RipTrick = 'a',
+            ShredTrick = 'a', TrackHumanoids = 'b', TravelForm = 'b',
         },
         resto = {
             -- Healer (c) close-out (2026-08-09): LifebloomLetBloom +
@@ -67,9 +78,14 @@ local LANE_CLASS = {
         -- Phase 3 (2026-08-09): Readiness x3 + SerpentStingRefresh x2 cleared
         -- by the readiness_window / serpent_refresh scenarios — pins removed.
         beast_mastery = {
-            FeignDeath = 'b', Misdirection = 'b', Trinket = 'c',
+            -- (c) close-out (2026-08-09, batch 2): Trinket cleared — battery now
+            -- stubs TrinketManager.get_equipped_trinkets (has_trinket scenario)
+            -- AND the spec's is_item_ready forward-declaration bug was fixed
+            -- (beast_mastery:78 vs :458 shadowing — safe_any got nil, so
+            -- trinket_1_ready was always false in LIVE game too).
+            FeignDeath = 'b', Misdirection = 'b',
         },
-        marksmanship = { InCombatAimedShot = 'c' },
+        marksmanship = {},
         survival = {},
     },
     mage = {
@@ -89,15 +105,20 @@ local LANE_CLASS = {
             BlessingOfFreedomSnare = 'b', BlessingOfProtectionFocusedAlly = 'b',
         },
         protection = {
-            AvengerShield = 'a', AvengingWrath = 'c', BlessingOfProtectionAlly = 'b',
-            HammerOfWrath = 'a', Judgement = 'a', LayOnHands = 'c',
+            -- (c) close-out (2026-08-09, batch 2): AvengingWrath + LayOnHands
+            -- cleared by the prot_cd_window / prot_low_self scenarios — pins removed.
+            AvengerShield = 'a', BlessingOfProtectionAlly = 'b',
+            HammerOfWrath = 'a', Judgement = 'a',
             RighteousDefense = 'b', SealOfCommandAoE = 'a',
         },
         retribution = {
+            -- (c) close-out (2026-08-09, batch 2): the 3 cleanse/purify lanes
+            -- cleared by the ret_cleanse_self scenario — battery's
+            -- has_player_debuff / has_target_debuff are now map-aware
+            -- (player_debuff_remains_map) instead of the catch-all always-true.
             Consecration = 'a', Ret_BlessingFreedom_Ally = 'b',
-            Ret_BlessingFreedom_Self = 'b', Ret_Cleanse_Ally = 'c',
-            Ret_Cleanse_Self = 'c', Ret_Consecration_ManaDump = 'a',
-            Ret_HammerWrath_FleeingPvP = 'b', Ret_Purify_SelfFallback = 'c',
+            Ret_BlessingFreedom_Self = 'b', Ret_Consecration_ManaDump = 'a',
+            Ret_HammerWrath_FleeingPvP = 'b',
         },
     },
     priest = {
@@ -118,12 +139,20 @@ local LANE_CLASS = {
         elemental = {
             -- Phase 3 (2026-08-09): EarthShockMoving + FrostShockMoving cleared
             -- by the elem_shock_moving / elem_shock_pvp scenarios — pins removed.
-            ChainHeal = 'c', ElementalMastery = 'c',
-            TotemicCall = 'c', TremorTotem = 'b',
+            -- (c) close-out (2026-08-09, batch 2): ChainHeal + ElementalMastery +
+            -- TotemicCall cleared by the elem_* scenarios — pins removed.
+            TremorTotem = 'b',
         },
         enhancement = {
-            AutoAttack = 'b', EarthShock = 'c', FireNovaReplacement = 'c',
-            GraceOfAirTotemTwist = 'a', ShamanisticRage = 'c', TremorTotem = 'b',
+            -- (c) close-out (2026-08-09, batch 2): EarthShock + ShamanisticRage
+            -- cleared by the enh_interrupt / enh_low_mana scenarios (target
+            -- get_cast_pct stub + per-CD setting override) — pins removed.
+            -- FireNovaReplacement remains (c): the gate reads the module-local
+            -- totem_state.fire_nova_active (enhancement:135), populated only by
+            -- the spec's own totem-drop lifecycle during a real rotation update
+            -- — the battery never drops totems, so it is genuinely unpinnable.
+            AutoAttack = 'b', FireNovaReplacement = 'c',
+            GraceOfAirTotemTwist = 'a', TremorTotem = 'b',
         },
         restoration = {
             -- Healer (c) close-out (2026-08-09): ChainLightning + LightningShield

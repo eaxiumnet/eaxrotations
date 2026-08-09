@@ -190,3 +190,59 @@ resto_* banks). What changed and why:
 - All fixes were **battery-fixture only** — the 13 lanes were never (d); the
   triage classifications remain live in `tools/spec_scorecard.lua` `LANE_CLASS`
   (pins for these lanes removed as they cleared).
+
+---
+
+## TBC (c) batch-2 close-out (2026-08-09): 78 → 60
+
+The scorecard's `LANE_CLASS` classified 21 remaining TBC category-(c) lanes as
+battery-mock-limitation-but-modelable (never was 78: a=14 b=43 c=21 d=0). A
+second battery-fixture campaign cleared **18**, dropping the TBC era never-count
+from **78 to 60** (c: 21 → 3) with one genuine spec-file dead-lane fix. Clears
+are pinned in `tests/test_c_batch2_closeout_regression.lua`; scenarios live in
+`tests/behavioral_audit.lua` `SCENARIOS` (batch-2 banks). What changed and why:
+
+- **druid/balance (2)** — `HurricaneAoE` needed DruidSpells.Hurricane resolvable
+  (new battery stub) + aoe/mana/Barkskin-active bank (`hurricane_aoe`);
+  `RebirthBattleRez` needed a dead player ally — new `find_dead_party_ally`
+  stub fed by the `dead_ally` bank (`rebirth_dead_ally`).
+- **druid/bear (2)** — `Swipe` needed form=1 (bear) + aoe + rage + short TTD so
+  the Lacerate pre-stack gate passes (`bear_swipe_aoe`); `EnrageCombat` needed
+  rage-starved single target (`bear_enrage`).
+- **druid/cat (2)** — `ClawFallback` needed Mangle marked unlearned via the
+  `not_learned` bank (`cat_claw_fallback`); `MangleFiller` needed
+  `is_behind = false` so the Shred-preference gate passes (`cat_mangle_filler`).
+- **hunter/BM Trinket (1)** — TWO changes: (a) battery now stubs
+  `TrinketManager.get_equipped_trinkets` (has_trinket bank, `bm_trinket`); (b)
+  **genuine dead-lane fix in the spec** — `beast_mastery_sylvanas.lua:78`
+  `local is_item_ready` forward-declaration was shadowed by `:458`
+  `local function is_item_ready(...)` (a second local), so build_state's
+  `safe_any` received nil and `trinket_1_ready` was **always false in the live
+  game too** — the lane could never fire anywhere. Changed :458 to an
+  assignment so the line-78 local is populated.
+- **hunter/MM InCombatAimedShot (1)** — fresh-combat opener (`combat_time 0.2`,
+  `mm_aimed_opener`) so the Serpent-Sting setup gate is skipped.
+- **paladin/protection (2)** — `AvengingWrath` needed use_cooldowns + ttd above
+  the 15s expiry (`prot_cd_window`); `LayOnHands` needed self hp < 10%
+  (`prot_low_self`).
+- **paladin/retribution (3)** — cleanse/purify lanes were masked by the
+  catch-all always-true `has_player_debuff`/`has_target_debuff`; both are now
+  map-aware (`player_debuff_remains_map`, `ret_cleanse_self`) so the gates are
+  honest.
+- **shaman/elemental (3)** — `ChainHeal` needed a group-injured friend
+  (`group_injured` bank, `elem_group_injured`); `ElementalMastery` needed burst
+  + the per-CD setting (`elem_burst_cd`); `TotemicCall` needed moving + totems
+  up (`has_totems` bank, `elem_totemic_call`).
+- **shaman/enhancement (2)** — `EarthShock` needed the scenario target's
+  `get_cast_pct` in the 40..80 kick window (new target stub, `enh_interrupt`);
+  `ShamanisticRage` needed low mana + the `enhancement_cd_shamanistic_rage`
+  toggle (DSL condition, `enh_low_mana`).
+- **Genuinely unpinnable (3, remain (c))** — `RakeSnapshot` / `RipSnapshot`
+  read the module-local `snapshot_state` (cat:247-254) populated only by
+  `record_bleed_snapshot` on a real cast; `FireNovaReplacement` reads
+  module-local `totem_state.fire_nova_active` (enhancement:135) populated only
+  by the spec's totem-drop lifecycle. The battery never casts/drops totems, so
+  these cannot be driven by fixtures — left classified (c) with the rationale
+  in `LANE_CLASS`.
+- All clears are battery-fixture + the one dead-lane fix; no matcher-logic or
+  order changes. Remaining split: **a=14 b=43 c=3 d=0**.
