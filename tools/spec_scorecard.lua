@@ -56,9 +56,11 @@ local LANE_CLASS = {
             TrackHumanoids = 'b', TravelForm = 'b',
         },
         resto = {
+            -- Healer (c) close-out (2026-08-09): LifebloomLetBloom +
+            -- TravelFormReposition cleared by the resto_* scenarios — pins
+            -- removed.
             BearFormFocusedByMelee = 'b', CycloneEnemyHealer = 'b',
-            EntanglingRootsMelee = 'b', LifebloomLetBloom = 'c',
-            NaturesGraspMelee = 'b', TravelFormReposition = 'c',
+            EntanglingRootsMelee = 'b', NaturesGraspMelee = 'b',
         },
     },
     hunter = {
@@ -80,10 +82,11 @@ local LANE_CLASS = {
     },
     paladin = {
         holy = {
+            -- Healer (c) close-out (2026-08-09): ConsecrationSoloAoE,
+            -- HammerOfWrathSolo, JudgementOfLightBoss, JudgementOfWisdomBoss,
+            -- JudgementSoloRighteousness, LayOnHandsLastResort cleared by the
+            -- holy_* scenarios — pins removed.
             BlessingOfFreedomSnare = 'b', BlessingOfProtectionFocusedAlly = 'b',
-            ConsecrationSoloAoE = 'c', HammerOfWrathSolo = 'c',
-            JudgementOfLightBoss = 'c', JudgementOfWisdomBoss = 'c',
-            JudgementSoloRighteousness = 'c', LayOnHandsLastResort = 'c',
         },
         protection = {
             AvengerShield = 'a', AvengingWrath = 'c', BlessingOfProtectionAlly = 'b',
@@ -104,9 +107,11 @@ local LANE_CLASS = {
             -- removed.
             EncounterReactions = 'b', MountedProtection = 'b',
         },
-        shadow = { DispelMagic = 'b', HolyNovaAoE = 'c', SWDCCBreak = 'b' },
+        shadow = { DispelMagic = 'b', SWDCCBreak = 'b' },
         smite = {
-            DevouringPlague = 'b', InnerFocus = 'c', SoloRenew = 'c', Starshards = 'b',
+            -- Healer (c) close-out (2026-08-09): InnerFocus + SoloRenew cleared
+            -- by the smite_* scenarios — pins removed.
+            DevouringPlague = 'b', Starshards = 'b',
         },
     },
     shaman = {
@@ -120,7 +125,11 @@ local LANE_CLASS = {
             AutoAttack = 'b', EarthShock = 'c', FireNovaReplacement = 'c',
             GraceOfAirTotemTwist = 'a', ShamanisticRage = 'c', TremorTotem = 'b',
         },
-        restoration = { ChainLightning = 'c', LightningShield = 'c', TremorTotem = 'b' },
+        restoration = {
+            -- Healer (c) close-out (2026-08-09): ChainLightning + LightningShield
+            -- cleared by the resto_* scenarios — pins removed.
+            TremorTotem = 'b',
+        },
     },
     warlock = {
         affliction = {

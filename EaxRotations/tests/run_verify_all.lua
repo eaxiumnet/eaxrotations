@@ -31,13 +31,14 @@
 --         because the rotation runner shares one process, so they are allowed
 --         regardless of which side they land on until fixed.
 -- NOTE:   The behavioral battery assertions PIN the live contract (31
---         specs / 0 load failures / 91 never-firing after Phase 3's first
---         batch of (c) fixtures: readiness_window, serpent_refresh,
---         clearcast_surge, elem_shock_moving, elem_shock_pvp — cleared
---         hunter Readiness x3 + SerpentStingRefresh x2, holy clearcast/
---         surge, elem moving shocks). When a lane is cleared or a scenario
---         is added, update those expectations here, otherwise verify_all
---         will (correctly) fail until they are bumped.
+--         specs / 0 load failures / 78 never-firing after the Phase-3 (c)
+--         fixture batches: readiness_window, serpent_refresh, clearcast_surge,
+--         elem_shock_moving, elem_shock_pvp — cleared hunter Readiness x3 +
+--         SerpentStingRefresh x2, holy clearcast/surge, elem moving shocks —
+--         then the 2026-08-09 healer (c) close-out (holy_*/smite_*/shadow_*/
+--         resto_* scenarios) cleared the 13 healer lanes 91->78. When a lane
+--         is cleared or a scenario is added, update these expectations here,
+--         otherwise verify_all will (correctly) fail until they are bumped.
 
 local R = "EaxRotations/tests"
 
@@ -221,7 +222,7 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 91)", never == 91 },
+                { "never-firing " .. never .. " (expected 78)", never == 78 },
             }
         end,
     },

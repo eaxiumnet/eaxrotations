@@ -156,3 +156,37 @@ and why:
 - All fixes were **battery-fixture only** — zero spec-file matcher/order edits
   (no (d) dead lanes existed; the discipline holds).
 - Scorecard era "wotlk" flipped from LENIENT to STRICT (no untriaged backlog).
+
+## TBC healer category-(c) close-out provenance (2026-08-09)
+
+The non-DPS triage classified 13 healer never-lanes as (c) (battery-mock
+limitation-but-modelable). A battery-fixture campaign cleared them, dropping
+the TBC era never-count from **91 to 78** (c: 34 → 21) with zero spec-file
+matcher/order edits — same discipline as the WotLK campaign. The clears are
+pinned in `tests/test_healer_c_closeout_regression.lua`; scenario definitions
+live in `tests/behavioral_audit.lua` `SCENARIOS` (holy_*/smite_*/shadow_*/
+resto_* banks). What changed and why:
+
+- **`buff_up` forwarding** — smite captures `buff_up` via `import_helpers`, but
+  the battery capture table had no entry, so the catch-all `function() return
+  true end` made `has_renew`/`has_inner_focus` always-true and SoloRenew /
+  InnerFocus could never gate-fail (always masked). The captured `buff_up` now
+  forwards to the live map-aware binding — lane firing became honest.
+- **Heal-scan attachment** — `friends_hp` + a `lifebloom` bank (index/stacks/
+  remains) feed the battery heal-scan so `state.lowest` (holy LayOnHandsLast
+  Resort) and the `lifebloom_bloom` entry (druid LifebloomLetBloom, stacks ≥ 2,
+  <1s left) become observable.
+- **Scenario banks** — 12 new scenarios: `holy_last_resort`, `holy_jow_boss` /
+  `holy_jol_boss` / `holy_solo_judge` (seal buff maps 20166/20165/20154),
+  `holy_solo_execute`, `holy_solo_aoe`, `smite_solo_renew`, `shadow_holy_nova`
+  (combat-mode aoe setting override), `resto_lightning_shield` (shield-type
+  setting override), `resto_chain_lightning`, `resto_travel_reposition` (OOC +
+  moving + range), `resto_lifebloom_bloom`.
+- **Paladin/holy boss lanes** — JudgementOfLightBoss / JudgementOfWisdomBoss
+  needed a seal buff map; the `holy_jol_boss`/`holy_jow_boss` scenarios carry
+  Seal of Light (20165) / Seal of Wisdom (20166).
+- **Shadow HolyNovaAoE** — gated on `shadow_combat_mode = "aoe"`; the scenario
+  applies it via `setting_overrides`.
+- All fixes were **battery-fixture only** — the 13 lanes were never (d); the
+  triage classifications remain live in `tools/spec_scorecard.lua` `LANE_CLASS`
+  (pins for these lanes removed as they cleared).

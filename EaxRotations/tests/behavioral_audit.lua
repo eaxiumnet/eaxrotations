@@ -322,6 +322,19 @@ function M.build_ns(class_key, era)
                     if ns.has_player_buff then return ns.has_player_buff(ids) end
                     return false
                 end
+            elseif n == "buff_up" then
+                -- Map-aware per-buff state (ranked #5 semantics): smite /
+                -- priest-healing capture buff_up via import_helpers at require
+                -- time. Without this branch the catch-all below returns a
+                -- constant-true function, so every captured buff check read
+                -- "up" and SoloRenew (needs has_renew=false) + InnerFocus
+                -- (needs has_inner_focus=false) could never fire. Forward to
+                -- the LATEST ns.buff_up binding (map-first + buffs_up
+                -- fallback) at call time, mirroring has_player_buff.
+                results[i] = function(unit, ids)
+                    if ns.buff_up then return ns.buff_up(unit, ids) end
+                    return false
+                end
             elseif typed_map[n] ~= nil then
                 results[i] = function() return typed_map[n] end
             elseif floaty[n] ~= nil then
@@ -778,6 +791,17 @@ function M.build_ns(class_key, era)
             has_poison = a.poison, has_disease = a.disease, has_curse = a.curse,
             has_magic = a.magic, needs_cleanse = a.poison or a.disease or a.curse or a.magic,
         }
+        -- Lifebloom let-bloom state (healer (c) close-out): the resto druid
+        -- LifebloomLetBloom lane needs an entry with Lifebloom stacks near
+        -- expiry (should_let_lifebloom_bloom gates on lifebloom_stacks > 0 +
+        -- lifebloom_remains <= LIFEBLOOM_BLOOM_SOON). The scenario override
+        -- `lifebloom = { index = N, stacks = S, remains = R }` attaches the
+        -- fields so the lane becomes observable.
+        local lb = ns._bstate("lifebloom", nil)
+        if type(lb) == "table" and type(lb.index) == "number" and entries[lb.index] then
+            entries[lb.index].lifebloom_stacks = lb.stacks or 0
+            entries[lb.index].lifebloom_remains = lb.remains or 0
+        end
         return entries, count
     end
     local function _afflicted_flag(key)
@@ -1490,6 +1514,23 @@ M.SCENARIOS = {
     -- shaman) become observable. Group stays healthy so the spot-heal lanes
     -- don't steal the frame; hp must stay < 90 and > 0.
     { name = "friendly_target", overrides = { friendly_target_hp = 60, friends_hp = { 100, 100, 100 }, lowest_hp = 100 } },
+    -- Healer (c) close-out (2026-08-09): the 13 TBC healer category-(c)
+    -- never-lanes, mirroring the WotLK fixture campaign (battery fixtures
+    -- only, no spec-file matcher changes). is_solo defaults true in the
+    -- battery; holy solo-DPS lanes also need a healthy group so the
+    -- solo_damage_enabled safe_hp gate (lowest < 88) can't veto them.
+    { name = "holy_last_resort",       overrides = { friends_hp = { 10, 70, 85 } } },
+    { name = "holy_jow_boss",          overrides = { target_hp = 100, buff_remains_map = { [20166] = 5 } } },
+    { name = "holy_jol_boss",          overrides = { target_hp = 100, buff_remains_map = { [20165] = 5 } } },
+    { name = "holy_solo_execute",      overrides = { target_hp = 8, friends_hp = { 96, 97, 98 } } },
+    { name = "holy_solo_judge",        overrides = { buff_remains_map = { [20154] = 5 }, friends_hp = { 96, 97, 98 } } },
+    { name = "holy_solo_aoe",          overrides = { enemy_count = 4, enemies_count = 4, friends_hp = { 96, 97, 98 } } },
+    { name = "smite_solo_renew",       overrides = { hp = 15, player_hp = 15 } },
+    { name = "shadow_holy_nova",       overrides = { setting_overrides = { shadow_combat_mode = "aoe" }, enemy_count = 4, enemies_count = 4 } },
+    { name = "resto_lightning_shield", overrides = { setting_overrides = { restoration_shield_type = "lightning" } } },
+    { name = "resto_chain_lightning",  overrides = { enemy_count = 4, enemies_count = 4, friends_hp = { 96, 97, 98 } } },
+    { name = "resto_travel_reposition", overrides = { is_moving = true, in_combat = false, target_distance = 30 } },
+    { name = "resto_lifebloom_bloom",  overrides = { friends_hp = { 100, 70, 85 }, lifebloom = { index = 1, stacks = 3, remains = 0.6 } } },
     { name = "enemy_buffed",     overrides = { enemy_buffed = true } },
     { name = "me_casting",       overrides = { me_casting = true, friends_hp = { 25, 60, 80 }, lowest_hp = 25 } },
     { name = "battle_stance",    overrides = { stance = 1 } },
@@ -2021,6 +2062,9 @@ function M.build_context_for(class_key, scenario)
         target_creature_type=true, enemies_casting=true, buff_remains_map=true,
         debuff_remains_map=true, not_learned=true,
         friend_class=true, setting_overrides=true,
+        -- Healer (c) close-out (2026-08-09): lifebloom feeds the heal-scan
+        -- stub's Lifebloom let-bloom fields (resto druid LifebloomLetBloom).
+        lifebloom=true,
         fsr_inside=true, fsr_seconds=true, fsr_regen_delta=true, fsr_pause_ok=true,
         -- Friendly-target context (ranked): friendly_target_hp presents a
         -- friendly unit via NS.get_friendly_target_entry so the 5 healer
@@ -2271,6 +2315,7 @@ function M.apply_battery_state(ns, ctx, class_key)
         enemy_buffed = ctx.enemy_buffed == true,
         friends_afflicted = ctx.friends_afflicted == true,
         friends_hp = ctx.friends_hp,
+        lifebloom = ctx.lifebloom,
         afflicted = ctx.afflicted or {},
         pet_hp = ctx.pet_hp or 100,
         pet_dead = ctx.pet_dead == true,
