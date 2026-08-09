@@ -69,6 +69,19 @@ extra strategies (potions/defensives/moving variants).
 | `tbc/elemental` | `sim/shaman_elemental_rotation.go` (LB/CL-only sim) | ChainLightning → LightningBolt |
 | `tbc/fire` | `sim/mage_rotations.go` `doFireRotation` | Scorch (5-stack) → Fireball |
 | `tbc/frost` | `sim/mage_rotations.go` `doFrostRotation` | Frostbolt |
+| `tbc/balance` | `sim/druid_balance_rotation.go` `actRotation` | FaerieFire → InsectSwarm → Moonfire → Starfire |
+| `tbc/cat` | `sim/druid_feral_rotation.go` `doRotation` | FaerieFire → Rip → Mangle → FerociousBite → Shred |
+| `tbc/beast_mastery` | `sim/hunter_rotation.go` `tryUsePrioGCD`/`lazyRotation` | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/marksmanship` | `sim/hunter_rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/survival` | `sim/hunter_rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/arcane` | `sim/mage_rotations.go` `doArcaneRotation` | ArcaneBlast → Frostbolt(conserve) → ArcaneMissiles |
+| `tbc/retribution` | `sim/paladin_retribution_rotation.go` `mainRotation` | Judge(Crusader) → ApplySeal → CrusaderStrike → SealOfBlood |
+| `tbc/smite` | `sim/priest_smite_rotation.go` `tryUseGCD` | ShadowWordPain → Starshards → DevPlague → MindBlast → Smite |
+| `tbc/enhancement` | `sim/shaman_enhancement_rotation.go` (schedule) | Stormstrike → FlameShock → EarthShock → FrostShock |
+| `tbc/demonology` | `sim/warlock_rotations.go` `tryUseGCD` | Corruption → SiphonLife → Immolate → ShadowBolt |
+| `tbc/destruction` | `sim/warlock_rotations.go` (Incinerate branch) | Corruption → Immolate → Incinerate |
+| `tbc/arms` | `sim/warrior_dps_rotation.go` `normalRotation` | Execute → MortalStrike → Whirlwind → Overpower |
+| `tbc/fury` | `sim/warrior_dps_rotation.go` `normalRotation` | Execute → Bloodthirst → Whirlwind → Overpower |
 
 Notes:
 - **FireBlast** is an *opt-in* weave (`WeaveFireBlast` defaults to `false` in

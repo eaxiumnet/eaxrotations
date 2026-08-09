@@ -784,10 +784,12 @@ local strategies = {
     { name = "CurseOfRecklessness", matches = curse_of_recklessness_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfRecklessness, context.target, "[DEMONOLOGY] Curse of Recklessness") end },
     { name = "CurseOfWeakness", matches = curse_of_weakness_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfWeakness, context.target, "[DEMONOLOGY] Curse of Weakness") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
-    -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
+    -- wowsims/tbc warlock Go dispatch: Corruption → SiphonLife → Immolate
+    -- (SiphonLife checked before Immolate in tryUseGCD), so the demo DoT block
+    -- follows that order for APL conformance.
     { name = "Corruption" },
-    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(ACTION.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
     { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(ACTION.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
+    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(ACTION.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(ACTION.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
     { name = "DrainSoul", matches = drain_soul_matches, execute = function(context)

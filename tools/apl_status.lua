@@ -46,6 +46,11 @@ local function make_action(ids, label)
     }
 end
 
+-- Which class id does the mock player report? Specs that gate on
+-- enums.class_id.<CLASS> at require() time (smite PRIEST, kebab WARRIOR)
+-- bail unless it matches; load_spec sets _mock_player_class before dofile.
+local _mock_player_class = 5 -- PRIEST default
+
 local function base_ns()
     return {
         GetPlayer = function() return {
@@ -53,6 +58,8 @@ local function base_ns()
             get_mana_percentage = function() return 80 end,
             get_energy = function() return 100 end,
             get_combo_points = function() return 5 end,
+            get_class = function() return _mock_player_class end,
+            get_race_id = function() return 1 end,
         } end,
         me = {
             get_health_percentage = function() return 80 end,
@@ -63,6 +70,28 @@ local function base_ns()
         core = {
             spell_book = { get_spell_cast_time = function() return 1.75 end },
         },
+        -- Some TBC-era files (smite_sylvanas) read NS.PLAYER_UNIT /
+        -- NS.GetPlayer() / NS.is_threat_safe at require() time.
+        PLAYER_UNIT = {
+            get_health_percentage = function() return 80 end,
+            get_mana_percentage = function() return 80 end,
+            get_energy = function() return 100 end,
+            get_combo_points = function() return 5 end,
+        },
+        -- CLASS_ID mirrors api/common/enums class_id (a table, not a number) so
+        -- specs that gate on enums.class_id.PRIEST etc. load under the mock.
+        CLASS_ID = {
+            warrior = 1, paladin = 2, hunter = 3, rogue = 4,
+            priest = 5, deathknight = 6, shaman = 7, mage = 8, warlock = 9, druid = 11,
+            WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4,
+            PRIEST = 5, DEATHKNIGHT = 6, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
+        },
+        class_id = nil, -- set below after table literal
+        is_threat_safe = function() return true end,
+        unit_creature_type = function() return 0 end,
+        debuff_up = function() return false end,
+        aoe_self_meets = function() return false end,
+        get_spell_id = function(action) return type(action) == 'table' and action.id or nil end,
         spell_action = make_action,
         spell_ready = function() return true end,
         spell_exists = function() return true end,
@@ -82,6 +111,39 @@ local function base_ns()
         time_now = function() return 0 end,
         log = function() end,
         log_warning = function() end,
+        -- Some TBC-era spec files call NS.import_helpers(...) at require() time
+        -- (e.g. priest/smite_sylvanas.lua, warrior/kebab_sylvanas.lua). The real
+        -- implementation is populated on class registration; return permissive
+        -- stubs so those files load under the mock. Health/player-buff helpers
+        -- are unit-aware via the same forwarding used by the battery.
+        import_helpers = function(...)
+            local names = { ... }
+            local results = {}
+            local typed = {
+                debuff_remains = 0, debuff_stacks = 0, buff_remains = 0, buff_stacks = 0,
+            }
+            for i = 1, #names do
+                local n = names[i]
+                if typed[n] ~= nil then
+                    results[i] = function() return typed[n] end
+                elseif n == 'health_pct' then
+                    results[i] = function(unit)
+                        if unit and unit.get_health_percentage then
+                            local ok, v = pcall(unit.get_health_percentage, unit)
+                            if ok and type(v) == 'number' then return v end
+                        end
+                        return 100
+                    end
+                elseif n == 'has_player_buff' then
+                    results[i] = function(id) return false end
+                else
+                    results[i] = function() return true end
+                end
+            end
+            -- Lua 5.1 has no unpack; table.unpack exists in 5.2+. Build a
+            -- vararg tuple manually so smite/kebab get all requested names.
+            return (function(...) return ... end)(table.unpack and table.unpack(results) or unpack(results))
+        end,
         rotation_registry = {
             register = function(self, name, strategies, options) end,
         },
@@ -91,14 +153,23 @@ end
 -- Load a spec file's strategy table under the mock NS. `spells` names the
 -- action table to inject (e.g. "MageSpells"), `actions` maps strategy name ->
 -- spell id (or id list).
-function M.load_spec(spec_file, spells, actions)
+function M.load_spec(spec_file, spells, actions, class_id)
     _G.EaxRotations = base_ns()
+    -- Reset per call: do NOT inherit the previous entry's class. Spec files
+    -- that guard on player class (kebab->WARRIOR, smite->PRIEST) bail loudly on
+    -- a mismatch, so an entry that omits class_id must not silently borrow the
+    -- prior entry's class (would produce confusing failures). Entries without
+    -- class_id (all wotlk/*) fall back to the documented default (PRIEST).
+    _mock_player_class = class_id or 5
     local t = {}
     for name, ids in pairs(actions) do t[name] = make_action(ids, name) end
     _G.EaxRotations[spells] = t
-    local mod = dofile(spec_file)
+    local ok_dofile, mod = pcall(dofile, spec_file)
+    if not ok_dofile then
+        error(spec_file .. " failed to load: " .. tostring(mod))
+    end
     if type(mod) ~= "table" or type(mod.strategies) ~= "table" then
-        error(spec_file .. " should return { strategies = ... }")
+        error(spec_file .. " should return { strategies = ... } (got " .. type(mod) .. ")")
     end
     return mod.strategies
 end
@@ -331,6 +402,7 @@ M.ENTRIES = {
     -- -----------------------------------------------------------------------
     {
         key = "tbc/shadow",
+        class_id = 5,
         spec_file = "EaxRotations/classes/priest/shadow_sylvanas.lua",
         spells = "PriestSpells",
         actions = {
@@ -341,6 +413,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/affliction",
+        class_id = 9,
         spec_file = "EaxRotations/classes/warlock/affliction_sylvanas.lua",
         spells = "WarlockSpells",
         actions = {
@@ -354,6 +427,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/combat",
+        class_id = 4,
         spec_file = "EaxRotations/classes/rogue/combat_sylvanas.lua",
         spells = "RogueSpells",
         actions = {
@@ -363,6 +437,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/elemental",
+        class_id = 7,
         spec_file = "EaxRotations/classes/shaman/elemental_sylvanas.lua",
         spells = "ShamanSpells",
         actions = {
@@ -374,6 +449,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/fire",
+        class_id = 8,
         spec_file = "EaxRotations/classes/mage/fire_sylvanas.lua",
         spells = "MageSpells",
         actions = {
@@ -386,12 +462,152 @@ M.ENTRIES = {
     },
     {
         key = "tbc/frost",
+        class_id = 8,
         spec_file = "EaxRotations/classes/mage/frost_sylvanas.lua",
         spells = "MageSpells",
         actions = {
             Frostbolt = 27072,
         },
         reference_names = { "Frostbolt" },
+    },
+    -- -----------------------------------------------------------------------
+    -- TBC batch 2 (2026-08-09): 13 more sylvanas DPS specs wired from the same
+    -- Go dispatch files. Balance pin excludes Hurricane (AoE branch, 3+ targets
+    -- — same policy as the seed/AoE exclusion for affliction); smite pin
+    -- excludes HolyFire (opt-in weave, RotationType HolyFireWeave — same policy
+    -- as WeaveFireBlast for fire). All pins verified conformant; divergences
+    -- were fixed in the spec files (see git log: cat Mangle<Rip, hunter
+    -- sting<MultiShot x3, demo SiphonLife<Immolate, arms WW<Overpower).
+    -- -----------------------------------------------------------------------
+    {
+        key = "tbc/balance",
+        class_id = 11,
+        spec_file = "EaxRotations/classes/druid/balance_sylvanas.lua",
+        spells = "DruidSpells",
+        actions = {
+            FaerieFire = 26993, InsectSwarm = 27013, Moonfire = 26988, Starfire = 26986,
+        },
+        reference_names = { "FaerieFireDebuff", "InsectSwarmDoT", "MoonfireDoT", "StarfirePrimary" },
+    },
+    {
+        key = "tbc/cat",
+        class_id = 11,
+        spec_file = "EaxRotations/classes/druid/cat_sylvanas.lua",
+        spells = "DruidSpells",
+        actions = {
+            FaerieFireFeral = 27011, Rip = 27008, MangleCat = 33983, FerociousBite = 24248, Shred = 27002,
+        },
+        reference_names = { "FaerieFireFeral", "Rip", "MangleDebuff", "FerociousBite", "Shred" },
+    },
+    {
+        key = "tbc/beast_mastery",
+        class_id = 3,
+        spec_file = "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua",
+        spells = "HunterSpells",
+        actions = {
+            SerpentSting = 27016, MultiShot = 27021, ArcaneShot = 27019, SteadyShot = 34120,
+        },
+        reference_names = { "SerpentSting", "MultiShot", "ArcaneShot", "SteadyShot" },
+    },
+    {
+        key = "tbc/marksmanship",
+        class_id = 3,
+        spec_file = "EaxRotations/classes/hunter/marksmanship_sylvanas.lua",
+        spells = "HunterSpells",
+        actions = {
+            SerpentSting = 27016, MultiShot = 27021, ArcaneShot = 27019, SteadyShot = 34120,
+        },
+        reference_names = { "SerpentSting", "MultiShot", "ArcaneShot", "SteadyShot" },
+    },
+    {
+        key = "tbc/survival",
+        class_id = 3,
+        spec_file = "EaxRotations/classes/hunter/survival_sylvanas.lua",
+        spells = "HunterSpells",
+        actions = {
+            SerpentSting = 27016, MultiShot = 27021, ArcaneShot = 27019, SteadyShot = 34120,
+        },
+        reference_names = { "SerpentSting", "MultiShot", "ArcaneShot", "SteadyShot" },
+    },
+    {
+        key = "tbc/arcane",
+        class_id = 8,
+        spec_file = "EaxRotations/classes/mage/arcane_sylvanas.lua",
+        spells = "MageSpells",
+        actions = {
+            ArcaneBlast = 30451, Frostbolt = 27072, ArcaneMissiles = 38699,
+        },
+        reference_names = { "ArcaneBlast", "FrostboltConserve", "ArcaneMissiles" },
+    },
+    {
+        key = "tbc/retribution",
+        class_id = 2,
+        spec_file = "EaxRotations/classes/paladin/retribution_sylvanas.lua",
+        spells = "PaladinSpells",
+        actions = {
+            Judgement = 20271, CrusaderStrike = 35395, SealBlood = 31892,
+        },
+        reference_names = { "Ret_JudgeCrusader", "Ret_ApplyCrusaderSeal", "CrusaderStrike", "Ret_SealBlood_Primary" },
+    },
+    {
+        key = "tbc/smite",
+        class_id = 5,
+        spec_file = "EaxRotations/classes/priest/smite_sylvanas.lua",
+        spells = "PriestSpells",
+        actions = {
+            ShadowWordPain = 25368, Starshards = 25446, DevouringPlague = 25467, MindBlast = 25375, Smite = 25364,
+        },
+        reference_names = { "ShadowWordPain", "Starshards", "DevouringPlague", "MindBlast", "SmiteFiller" },
+    },
+    {
+        key = "tbc/enhancement",
+        class_id = 7,
+        spec_file = "EaxRotations/classes/shaman/enhancement_sylvanas.lua",
+        spells = "ShamanSpells",
+        actions = {
+            Stormstrike = 17364, FlameShock = 25457, EarthShock = 25454, FrostShock = 25464,
+        },
+        reference_names = { "Stormstrike", "FlameShock", "EarthShock", "FrostShock" },
+    },
+    {
+        key = "tbc/demonology",
+        class_id = 9,
+        spec_file = "EaxRotations/classes/warlock/demonology_sylvanas.lua",
+        spells = "WarlockSpells",
+        actions = {
+            Corruption = 27216, SiphonLife = 30911, Immolate = 27215, ShadowBolt = 27209,
+        },
+        reference_names = { "Corruption", "SiphonLife", "Immolate", "ShadowBolt" },
+    },
+    {
+        key = "tbc/destruction",
+        class_id = 9,
+        spec_file = "EaxRotations/classes/warlock/destruction_sylvanas.lua",
+        spells = "WarlockSpells",
+        actions = {
+            Corruption = 27216, Immolate = 27215, Incinerate = 32231,
+        },
+        reference_names = { "Corruption", "Immolate", "Incinerate" },
+    },
+    {
+        key = "tbc/arms",
+        class_id = 1,
+        spec_file = "EaxRotations/classes/warrior/arms_sylvanas.lua",
+        spells = "WarriorSpells",
+        actions = {
+            Execute = 25236, MortalStrike = 30330, Whirlwind = 1680, Overpower = 11585,
+        },
+        reference_names = { "Execute", "MortalStrike", "Whirlwind", "Overpower" },
+    },
+    {
+        key = "tbc/fury",
+        class_id = 1,
+        spec_file = "EaxRotations/classes/warrior/fury_sylvanas.lua",
+        spells = "WarriorSpells",
+        actions = {
+            Execute = 25236, Bloodthirst = 30335, Whirlwind = 1680, Overpower = 11585,
+        },
+        reference_names = { "Execute", "Bloodthirst", "Whirlwind", "Overpower" },
     },
 }
 
@@ -407,7 +623,7 @@ function M.compute()
     local status, evidence = {}, {}
     for _, e in ipairs(M.ENTRIES) do
         local ok, err = pcall(function()
-            local strategies = M.load_spec(e.spec_file, e.spells, e.actions)
+            local strategies = M.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
             local names = M.strategy_names(strategies)
             local violation
             if e.reference_names then

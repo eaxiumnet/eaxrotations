@@ -976,17 +976,8 @@ local strategies = {
             return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(context)) or false
         end,
     },
-    -- 16. Multi-Shot (AoE)
-    {
-        name = "MultiShot",
-        matches = multi_shot_matches,
-        execute = function(context)
-            local result = NS.try_cast(ACTION.MultiShot, context.target, "[BEAST_MASTERY] MultiShot")
-            if result then hunter_core.record_instant_shot() end
-            return result
-        end,
-    },
-    -- 16. Serpent Sting (maintain DoT — IcyVeins #2 priority)
+    -- 16. Serpent Sting (maintain DoT — wowsims/tbc tryUsePrioGCD applies the
+    -- sting BEFORE the shots; MultiShot/ArcaneShot follow)
     {
         name = "SerpentSting",
         matches = sting_matches,
@@ -998,7 +989,17 @@ local strategies = {
         matches = serpent_refresh_matches,
         execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting refresh") end,
     },
-    -- 16c. Pre-Steady leveling: Arcane/Sting fillers when Steady Shot is not yet learned (lvl < 62)
+    -- 17. Multi-Shot (AoE)
+    {
+        name = "MultiShot",
+        matches = multi_shot_matches,
+        execute = function(context)
+            local result = NS.try_cast(ACTION.MultiShot, context.target, "[BEAST_MASTERY] MultiShot")
+            if result then hunter_core.record_instant_shot() end
+            return result
+        end,
+    },
+    -- 18. Pre-Steady leveling: Arcane/Sting fillers when Steady Shot is not yet learned (lvl < 62)
     {
         name = "LevelingArcaneShot",
         matches = leveling_arcane_shot_matches,

@@ -984,6 +984,9 @@ local STRATEGY_SPECS = {
     { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "Execute" },  -- DSL-substituted at runtime
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
+    -- wowsims/tbc warrior normalRotation checks Whirlwind BEFORE Overpower
+    -- (MS → WW → OP → Slam), so the CD lane sits above the proc lane.
+    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "Overpower" },  -- DSL-substituted at runtime
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }), function(context)
         if spec_kit.setting_bool(context, "use_spell_queue_slam", false) then
@@ -991,7 +994,6 @@ local STRATEGY_SPECS = {
         end
         return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }))
     end },
-    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     { "Rend" },  -- DSL-substituted at runtime
     { "PiercingHowl", piercing_howl_matches, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2 }) },

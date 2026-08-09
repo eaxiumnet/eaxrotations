@@ -639,6 +639,9 @@ local strategies = {
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting (leveling)") end },
     { name = "AdaptiveRotation", matches = function(c) return NS.HunterAdaptive and (spec_kit.setting_bool(c, "use_adaptive_rotation", false)) and c.in_combat and c.target end, execute = function(c) return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(c)) or false end },
+    -- wowsims/tbc tryUsePrioGCD applies the sting before the shots, so the
+    -- Serpent Sting DoT lane sits above MultiShot/ArcaneShot/SteadyShot.
+    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(ACTION.MultiShot, context.target, "[MARKSMANSHIP] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "SteadyShot", matches = steady_shot_matches, execute = function(context)
@@ -652,7 +655,6 @@ local strategies = {
         if NS.try_cast(ACTION.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false
     end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(ACTION.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
-    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(ACTION.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(ACTION.WingClip, context.target, "[MARKSMANSHIP] Wing Clip") end },
 }

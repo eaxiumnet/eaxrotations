@@ -160,9 +160,19 @@ if not apl_ok or type(apl_mod) ~= 'table' or type(apl_mod.compute) ~= 'function'
     io.stderr:write('spec_scorecard: tools/apl_status.lua did not expose compute()\n')
     os.exit(3)
 end
-local apl_result = apl_mod.compute()
-local APL_STATUS = apl_result.status or {}
-local APL_EVIDENCE = apl_result.evidence or {}
+-- NOTE: compute() MUST run AFTER the battery, not before. compute() dofiles
+-- each manifest spec file with ITS OWN mock NS (tools/apl_status.lua base_ns),
+-- and shared modules (hunter pet scan, warrior stance manager, ...) cache
+-- `NS = _G.EaxRotations` at their FIRST require(). If compute() ran first,
+-- those shared modules would stay bound to the apl mock, so the battery's
+-- subsequent run would evaluate pet/stance/engineering lanes against the
+-- wrong mock and they would never fire (spurious never-lanes, e.g. BM
+-- BestialWrath/KillCommand/MendPet, arms/fury BattleStance, cat EngineeringBomb).
+-- compute() only reads strategy NAMES for order conformance, so running it
+-- after the battery is safe; the battery must always see virgin shared modules.
+local apl_result
+local APL_STATUS = {}
+local APL_EVIDENCE = {}
 
 -- Lanes that are NOT actionable despite sitting in a bucket: documented
 -- correct-suppression / disabled-by-design. Rendered in the Notes section so
@@ -246,18 +256,6 @@ end
 -- Classify + aggregate.
 -- ---------------------------------------------------------------------------
 local problems = {} -- { {kind=...} } collected for --check / hard-fail
-
--- Era-qualified APL keys ("wotlk/<spec>") are never looked up by a TBC-era
--- row, so validate ALL values once here — otherwise a typo'd value would
--- render silently in the dedicated section without failing --check.
-for ak, av in pairs(APL_STATUS) do
-    if av ~= 'pass' and av ~= 'fail' then
-        problems[#problems + 1] = {
-            kind = 'badapl',
-            msg = 'APL_STATUS["' .. tostring(ak) .. '"] = "' .. tostring(av) .. '" (must be pass/fail)',
-        }
-    end
-end
 
 -- Aggregate one era's battery reports into rows/totals/lane-buckets.
 --   era "sylvanas": STRICT - every never-lane needs a LANE_CLASS pin; an
@@ -363,6 +361,55 @@ if wotlk_agg == nil or type(wotlk_agg) ~= 'table' or wotlk_agg.reports == nil th
     io.stderr:write('spec_scorecard: battery run_all("wotlk") returned no reports\n')
     os.exit(3)
 end
+
+-- Ordering self-guard: compute() rebinds shared modules to its own mock NS, so
+-- if the battery run ever happens AFTER compute() (a future refactor), the
+-- pet/stance/engineering lanes below appear as spurious never-lanes. Assert
+-- they are ABSENT from the TBC aggregate so that regression fails loudly.
+-- (These lanes must come from LANE_CLASS pins when truly never, not from
+-- module pollution; the pollution signature is exactly this lane set.)
+local POLLUTION_SIGNATURE = {
+    ['hunter/beast_mastery'] = { 'BestialWrath', 'Intimidation', 'KillCommand', 'MendPet', 'RevivePet', 'PetAggressive', 'PetDefensive', 'PetPassive' },
+    ['warrior/arms'] = { 'BattleStance', 'BerserkerStance', 'DefensiveStance', 'EngineeringBomb' },
+    ['warrior/fury'] = { 'BattleStance', 'BerserkerStance', 'EngineeringBomb' },
+    ['druid/cat'] = { 'EngineeringBomb' },
+}
+for _, r in ipairs(agg.reports) do
+    local key = r.class .. '/' .. r.spec
+    local sig = POLLUTION_SIGNATURE[key]
+    if sig then
+        local live = {}
+        for _, n in ipairs(r.never or {}) do live[n] = true end
+        for _, lane in ipairs(sig) do
+            if live[lane] then
+                problems[#problems + 1] = {
+                    kind = 'unclassified',
+                    msg = key .. ': never-lane "' .. lane .. '" is the module-pollution signature ' ..
+                        '(compute() ran before the battery? battery must run before apl compute())',
+                }
+            end
+        end
+    end
+end
+
+-- Battery runs are done; now compute the APL manifest (see NOTE above: this
+-- must come AFTER the battery so shared modules are not rebound to its mock).
+apl_result = apl_mod.compute()
+APL_STATUS = apl_result.status or {}
+APL_EVIDENCE = apl_result.evidence or {}
+
+-- Era-qualified APL keys ("wotlk/<spec>") are never looked up by a TBC-era
+-- row, so validate ALL values once here — otherwise a typo'd value would
+-- render silently in the dedicated section without failing --check.
+for ak, av in pairs(APL_STATUS) do
+    if av ~= 'pass' and av ~= 'fail' then
+        problems[#problems + 1] = {
+            kind = 'badapl',
+            msg = 'APL_STATUS["' .. tostring(ak) .. '"] = "' .. tostring(av) .. '" (must be pass/fail)',
+        }
+    end
+end
+
 local rows, totals, lanes_by_bucket = classify_reports(agg, 'sylvanas')
 local wotlk_rows, wotlk_totals, wotlk_lanes_by_bucket = classify_reports(wotlk_agg, 'wotlk')
 
@@ -508,7 +555,20 @@ for _, k in ipairs(apl_keys) do
         or (k == 'tbc/combat' and 'Go: sim/rogue_rotation.go')
         or (k == 'tbc/elemental' and 'Go: sim/shaman_elemental_rotation.go')
         or (k == 'tbc/fire' and 'Go: sim/mage_rotations.go')
-        or (k == 'tbc/frost' and 'Go: sim/mage_rotations.go') or '-'
+        or (k == 'tbc/frost' and 'Go: sim/mage_rotations.go')
+        or (k == 'tbc/balance' and 'Go: sim/druid_balance_rotation.go')
+        or (k == 'tbc/cat' and 'Go: sim/druid_feral_rotation.go')
+        or (k == 'tbc/beast_mastery' and 'Go: sim/hunter_rotation.go')
+        or (k == 'tbc/marksmanship' and 'Go: sim/hunter_rotation.go')
+        or (k == 'tbc/survival' and 'Go: sim/hunter_rotation.go')
+        or (k == 'tbc/arcane' and 'Go: sim/mage_rotations.go')
+        or (k == 'tbc/retribution' and 'Go: sim/paladin_retribution_rotation.go')
+        or (k == 'tbc/smite' and 'Go: sim/priest_smite_rotation.go')
+        or (k == 'tbc/enhancement' and 'Go: sim/shaman_enhancement_rotation.go')
+        or (k == 'tbc/demonology' and 'Go: sim/warlock_rotations.go')
+        or (k == 'tbc/destruction' and 'Go: sim/warlock_rotations.go')
+        or (k == 'tbc/arms' and 'Go: sim/warrior_dps_rotation.go')
+        or (k == 'tbc/fury' and 'Go: sim/warrior_dps_rotation.go') or '-'
     add('| ' .. k .. ' | ' .. fixture .. ' | ' .. APL_STATUS[k] .. ' | '
         .. tostring(APL_EVIDENCE[k] or '-') .. ' |')
 end

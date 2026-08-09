@@ -100,21 +100,22 @@ for _, e in ipairs(manifest.ENTRIES) do
             .. violation.name .. " (pos " .. violation.name_pos .. ")") or "unknown"))
     end)
 
-    -- A reference_names pin must match at least one real strategy name — a
-    -- pin that matches zero names (typo'd strategy name) would make the
-    -- conformance check vacuous, exactly like a resolver that resolves nothing.
+    -- A reference_names pin must match ALL of its names — reference_names are
+    -- OUR strategy names pinned in Go-dispatch order, so a pin with even one
+    -- typo'd name is weaker than intended (that name is silently skipped by
+    -- check_name_order). Requiring all-of-them keeps the pin provably live.
     if e.reference_names then
-        test(e.key .. ": reference_names pin matches real strategies", function()
+        test(e.key .. ": reference_names pin matches ALL real strategies", function()
             local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
             local names = manifest.strategy_names(strategies)
             local known = {}
             for _, n in ipairs(names) do known[n] = true end
-            local count = 0
+            local bad = {}
             for _, n in ipairs(e.reference_names) do
-                if known[n] then count = count + 1 end
+                if not known[n] then bad[#bad + 1] = n end
             end
-            assert_true(count > 0, e.key .. ": reference_names pin matches 0 strategies "
-                .. "(typo'd name? actual strategies: " .. table.concat(names, ", ") .. ")")
+            assert_true(#bad == 0, e.key .. ": reference_names pin has names missing from the spec: "
+                .. table.concat(bad, ", ") .. " (actual strategies: " .. table.concat(names, ", ") .. ")")
         end)
     end
 

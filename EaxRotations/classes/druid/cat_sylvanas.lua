@@ -1339,11 +1339,14 @@ local ACTIONS = {
     { name = "MaimInterrupt", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 1, matches = maim_interrupt_matches },
     { name = "FaerieFireStealthLock", spell = ACTION.FaerieFireFeral, required_form = "cat", matches = faerie_fire_stealth_matches },
     { name = "FaerieFireFeral", spell = ACTION.FaerieFireFeral, required_form = "cat", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
-    { name = "MangleDebuff", spell = ACTION.MangleCat, required_form = "cat", min_energy = MANGLE_COST, debuff = MANGLE_DEBUFF, refresh = MANGLE_REFRESH_WINDOW, matches = mangle_debuff_matches },
 
     { name = "RipSnapshot", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
     { name = "RipTrick", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
     { name = "Rip", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
+    -- wowsims/tbc feral Go dispatch checks Rip BEFORE Mangle (ripNow first in
+    -- doRotation), so the Mangle debuff-maintenance lane sits below the Rip
+    -- finishers to keep APL conformance (reference {Rip, Mangle, ...}).
+    { name = "MangleDebuff", spell = ACTION.MangleCat, required_form = "cat", min_energy = MANGLE_COST, debuff = MANGLE_DEBUFF, refresh = MANGLE_REFRESH_WINDOW, matches = mangle_debuff_matches },
     { name = "FerociousBite", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = bite_matches },
     { name = "FerociousBiteTtd", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
     { name = "BiteTrick", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },

@@ -154,8 +154,8 @@ local expected_order = {
     "Misdirection", "PetDefensive", "PetPassive", "PetAggressive",
     "MendPet", "HuntersMark", "FreezingTrap", "KillCommand",
     "BestialWrath", "Intimidation", "RapidFire", "Readiness",
-    "FeignDeath", "AdaptiveRotation", "MultiShot", "SerpentSting",
-    "SerpentStingRefresh", "LevelingArcaneShot", "LevelingSting",
+    "FeignDeath", "AdaptiveRotation", "SerpentSting",
+    "SerpentStingRefresh", "MultiShot", "LevelingArcaneShot", "LevelingSting",
     "ArcaneShot", "SteadyShot", "Trinket", "ConcussiveShot",
     "Volley", "ExplosiveTrap", "RaptorStrike", "HitCapPriority",
 }

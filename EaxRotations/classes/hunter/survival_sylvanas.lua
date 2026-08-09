@@ -770,11 +770,14 @@ local strategies = {
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[SURVIVAL] Serpent Sting (leveling)") end },
     { name = "AdaptiveRotation", matches = function(c) return NS.HunterAdaptive and (spec_kit.setting_bool(c, "use_adaptive_rotation", false)) and c.in_combat and c.target end, execute = function(c) return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(c)) or false end },
-    { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(ACTION.MultiShot, context.target, "[SURVIVAL] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
-    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(ACTION.SteadyShot, context.target, "[SURVIVAL] Steady Shot") then record_manual_shot() return true end return false end },
-    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(ACTION.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },
+    -- wowsims/tbc tryUsePrioGCD applies the sting before the shots, and the
+    -- lazy rotation prefers MultiShot → ArcaneShot → SteadyShot, so the
+    -- survival shot block follows sting → Multi → Arcane → Steady.
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[SURVIVAL] Serpent Sting") end },
+    { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(ACTION.MultiShot, context.target, "[SURVIVAL] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
+    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(ACTION.SteadyShot, context.target, "[SURVIVAL] Steady Shot") then record_manual_shot() return true end return false end },
+    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(ACTION.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentStingRefresh", matches = serpent_sting_refresh_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[SURVIVAL] Serpent Sting refresh") end },
 }
 
