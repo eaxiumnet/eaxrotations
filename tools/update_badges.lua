@@ -1,12 +1,17 @@
 -- update_badges.lua -- sync test-count badges with runner reality
--- WHAT: counts quoted .lua entries in runners, rewrites README.md + AGENTS.md
---       + docs/PVP_FEATURE_PAGE.md (registered suite totals only). The PvP
---       page's runtime clause ("461/466 passing at runtime; 5 env gaps") and
---       the README badge are manually maintained runtime truth -- this tool
---       cannot derive pass/fail from runner entries, so it only owns the
---       registered rotation/leveling totals.
--- WHEN:  badge counts in README/AGENTS drift from the actual runner lists
--- WHY:   runner treats any registered .lua entry as a suite (including check_*.lua audits)
+-- WHAT: counts the suite list each runner ACTUALLY executes (the `tests = { ... }`
+--       table whose length the runner reports as its Total), then rewrites the
+--       README.md tests badge + suite totals, AGENTS.md (when present) and
+--       docs/PVP_FEATURE_PAGE.md totals AND runtime-passing clauses.
+-- WHEN:  badge counts in README/AGENTS/PVP drift from the runner suite lists
+-- WHY:   the old whole-file scan also counted quoted .lua strings OUTSIDE the
+--        suite list (package.path patterns, the runner's file_exists path, the
+--        manifest_only_test variable) -- it over-claimed by 3 rotation and 2
+--        leveling suites (473 vs 470, 33 vs 31). The rotation list also executes
+--        its 3 check_*.lua static-analysis audits AS suites, so they are part of
+--        the 470 rotation total. The "N/N passing" claim is enforced by the
+--        pre-commit rotation-suite step and verify_all, which assert every listed
+--        suite passes -- this tool owns the count, the gate owns the pass.
 -- USAGE: lua tools/update_badges.lua [--check]
 
 local ROOT = arg and arg[0] and arg[0]:match('^(.*)[\\/]tools[\\/]') or '.'
@@ -29,12 +34,23 @@ local function count_tests_in_runner(path)
     local content = read_file(path)
     if not content then return nil, 'missing: ' .. path end
     local count = 0
+    local inside = false
     for line in content:gmatch('([^\r\n]*)\r?\n?') do
         local trimmed = line:gsub('^%s+', '')
-        if not trimmed:match('^%-%-') then
-            -- Count any quoted .lua entry in the runner (includes check_*.lua static-analysis suites).
-            -- Note: %.lua is a Lua pattern escape for the literal dot; no backslash is involved.
-            for _ in trimmed:gmatch('"[^"]+%.lua"') do count = count + 1 end
+        -- NOTE: this inside-table scan is duplicated in tools/spec_scorecard.lua
+        -- (all_test_names). If you change the toggle here, mirror it there so the
+        -- badge and scorecard registry counts cannot silently diverge.
+        if not inside and (trimmed:match('^local tests = {') or trimmed:match('^local test_files = {')) then
+            inside = true
+        end
+        if inside and trimmed == '}' then
+            inside = false
+        end
+        if inside and not trimmed:match('^%-%-') then
+            -- Only quoted .lua entries inside the suite table -- the exact set
+            -- the runner executes (#tests). Comments are skipped so a quoted
+            -- filename inside a comment cannot inflate the count.
+            for _ in trimmed:gmatch('"([^"]+%.lua)"') do count = count + 1 end
         end
     end
     return count
@@ -51,12 +67,23 @@ local function apply_substitutions(text, rot, lvl, tot)
     local R, L, T = tostring(rot), tostring(lvl), tostring(tot)
     local new, ok
 
+    -- Accept both '%20passing' (current README form) and '-passing' (legacy
+    -- hand-edit) so a URL-encoding change cannot silently freeze the badge
+    -- again. %20 is three characters, so it needs its own literal, not a
+    -- single-char class.
+    -- In the gsub REPLACEMENT, '%%20' is the literal '%20' (a bare '%' would be
+    -- read as a capture reference like %2). '%%2F' is the literal '%2F'.
+    new, ok = replace_once(text, 'tests%-%d+%%2F%d+%%20passing',
+        'tests-' .. R .. '%%2F' .. R .. '%%20passing')
+    text = new; if ok then tally('README badge URL', ok) end
     new, ok = replace_once(text, 'tests%-%d+%%2F%d+%-passing',
-        'tests-' .. R .. '%%2F' .. R .. '-passing')
-    text = new; tally('README badge URL', ok)
+        'tests-' .. R .. '%%2F' .. R .. '%%20passing')
+    text = new; if ok then tally('README badge URL', ok) end
 
-    new, ok = replace_once(text, 'alt="%d+/%d+ Tests Passing"',
-        'alt="' .. R .. '/' .. R .. ' Tests Passing"')
+    -- No trailing quote in the pattern: the alt keeps its parenthetical, e.g.
+    -- '467/467 Tests Passing (rotation suite fully green)'.
+    new, ok = replace_once(text, 'alt="%d+/%d+ Tests Passing',
+        'alt="' .. R .. '/' .. R .. ' Tests Passing')
     text = new; tally('README badge alt', ok)
 
     new, ok = replace_once(text, '(%d+) regression test suites',
@@ -82,6 +109,31 @@ local function apply_substitutions(text, rot, lvl, tot)
     new, ok = replace_once(text, '(%d+) leveling suites',
         function() return L .. ' leveling suites' end)
     text = new; tally('README leveling suites', ok)
+
+    -- README structure line: 'N test suites (R rotation + L leveling)'
+    new, ok = replace_once(text, '(%d+) test suites %((%d+) rotation %+ (%d+) leveling%)',
+        function() return T .. ' test suites (' .. R .. ' rotation + ' .. L .. ' leveling)' end)
+    text = new; tally('README structure suites', ok)
+
+    -- README features row: '**N Test Suites** | R rotation + L leveling registered; ...'
+    new, ok = replace_once(text, '%*%*(%d+) Test Suites%*%*',
+        function() return '**' .. T .. ' Test Suites**' end)
+    text = new; tally('README features Test Suites', ok)
+
+    new, ok = replace_once(text, '(%d+) rotation %+ (%d+) leveling registered',
+        function() return R .. ' rotation + ' .. L .. ' leveling registered' end)
+    text = new; tally('README features registered', ok)
+
+    -- Runtime-passing clauses. Two-number form (PVP '467/467 rotation passing')
+    -- MUST run before the one-number form ('467 rotation passing') so the
+    -- second pattern cannot half-replace the two-number text.
+    new, ok = replace_once(text, '(%d+)/(%d+) rotation passing at runtime',
+        function() return R .. '/' .. R .. ' rotation passing at runtime' end)
+    text = new; tally('PVP rotation passing runtime', ok)
+
+    new, ok = replace_once(text, '(%d+) rotation passing at runtime',
+        function() return R .. ' rotation passing at runtime' end)
+    text = new; tally('README rotation passing runtime', ok)
 
     new, ok = replace_once(text, '(%d+) rotation suites registered',
         function() return R .. ' rotation suites registered' end)

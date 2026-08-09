@@ -228,11 +228,27 @@ if not runner_content then
     io.stderr:write('spec_scorecard: cannot read rotation runner: ' .. runner_path .. '\n')
     os.exit(3)
 end
+-- Same counting discipline as update_badges.lua: only the runner's tests-table
+-- entries are suites it actually executes (#tests); a whole-file scan would
+-- also catch package.path patterns, the runner's file_exists path and the
+-- manifest_only_test variable (473 vs the real 470). The 3 check_*.lua
+-- static-analysis audits ARE list entries, so they are part of the 470.
 local all_test_names = {}
 if runner_content then
-    for entry in runner_content:gmatch('"([^"]+%.lua)"') do
-        local name = entry:gsub('%.lua$', ''):gsub('^test_', '')
-        all_test_names[#all_test_names + 1] = name
+    local inside = false
+    -- NOTE: this inside-table scan is duplicated in tools/update_badges.lua
+    -- (count_tests_in_runner). If you change the toggle here, mirror it there so
+    -- the badge and scorecard registry counts cannot silently diverge.
+    for line in runner_content:gmatch('([^\r\n]*)\r?\n?') do
+        local trimmed = line:gsub('^%s+', '')
+        if not inside and trimmed:match('^local tests = {') then inside = true end
+        if inside and trimmed == '}' then inside = false end
+        if inside and not trimmed:match('^%-%-') then
+            for entry in trimmed:gmatch('"([^"]+%.lua)"') do
+                local name = entry:gsub('%.lua$', ''):gsub('^test_', '')
+                all_test_names[#all_test_names + 1] = name
+            end
+        end
     end
 end
 table.sort(all_test_names)
@@ -615,10 +631,11 @@ add('- APL status is COMPUTED, not hardcoded: `tools/apl_status.lua` loads each 
 add('- Phase 2 note: `shared/apl_parser.lua` (resurrected) parses the pinned wowsims '
     .. 'TypeAPL JSON; test_apl_conformance.lua asserts strategy order for the 3 pilots '
     .. 'and fails CI on drift.')
-add('- Suite-count note: `registry` = every quoted `*.lua` in run_rotation_tests.lua '
-    .. '(includes check_* audits + duplicate entries, so it can exceed the 466 real '
-    .. 'rotation suites verify_all reports). The spec column is word-matched and '
-    .. 'collides across classes (e.g. `holy` matches both paladin and priest suites) — '
+add('- Suite-count note: `registry` = the ' .. #all_test_names .. ' rotation suites the '
+    .. 'runner actually executes (its `tests = { ... }` table — the same count '
+    .. 'update_badges.lua reports; includes the 3 `check_*` static-analysis audits '
+    .. 'the runner runs as suites). The spec column is word-matched and collides '
+    .. 'across classes (e.g. `holy` matches both paladin and priest suites) — '
     .. 'informational only; the class column is the reliable number.')
 local lane_notes_list = {}
 for key, note in pairs(LANE_NOTES) do lane_notes_list[#lane_notes_list + 1] = '`' .. key .. '`: ' .. note end
