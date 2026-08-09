@@ -128,8 +128,20 @@ local function exists_on_disk(path)
         candidates[#candidates + 1] = path:sub(4)
     end
     for _, cand in ipairs(candidates) do
-        local f = io.open(cand, "rb")
-        if f then f:close() return true end
+        -- Only a regular FILE is a clean-checkout risk.  Directory fragments
+        -- (e.g. "classes/" / "EaxRotations/" from `root .. "/" .. file`
+        -- concatenation) must NOT count: on POSIX io.open succeeds on a
+        -- directory, so the old io.open probe flagged them on Linux CI while
+        -- passing on Windows — a platform-dependent false positive.  Use lfs
+        -- (already required below) to check the mode explicitly, falling back
+        -- to the io.open probe only when lfs is unavailable.
+        if lfs_ok then
+            local attr = lfs.attributes(cand)
+            if attr and attr.mode == "file" then return true end
+        else
+            local f = io.open(cand, "rb")
+            if f then f:close() return true end
+        end
     end
     return false
 end
