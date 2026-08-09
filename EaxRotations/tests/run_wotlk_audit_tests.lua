@@ -49,7 +49,8 @@ local WOTLK_REFERENCE_ALIASES = {
     [3661] = { kind = "VALID_RANK_ALIAS", family = "Mend Pet", source = "sim/hunter/pet_abilities.go pet surface" },
     [38692] = { kind = "VALID_RANK_ALIAS", family = "Fireball", source = "sim/mage/fireball.go" },
     [55360] = { kind = "VALID_BRIDGE_GAP", family = "Living Bomb", source = "sim/mage/living_bomb.go" },
-    [42873] = { kind = "VALID_BRIDGE_GAP", family = "Fire Blast", source = "sim/mage/fire_blast.go" },
+    -- 42873 (Fire Blast) is pinned once, in the rank-audit section below, with
+    -- the authoritative wowhead WotLK Classic verification as source.
     [44448] = { kind = "VALID_AURA_ALIAS", family = "Hot Streak", source = "sim/mage/talents.go" },
     [12873] = { kind = "VALID_AURA_ALIAS", family = "Scorch", source = "sim/core/debuffs.go" },
     [19940] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "sim/paladin/holy/holy.go + shared/_dbc_spell_ids.lua + shared/wowhead_data_bridge_sylvanas.lua" },
