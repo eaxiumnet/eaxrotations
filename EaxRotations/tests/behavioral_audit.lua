@@ -58,10 +58,14 @@ M.SPEC_FILES = {
 -- (b) close-out (2026-08-10): per-spec require-time race override. smite binds
 -- _player_race from load_player:get_race_id() at module load (smite:30-32);
 -- the mock defaults to race 1 (human) so both racial lanes were structurally
--- dead. Loading smite as night elf (4) makes Starshards observable;
--- DevouringPlague (undead 5) needs a second race load and stays pinned (see
--- tools/spec_scorecard.lua LANE_CLASS). Applied in load_spec around the dofile.
+-- dead. Loading smite as night elf (4) makes Starshards observable.
+-- Threat-family close-out (2026-08-10): smite ALSO carries DevouringPlague
+-- gated on race 5 (undead, smite:32) — one spec, two exclusive races.
+-- RACE_VARIANTS loads the spec again per extra race and run_all merges the
+-- never lists (a lane stays never only if it never fires under ANY variant
+-- race), so both Starshards and DevouringPlague are observable.
 M.RACE_OVERRIDES = { smite = 4 }
+M.RACE_VARIANTS = { smite = { 5 } }
 
 M.SPEC_FILES_WOTLK = {
     deathknight = { "blood", "frost", "leveling", "unholy" },
@@ -191,8 +195,9 @@ local function _target()
     }
 end
 
-local function _friend(hp, dist, class_id)
+local function _friend(hp, dist, class_id, opts)
     hp = type(hp) == "number" and hp or 100
+    opts = opts or {}
     local f = {
         is_valid = function(self) return true end,
         is_dead = function(self) return hp <= 0 end,
@@ -205,6 +210,15 @@ local function _friend(hp, dist, class_id)
         get_max_power = function(self) return 0 end,
         get_name = function(self) return "AuditFriend" end,
         hp = hp,
+        -- Threat-family close-out (2026-08-10): opts.role feeds bear growl's
+        -- target-of-target is_tank/is_healer reads (get_group_role);
+        -- opts.threat_status / opts.has_aggro feed prot's ally-threatened scan
+        -- (protection:584 reads the FIELD directly). All default nil —
+        -- is_tank/is_healer read false and the threat scan skips, identical to
+        -- the pre-opts behavior for every existing _friend consumer.
+        get_group_role = function(self) return opts.role end,
+        threat_status = opts.threat_status,
+        has_aggro = opts.has_aggro,
         -- vec3 position (contract verified 2026-08-08): one {x,y,z} table
         -- with [1]/[2] aliases, matching the real API; prot's party scan
         -- (protection:443) reads the table fields for Intervene's range gate.
@@ -852,6 +866,12 @@ function M.build_ns(class_key, era)
                 unit = _friend(hp, 30, friend_class), hp = hp, effective_hp = hp, max_hp = 10000,
                 time_to_die = ttd, future_hp = hp, death_risk = 0, will_die_soon = false,
                 is_snared = (ns._bstate("snared_friend", false) == true and i == 1) or nil,
+                -- Threat-family close-out (2026-08-10): friendly_target_threat
+                -- marks the lowest ally entry threatened (holy:332
+                -- entry_needs_protection ORs threat_status >= 2). Only holy
+                -- BoPFocusedAlly reads it; default nil is a no-op for every
+                -- other heal-scan consumer.
+                threat_status = (i == 1) and ns._bstate("friendly_target_threat", nil) or nil,
                 -- Deficit must mirror the real scan semantics (heal modules set
                 -- deficit = max_hp - current_hp): a low-HP entry needs a
                 -- positive deficit or every deficit_of(...) > 0 gate (paladin
@@ -2218,6 +2238,26 @@ M.SCENARIOS = {
     -- RACE_OVERRIDES loads smite as night elf (race 4), so it fires in the
     -- standard scenarios.
     { name = "pvp_succubus",       overrides = { is_pvp = true, has_pet = true, pet_spells = { 27274 } } },
+    -- Threat-family close-out (2026-08-10): bear Growl needs a target-of-target
+    -- unit that is a player/healer (target.get_target defaults to ctx.me → the
+    -- already-tanking gate always blocks); now > TAUNT_COOLDOWN_WINDOW (8) so
+    -- the throttle passes (state.now defaults 0 → 0 - 0 < 8 always throttles).
+    { name = "bear_growl",         overrides = { form = 1, now = 1000, target_get_target = _friend(50, 30, nil, { role = "healer" }) } },
+    -- prot peel: one party ally that is BOTH low-HP (<=35 → low_hp_ally, BoP)
+    -- AND threatened (threat_status >= 2 → ally_threatened, RighteousDefense);
+    -- target_classification feeds RighteousDefense's elite gate.
+    { name = "prot_party_peel",    overrides = { target_classification = 1, party_members = { _friend(30, 5, nil, { threat_status = 2 }) } } },
+    -- holy BoP focused-ally: heal-scan entry hp <= 38 + threat_status >= 2
+    -- (entry_needs_protection holy:326-333) → protection_target set.
+    { name = "holy_bop_focused",   overrides = { friends_hp = { 30, 70, 85 }, friendly_target_threat = 2 } },
+    -- BM FeignDeath: fd_mode defaults "off" (use_threat_drop off); the setting
+    -- override flips it so should_feign_death(threat 2, "high_threat") passes.
+    { name = "bm_feign_death",     overrides = { threat_level = 2, setting_overrides = { fd_mode = "high_threat" } } },
+    -- shadow DevouringPlague: NOT race-gated — the (b) audit's race-5-load
+    -- claim was wrong (shadow never binds race at require time; only smite
+    -- does). The real gate is _engaged_with_player (shadow:743-754), which
+    -- needs target_hp < 100. No RACE_OVERRIDES extension needed.
+    { name = "shadow_devouring_plague", overrides = { target_hp = 80 } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -2408,7 +2448,7 @@ function M.build_context_for(class_key, scenario)
         -- FriendlyTarget lanes (disc + holy priest, holy paladin, resto druid
         -- + shaman) become observable; it is the unit's pct (must be < the 90
         -- threshold). No separate boolean — the hp presence is the signal.
-        friendly_target_hp=true,
+        friendly_target_hp=true, friendly_target_threat=true,
         max_mana=true,
         -- Threat context (ranked #12): high-threat scenarios make the threat-
         -- drop lanes (Soulshatter, priest Fade, rogue Feint) observable. These
@@ -2433,6 +2473,11 @@ function M.build_context_for(class_key, scenario)
         -- a low-hp ally through get_party_members so the party scan populates
         -- lowest_allied. Both are prot-scoped reads.
         is_group=true, party_low_ally=true, friend_hp=true,
+        -- Threat-family close-out (2026-08-10): party_members / group_members
+        -- present the ally scan for prot's peel lanes (protection:566 reads
+        -- context.party_members OR context.group_members directly); now feeds
+        -- bear build_state's clock so Growl's taunt throttle passes.
+        party_members=true, group_members=true, now=true,
         -- Stat/weapon mocks (2026-08-08 focused triage): hit_rating feeds the
         -- HitCapPriority matchers (combat/arms/fury read context.hit_rating and
         -- gate on deficit = hit_cap_rating_needed - hit_rating > 30 — default
@@ -2740,6 +2785,9 @@ function M.apply_battery_state(ns, ctx, class_key)
         -- friendly unit below the 90 threshold. Keyed on the hp alone (no
         -- boolean — avoids colliding with context.friendly_target-as-unit).
         friendly_target_hp = ctx.friendly_target_hp,
+        -- Threat-family close-out (2026-08-10): friendly_target_threat marks
+        -- the lowest heal-scan ally threatened for holy BoPFocusedAlly.
+        friendly_target_threat = ctx.friendly_target_threat,
     }
     -- Party members: holy MassDispel (holy_sylvanas.lua:1031) scans
     -- context.party_members for dangerous magic via Healing.has_dangerous_dispel.
@@ -2828,7 +2876,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Spec loader
 -- ---------------------------------------------------------------------------
-function M.load_spec(class_key, spec_key, era)
+function M.load_spec(class_key, spec_key, era, race_override)
     era = era or "sylvanas"
     local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_" .. era .. ".lua"
     local f = io.open(path, "rb")
@@ -2956,11 +3004,12 @@ function M.load_spec(class_key, spec_key, era)
     -- (b) close-out (2026-08-10): smite binds _player_race from
     -- load_player:get_race_id() at require time (smite:30-32). RACE_OVERRIDES
     -- makes smite load as night elf (4) so Starshards is observable;
-    -- DevouringPlague (undead 5) would need a second race load and stays
-    -- pinned. Other specs get nil → race 1 (human), unchanged.
+    -- run_spec passes an explicit race_override for RACE_VARIANTS (undead 5)
+    -- so DevouringPlague is observable too. Other specs get nil → race 1
+    -- (human), unchanged.
     -- Era-gated: only the TBC battery binds the race override, so a future
     -- WotLK-era smite load can't silently pick up the night-elf binding.
-    M._race_override = (era == "sylvanas") and M.RACE_OVERRIDES and M.RACE_OVERRIDES[spec_key]
+    M._race_override = race_override or ((era == "sylvanas") and M.RACE_OVERRIDES and M.RACE_OVERRIDES[spec_key])
     local ok, result = pcall(dofile, path)
     M._race_override = nil
     -- Keep the stub installed when there was no pre-existing core: runtime
@@ -2990,10 +3039,10 @@ end
 -- ---------------------------------------------------------------------------
 -- Spec runner
 -- ---------------------------------------------------------------------------
-function M.run_spec(class_key, spec_key, scenarios, era)
+function M.run_spec(class_key, spec_key, scenarios, era, race_override)
     era = era or "sylvanas"
     scenarios = scenarios or M.SCENARIOS
-    local result, load_err, ns = M.load_spec(class_key, spec_key, era)
+    local result, load_err, ns = M.load_spec(class_key, spec_key, era, race_override)
     if not result then
         return nil, load_err
     end
@@ -3163,12 +3212,45 @@ function M.run_all(era)
             if not report then
                 load_failures[#load_failures + 1] = class_key .. "/" .. spec_key .. ": " .. tostring(err)
             else
+                -- Threat-family close-out (2026-08-10): race-variant merge.
+                -- smite binds race at require time; RACE_VARIANTS loads the
+                -- spec again per extra race and a lane stays never ONLY if it
+                -- never fires under ANY variant (Starshards fires as night
+                -- elf 4, DevouringPlague as undead 5 — both observable).
+                -- Era-gated like RACE_OVERRIDES: a future WotLK-era smite load
+                -- can't silently pick up the undead variant. If a variant load
+                -- fails, never_set is left untouched (conservative: lanes stay
+                -- never) and the failure surfaces via the load-failures pin.
+                local variants = (era == "sylvanas") and M.RACE_VARIANTS and M.RACE_VARIANTS[spec_key]
+                local never_set = {}
+                for _, n in ipairs(report.never) do never_set[n] = true end
+                local errs = {}
+                for _, e in ipairs(report.dispatch_errors) do errs[#errs + 1] = e end
+                if type(variants) == "table" then
+                    for _, race in ipairs(variants) do
+                        local vrep, verr = M.run_spec(class_key, spec_key, M.SCENARIOS, era, race)
+                        if not vrep then
+                            load_failures[#load_failures + 1] = class_key .. "/" .. spec_key
+                                .. " (race " .. tostring(race) .. "): " .. tostring(verr)
+                        else
+                            local vnever = {}
+                            for _, n in ipairs(vrep.never) do vnever[n] = true end
+                            for n in pairs(never_set) do
+                                if not vnever[n] then never_set[n] = nil end
+                            end
+                            for _, e in ipairs(vrep.dispatch_errors) do errs[#errs + 1] = e end
+                        end
+                    end
+                end
+                local merged = {}
+                for n in pairs(never_set) do merged[#merged + 1] = n end
+                table.sort(merged)
                 reports[#reports + 1] = {
                     class = class_key,
                     spec = spec_key,
-                    never = report.never,
+                    never = merged,
                     strategy_count = report.strategy_count,
-                    dispatch_errors = report.dispatch_errors,
+                    dispatch_errors = errs,
                 }
             end
         end

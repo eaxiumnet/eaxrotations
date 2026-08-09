@@ -59,8 +59,10 @@ local LANE_CLASS = {
             -- pin removed.
             -- (b) close-out (2026-08-10): ChallengingRoar cleared via its
             -- dedicated toggle (bear_use_challenging_roar) + enemy count — the
-            -- category-(a) shape, re-bucketed and closed here.
-            FaerieFirePull = 'b', FeralChargePull = 'b', Growl = 'b',
+            -- category-(a) shape, re-bucketed and closed here. Threat-family
+            -- close-out (2026-08-10): Growl cleared by the bear_growl scenario
+            -- (healer target-of-target + now past the taunt throttle).
+            FaerieFirePull = 'b', FeralChargePull = 'b',
             PrePullEnrage = 'b',
         },
         cat = {
@@ -96,8 +98,8 @@ local LANE_CLASS = {
             -- trinket_1_ready was always false in LIVE game too).
             -- (b) close-out (2026-08-10): Misdirection cleared by the
             -- bm_misdirection scenario (combat_time window + setting);
-            -- FeignDeath stays pinned (threat-level model, deferred).
-            FeignDeath = 'b',
+            -- threat-family close-out (2026-08-10): FeignDeath cleared by the
+            -- bm_feign_death scenario (threat_level 2 + high_threat mode).
         },
         marksmanship = {},
         survival = {},
@@ -122,8 +124,9 @@ local LANE_CLASS = {
             -- JudgementSoloRighteousness, LayOnHandsLastResort cleared by the
             -- holy_* scenarios — pins removed.
             -- (b) close-out (2026-08-10): BlessingOfFreedomSnare cleared by the
-            -- snare_self scenario (snared_friend entry flag).
-            BlessingOfProtectionFocusedAlly = 'b',
+            -- snare_self scenario (snared_friend entry flag); threat-family
+            -- close-out (2026-08-10): BlessingOfProtectionFocusedAlly cleared
+            -- by the holy_bop_focused scenario (low-HP threatened entry).
         },
         protection = {
             -- (c) close-out (2026-08-09, batch 2): AvengingWrath + LayOnHands
@@ -131,8 +134,9 @@ local LANE_CLASS = {
             -- (a) opt-in close-out (2026-08-10): AvengerShield + HammerOfWrath +
             -- Judgement + SealOfCommandAoE cleared by the prot_* scenarios
             -- (settings + seal buff map) — pins removed.
-            BlessingOfProtectionAlly = 'b',
-            RighteousDefense = 'b',
+            -- Threat-family close-out (2026-08-10): RighteousDefense +
+            -- BlessingOfProtectionAlly cleared by the prot_party_peel scenario
+            -- (one low-HP threatened party ally + elite classification).
         },
         retribution = {
             -- (c) close-out (2026-08-09, batch 2): the 3 cleanse/purify lanes
@@ -161,10 +165,10 @@ local LANE_CLASS = {
             -- Healer (c) close-out (2026-08-09): InnerFocus + SoloRenew cleared
             -- by the smite_* scenarios — pins removed.
             -- (b) close-out (2026-08-10): Starshards cleared via RACE_OVERRIDES
-            -- (smite loads as night elf). DevouringPlague stays pinned — it binds
-            -- _player_race at require time and needs a second race-5 load (see
-            -- behavioral_audit.lua RACE_OVERRIDES).
-            DevouringPlague = 'b',
+            -- (smite loads as night elf). Threat-family close-out (2026-08-10):
+            -- DevouringPlague cleared via RACE_VARIANTS — smite loads a second
+            -- time as undead (race 5) and the battery merges the never lists,
+            -- so both racial lanes are observable.
         },
     },
     shaman = {

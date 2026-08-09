@@ -324,3 +324,47 @@ edits, no matcher-logic or order changes. Fixtures added to
   RipSnapshot, FireNovaReplacement (module-local state, unpinnable).
 - **Pinned**: `test_b_bucket_closeout_regression.lua` (27 lanes), verify_all
   battery pin 46 → 19, badges 475/475, scorecard regenerated.
+
+## Threat-family + race close-out (2026-08-10) — TBC never 19 → 13
+
+- **Cleared (6, all battery-fixture; zero spec-file edits)**:
+  - druid/bear **Growl** — `bear_growl` scenario: `target_get_target` presents a
+    healer target-of-target unit (via `_friend(…, { role = "healer" })` feeding
+    `get_group_role` → `target_target_is_healer`), `form = 1`, `now = 1000`
+    (> TAUNT_COOLDOWN_WINDOW 8 so the throttle passes; state.now defaulted 0 →
+    always throttled).
+  - paladin/prot **RighteousDefense** + **BlessingOfProtectionAlly** —
+    `prot_party_peel` scenario: one `ctx.party_members` ally that is BOTH
+    low-HP (≤ 35 → low_hp_ally, BoP) AND threatened (threat_status ≥ 2 →
+    ally_threatened, RighteousDefense); `target_classification = 1` feeds
+    RighteousDefense's elite gate.
+  - paladin/holy **BlessingOfProtectionFocusedAlly** — `holy_bop_focused`
+    scenario: heal-scan entry hp ≤ 38 + new `friendly_target_threat` bank key
+    → `entry_needs_protection` (holy:326) sets protection_target.
+  - hunter/BM **FeignDeath** — `bm_feign_death` scenario: `threat_level = 2`
+    (state.threat_level = ctx.threat_level, BM:325) + `fd_mode = "high_threat"`
+    setting override → `should_feign_death(2, "high_threat")` true. The (b)
+    audit's "needs a threat model" was already satisfied by ctx.threat_level.
+  - priest/smite **DevouringPlague** — **RACE_VARIANTS** mechanism:
+    `M.RACE_VARIANTS = { smite = { 5 } }` loads smite a second time as undead
+    (race 5; base load stays night elf 4 via RACE_OVERRIDES) and `run_all`
+    merges the never lists (a lane is never only if never under ANY variant
+    race). Smite binds `_player_race = load_player:get_race_id()` at require
+    time (smite:30-32) — the require-time binding is confirmed working
+    per-spec. Shadow's own DevouringPlague was NOT race-gated: `_engaged_with_player`
+    (shadow:743-754) needs `target_hp < 100`, cleared by the
+    `shadow_devouring_plague` scenario — the (b) audit's "shadow race binding"
+    claim was wrong (that binding is smite's, already noted above).
+- **New battery surface**: `_friend(hp, dist, class_id, opts)` opts
+  (role → get_group_role, threat_status, has_aggro); `_heal_entries` entry
+  `threat_status` (bank-driven, default nil); `run_spec`/`load_spec`
+  `race_override` param; `run_all` race-variant never merge; whitelist adds
+  `now`, `party_members`, `group_members`, `friendly_target_threat`.
+- **Kept (10 b + 3 c)**: 9 correctly-silent OOC/disabled (PrePullEnrage,
+  FaerieFirePull, FeralChargePull, TrackHumanoids, TravelForm, MountedProtection,
+  ManaGemConjure ×2, DispelMagic); EncounterReactions (declined — vacuous
+  without boss data); c = RakeSnapshot, RipSnapshot, FireNovaReplacement
+  (module-local state, unpinnable).
+- **Pinned**: `test_b_bucket_closeout_regression.lua` extended to 33 lanes
+  (incl. the race-5 variant proof), verify_all battery pin 19 → 13, badges
+  475/475, scorecard regenerated.

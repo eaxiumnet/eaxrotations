@@ -78,8 +78,11 @@ end
 print("PASS: end-to-end battery check (9 threat lanes, threat_high firing)")
 
 -- ============================================================================
--- Negative: hunter FeignDeath must stay never-firing (threat_level path, not
--- ctx threat_pct) — proves the scenario doesn't leak into a different gate.
+-- hunter FeignDeath: the threat-family close-out (2026-08-10) cleared this
+-- lane via the bm_feign_death scenario (threat_level 2 + fd_mode high_threat).
+-- The contract that matters is gate separation: it must fire ONLY there, NOT
+-- via the threat_pct-based threat_high scenario (it reads state.threat_level
+-- via hunter_core, not ctx threat_pct).
 -- ============================================================================
 local hunter = aud.run_spec("hunter", "beast_mastery")
 assert_true(hunter ~= nil, "battery run for hunter/beast_mastery failed")
@@ -87,9 +90,14 @@ local fd_never = false
 for _, name in ipairs(hunter.never) do
     if name == "FeignDeath" then fd_never = true end
 end
-assert_true(fd_never,
-    "hunter/beast_mastery FeignDeath must remain never-firing (it reads state.threat_level via hunter_core, not ctx threat_pct)")
-print("PASS: hunter FeignDeath negative (different threat gate untouched)")
+assert_true(not fd_never,
+    "hunter/beast_mastery FeignDeath must now fire (bm_feign_death scenario)")
+local fd_in = hunter.fires_in["FeignDeath"] or {}
+assert_true(fd_in["bm_feign_death"] == true,
+    "hunter/beast_mastery FeignDeath must fire in bm_feign_death")
+assert_true(fd_in["threat_high"] == nil,
+    "hunter/beast_mastery FeignDeath must NOT fire in threat_high (threat_level gate, not threat_pct)")
+print("PASS: hunter FeignDeath gate separation (bm_feign_death only, threat_high untouched)")
 
 -- ============================================================================
 -- Mechanism pin: threat_pct passthrough flows into ctx and Soulshatter matches.

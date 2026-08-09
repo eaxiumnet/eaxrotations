@@ -1,14 +1,14 @@
--- test_b_bucket_closeout_regression.lua — pins the TBC category-(b)
--- close-out (2026-08-10). The scorecard's LANE_CLASS classified 43 (b) lanes
--- as PvP / out-of-combat / situational; the audit triaged 28 as
--- fixture-modelable and this battery-fixture campaign cleared 27 of them
--- (the 28th, smite DevouringPlague, binds _player_race at require time and
--- needs a second race-5 load — pinned with rationale in LANE_CLASS). TBC
--- never-count drops 46 → 19 (b=16: 9 correctly-silent + 5 threat-family +
--- EncounterReactions + DevouringPlague; c=3 unchanged) with ZERO spec-file
--- edits. This test pins the clears so a future battery edit can't silently
--- re-hide them.
--- WHAT:  the 27 lanes by spec (all battery-fixture, no matcher/order changes):
+-- test_b_bucket_closeout_regression.lua — pins the TBC category-(b) close-out
+-- (2026-08-10) + the threat-family/race close-out. The scorecard's LANE_CLASS
+-- classified 43 (b) lanes as PvP / out-of-combat / situational; the audit
+-- triaged 28 as fixture-modelable and the battery-fixture campaign cleared
+-- 27 (TBC never 46 → 19), then the threat-family batch cleared the last 6
+-- (bear Growl, prot RighteousDefense + BlessingOfProtectionAlly, holy
+-- BlessingOfProtectionFocusedAlly, BM FeignDeath, smite DevouringPlague via
+-- the new RACE_VARIANTS second race-5 load — TBC never 19 → 13). ZERO
+-- spec-file edits. This test pins the clears so a future battery edit can't
+-- silently re-hide them.
+-- WHAT:  the 33 lanes by spec (all battery-fixture, no matcher/order changes):
 --   druid/balance   3: PvP_Cyclone / PvP_EntanglingRoots / PvP_NaturesGrasp
 --                      (pvp_melee: is_pvp + enemy_healer / melee_on_you)
 --   druid/bear      1: ChallengingRoar (bear_challenging_roar: the dedicated
@@ -43,6 +43,19 @@
 --                      (pvp_melee: is_pvp + melee_on_you / enemy_caster)
 --   warlock/demo    1: Seduction (pvp_succubus: has_pet + pet_spells Lash of
 --                      Pain 27274 → pet_type_succubus)
+--   druid/bear      1: Growl (bear_growl: target-of-target healer unit via
+--                      target_get_target + now > taunt throttle 8)
+--   paladin/prot    2: RighteousDefense + BlessingOfProtectionAlly
+--                      (prot_party_peel: one low-HP threatened party ally via
+--                      ctx.party_members + elite target_classification)
+--   paladin/holy    1: BlessingOfProtectionFocusedAlly (holy_bop_focused:
+--                      heal-scan entry hp <= 38 + friendly_target_threat 2)
+--   hunter/BM       1: FeignDeath (bm_feign_death: threat_level 2 + fd_mode
+--                      high_threat setting override)
+--   priest/smite    1: DevouringPlague (RACE_VARIANTS: second load as undead
+--                      race 5 — the require-time race binding is confirmed
+--                      working per-spec; shadow's own DP was cleared by the
+--                      target_hp<100 engagement gate, NOT a race load)
 -- Battery fixtures added: 9 scenarios (pvp_melee, pvp_pressure_resto,
 -- fear_nearby, snare_self, shadow_cc_break, bm_misdirection,
 -- bear_challenging_roar, enh_autoattack, pvp_succubus), GetEnemiesInRange
@@ -337,6 +350,56 @@ assert_true(sedst.pet_type_succubus == true,
 print("PASS: demonology Seduction regression (pvp_succubus)")
 
 -- ============================================================================
+-- Threat-family close-out (2026-08-10): the last 6 (b) lanes.
+-- ============================================================================
+
+local bear, bear_err, bear_ns = aud.load_spec("druid", "bear")
+assert_true(bear ~= nil, "druid/bear load failed: " .. tostring(bear_err))
+_G.EaxRotations = bear_ns
+assert_lane_matches(bear, bear_ns, "druid", "Growl", "bear_growl",
+    "bear Growl must match in bear_growl (healer target-of-target + now past taunt window)")
+print("PASS: bear Growl regression (bear_growl)")
+
+local prot, prot_err, prot_ns = aud.load_spec("paladin", "protection")
+assert_true(prot ~= nil, "paladin/protection load failed: " .. tostring(prot_err))
+_G.EaxRotations = prot_ns
+assert_lane_matches(prot, prot_ns, "paladin", "RighteousDefense", "prot_party_peel",
+    "prot RighteousDefense must match in prot_party_peel (threatened party ally + elite)")
+assert_lane_matches(prot, prot_ns, "paladin", "BlessingOfProtectionAlly", "prot_party_peel",
+    "prot BlessingOfProtectionAlly must match in prot_party_peel (low-HP party ally)")
+print("PASS: prot RighteousDefense + BlessingOfProtectionAlly regression (prot_party_peel)")
+
+local holy, holy_err, holy_ns = aud.load_spec("paladin", "holy")
+assert_true(holy ~= nil, "paladin/holy load failed: " .. tostring(holy_err))
+_G.EaxRotations = holy_ns
+assert_lane_matches(holy, holy_ns, "paladin", "BlessingOfProtectionFocusedAlly", "holy_bop_focused",
+    "holy BlessingOfProtectionFocusedAlly must match in holy_bop_focused (low-HP threatened entry)")
+print("PASS: holy BlessingOfProtectionFocusedAlly regression (holy_bop_focused)")
+
+local bm, bm_err, bm_ns = aud.load_spec("hunter", "beast_mastery")
+assert_true(bm ~= nil, "hunter/beast_mastery load failed: " .. tostring(bm_err))
+_G.EaxRotations = bm_ns
+assert_lane_matches(bm, bm_ns, "hunter", "FeignDeath", "bm_feign_death",
+    "BM FeignDeath must match in bm_feign_death (threat_level 2 + high_threat mode)")
+print("PASS: BM FeignDeath regression (bm_feign_death)")
+
+-- smite DevouringPlague is race-5-bound at require time (smite:30-32): the
+-- base load is night elf 4 (Starshards). Load the race-5 variant directly and
+-- prove the require-time binding honors it, then prove the end-to-end merge
+-- via run_spec(..., 5).
+local smite5, smite5_err, smite5_ns = aud.load_spec("priest", "smite", nil, 5)
+assert_true(smite5 ~= nil, "priest/smite race-5 load failed: " .. tostring(smite5_err))
+_G.EaxRotations = smite5_ns
+assert_lane_matches(smite5, smite5_ns, "priest", "DevouringPlague", "standard",
+    "smite DevouringPlague must match as undead (race 5) in standard")
+local smite5rep = aud.run_spec("priest", "smite", nil, nil, 5)
+assert_true(smite5rep ~= nil, "smite race-5 battery run failed")
+for _, n in ipairs(smite5rep.never) do
+    assert_true(n ~= "DevouringPlague", "smite race-5 battery still reports DevouringPlague never")
+end
+print("PASS: smite DevouringPlague regression (RACE_VARIANTS race-5 load)")
+
+-- ============================================================================
 -- End-to-end: the TBC-era battery must report none of the pinned lanes as
 -- never-firing.
 -- ============================================================================
@@ -354,10 +417,15 @@ local FIRES = {
     { "mage", "arcane", "Polymorph" },
     { "mage", "fire", "Polymorph" },
     { "mage", "frost", "Blink" },
+    { "druid", "bear", "Growl" },
     { "paladin", "holy", "BlessingOfFreedomSnare" },
+    { "paladin", "holy", "BlessingOfProtectionFocusedAlly" },
+    { "paladin", "protection", "RighteousDefense" },
+    { "paladin", "protection", "BlessingOfProtectionAlly" },
     { "paladin", "retribution", "Ret_BlessingFreedom_Self" },
     { "paladin", "retribution", "Ret_BlessingFreedom_Ally" },
     { "paladin", "retribution", "Ret_HammerWrath_FleeingPvP" },
+    { "hunter", "beast_mastery", "FeignDeath" },
     { "priest", "shadow", "SWDCCBreak" },
     { "priest", "smite", "Starshards" },
     { "shaman", "elemental", "TremorTotem" },
@@ -372,4 +440,4 @@ local FIRES = {
 for _, f in ipairs(FIRES) do
     assert_lane_fires(f[1], f[2], f[3])
 end
-print("PASS: tbc battery reports none of the 27 (b) lanes as never-firing")
+print("PASS: tbc battery reports none of the 32 (b) + variant lanes as never-firing")

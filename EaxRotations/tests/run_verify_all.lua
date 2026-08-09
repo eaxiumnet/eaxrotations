@@ -234,7 +234,7 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 19)", never == 19 },
+                { "never-firing " .. never .. " (expected 13)", never == 13 },
             }
         end,
     },
