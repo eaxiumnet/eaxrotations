@@ -78,10 +78,16 @@ local function strip_trailing_sep(p)
     return (p:gsub("[/\\]+$", ""))
 end
 
--- A path is trackable only if it lives under EaxRotations/ (the only
--- tracked subtree) and is actually listed by git ls-files.
+-- A path is trackable only if it is actually listed by git ls-files.
+-- canonical(path) rewrites EaxRotations-cwd spellings ("shared/x.lua" ->
+-- "EaxRotations/shared/x.lua") for tests that read relative to EaxRotations/;
+-- but repo-root spellings ("tools/evidence/apl/fire_wotlk.apl.json") must
+-- match the tracked set as-is, so check BOTH forms. (The repo historically
+-- tracked only EaxRotations/ + README.md; tools/evidence/ is now tracked too,
+-- which is exactly why the raw form must not be canonicalized away.)
 local function is_tracked(path)
-    return TRACKED[canonical(path)] or false
+    local raw = path:gsub("\\", "/"):gsub("^%./", "")
+    return TRACKED[canonical(path)] or TRACKED[raw] or false
 end
 
 -- ---------------------------------------------------------------------------
