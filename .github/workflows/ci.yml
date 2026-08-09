@@ -18,6 +18,19 @@ jobs:
         # newest major if we want to track latest later.
         uses: actions/checkout@v5
 
+      - name: actionlint (workflow syntax gate)
+        # Static check for .github/workflows/*.yml — catches malformed YAML,
+        # bad ${{ }} expressions, unknown keys, wrong action inputs, and
+        # shellcheck issues in run: blocks that GitHub would otherwise
+        # silently ignore. Version pinned to 1.7.12 (download script arg);
+        # any finding or download failure exits nonzero and fails the build.
+        # Lints this file itself, so a regression here is caught on the next
+        # push.
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash 1.7.12)
+          ./actionlint -color
+        shell: bash
+
       - name: Install Lua 5.1
         # The game runtime is LuaJIT (~Lua 5.1); parse-gate with the same
         # version the local pre-commit hook uses. v13 is an ESM rewrite that
