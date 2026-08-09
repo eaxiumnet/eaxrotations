@@ -362,7 +362,11 @@ local function build_state(context)
     local state    = bear_state
     local is_group = context.is_group or false
     local now      = context.now
-    if now and now == _last_build_time then return state end   -- frame cache
+    -- Frame cache: wrap in safe_state so nil-guard defaults still apply on
+    -- cache hits (mirrors arms_sylvanas:379 / affliction_sylvanas:422 and the
+    -- vanilla mirror bear_vanilla:366; returning the raw table bypassed
+    -- Pattern-14 nil-guards and read nil for schema-only fields live).
+    if now and now == _last_build_time then return spec_kit.safe_state(state, BEAR_SCHEMA) end
     now = now or (NS.time_now and NS.time_now() or 0)
     state.now = now
     if context.now then _last_build_time = now end

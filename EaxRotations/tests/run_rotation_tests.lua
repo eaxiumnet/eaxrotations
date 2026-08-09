@@ -494,6 +494,7 @@ local tests = {
     "test_wotlk_battery_regression.lua",
     "test_healer_c_closeout_regression.lua",
     "test_c_batch2_closeout_regression.lua",
+    "test_cache_hit_nil_guard_regression.lua",
     "test_ns_mock_pollution_guard.lua",
     "test_arcane_burn_regression.lua",
     "test_destro_pet_pref_regression.lua",

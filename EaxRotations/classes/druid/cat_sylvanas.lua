@@ -695,7 +695,11 @@ build_state = function(context)
     local has_energy_context = context.energy ~= nil or context.me ~= nil or NS.power_current ~= nil or NS.energy ~= nil
 
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    -- Frame cache: wrap in safe_state so nil-guard defaults still apply on
+    -- cache hits (mirrors arms_sylvanas:379 / affliction_sylvanas:422 and the
+    -- vanilla mirror cat_vanilla:270; returning the raw table bypassed
+    -- Pattern-14 nil-guards and read nil for schema-only fields live).
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, CAT_SCHEMA) end
     now = now or get_now()
     if context.now then _last_build_state_time = now end
 
