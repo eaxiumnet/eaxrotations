@@ -1,6 +1,6 @@
 #!/bin/sh
-# Git pre-commit hook: prevent Lua syntax, TBC spell ID, badge-count, and
-# spec-scorecard regressions in EaxRotations.
+# Git pre-commit hook: prevent Lua syntax, TBC spell ID, badge-count,
+# spec-scorecard, and rotation-suite regressions in EaxRotations.
 #
 # Runs in this order:
 #   1. luac -p on all .lua files (syntax check)
@@ -8,6 +8,7 @@
 #   3. Sylvanas spell ID audit (positive: every ID exists in DBC)
 #   4. Badge drift check (README.md + AGENTS.md test counts match runners)
 #   5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
+#   6. Rotation test suite (full run, quiet mode)
 #
 # INSTALL:
 #   cp tools/pre-commit .git/hooks/pre-commit
@@ -34,7 +35,7 @@ if [ -x "$_LUA51/lua.exe" ]; then LUA="$_LUA51/lua.exe"; else LUA=lua; fi
 # ---------------------------------------------------------------------------
 # 1. luac -p syntax check
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [1/5] Parsing all .lua files with luac -p..."
+echo "[pre-commit] [1/6] Parsing all .lua files with luac -p..."
 
 FAILED=0
 TOTAL=0
@@ -64,7 +65,7 @@ echo "[pre-commit] All Lua files pass syntax check."
 # ---------------------------------------------------------------------------
 # 2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [2/5] Running vanilla TBC spell ID audit..."
+echo "[pre-commit] [2/6] Running vanilla TBC spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_vanilla_audit_tests.lua 2>&1; then
     echo "[pre-commit] Vanilla TBC spell ID audit FAILED. Commit aborted."
@@ -77,7 +78,7 @@ echo "[pre-commit] Vanilla TBC spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 3. Sylvanas spell ID audit (positive: ensures every ID exists in DBC)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [3/5] Running sylvanas spell ID audit..."
+echo "[pre-commit] [3/6] Running sylvanas spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_sylvanas_audit_tests.lua 2>&1; then
     echo "[pre-commit] Sylvanas spell ID audit FAILED. Commit aborted."
@@ -91,7 +92,7 @@ echo "[pre-commit] Sylvanas spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 4. Badge drift check (README.md + AGENTS.md test counts match runners)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [4/5] Checking badge counts are in sync..."
+echo "[pre-commit] [4/6] Checking badge counts are in sync..."
 
 if ! "$LUA" tools/update_badges.lua --check 2>&1; then
     echo "[pre-commit] Badge count drift detected. Commit aborted."
@@ -106,7 +107,7 @@ echo "[pre-commit] Badge counts are in sync."
 # 5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #    Phase 0 gate: unclassified lanes, stale pins, or a stale doc abort.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [5/5] Checking spec scorecard is in sync..."
+echo "[pre-commit] [5/6] Checking spec scorecard is in sync..."
 
 if ! "$LUA" tools/spec_scorecard.lua --check 2>&1; then
     echo "[pre-commit] Spec scorecard drift detected. Commit aborted."
@@ -116,5 +117,20 @@ if ! "$LUA" tools/spec_scorecard.lua --check 2>&1; then
 fi
 
 echo "[pre-commit] Spec scorecard is in sync."
-echo "[pre-commit] All 5 checks passed."
+
+# ---------------------------------------------------------------------------
+# 6. Rotation test suite (the scorecard step above runs the battery, but the
+#    full run_rotation_tests.lua matrix is the only gate that catches rotation
+#    regressions before push; quiet mode suppresses per-suite chatter).
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [6/6] Running rotation test suite..."
+
+if ! "$LUA" EaxRotations/tests/run_rotation_tests.lua --quiet 2>&1; then
+    echo "[pre-commit] Rotation test suite FAILED. Commit aborted."
+    echo "[pre-commit] Fix the failing suite(s) above or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Rotation test suite passed."
+echo "[pre-commit] All 6 checks passed."
 exit 0

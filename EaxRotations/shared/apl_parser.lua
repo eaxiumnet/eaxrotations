@@ -2,8 +2,8 @@
 -- WHAT:  decode wowsims APL JSON fixtures (TypeAPL format, see tools/evidence/apl/)
 --        into an ordered spell-action list, and check a rotation's strategy
 --        priority order against that reference.
--- WHEN:  loaded by tools/build_tools/analyze_wowsims_apl.lua and
---        tests/test_apl_conformance.lua; no game API touched at load time.
+-- WHEN:  loaded by tools/apl_status.lua and tests/test_apl_conformance.lua;
+--        no game API touched at load time.
 -- WHY:   Phase 2 APL conformance — _wotlk.lua strategy order must match the
 --        pinned wowsims APL priority list, enforced in CI so a refactor can
 --        never silently reorder a rotation.

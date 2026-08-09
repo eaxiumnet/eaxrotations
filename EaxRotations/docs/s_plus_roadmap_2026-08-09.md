@@ -34,9 +34,9 @@ S+ = **behaviorally proven, APL-pinned, guide-complete, era-complete**.
 - **Tests:** ~469 rotation + 33 leveling suites registered; verify_all runs
   rotation + leveling + wotlk tests + 4 audits (+self-tests) + battery +
   clean-checkout probe in CI (green on GitHub Actions).
-- **APL tooling exists but is dormant:** `tools/build_tools/analyze_wowsims_apl.lua`
-  parses wowsims APL JSONs; `status_audit.md` references `shared/apl_parser.lua`
-  ("unused by specs, infrastructure ready") but the file is **not on disk**.
+- **APL conformance is live:** `tools/apl_status.lua` + `tests/test_apl_conformance.lua`
+  parse pinned wowsims APL JSON fixtures and enforce strategy order in CI;
+  `shared/apl_parser.lua` provides the JSON decode + order-check primitives.
 
 ## 3. What's actually lacking (the hard think)
 
@@ -116,10 +116,9 @@ S+ = **behaviorally proven, APL-pinned, guide-complete, era-complete**.
   `shared/apl_parser.lua`, `tools/evidence/apl/SOURCES.md`.
 - Commit pinned wowsims APL JSONs (per era/spec, pinned commit) + generated
   "expected priority order" tables as evidence fixtures (self-provisioning via
-  `analyze_wowsims_apl.lua`, mirroring the SOD generator pattern).
-- Resurrect `shared/apl_parser.lua` (or move `analyze_wowsims_apl.lua` into
-  `shared/`), make it a tested module, delete the phantom entry in
-  `status_audit.md`.
+  `tools/apl_status.lua`'s fixture map, mirroring the SOD generator pattern).
+- `shared/apl_parser.lua` is a tested module; the phantom entry in
+  `status_audit.md` is resolved via `tests/test_apl_conformance.lua`.
 - New `test_apl_conformance_*.lua`: for each spec, assert (a) strategy ORDER
   matches the APL priority list; (b) key gates (refresh thresholds, execute
   %, cd windows) match. Register in run_rotation_tests + verify_all.
@@ -214,7 +213,7 @@ S+ = **behaviorally proven, APL-pinned, guide-complete, era-complete**.
 | Skill Capped (PvP) | Interrupt/CC/dispel priorities, burst windows, defensives |
 | wowsims Go sim source (`sim/<class>/*.go`) | Cast-rank ground truth (already used in rank audits) |
 
-Existing assets to reuse: `tools/build_tools/analyze_wowsims_apl.lua`,
+Existing assets to reuse: `tools/apl_status.lua` + `tests/test_apl_conformance.lua`,
 `wowheadScrape/dbc_extract/wowsims.db`, the 3 spell-index bridges, the
 settings-fixture + `buff_remains_map` + `target_class` battery mechanisms,
 and the 33 battery regression suites.

@@ -19,7 +19,7 @@
 --   advanced (elemental shaman), shadow (priest) — see the manifest's
 --   ENTRIES table in tools/apl_status.lua for the full fixture list.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;tools/build_tools/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;" .. package.path
 
 local apl = require("shared/apl_parser")
 local manifest = require("tools/apl_status")

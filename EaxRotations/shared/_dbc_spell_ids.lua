@@ -2,7 +2,10 @@
 -- WHAT:  set of all valid spell IDs in the TBC Anniversary client DBC.
 -- WHEN:  consumed by low-level spell ID audit tests.
 -- WHY:   avoids requiring lsqlite3 or shelling out from Lua.
--- SAFETY: pure data; regenerate with build_tools/generate_spell_id_set.py.
+-- SAFETY: pure data; snapshot of valid IDs extracted from the client DBC
+--         (wowsims.db). No tracked generator produces this file — the old
+--         build_tools/generate_spell_id_set.py reference was a phantom;
+--         regenerate manually from the DBC if the spell set ever changes.
 
 local M = {
     [1] = true,

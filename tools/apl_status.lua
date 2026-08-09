@@ -15,7 +15,7 @@
 -- SAFETY: pure data + loader; nil-tolerant; fixtures are git-tracked.
 
 -- Self-contained: ensure shared/ and tools/ resolvable regardless of caller.
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;tools/build_tools/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;" .. package.path
 
 local apl = require("shared/apl_parser")
 
