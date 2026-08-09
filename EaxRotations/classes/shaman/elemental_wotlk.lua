@@ -162,8 +162,8 @@ local strategies = {
     { name = "TotemOfWrath" },
     { name = "SearingTotem" },
     { name = "FlameShock" },
-    { name = "ChainLightning" },
     { name = "LavaBurst" },
+    { name = "ChainLightning" },
     { name = "LightningBolt" },
     { name = "Thunderstorm" },
 }

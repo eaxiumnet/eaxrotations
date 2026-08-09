@@ -30,10 +30,14 @@
 --         sections 2 and 5). Their fail/pass status can also flip run-to-run
 --         because the rotation runner shares one process, so they are allowed
 --         regardless of which side they land on until fixed.
--- NOTE:   The behavioral battery assertions PIN the 2.19.0 contract (31
---         specs / 0 load failures / 100 never-firing). When a lane is
---         cleared or a scenario is added, update those expectations here,
---         otherwise verify_all will (correctly) fail until they are bumped.
+-- NOTE:   The behavioral battery assertions PIN the live contract (31
+--         specs / 0 load failures / 91 never-firing after Phase 3's first
+--         batch of (c) fixtures: readiness_window, serpent_refresh,
+--         clearcast_surge, elem_shock_moving, elem_shock_pvp — cleared
+--         hunter Readiness x3 + SerpentStingRefresh x2, holy clearcast/
+--         surge, elem moving shocks). When a lane is cleared or a scenario
+--         is added, update those expectations here, otherwise verify_all
+--         will (correctly) fail until they are bumped.
 
 local R = "EaxRotations/tests"
 
@@ -217,7 +221,26 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 100)", never == 100 },
+                { "never-firing " .. never .. " (expected 91)", never == 91 },
+            }
+        end,
+    },
+    -- WotLK-era battery (Phase 1): same harness, era = "wotlk" (41 specs incl.
+    -- Death Knight blood/frost/unholy + leveling). Pins the FIRST WotLK
+    -- inventory (2026-08-09): 0 load failures / 149 never-firing. Bump the
+    -- never expectation when lanes are cleared by era-appropriate scenarios.
+    {
+        label = "behavioral battery (wotlk)",
+        cmd = "lua " .. R .. "/behavioral_audit.lua wotlk",
+        check = function(c)
+            local specs = num(c, "Total:%s*(%d+)%s*|")
+            local load_fail = num(c, "Load failures:%s*(%d+)")
+            local never = 0
+            for _ in c:gmatch("NEVER:") do never = never + 1 end
+            return {
+                { "wotlk specs " .. tostring(specs) .. " (expected 41)", specs == 41 },
+                { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
+                { "never-firing " .. never .. " (expected 149)", never == 149 },
             }
         end,
     },

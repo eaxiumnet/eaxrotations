@@ -33,7 +33,7 @@ end
 _G.EaxRotations = {
     MageSpells = {
         Frostbolt = make_action(27072, "Frostbolt"),
-        FrostfireBolt = make_action(44614, "FrostfireBolt"),
+        FrostfireBolt = make_action(47610, "FrostfireBolt"),
         IceLance = make_action(30455, "IceLance"),
         DeepFreeze = make_action(44572, "DeepFreeze"),
         ColdSnap = make_action(12472, "ColdSnap"),

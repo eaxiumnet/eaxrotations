@@ -101,11 +101,13 @@ local DSL_DEFS = {
     },
 }
 
+-- Priority order mirrors wowsims combat APL (ui/rogue/apls/combat.apl.json):
+-- SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike.
 local strategies = {
     { name = "SliceAndDice" },
+    { name = "Eviscerate" },
     { name = "BladeFlurry" },
     { name = "KillingSpree" },
-    { name = "Eviscerate" },
     { name = "SinisterStrike" },
 }
 

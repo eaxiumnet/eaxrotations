@@ -88,10 +88,11 @@ assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- wowsims shadow APL order (ui/priest/apls/shadow.apl.json): DP > SWP > VT > MindBlast > MindFlay
 local expected_order = {
-    "VampiricTouch",
-    "ShadowWordPain",
     "DevouringPlague",
+    "ShadowWordPain",
+    "VampiricTouch",
     "MindBlast",
     "MindFlay",
 }
@@ -109,22 +110,22 @@ end)
 
 local ctx = { in_combat = true, target = {}, settings = {} }
 
--- VampiricTouch: matches when remains < 3
-test("VampiricTouch: matches when remains < 3", function()
+-- DevouringPlague (1): matches when remains < 3
+test("DevouringPlague: matches when remains < 3", function()
     local state = shadow.build_state(ctx)  -- defaults: debuff_remains returns 0
-    assert_true(shadow.strategies[1].matches(ctx, state), "VampiricTouch should match when remains < 3")
+    assert_true(shadow.strategies[1].matches(ctx, state), "DevouringPlague should match when remains < 3")
 end)
 
-test("VampiricTouch: does not match when remains >= 3", function()
+test("DevouringPlague: does not match when remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = shadow.build_state(ctx)
     local ok = shadow.strategies[1].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
-    assert_false(ok, "VampiricTouch should not match when remains >= 3")
+    assert_false(ok, "DevouringPlague should not match when remains >= 3")
 end)
 
--- ShadowWordPain: matches when remains < 3
+-- ShadowWordPain (2): matches when remains < 3
 test("ShadowWordPain: matches when remains < 3", function()
     local state = shadow.build_state(ctx)
     assert_true(shadow.strategies[2].matches(ctx, state), "ShadowWordPain should match when remains < 3")
@@ -139,19 +140,19 @@ test("ShadowWordPain: does not match when remains >= 3", function()
     assert_false(ok, "ShadowWordPain should not match when remains >= 3")
 end)
 
--- DevouringPlague: matches when remains < 3
-test("DevouringPlague: matches when remains < 3", function()
+-- VampiricTouch (3): matches when remains < 3
+test("VampiricTouch: matches when remains < 3", function()
     local state = shadow.build_state(ctx)
-    assert_true(shadow.strategies[3].matches(ctx, state), "DevouringPlague should match when remains < 3")
+    assert_true(shadow.strategies[3].matches(ctx, state), "VampiricTouch should match when remains < 3")
 end)
 
-test("DevouringPlague: does not match when remains >= 3", function()
+test("VampiricTouch: does not match when remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = shadow.build_state(ctx)
     local ok = shadow.strategies[3].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
-    assert_false(ok, "DevouringPlague should not match when remains >= 3")
+    assert_false(ok, "VampiricTouch should not match when remains >= 3")
 end)
 
 -- MindBlast: matches when mana >= 20

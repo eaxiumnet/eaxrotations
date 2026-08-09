@@ -8,6 +8,7 @@
 /tools/*
 !/tools/update_badges.lua
 !/tools/spec_scorecard.lua
+!/tools/apl_status.lua
 !/tools/pre-commit
 !/tools/evidence/
 !/tools/evidence/**

@@ -101,11 +101,14 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 -- Strategies (name-only placeholders; substituted by DSL). Priority preserved.
 -- -----------------------------------------------------------------------------
+-- Priority order mirrors wowsims mutilate APL (ui/rogue/apls/mutilate.apl.json):
+-- SnD > HfB > Tricks > Envenom > Mutilate (Rupture unconstrained by fixture,
+-- kept after SnD maintenance).
 local strategies = {
-    { name = "TricksOfTheTrade" },
-    { name = "HungerForBlood" },
     { name = "SliceAndDice" },
     { name = "Rupture" },
+    { name = "HungerForBlood" },
+    { name = "TricksOfTheTrade" },
     { name = "Envenom" },
     { name = "Mutilate" },
 }

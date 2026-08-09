@@ -1,9 +1,11 @@
--- behavioral_audit.lua -- Behavioral battery harness for all 31 sylvanas spec files.
--- WHAT:  Loads every classes/<class>/<spec>_sylvanas.lua with a permissive mocked NS,
+-- behavioral_audit.lua -- Behavioral battery harness for sylvanas (TBC) AND wotlk spec files.
+-- WHAT:  Loads every classes/<class>/<spec>_<era>.lua (era = "sylvanas" TBC default,
+--        "wotlk" incl. Death Knight blood/frost/unholy) with a permissive mocked NS,
 --        then runs each spec's strategy table across a battery of realistic combat
 --        contexts exactly like the dispatcher (build state once, first match wins)
 --        and reports which strategies fire and which NEVER fire across the battery.
--- WHEN:  Run standalone (report-only, exit 0) or via tests/test_behavioral_audit_battery.lua.
+-- WHEN:  Run standalone (`lua behavioral_audit.lua [wotlk]`, report-only, exit 0) or
+--        via tests/test_behavioral_audit_battery.lua.
 -- WHY:   Structural audits already pass (spell IDs exist, load compliance, safe_state
 --        nil-guards). This harness hunts the SILENT-GATE defect class -- a strategy
 --        that can never return true in any realistic state (e.g. the cat Rip TTD bug:
@@ -33,8 +35,9 @@ local M = {}
 local _battery_now = 100.0
 
 -- ---------------------------------------------------------------------------
--- Spec manifest: every sylvanas spec file under classes/.
--- ---------------------------------------------------------------------------
+-- Spec manifests per era. `sylvanas` = TBC-era spec files (battery default,
+-- every never-lane pin + scorecard totals are keyed to this set); `wotlk` =
+-- the 41 WotLK files including Death Knight blood/frost/unholy + leveling.
 M.SPEC_FILES = {
     druid = { "balance", "bear", "cat", "caster", "resto" },
     hunter = { "beast_mastery", "marksmanship", "survival" },
@@ -47,6 +50,21 @@ M.SPEC_FILES = {
     warrior = { "arms", "fury", "protection", "kebab" },
 }
 
+M.SPEC_FILES_WOTLK = {
+    deathknight = { "blood", "frost", "leveling", "unholy" },
+    druid = { "balance", "bear", "cat", "leveling", "resto" },
+    hunter = { "beast_mastery", "leveling", "marksmanship", "survival" },
+    mage = { "arcane", "fire", "frost", "leveling" },
+    paladin = { "holy", "leveling", "protection", "retribution" },
+    priest = { "discipline", "holy", "leveling", "shadow" },
+    rogue = { "assassination", "combat", "leveling", "subtlety" },
+    shaman = { "elemental", "enhancement", "leveling", "restoration" },
+    warlock = { "affliction", "demonology", "destruction", "leveling" },
+    warrior = { "arms", "fury", "leveling", "protection" },
+}
+
+M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK }
+
 -- Class profiles used to build representative contexts.
 M.CLASS_PROFILE = {
     druid   = { resource = "energy", mana = true, form = true, melee = true, class_id = 11 },
@@ -58,16 +76,19 @@ M.CLASS_PROFILE = {
     shaman  = { resource = "mana", mana = true, melee = true, healer = true, totem = true, class_id = 7 },
     warlock = { resource = "mana", mana = true, ranged = true, pet = true, class_id = 9 },
     warrior = { resource = "rage", melee = true, class_id = 1 },
+    -- WotLK Death Knight (Phase 1): rune/resource profile; presence replaces
+    -- stance, handled via the PresenceManager stub in build_ns.
+    deathknight = { resource = "runic_power", mana = true, melee = true, class_id = 6 },
 }
 
 M.CLASS_IDS = {
     warrior = 1, paladin = 2, hunter = 3, rogue = 4,
-    priest = 5, shaman = 7, mage = 8, warlock = 9, druid = 11,
+    priest = 5, deathknight = 6, shaman = 7, mage = 8, warlock = 9, druid = 11,
     -- Uppercase aliases mirror api/common/enums class_id so specs that gate on
     -- enums.class_id.PRIEST etc. pass when the real enums module is unable to
     -- load under the harness package.path (api/ absent, .api/ not on path).
     WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4,
-    PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
+    PRIEST = 5, DEATHKNIGHT = 6, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
 }
 
 -- Power type constants (mirror ns.POWER_* set per spec in build_ns).
@@ -168,7 +189,8 @@ end
 -- Rich, permissive NS mock. Battery scenarios can override individual closures
 -- (e.g. NS.buff_up returning true) by mutating the returned table.
 -- ---------------------------------------------------------------------------
-function M.build_ns(class_key)
+function M.build_ns(class_key, era)
+    era = era or "sylvanas"
     local ns = {}
     local profile = M.CLASS_PROFILE[class_key] or {}
     local class_id = profile.class_id or 0
@@ -202,6 +224,16 @@ function M.build_ns(class_key)
     ns.ShamanSpells = {}
     ns.RogueSpells = {}
     ns.DruidSpells = {}
+    -- WotLK Death Knight spell table (Phase 1): empty table is fine —
+    -- define_action_for_class falls back to ns.spell_action on a nil field,
+    -- but the table must EXIST so `NS.DeathKnightSpells or {}` in the spec
+    -- files resolves consistently and DKConstants reads don't hit nil.
+    ns.DeathKnightSpells = {}
+    ns.DeathKnightConstants = {
+        FROST_FEVER_DEBUFF = { 55095 },
+        BLOOD_PLAGUE_DEBUFF = { 55078 },
+        HORN_OF_WINTER_BUFF = { 57623, 57330 },
+    }
     ns.CLASS_ID = M.CLASS_IDS
     ns.class_id = M.CLASS_IDS
     ns.WarriorConstants = {
@@ -256,8 +288,11 @@ function M.build_ns(class_key)
             buff_stacks = 0,
         }
         local floaty = {
+            -- NOTE: has_player_buff is NOT here on purpose — it has its own
+            -- branch above that forwards to the map-aware ns.has_player_buff
+            -- (buff_remains_map), so a constant false here would be dead data.
             player_control_locked = false, has_breakable_cc_nearby = false,
-            has_player_buff = false, can_attack_target = true,
+            can_attack_target = true,
             try_cast = true, spell_exists = true, spell_ready = true,
         }
         local results = {}
@@ -274,6 +309,18 @@ function M.build_ns(class_key)
                         if ok and type(v) == "number" then return v end
                     end
                     return 100
+                end
+            elseif n == "has_player_buff" then
+                -- Per-buff state (Phase 3): specs capture this helper AT
+                -- require() time (holy_sylvanas.lua:240-242 imports
+                -- has_player_buff; ClearcastingGreaterHeal + SurgeOfLightSmite
+                -- gate on the per-buff flags). A constant `false` here would
+                -- deadlock those lanes even though the map-aware
+                -- ns.has_player_buff (buff_remains_map) is defined later in
+                -- build_ns — forward to the LATEST binding at call time.
+                results[i] = function(ids)
+                    if ns.has_player_buff then return ns.has_player_buff(ids) end
+                    return false
                 end
             elseif typed_map[n] ~= nil then
                 results[i] = function() return typed_map[n] end
@@ -439,7 +486,11 @@ function M.build_ns(class_key)
     ns.is_melee_target = function() return true end
     ns.is_tank_unit = function() return true end
     ns.is_pvp_zone = function() return false end
-    ns.is_wotlk = false
+    -- Era flag: DK specs + presence_manager call NS.is_wotlk() as a FUNCTION.
+    -- The legacy TBC battery set a boolean false; era="wotlk" must provide the
+    -- callable form or presence_manager's `if not (NS.is_wotlk and NS.is_wotlk())`
+    -- short-circuits on the boolean and every DK spec bails at load.
+    ns.is_wotlk = (era == "wotlk") and function() return true end or false
     ns.is_sod = false
     ns.should_kite = function() return false end
     ns.has_player_buff = function() return false end
@@ -1286,6 +1337,38 @@ M.SCENARIOS = {
     -- Every lane fires ONLY here (no other scenario sets is_leveling together
     -- with a not-learned entry; OOC no-pet lanes already exist).
     { name = "low_level",    overrides = { level = 20, player_level = 20, is_leveling = true, in_combat = false, not_learned = { [30451] = true, [27125] = true, [6117] = true, [30146] = true } }, no_pet = true },
+    -- Phase 3 (2026-08-09): first batch of ranked (c) fixtures from the
+    -- non-DPS triage — hunter Readiness x3, SerpentStingRefresh x2, holy
+    -- ClearcastingGreaterHeal/SurgeOfLightSmite, elem moving shocks x2.
+    --
+    -- readiness_window: hunter Readiness (BM DSL + MM + survival) gates on
+    -- `rapid_fire_cd >= 60` (state from safe_cooldown_remains(RapidFire 3045),
+    -- which reads the bank-aware cooldown_remains mock). MM additionally needs
+    -- ttd >= 20 (marksmanship:495). No other scenario puts 3045 on cd.
+    { name = "readiness_window", overrides = { on_cd = { [3045] = 61 }, ttd = 60, target_ttd = 60 } },
+    -- serpent_refresh: SerpentStingRefresh (BM + survival) gates on the
+    -- serpent debuff being up with <= 3s remaining (hunter_core.sting_remains
+    -- / NS.debuff_remains read the primary-target debuff_remains_map) plus a
+    -- ttd floor (survival:420 needs ttd >= 6). [27016] is the max-rank
+    -- Serpent Sting id in SERPENT_STING_DEBUFF {27016,...} (BM:44, MM:79,
+    -- survival:87). The map is primary-target-scoped (debuff_up/remains check
+    -- unit == primary_target), and the primary is ctx.target (line ~2059).
+    { name = "serpent_refresh", overrides = { debuff_remains_map = { [27016] = 2 }, ttd = 30, target_ttd = 30 } },
+    -- clearcast_surge: holy ClearcastingGreaterHeal + SurgeOfLightSmite read
+    -- per-buff state via has_player_buff (HOLY_CONCENTRATION_BUFF {34753,...}
+    -- / SURGE_OF_LIGHT_BUFF {33151,...}) — the all-or-nothing buffs_up can't
+    -- express "one buff up". buff_remains_map is map-first, so this is the
+    -- only scenario where those two are up. Default injured friends
+    -- {55,70,85} satisfy both lanes' lowest_hp bands (GH < 95, surge >= 50).
+    { name = "clearcast_surge", overrides = { buff_remains_map = { [34753] = 1, [33151] = 1 } } },
+    -- elem_shock_moving: EarthShockMoving gates is_moving + the
+    -- elemental_interrupt_reserve setting DEFAULT true (elemental:250) — the
+    -- plain `moving` scenario leaves the reserve on, so this is the only
+    -- scenario where the filler is legal while moving.
+    { name = "elem_shock_moving", overrides = { is_moving = true, setting_overrides = { elemental_interrupt_reserve = false } } },
+    -- elem_shock_pvp: FrostShockMoving gates is_moving AND is_pvp
+    -- (elemental:255-256) — no single existing scenario combines both.
+    { name = "elem_shock_pvp",    overrides = { is_moving = true, is_pvp = true } },
     { name = "buffs_up",         overrides = { buffs_up = true, combo_points = 0 } },
     { name = "pull",             overrides = { in_combat = false, buffs_up = true, is_stealthed = true, combo_points = 0 } },
     { name = "short_ttd",        overrides = { target_ttd = 2, ttd = 2, target_hp = 20, combo_points = 5, energy = 60 } },
@@ -2122,11 +2205,48 @@ end
 -- ---------------------------------------------------------------------------
 -- Spec loader
 -- ---------------------------------------------------------------------------
-function M.load_spec(class_key, spec_key)
-    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_sylvanas.lua"
+function M.load_spec(class_key, spec_key, era)
+    era = era or "sylvanas"
+    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_" .. era .. ".lua"
     local f = io.open(path, "rb")
     if not f then return nil, "missing file " .. path end
     f:close()
+
+    -- Death Knight shared-manager stubs (Phase 1): the real rune_manager /
+    -- presence_manager / interrupt_manager load fine standalone but read live
+    -- game state (rune APIs, presence settings) that the battery cannot
+    -- reproduce; without stubs every DK rune read returns 0/{} and the
+    -- presence lane can never fire. Scenario-driven where useful (see below).
+    -- Restored after dofile in the FSR/TSHelper block.
+    if class_key == "deathknight" then
+        package.loaded["shared/rune_manager_sylvanas"] = {
+            get_runic_power = function(unit)
+                return ns and ns._bstate and ns._bstate("runic_power", 50) or 50
+            end,
+            get_rune_state = function()
+                return ns and ns._bstate and ns._bstate("rune_state", nil) or {
+                    blood = 2, frost = 2, unholy = 2, death = 0,
+                    ready = { blood = 2, frost = 2, unholy = 2, death = 0 },
+                }
+            end,
+            get_blood_runes_ready = function() return 2 end,
+            get_frost_runes_ready = function() return 2 end,
+            get_unholy_runes_ready = function() return 2 end,
+            get_death_runes_ready = function() return 0 end,
+        }
+        package.loaded["shared/presence_manager_sylvanas"] = {
+            get_optimal_presence = function() return nil end,
+            should_switch_presence = function() return false end,
+            presence_id = function(name) return name end,
+            presence_name = function(id) return id end,
+            presence_spell_id = function() return 0 end,
+        }
+        package.loaded["shared/interrupt_manager_sylvanas"] = {
+            register_interrupt_spell = function()
+                return { name = "MindFreeze", matches = function() return false end, execute = function() return false end }
+            end,
+        }
+    end
 
     -- Seed binary-only game modules spec files require (present in the live
     -- client but absent from this repo). Without this, hunter specs' item
@@ -2138,7 +2258,7 @@ function M.load_spec(class_key, spec_key)
         is_item_ready = function(id) return true end,
     }
 
-    local ns = M.build_ns(class_key)
+    local ns = M.build_ns(class_key, era)
     _G.EaxRotations = ns
     local had_core = _G.core
     _G.core = {
@@ -2179,6 +2299,9 @@ function M.load_spec(class_key, spec_key)
     package.loaded["shared/fsr_manager_sylvanas"] = nil
     package.loaded["shared/ts_helper_sylvanas"] = nil
     package.loaded["shared/stealth_helper_sylvanas"] = nil
+    package.loaded["shared/rune_manager_sylvanas"] = nil
+    package.loaded["shared/presence_manager_sylvanas"] = nil
+    package.loaded["shared/interrupt_manager_sylvanas"] = nil
     if not ok then
         return nil, tostring(result)
     end
@@ -2188,9 +2311,10 @@ end
 -- ---------------------------------------------------------------------------
 -- Spec runner
 -- ---------------------------------------------------------------------------
-function M.run_spec(class_key, spec_key, scenarios)
+function M.run_spec(class_key, spec_key, scenarios, era)
+    era = era or "sylvanas"
     scenarios = scenarios or M.SCENARIOS
-    local result, load_err, ns = M.load_spec(class_key, spec_key)
+    local result, load_err, ns = M.load_spec(class_key, spec_key, era)
     if not result then
         return nil, load_err
     end
@@ -2262,14 +2386,20 @@ end
 -- ---------------------------------------------------------------------------
 -- Run everything, return aggregate report
 -- ---------------------------------------------------------------------------
-function M.run_all()
+function M.run_all(era)
+    era = era or "sylvanas"
+    local manifest = M.ERA_MANIFESTS[era]
+    if not manifest then
+        error("behavioral_audit: unknown era '" .. tostring(era)
+            .. "' (expected 'sylvanas' or 'wotlk')", 0)
+    end
     local total = 0
     local reports = {}
     local load_failures = {}
-    for class_key, specs in pairs(M.SPEC_FILES) do
+    for class_key, specs in pairs(manifest) do
         for _, spec_key in ipairs(specs) do
             total = total + 1
-            local report, err = M.run_spec(class_key, spec_key, M.SCENARIOS)
+            local report, err = M.run_spec(class_key, spec_key, M.SCENARIOS, era)
             if not report then
                 load_failures[#load_failures + 1] = class_key .. "/" .. spec_key .. ": " .. tostring(err)
             else
@@ -2283,19 +2413,99 @@ function M.run_all()
             end
         end
     end
+    -- Manifest drift: every *_<era>.lua under classes/ must appear in the era
+    -- manifest, and every manifest entry must exist on disk. A new spec file
+    -- that lands without a manifest row silently loses battery coverage —
+    -- surface it as a load failure so the report AND verify_all's
+    -- "Load failures: 0" pin catch it.
+    local drift = M.check_manifest_drift(era)
+    for _, rel in ipairs(drift.missing) do
+        load_failures[#load_failures + 1] = "MANIFEST entry missing on disk: " .. rel
+    end
+    for _, rel in ipairs(drift.extra) do
+        load_failures[#load_failures + 1] = "MANIFEST file not in " .. era .. " manifest: " .. rel
+    end
     table.sort(reports, function(a, b)
         if a.class == b.class then return a.spec < b.spec end
         return a.class < b.class
     end)
-    return { total = total, reports = reports, class_failures = load_failures }
+    return { total = total, era = era, reports = reports, class_failures = load_failures }
+end
+
+-- ---------------------------------------------------------------------------
+-- Manifest drift check (reviewer-hardened): cross-check the era manifest
+-- against the files actually on disk under classes/. Non-spec helper files
+-- (class_/schema_/middleware_/healing_/cliptracker_/heal_helper_/shared_helpers_)
+-- are excluded; TBC leveling files are covered by run_leveling_tests.lua, but
+-- WotLK leveling files ARE battery specs, so the exclusion is era-aware.
+-- ---------------------------------------------------------------------------
+function M.check_manifest_drift(era)
+    era = era or "sylvanas"
+    local manifest = M.ERA_MANIFESTS[era] or M.SPEC_FILES
+    local expected = {}
+    for class_key, specs in pairs(manifest) do
+        for _, spec_key in ipairs(specs) do
+            expected[class_key .. "/" .. spec_key .. "_" .. era .. ".lua"] = true
+        end
+    end
+    local non_spec = {
+        "class_", "schema_", "middleware_", "healing_", "cliptracker_",
+        "heal_helper_", "shared_helpers_",
+    }
+    if era == "sylvanas" then
+        -- TBC leveling files run via run_leveling_tests.lua, not the battery.
+        non_spec[#non_spec + 1] = "leveling_"
+    end
+    local drift = { missing = {}, extra = {} }
+    local ok_lfs, lfs = pcall(require, "lfs")
+    if not ok_lfs then return drift end
+    local root = "EaxRotations/classes"
+    for class_key in lfs.dir(root) do
+        if class_key ~= "." and class_key ~= ".." then
+            local dir = root .. "/" .. class_key
+            local attrs = lfs.attributes(dir)
+            if attrs and attrs.mode == "directory" then
+                for fname in lfs.dir(dir) do
+                    if fname:match("^.*_" .. era .. "%.lua$") then
+                        local is_non_spec = false
+                        -- Prefix match against the FULL filename (stem drops the
+                        -- trailing _<era>, so a stem-based match would never see
+                        -- e.g. "class_" inside "class_sylvanas").
+                        for _, p in ipairs(non_spec) do
+                            if fname:find(p, 1, true) == 1 then
+                                is_non_spec = true
+                                break
+                            end
+                        end
+                        if not is_non_spec then
+                            local rel = class_key .. "/" .. fname
+                            if not expected[rel] then
+                                drift.extra[#drift.extra + 1] = rel
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for rel in pairs(expected) do
+        local f = io.open("EaxRotations/classes/" .. rel, "rb")
+        if not f then
+            drift.missing[#drift.missing + 1] = rel
+        else
+            f:close()
+        end
+    end
+    return drift
 end
 
 -- ---------------------------------------------------------------------------
 -- Printer
 -- ---------------------------------------------------------------------------
 function M.print_report(agg)
+    local era_label = (agg.era == "wotlk") and "wotlk" or "sylvanas"
     print("=============================================================================")
-    print("  BEHAVIORAL BATTERY AUDIT (all " .. tostring(agg.total) .. " sylvanas specs)")
+    print("  BEHAVIORAL BATTERY AUDIT (" .. tostring(agg.total) .. " " .. era_label .. " specs)")
     print("=============================================================================")
     for _, f in ipairs(agg.class_failures) do
         print("  [ LOAD FAIL ] " .. f)
@@ -2319,9 +2529,23 @@ function M.print_report(agg)
     print("=============================================================================")
 end
 
--- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua`
-if select("#", ...) == 0 then
-    local agg = M.run_all()
+-- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua [wotlk]`
+-- Direct runs are detected via arg[0] (the invoked script path), NOT via
+-- select("#", ...): in Lua 5.1 the main chunk's `...` IS the CLI args, but the
+-- spec scorecard loads this file via loadfile + chunk('scorecard'), which also
+-- makes select("#", ...) == 1 — so a vararg-only guard would either skip the
+-- direct run (typo'd era silently no-ops) or mis-fire under loadfile. arg[0]
+-- contains "behavioral_audit" only for genuine direct runs. Unknown eras error
+-- out with usage instead of silently producing no report.
+if arg and arg[0] and arg[0]:find("behavioral_audit", 1, true) then
+    local cli_era = arg[1]
+    if cli_era and cli_era ~= "wotlk" then
+        io.stderr:write("behavioral_audit: unknown era '" .. tostring(cli_era)
+            .. "' — expected 'wotlk' or no argument (default sylvanas)\n")
+        os.exit(1)
+    end
+    local era = (cli_era == "wotlk") and "wotlk" or "sylvanas"
+    local agg = M.run_all(era)
     M.print_report(agg)
 end
 

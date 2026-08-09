@@ -1,8 +1,9 @@
--- test_apl_conformance.lua — Phase 2 APL order conformance (pilot specs).
--- WHAT:  Asserts that the strategy priority order of the 3 pilot WotLK specs
---        (fire mage, affliction warlock, feral cat) matches the pinned wowsims
---        APL priority list, parsed from the committed JSON fixtures under
---        tools/evidence/apl/ via shared/apl_parser.lua.
+-- test_apl_conformance.lua — Phase 2 APL order conformance (manifest-driven).
+-- WHAT:  Asserts that the strategy priority order of every manifest entry in
+--        tools/apl_status.lua matches the pinned wowsims APL priority list.
+--        The manifest is the single source of truth (fixture -> spec file ->
+--        spell-id resolver); the scorecard consumes the SAME manifest, so this
+--        test and the scorecard's APL column can never drift apart.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   A refactor must never silently reorder a rotation; this test pins the
 --        wowsims reference order so CI fails on drift (Phase 2 of the S+ plan).
@@ -13,11 +14,15 @@
 --   fire   = ui/mage/apls/fire.apl.json
 --   affl   = ui/warlock/apls/affliction.apl.json
 --   feral  = ui/feral_druid/apls/default.apl.json (Go black box — reference
---            order pinned below from sim/druid/feral/rotation.go doRotation()).
+--            order pinned in the manifest from sim/druid/feral/rotation.go)
+--   2026-08-09 batch: arcane/frost (mage), combat/mutilate (rogue),
+--   advanced (elemental shaman), shadow (priest) — see the manifest's
+--   ENTRIES table in tools/apl_status.lua for the full fixture list.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;tools/?.lua;tools/build_tools/?.lua;" .. package.path
 
 local apl = require("shared/apl_parser")
+local manifest = require("tools/apl_status")
 
 local assert_true = function(v, label) if not v then error(label or "assert_true failed", 2) end end
 local failures, total_tests, total_passed = {}, 0, 0
@@ -29,9 +34,6 @@ local function test(label, fn)
     else failures[#failures + 1] = { label = label, error = err } end
 end
 
--- ---------------------------------------------------------------------------
--- Fixture loading
--- ---------------------------------------------------------------------------
 local function read_file(path)
     local f = io.open(path, "rb")
     if not f then return nil, "missing fixture: " .. path end
@@ -40,197 +42,110 @@ local function read_file(path)
     return s
 end
 
-local FIXTURES = {
-    fire  = "tools/evidence/apl/fire_wotlk.apl.json",
-    affl  = "tools/evidence/apl/affliction_wotlk.apl.json",
-    feral = "tools/evidence/apl/feralcat_wotlk.apl.json",
-}
+-- ---------------------------------------------------------------------------
+-- Fixture sanity: every manifest entry with a JSON fixture must exist, decode
+-- as TypeAPL, and carry a non-empty priority list (guards stale fixtures).
+-- ---------------------------------------------------------------------------
+test("manifest entries with fixtures exist and decode as TypeAPL", function()
+    assert_true(#manifest.ENTRIES > 0, "manifest is empty")
+    for _, e in ipairs(manifest.ENTRIES) do
+        if e.fixture then
+            local raw, err = read_file(e.fixture)
+            assert_true(raw ~= nil, err or "no fixture content for " .. e.key)
+            local apl_table = apl.decode_json(raw)
+            assert_true(type(apl_table) == "table", e.key .. ": expected decoded table")
+            assert_true(apl_table.type == "TypeAPL", e.key .. ": expected TypeAPL, got " .. tostring(apl_table.type))
+            if e.resolve then
+                local ids = apl.priority_ids(apl_table)
+                assert_true(#ids > 0, e.key .. ": fixture has empty priorityList")
+            end
+        end
+    end
+end)
 
-test("fixtures exist and decode as TypeAPL", function()
-    for name, path in pairs(FIXTURES) do
-        local raw, err = read_file(path)
-        assert_true(raw ~= nil, err or "no fixture content for " .. name)
-        local apl_table = apl.decode_json(raw)
-        assert_true(type(apl_table) == "table", name .. ": expected decoded table")
-        assert_true(apl_table.type == "TypeAPL", name .. ": expected TypeAPL, got " .. tostring(apl_table.type))
+-- Every manifest entry must define exactly one reference form.
+test("manifest: each entry has one reference form (resolve XOR reference_names)", function()
+    for _, e in ipairs(manifest.ENTRIES) do
+        local has_resolve = e.resolve ~= nil
+        local has_names = e.reference_names ~= nil
+        assert_true(has_resolve ~= has_names,
+            e.key .. ": must define exactly one of resolve/reference_names")
+        assert_true(type(e.key) == "string" and type(e.spec_file) == "string",
+            e.key .. ": key/spec_file must be strings")
+        assert_true(type(e.actions) == "table" and next(e.actions) ~= nil,
+            e.key .. ": actions table required")
     end
 end)
 
 -- ---------------------------------------------------------------------------
--- Spec loading (mock NS per the existing *_wotlk_dsl_priority tests)
--- ---------------------------------------------------------------------------
-local function make_action(ids, label)
-    local id = type(ids) == "table" and ids[1] or ids
-    return {
-        id = id,
-        name = label or tostring(id),
-        cast_safe = function(self, target) return true end,
-        cooldown_remaining = function(self) return 0 end,
-        can_cast = function(self, target) return true end,
-        is_learned = function(self) return true end,
-    }
-end
-
-local function base_ns()
-    return {
-        GetPlayer = function() return {
-            get_health_percentage = function() return 80 end,
-            get_mana_percentage = function() return 80 end,
-            get_energy = function() return 100 end,
-            get_combo_points = function() return 5 end,
-        } end,
-        me = {
-            get_health_percentage = function() return 80 end,
-            get_mana_percentage = function() return 80 end,
-            get_energy = function() return 100 end,
-            get_combo_points = function() return 5 end,
-        },
-        core = {
-            spell_book = { get_spell_cast_time = function() return 1.75 end },
-        },
-        spell_action = make_action,
-        spell_ready = function() return true end,
-        spell_exists = function() return true end,
-        try_cast = function() return true end,
-        buff_up = function() return false end,
-        buff_remains = function() return 0 end,
-        debuff_up = function() return false end,
-        debuff_remains = function() return 0 end,
-        debuff_stacks = function() return 0 end,
-        get_debuff_stacks = function() return 0 end,
-        cooldown_remains = function() return 0 end,
-        is_behind_target = function() return true end,
-        is_item_ready = function() return false end,
-        use_item_by_id = function() return true end,
-        broken_api_throttled = function() return false end,
-        should_use_long_cd = function() return true end,
-        time_now = function() return 0 end,
-        log = function() end,
-        log_warning = function() end,
-        rotation_registry = {
-            register = function(self, name, strategies, options) end,
-        },
-    }
-end
-
-local function load_spec(path, spells)
-    _G.EaxRotations = base_ns()
-    _G.EaxRotations[spells] = {
-        Pyroblast = make_action(42891, "Pyroblast"),
-        LivingBomb = make_action(55360, "LivingBomb"),
-        FireBlast = make_action(42873, "FireBlast"),
-        Scorch = make_action(42859, "Scorch"),
-        Fireball = make_action(42833, "Fireball"),
-        Combustion = make_action(11129, "Combustion"),
-        FaerieFireFeral = make_action(27011, "FaerieFireFeral"),
-        Ravage = make_action(27005, "Ravage"),
-        MangleCat = make_action(48566, "MangleCat"),
-        Rake = make_action(48574, "Rake"),
-        Rip = make_action(49800, "Rip"),
-        SavageRoar = make_action(52610, "SavageRoar"),
-        FerociousBite = make_action(48576, "FerociousBite"),
-        Shred = make_action(48572, "Shred"),
-        UnstableAffliction = make_action(47843, "UnstableAffliction"),
-        Haunt = make_action(59164, "Haunt"),
-        Corruption = make_action(47813, "Corruption"),
-        CurseOfAgony = make_action(47864, "CurseOfAgony"),
-        DrainSoul = make_action(47855, "DrainSoul"),
-        ShadowBolt = make_action(47809, "ShadowBolt"),
-    }
-    local mod = dofile(path)
-    assert_true(type(mod) == "table" and type(mod.strategies) == "table",
-        path .. " should return { strategies = ... }")
-    return mod.strategies
-end
-
-local function strategy_names(strategies)
-    local names = {}
-    for i, s in ipairs(strategies) do names[i] = s.name end
-    return names
-end
-
--- ---------------------------------------------------------------------------
--- Reference order per pilot spec
--- ---------------------------------------------------------------------------
--- fire: APL priority list (occurrence-preserving):
---   Scorch-refresh (42859) -> Pyroblast-hotstreak (42891) -> Living Bomb
---   multidot (55360) -> FireBlast-execute (42873) -> Scorch-execute (42859)
---   -> Fireball (42833).  Our rotation splits the two Scorch casts into the
---   "Scorch" (debuff refresh) and "ScorchFinal" (execute) lanes; the resolver
---   maps occurrence 1 -> Scorch, occurrence 2 -> ScorchFinal.
-local function fire_resolve(id, occurrence)
-    if id == 42859 then
-        return occurrence == 1 and "Scorch" or "ScorchFinal"
-    end
-    if id == 42891 then return "Pyroblast" end
-    if id == 55360 then return "LivingBomb" end
-    if id == 42873 then return "FireBlast" end
-    if id == 42833 then return "Fireball" end
-    return nil
-end
-
--- affl: steady-state DoT refresh order in the APL (trinkets/racials and Life
--- Tap excluded — they are not strategies in affliction_wotlk.lua):
---   Haunt (59164) -> Corruption (47813) -> UnstableAffliction (47843)
---   -> CurseOfAgony (47864) -> Drain Soul (47855, x2) -> Shadow Bolt (47809)
-local function affl_resolve(id)
-    if id == 59164 then return "Haunt" end
-    if id == 47813 then return "Corruption" end
-    if id == 47843 then return "UnstableAffliction" end
-    if id == 47864 then return "CurseOfAgony" end
-    if id == 47855 then return "DrainSoul" end
-    if id == 47809 then return "ShadowBolt" end
-    return nil
-end
-
--- feral: JSON is a Go black box (catOptimalRotationAction) — reference order
--- pinned from sim/druid/feral/rotation.go doRotation() dispatch at the same
--- wowsims commit: FaerieFireFeral (ffNow) -> SavageRoar (roarNow) -> Rip
--- (ripNow) -> FerociousBite (biteNow) -> MangleCat (mangleNow) -> Rake
--- (rakeNow) -> Shred (filler). Ravage is a stealth opener not in the loop.
-local FERAL_REFERENCE = {
-    "FaerieFireFeral", "SavageRoar", "Rip", "FerociousBite", "MangleCat", "Rake", "Shred",
-}
-
--- ---------------------------------------------------------------------------
--- Conformance tests
+-- Conformance per manifest entry (the scorecard computes the same verdict).
 -- ---------------------------------------------------------------------------
 print("=== test_apl_conformance ===")
 
--- Fire mage
-test("fire: strategy order conforms to wowsims APL", function()
-    local strategies = load_spec("EaxRotations/classes/mage/fire_wotlk.lua", "MageSpells")
-    local raw = read_file(FIXTURES.fire)
-    local apl_table = apl.decode_json(raw)
-    local ids = apl.priority_ids(apl_table)
-    local violation = apl.check_id_order(strategy_names(strategies), ids, fire_resolve)
-    assert_true(violation == nil, "fire APL violation: " .. (violation and (
-        violation.prev .. " (pos " .. violation.prev_pos .. ") should be before "
-        .. violation.name .. " (pos " .. violation.name_pos .. ")") or "unknown"))
-end)
+for _, e in ipairs(manifest.ENTRIES) do
+    test(e.key .. ": strategy order conforms to wowsims reference", function()
+        local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+        local names = manifest.strategy_names(strategies)
+        local violation
+        if e.reference_names then
+            violation = apl.check_name_order(names, e.reference_names)
+        else
+            local raw = read_file(e.fixture)
+            assert_true(raw ~= nil, "missing fixture: " .. e.fixture)
+            local ids = apl.priority_ids(apl.decode_json(raw))
+            violation = apl.check_id_order(names, ids, e.resolve)
+        end
+        assert_true(violation == nil, e.key .. " APL violation: " .. (violation and (
+            violation.prev .. " (pos " .. violation.prev_pos .. ") should be before "
+            .. violation.name .. " (pos " .. violation.name_pos .. ")") or "unknown"))
+    end)
 
--- Affliction warlock
-test("affliction: strategy order conforms to wowsims APL", function()
-    local strategies = load_spec("EaxRotations/classes/warlock/affliction_wotlk.lua", "WarlockSpells")
-    local raw = read_file(FIXTURES.affl)
-    local apl_table = apl.decode_json(raw)
-    local ids = apl.priority_ids(apl_table)
-    local violation = apl.check_id_order(strategy_names(strategies), ids, affl_resolve)
-    assert_true(violation == nil, "affliction APL violation: " .. (violation and (
-        violation.prev .. " (pos " .. violation.prev_pos .. ") should be before "
-        .. violation.name .. " (pos " .. violation.name_pos .. ")") or "unknown"))
-end)
+    -- A reference_names pin must match at least one real strategy name — a
+    -- pin that matches zero names (typo'd strategy name) would make the
+    -- conformance check vacuous, exactly like a resolver that resolves nothing.
+    if e.reference_names then
+        test(e.key .. ": reference_names pin matches real strategies", function()
+            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+            local names = manifest.strategy_names(strategies)
+            local known = {}
+            for _, n in ipairs(names) do known[n] = true end
+            local count = 0
+            for _, n in ipairs(e.reference_names) do
+                if known[n] then count = count + 1 end
+            end
+            assert_true(count > 0, e.key .. ": reference_names pin matches 0 strategies "
+                .. "(typo'd name? actual strategies: " .. table.concat(names, ", ") .. ")")
+        end)
+    end
 
--- Feral cat (Go-derived pinned reference)
-test("feral cat: strategy order conforms to wowsims Go dispatch order", function()
-    local strategies = load_spec("EaxRotations/classes/druid/cat_wotlk.lua", "DruidSpells")
-    local violation = apl.check_name_order(strategy_names(strategies), FERAL_REFERENCE)
-    assert_true(violation == nil, "feral cat conformance violation: " .. (violation and (
-        violation.prev .. " (pos " .. violation.prev_pos .. ") should be before "
-        .. violation.name .. " (pos " .. violation.name_pos .. ")") or "unknown"))
-end)
+    -- The resolver must actually map fixture ids to real strategy names — a
+    -- resolver that resolves nothing would make the conformance check vacuous.
+    if e.resolve then
+        test(e.key .. ": resolver maps fixture ids to real strategies", function()
+            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+            local names = manifest.strategy_names(strategies)
+            local known = {}
+            for _, n in ipairs(names) do known[n] = true end
+            local raw = read_file(e.fixture)
+            local ids = apl.priority_ids(apl.decode_json(raw))
+            local seen, count = {}, 0
+            for _, id in ipairs(ids) do
+                local name = e.resolve(id, 1)
+                if name and not seen[name] then
+                    seen[name] = true
+                    assert_true(known[name], e.key .. ": resolver maps id " .. id
+                        .. " to unknown strategy '" .. name .. "'")
+                    count = count + 1
+                end
+            end
+            assert_true(count > 0, e.key .. ": resolver maps 0 fixture ids (vacuous check)")
+        end)
+    end
+end
 
+-- ---------------------------------------------------------------------------
 -- Negative self-tests: prove the checker actually catches a reorder.
+-- ---------------------------------------------------------------------------
 test("checker: reversed affliction order is caught", function()
     local reversed = { "ShadowBolt", "DrainSoul", "CurseOfAgony", "UnstableAffliction", "Corruption", "Haunt" }
     local violation = apl.check_name_order(reversed, {
@@ -247,25 +162,14 @@ test("checker: conformant order passes", function()
     assert_true(violation == nil, "checker should pass a conformant order")
 end)
 
--- Fixture ids sanity: every referenced strategy id must actually appear in the
--- fixture (guards against a stale fixture silently testing nothing).
-test("fire: all core strategy ids appear in fixture", function()
-    local raw = read_file(FIXTURES.fire)
-    local ids = apl.unique_ids(apl.decode_json(raw))
-    local seen = {}
-    for _, id in ipairs(ids) do seen[id] = true end
-    for _, id in ipairs({ 42859, 42891, 55360, 42873, 42833 }) do
-        assert_true(seen[id], "fire fixture missing id " .. id)
-    end
-end)
-
-test("affl: all core strategy ids appear in fixture", function()
-    local raw = read_file(FIXTURES.affl)
-    local ids = apl.unique_ids(apl.decode_json(raw))
-    local seen = {}
-    for _, id in ipairs(ids) do seen[id] = true end
-    for _, id in ipairs({ 59164, 47813, 47843, 47864, 47855, 47809 }) do
-        assert_true(seen[id], "affl fixture missing id " .. id)
+-- The manifest compute() (consumed by the scorecard) must agree with this test.
+test("manifest.compute(): all entries pass (matches conformance above)", function()
+    local res = manifest.compute()
+    for _, e in ipairs(manifest.ENTRIES) do
+        assert_true(res.status[e.key] == "pass",
+            e.key .. ": compute() = " .. tostring(res.status[e.key]) .. " — " .. tostring(res.evidence[e.key]))
+        assert_true(type(res.evidence[e.key]) == "string" and res.evidence[e.key] ~= "",
+            e.key .. ": missing evidence string")
     end
 end)
 

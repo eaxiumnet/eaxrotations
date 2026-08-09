@@ -180,18 +180,20 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
+-- Priority order mirrors wowsims arcane APL (AB stacker > AM proc > Evoc):
+-- the checker enforces ArcaneBlast before ArcaneMissiles before Evocation.
 local strategies = {
     { name = "Counterspell" },
     { name = "MageArmor" },
-    { name = "Evocation" },
+    { name = "ArcaneBlast" },
+    { name = "ArcaneMissiles" },
+    { name = "ArcaneBarrage" },
     { name = "ManaGem" },
     { name = "ArcanePower" },
     { name = "IcyVeins" },
     { name = "MirrorImage" },
     { name = "PresenceOfMind" },
-    { name = "ArcaneMissiles" },
-    { name = "ArcaneBarrage" },
-    { name = "ArcaneBlast" },
+    { name = "Evocation" },
 }
 
 -- Name-based substitution preserves the existing priority order.

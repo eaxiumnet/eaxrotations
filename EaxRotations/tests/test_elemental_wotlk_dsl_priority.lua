@@ -101,8 +101,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
+    -- wowsims elemental APL order (ui/elemental_shaman/apls/advanced.apl.json): LavaBurst before ChainLightning
     local expected = { "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
-        "FlameShock", "ChainLightning", "LavaBurst", "LightningBolt", "Thunderstorm" }
+        "FlameShock", "LavaBurst", "ChainLightning", "LightningBolt", "Thunderstorm" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

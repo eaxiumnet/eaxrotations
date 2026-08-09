@@ -99,13 +99,15 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
-    { name = "VampiricTouch" },
-    { name = "ShadowWordPain" },
     { name = "DevouringPlague" },
+    { name = "ShadowWordPain" },
+    { name = "VampiricTouch" },
     { name = "MindBlast" },
     { name = "MindFlay" },
 }
 
+-- Priority order mirrors wowsims shadow APL (ui/priest/apls/shadow.apl.json):
+-- DP > SWP > VT > MindBlast > MindFlay.
 -- Name-based substitution preserves the existing priority order.
 for i = 1, #strategies do
     for j = 1, #DSL_DEFS do

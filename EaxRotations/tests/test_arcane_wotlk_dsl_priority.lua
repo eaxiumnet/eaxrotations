@@ -96,18 +96,19 @@ assert_true(registered ~= nil, "arcane_wotlk should register under 'arcane'")
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- wowsims arcane APL order (ui/mage/apls/arcane.apl.json): AB > AM > ArcaneBarrage > Evocation
 local expected_order = {
     "Counterspell",
     "MageArmor",
-    "Evocation",
+    "ArcaneBlast",
+    "ArcaneMissiles",
+    "ArcaneBarrage",
     "ManaGem",
     "ArcanePower",
     "IcyVeins",
     "MirrorImage",
     "PresenceOfMind",
-    "ArcaneMissiles",
-    "ArcaneBarrage",
-    "ArcaneBlast",
+    "Evocation",
 }
 
 test("priority order: 11 strategies match expected order", function()
@@ -164,27 +165,77 @@ test("MageArmor: does not match when already up", function()
     assert_false(ok, "MageArmor should not match when already up")
 end)
 
--- Evocation: matches when mana < 20
-test("Evocation: matches when mana < 20", function()
+-- ArcaneBlast (3): matches when mana >= 20 and stacks < 3
+test("ArcaneBlast: matches when mana >= 20 and stacks < 3", function()
+    local state = arcane.build_state(ctx)  -- default mana 80, stacks 0
+    assert_true(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should match when mana >= 20 and stacks < 3")
+end)
+
+test("ArcaneBlast: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 15 end
+    _G.EaxRotations.me.get_mana_percentage = function() return 10 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[3].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
-    assert_true(ok, "Evocation should match when mana < 20")
+    assert_false(ok, "ArcaneBlast should not match when mana < 20")
 end)
 
-test("Evocation: does not match when mana >= 20", function()
-    local state = arcane.build_state(ctx)  -- default mana 80
-    assert_false(arcane.strategies[3].matches(ctx, state), "Evocation should not match when mana >= 20")
+test("ArcaneBlast: does not match at 3 stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 3
+    assert_false(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should not match at 3 stacks")
 end)
 
--- ManaGem: matches when 20 <= mana < 40
+-- ArcaneMissiles (4): matches when missile_barrage_proc OR stacks >= 3
+test("ArcaneMissiles: matches when missile barrage procs", function()
+    local orig_buff = _G.EaxRotations.buff_up
+    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
+    local state = arcane.build_state(ctx)
+    local ok = arcane.strategies[4].matches(ctx, state)
+    _G.EaxRotations.buff_up = orig_buff
+    assert_true(ok, "ArcaneMissiles should match when missile barrage procs")
+end)
+
+test("ArcaneMissiles: matches when 3 AB stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 3
+    assert_true(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should match at 3 stacks")
+end)
+
+test("ArcaneMissiles: does not match without proc and stacks < 3", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 1
+    assert_false(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should not match without proc and < 3 stacks")
+end)
+
+-- ArcaneBarrage (5): matches when missile_barrage_proc OR stacks >= 3
+test("ArcaneBarrage: matches when missile barrage procs", function()
+    local orig_buff = _G.EaxRotations.buff_up
+    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
+    local state = arcane.build_state(ctx)
+    local ok = arcane.strategies[5].matches(ctx, state)
+    _G.EaxRotations.buff_up = orig_buff
+    assert_true(ok, "ArcaneBarrage should match when missile barrage procs")
+end)
+
+test("ArcaneBarrage: matches when 3 AB stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 3
+    assert_true(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should match at 3 stacks")
+end)
+
+test("ArcaneBarrage: does not match without proc and stacks < 3", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 1
+    assert_false(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should not match without proc and < 3 stacks")
+end)
+
+-- ManaGem (6): matches when 20 <= mana < 40
 test("ManaGem: matches when 20 <= mana < 40", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
     _G.EaxRotations.me.get_mana_percentage = function() return 30 end
     local state = arcane.build_state(ctx)
-    local ok = arcane.strategies[4].matches(ctx, state)
+    local ok = arcane.strategies[6].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_true(ok, "ManaGem should match when mana between 20 and 40")
 end)
@@ -193,24 +244,24 @@ test("ManaGem: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
     _G.EaxRotations.me.get_mana_percentage = function() return 10 end
     local state = arcane.build_state(ctx)
-    local ok = arcane.strategies[4].matches(ctx, state)
+    local ok = arcane.strategies[6].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_false(ok, "ManaGem should not match when mana < 20")
 end)
 
 test("ManaGem: does not match when mana >= 40", function()
     local state = arcane.build_state(ctx)  -- default mana 80
-    assert_false(arcane.strategies[4].matches(ctx, state), "ManaGem should not match when mana >= 40")
+    assert_false(arcane.strategies[6].matches(ctx, state), "ManaGem should not match when mana >= 40")
 end)
 
--- ArcanePower: matches when in_combat, not already up, long_cd allowed
+-- ArcanePower (7): matches when in_combat, not already up, long_cd allowed
 test("ArcanePower: matches when all conditions met", function()
     local orig_long_cd = _G.EaxRotations.should_use_long_cd
     _G.EaxRotations.should_use_long_cd = function(ctx, cd) return true end
     local state = arcane.build_state(ctx)
     state.in_combat = true
     state.arcane_power_up = false
-    local ok = arcane.strategies[5].matches(ctx, state)
+    local ok = arcane.strategies[7].matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig_long_cd
     assert_true(ok, "ArcanePower should match when all conditions met")
 end)
@@ -219,7 +270,7 @@ test("ArcanePower: does not match when out of combat", function()
     local state = arcane.build_state(ctx)
     state.in_combat = false
     state.arcane_power_up = false
-    assert_false(arcane.strategies[5].matches(ctx, state), "ArcanePower should not match when out of combat")
+    assert_false(arcane.strategies[7].matches(ctx, state), "ArcanePower should not match when out of combat")
 end)
 
 test("ArcanePower: does not match when already active", function()
@@ -227,19 +278,19 @@ test("ArcanePower: does not match when already active", function()
     _G.EaxRotations.buff_up = function(unit, ids) return true end  -- AP buff up
     local state = arcane.build_state(ctx)
     state.in_combat = true
-    local ok = arcane.strategies[5].matches(ctx, state)
+    local ok = arcane.strategies[7].matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff
     assert_false(ok, "ArcanePower should not match when already active")
 end)
 
--- IcyVeins: matches when in_combat, not already up, long_cd allowed
+-- IcyVeins (8): matches when in_combat, not already up, long_cd allowed
 test("IcyVeins: matches when all conditions met", function()
     local orig_long_cd = _G.EaxRotations.should_use_long_cd
     _G.EaxRotations.should_use_long_cd = function(ctx, cd) return true end
     local state = arcane.build_state(ctx)
     state.in_combat = true
     state.icy_veins_up = false
-    local ok = arcane.strategies[6].matches(ctx, state)
+    local ok = arcane.strategies[8].matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig_long_cd
     assert_true(ok, "IcyVeins should match when all conditions met")
 end)
@@ -247,7 +298,7 @@ end)
 test("IcyVeins: does not match when out of combat", function()
     local state = arcane.build_state(ctx)
     state.in_combat = false
-    assert_false(arcane.strategies[6].matches(ctx, state), "IcyVeins should not match when out of combat")
+    assert_false(arcane.strategies[8].matches(ctx, state), "IcyVeins should not match when out of combat")
 end)
 
 test("IcyVeins: does not match when already active", function()
@@ -255,32 +306,32 @@ test("IcyVeins: does not match when already active", function()
     _G.EaxRotations.buff_up = function(unit, ids) return true end  -- IV buff up
     local state = arcane.build_state(ctx)
     state.in_combat = true
-    local ok = arcane.strategies[6].matches(ctx, state)
+    local ok = arcane.strategies[8].matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff
     assert_false(ok, "IcyVeins should not match when already active")
 end)
 
--- MirrorImage: matches when in_combat
+-- MirrorImage (9): matches when in_combat
 test("MirrorImage: matches when in combat", function()
     local state = arcane.build_state(ctx)
     state.in_combat = true
-    assert_true(arcane.strategies[7].matches(ctx, state), "MirrorImage should match when in combat")
+    assert_true(arcane.strategies[9].matches(ctx, state), "MirrorImage should match when in combat")
 end)
 
 test("MirrorImage: does not match when out of combat", function()
     local state = arcane.build_state(ctx)
     state.in_combat = false
-    assert_false(arcane.strategies[7].matches(ctx, state), "MirrorImage should not match when out of combat")
+    assert_false(arcane.strategies[9].matches(ctx, state), "MirrorImage should not match when out of combat")
 end)
 
--- PresenceOfMind: matches when in_combat, ready, long_cd allowed
+-- PresenceOfMind (10): matches when in_combat, ready, long_cd allowed
 test("PresenceOfMind: matches when all conditions met", function()
     local orig_long_cd = _G.EaxRotations.should_use_long_cd
     _G.EaxRotations.should_use_long_cd = function(ctx, cd) return true end
     local state = arcane.build_state(ctx)
     state.in_combat = true
     state.pom_ready = true
-    local ok = arcane.strategies[8].matches(ctx, state)
+    local ok = arcane.strategies[10].matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig_long_cd
     assert_true(ok, "PresenceOfMind should match when all conditions met")
 end)
@@ -289,72 +340,22 @@ test("PresenceOfMind: does not match when not ready", function()
     local state = arcane.build_state(ctx)
     state.in_combat = true
     state.pom_ready = false
-    assert_false(arcane.strategies[8].matches(ctx, state), "PresenceOfMind should not match when not ready")
+    assert_false(arcane.strategies[10].matches(ctx, state), "PresenceOfMind should not match when not ready")
 end)
 
--- ArcaneMissiles: matches when missile_barrage_proc OR stacks >= 3
-test("ArcaneMissiles: matches when missile barrage procs", function()
-    local orig_buff = _G.EaxRotations.buff_up
-    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
-    local state = arcane.build_state(ctx)
-    local ok = arcane.strategies[9].matches(ctx, state)
-    _G.EaxRotations.buff_up = orig_buff
-    assert_true(ok, "ArcaneMissiles should match when missile barrage procs")
-end)
-
-test("ArcaneMissiles: matches when 3 AB stacks", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 3
-    assert_true(arcane.strategies[9].matches(ctx, state), "ArcaneMissiles should match at 3 stacks")
-end)
-
-test("ArcaneMissiles: does not match without proc and stacks < 3", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 1
-    assert_false(arcane.strategies[9].matches(ctx, state), "ArcaneMissiles should not match without proc and < 3 stacks")
-end)
-
--- ArcaneBarrage: matches when missile_barrage_proc OR stacks >= 3
-test("ArcaneBarrage: matches when missile barrage procs", function()
-    local orig_buff = _G.EaxRotations.buff_up
-    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
-    local state = arcane.build_state(ctx)
-    local ok = arcane.strategies[10].matches(ctx, state)
-    _G.EaxRotations.buff_up = orig_buff
-    assert_true(ok, "ArcaneBarrage should match when missile barrage procs")
-end)
-
-test("ArcaneBarrage: matches when 3 AB stacks", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 3
-    assert_true(arcane.strategies[10].matches(ctx, state), "ArcaneBarrage should match at 3 stacks")
-end)
-
-test("ArcaneBarrage: does not match without proc and stacks < 3", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 1
-    assert_false(arcane.strategies[10].matches(ctx, state), "ArcaneBarrage should not match without proc and < 3 stacks")
-end)
-
--- ArcaneBlast: matches when mana >= 20 and stacks < 3
-test("ArcaneBlast: matches when mana >= 20 and stacks < 3", function()
-    local state = arcane.build_state(ctx)  -- default mana 80, stacks 0
-    assert_true(arcane.strategies[11].matches(ctx, state), "ArcaneBlast should match when mana >= 20 and stacks < 3")
-end)
-
-test("ArcaneBlast: does not match when mana < 20", function()
+-- Evocation (11): matches when mana < 20
+test("Evocation: matches when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 10 end
+    _G.EaxRotations.me.get_mana_percentage = function() return 15 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[11].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
-    assert_false(ok, "ArcaneBlast should not match when mana < 20")
+    assert_true(ok, "Evocation should match when mana < 20")
 end)
 
-test("ArcaneBlast: does not match at 3 stacks", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 3
-    assert_false(arcane.strategies[11].matches(ctx, state), "ArcaneBlast should not match at 3 stacks")
+test("Evocation: does not match when mana >= 20", function()
+    local state = arcane.build_state(ctx)  -- default mana 80
+    assert_false(arcane.strategies[11].matches(ctx, state), "Evocation should not match when mana >= 20")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

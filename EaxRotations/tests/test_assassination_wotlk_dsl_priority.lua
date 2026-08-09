@@ -90,11 +90,12 @@ assert_true(registered ~= nil, "assassination_wotlk should register under 'assas
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- wowsims mutilate APL order (ui/rogue/apls/mutilate.apl.json): SnD > HfB > Tricks > Envenom > Mutilate
 local expected_order = {
-    "TricksOfTheTrade",
-    "HungerForBlood",
     "SliceAndDice",
     "Rupture",
+    "HungerForBlood",
+    "TricksOfTheTrade",
     "Envenom",
     "Mutilate",
 }
@@ -111,53 +112,53 @@ end)
 -- ============================================================================
 local ctx = { in_combat = true, target = {}, settings = {} }
 
--- TricksOfTheTrade (1): always matches (no conditions)
-test("TricksOfTheTrade: always matches", function()
-    local state = sin.build_state(ctx)
-    assert_true(sin.strategies[1].matches(ctx, state), "TricksOfTheTrade should always match")
-end)
-
--- HungerForBlood (2): always matches (no conditions)
-test("HungerForBlood: always matches", function()
-    local state = sin.build_state(ctx)
-    assert_true(sin.strategies[2].matches(ctx, state), "HungerForBlood should always match")
-end)
-
--- SliceAndDice (3): snd_remains < 3 and combo_points >= 1
+-- SliceAndDice (1): snd_remains < 3 and combo_points >= 1
 test("SliceAndDice: matches when buff < 3 and combo >= 1", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 1
     state.combo_points = 1
-    assert_true(sin.strategies[3].matches(ctx, state), "SliceAndDice should match with combo >= 1 and buff < 3")
+    assert_true(sin.strategies[1].matches(ctx, state), "SliceAndDice should match with combo >= 1 and buff < 3")
 end)
 
 test("SliceAndDice: does not match with 0 combo points", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 1
     state.combo_points = 0
-    assert_false(sin.strategies[3].matches(ctx, state), "SliceAndDice should not match with 0 combo")
+    assert_false(sin.strategies[1].matches(ctx, state), "SliceAndDice should not match with 0 combo")
 end)
 
 test("SliceAndDice: does not match when buff fresh (>= 3)", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 10
     state.combo_points = 3
-    assert_false(sin.strategies[3].matches(ctx, state), "SliceAndDice should not match when buff fresh")
+    assert_false(sin.strategies[1].matches(ctx, state), "SliceAndDice should not match when buff fresh")
 end)
 
--- Rupture (4): rupture_remains < 3 and combo_points >= 1
+-- Rupture (2): rupture_remains < 3 and combo_points >= 1
 test("Rupture: matches when debuff < 3 and combo >= 1", function()
     local state = sin.build_state(ctx)
     state.rupture_remains = 0
     state.combo_points = 2
-    assert_true(sin.strategies[4].matches(ctx, state), "Rupture should match with combo >= 1 and debuff < 3")
+    assert_true(sin.strategies[2].matches(ctx, state), "Rupture should match with combo >= 1 and debuff < 3")
 end)
 
 test("Rupture: does not match with 0 combo points", function()
     local state = sin.build_state(ctx)
     state.rupture_remains = 0
     state.combo_points = 0
-    assert_false(sin.strategies[4].matches(ctx, state), "Rupture should not match with 0 combo")
+    assert_false(sin.strategies[2].matches(ctx, state), "Rupture should not match with 0 combo")
+end)
+
+-- HungerForBlood (3): always matches (no conditions)
+test("HungerForBlood: always matches", function()
+    local state = sin.build_state(ctx)
+    assert_true(sin.strategies[3].matches(ctx, state), "HungerForBlood should always match")
+end)
+
+-- TricksOfTheTrade (4): always matches (no conditions)
+test("TricksOfTheTrade: always matches", function()
+    local state = sin.build_state(ctx)
+    assert_true(sin.strategies[4].matches(ctx, state), "TricksOfTheTrade should always match")
 end)
 
 -- Envenom (5): combo_points >= 4

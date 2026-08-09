@@ -18,14 +18,14 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     Frostbolt = define("Frostbolt", { 42842, 27072, 27071, 25304, 10181, 10180, 10179, 10177, 10176, 10175, 116, 205 }, "Frostbolt"),
-    FrostfireBolt = define("FrostfireBolt", 44614, "FrostfireBolt"),
+    FrostfireBolt = define("FrostfireBolt", 47610, "FrostfireBolt"), -- 47610 = max-rank FFB (44614 = rank 1)
     IceLance = define("IceLance", { 42914, 30455 }, "IceLance"),
     DeepFreeze = define("DeepFreeze", 44572, "DeepFreeze"),
     ColdSnap = define("ColdSnap", 11958, "ColdSnap"),
 }
 
 local FROSTBOLT_DEBUFF = { 27072, 27071, 25304, 10181, 10180, 10179, 10177, 10176, 10175, 116, 205 }
-local FROSTFIRE_BOLT_DEBUFF = { 44614 }
+local FROSTFIRE_BOLT_DEBUFF = { 47610 }
 local FROST_NOVA_DEBUFF = { 122, 865, 6131, 10230 }
 
 local frost_state = {

@@ -17,6 +17,9 @@
 --            (feral delegates to sim/druid/feral/rotation.go catOptimalRotationAction;
 --             the JSON carries no spell list, so its reference order is pinned
 --             from the Go doRotation() in tests/test_apl_conformance.lua)
+--   2026-08-09 batch (see tools/evidence/apl/SOURCES.md + tools/apl_status.lua
+--   ENTRIES for the full table): arcane/frost (mage), combat/mutilate (rogue),
+--   advanced (elemental shaman), shadow (priest).
 
 local M = {}
 

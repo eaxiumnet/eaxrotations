@@ -131,6 +131,7 @@ local WOTLK_REFERENCE_ALIASES = {
     [11958] = { kind = "VALID_RANK_ALIAS", family = "Cold Snap", source = "wowhead WotLK Classic spell=11958 (12472 disproven: Icy Veins)" },
     [42873] = { kind = "VALID_RANK_ALIAS", family = "Fire Blast", source = "wowhead WotLK Classic spell=42873" },
     [42914] = { kind = "VALID_RANK_ALIAS", family = "Ice Lance", source = "wowhead WotLK Classic spell=42914" },
+    [47610] = { kind = "VALID_RANK_ALIAS", family = "Frostfire Bolt", source = "wowhead WotLK Classic spell=47610 (max rank, 722-838 dmg; 44614 = rank 1) + ui/mage/apls/frost.apl.json" },
     [42931] = { kind = "VALID_RANK_ALIAS", family = "Cone of Cold", source = "wowhead WotLK Classic spell=42931" },
     [47838] = { kind = "VALID_RANK_ALIAS", family = "Incinerate", source = "ui/warlock/apls/destro.apl.json" },
     [47825] = { kind = "VALID_RANK_ALIAS", family = "Soul Fire", source = "wowhead WotLK Classic spell=47825" },
@@ -836,7 +837,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 129, "pinned allowlist size")
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 130, "pinned allowlist size") -- 47610 Frostfire Bolt added 2026-08-09
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 93, "bridge max rank count")
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")
