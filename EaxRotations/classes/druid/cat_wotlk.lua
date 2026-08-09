@@ -110,14 +110,6 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Rip, target = "target" },
     },
     {
-        name = "Rake",
-        conditions = {
-            { type = "state", field = "rake_remains", op = "<", value = 3 },
-            { type = "state", field = "energy", op = ">=", value = 40 },
-        },
-        action = { type = "cast", spell = ACTION.Rake, target = "target" },
-    },
-    {
         name = "FerociousBite",
         conditions = {
             { type = "state", field = "combo_points", op = ">=", value = 5 },
@@ -131,6 +123,14 @@ local DSL_DEFS = {
             { type = "state", field = "energy", op = ">=", value = 45 },
         },
         action = { type = "cast", spell = ACTION.MangleCat, target = "target" },
+    },
+    {
+        name = "Rake",
+        conditions = {
+            { type = "state", field = "rake_remains", op = "<", value = 3 },
+            { type = "state", field = "energy", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.Rake, target = "target" },
     },
     {
         name = "Shred",
@@ -150,9 +150,9 @@ local strategies = {
     { name = "Ravage" },
     { name = "SavageRoar" },
     { name = "Rip" },
-    { name = "Rake" },
     { name = "FerociousBite" },
     { name = "MangleCat" },
+    { name = "Rake" },
     { name = "Shred" },
 }
 

@@ -93,7 +93,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    local expected = { "Haunt", "UnstableAffliction", "Corruption", "CurseOfAgony", "DrainSoul", "ShadowBolt" }
+    -- wowsims APL order: Haunt -> Corruption -> UnstableAffliction -> CoA -> DrainSoul -> ShadowBolt
+    -- (affliction.apl.json: Corruption refresh sits above UA refresh)
+    local expected = { "Haunt", "Corruption", "UnstableAffliction", "CurseOfAgony", "DrainSoul", "ShadowBolt" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

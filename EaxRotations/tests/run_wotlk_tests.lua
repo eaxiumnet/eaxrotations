@@ -50,6 +50,7 @@ local tests = {
     "test_holy_priest_wotlk_dsl_priority.lua",
     "test_demonology_wotlk_dsl_priority.lua",
     "test_destruction_wotlk_dsl_priority.lua",
+    "test_apl_conformance.lua",
     "test_wotlk_specs_load.lua",
 }
 

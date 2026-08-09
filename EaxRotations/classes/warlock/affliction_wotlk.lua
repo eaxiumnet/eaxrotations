@@ -64,18 +64,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Haunt, target = "target" },
     },
     {
-        name = "UnstableAffliction",
-        conditions = {
-            { type = "state", field = "unstable_remains", op = "<", value = 3 },
-        },
-        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target" },
-    },
-    {
         name = "Corruption",
         conditions = {
             { type = "state", field = "corruption_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.Corruption, target = "target" },
+    },
+    {
+        name = "UnstableAffliction",
+        conditions = {
+            { type = "state", field = "unstable_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target" },
     },
     {
         name = "CurseOfAgony",
@@ -102,8 +102,8 @@ local DSL_DEFS = {
 
 local strategies = {
     { name = "Haunt" },
-    { name = "UnstableAffliction" },
     { name = "Corruption" },
+    { name = "UnstableAffliction" },
     { name = "CurseOfAgony" },
     { name = "DrainSoul" },
     { name = "ShadowBolt" },
