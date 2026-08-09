@@ -52,6 +52,7 @@ local tests = {
     "test_destruction_wotlk_dsl_priority.lua",
     "test_apl_conformance.lua",
     "test_wotlk_specs_load.lua",
+    "test_wotlk_battery_regression.lua",
 }
 
 local function first_failure_line(output)

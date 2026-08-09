@@ -491,6 +491,7 @@ local tests = {
     "test_multidot_lane_regression.lua",
     "test_combat_battery_regression.lua",
     "test_phase3_c_fixture_regression.lua",
+    "test_wotlk_battery_regression.lua",
     "test_arcane_burn_regression.lua",
     "test_destro_pet_pref_regression.lua",
     "test_warlock_opt_in_regression.lua",
