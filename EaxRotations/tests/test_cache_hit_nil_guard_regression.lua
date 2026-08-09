@@ -109,13 +109,17 @@ print("PASS: differing ctx.now still full-rebuilds (cache not disabled): "
 -- ============================================================================
 -- End-to-end: the battery must still see bear/cat lanes exactly as before the
 -- fix (the fix only changes the cache-hit branch, which the battery never
--- drives). Spot-check the two (a)-pinned bear lanes + cat never set unchanged.
+-- drives). NOTE: Barkskin was (a)-pinned at the time of the cache-hit fix but
+-- was cleared by the (a) opt-in close-out (2026-08-10, bear_barkskin
+-- scenario) — it is intentionally NOT asserted here anymore; ChallengingRoar
+-- (bear) and RakeSnapshot (cat) remain never and prove the battery view is
+-- unchanged by the cache-hit branch edit.
 -- ============================================================================
 local rp = aud.run_spec("druid", "bear")
 local rn = {}
 for _, n in ipairs(rp.never) do rn[n] = true end
-assert_true(rn["Barkskin"] == true and rn["ChallengingRoar"] == true,
-    "bear never-set must be unchanged by the cache-hit fix (Barkskin/ChallengingRoar still never)")
+assert_true(rn["ChallengingRoar"] == true,
+    "bear never-set must be unchanged by the cache-hit fix (ChallengingRoar still never)")
 local rc = aud.run_spec("druid", "cat")
 local rc_n = {}
 for _, n in ipairs(rc.never) do rc_n[n] = true end

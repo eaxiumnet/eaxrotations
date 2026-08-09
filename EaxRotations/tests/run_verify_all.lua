@@ -42,9 +42,15 @@
 --         enh_interrupt/enh_low_mana scenarios + the BM Trinket is_item_ready
 --         dead-lane fix) cleared 18 more 78->60 (RakeSnapshot/RipSnapshot /
 --         FireNovaReplacement remain (c)-pinned unpinnable: module-local
---         snapshot/totem state the battery cannot drive). When a lane is
---         cleared or a scenario is added, update these expectations here,
---         otherwise verify_all will (correctly) fail until they are bumped.
+--         snapshot/totem state the battery cannot drive), and the (a) opt-in
+--         close-out (2026-08-10: moonkin_form_optin/bear_barkskin/cat_rip_trick/
+--         cat_shred_trick/frost_*_optin/prot_avenger_shield/prot_hammer_wrath/
+--         prot_judgement/prot_seal_command/ret_consecration/ret_consec_dump/
+--         enh_goa_twist scenarios + the buff/debuff spell_action-object
+--         normalization for enh totem auras) cleared the 14 remaining (a)
+--         lanes 60->46. When a lane is cleared or a scenario is added, update
+--         these expectations here, otherwise verify_all will (correctly) fail
+--         until they are bumped.
 
 local R = "EaxRotations/tests"
 
@@ -228,7 +234,7 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 60)", never == 60 },
+                { "never-firing " .. never .. " (expected 46)", never == 46 },
             }
         end,
     },

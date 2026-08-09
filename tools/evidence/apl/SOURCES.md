@@ -246,3 +246,35 @@ are pinned in `tests/test_c_batch2_closeout_regression.lua`; scenarios live in
   in `LANE_CLASS`.
 - All clears are battery-fixture + the one dead-lane fix; no matcher-logic or
   order changes. Remaining split: **a=14 b=43 c=3 d=0**.
+- **(a) opt-in close-out (2026-08-10)** — the last 14 category-(a) lanes
+  (opt-in settings the battery's `setting_overrides` merge can drive) cleared
+  with ONE battery-fixture scenario each, dropping the TBC era never-count
+  60 -> 46. ZERO spec-file edits.
+  - **druid/balance (1)** — `MoonkinForm` (`moonkin_form_optin`):
+    `balance_moonkin_auto` + OOC (DSL `in_combat invert`, balance:695).
+  - **druid/bear (1)** — `Barkskin` (`bear_barkskin`): `bear_use_barkskin` +
+    caster form (TBC breaks the form) + hp 40 in (15, 55].
+  - **druid/cat (2)** — `RipTrick` (`cat_rip_trick`): setting + combo >= 1 +
+    rip down + energy 35 in the [30,40) window + ttd 30; `ShredTrick`
+    (`cat_shred_trick`): setting + behind + rip-up bleed + energy 80 +
+    next_tick > 1.0 via the new scenario-overridable `energy_time_to_x` stub
+    (mock hardwired 0.4, which sat under the gate) + combo 2.
+  - **mage/frost (3)** — `FireBlast` / `Scorch` / `ArcaneMissiles`
+    (`frost_*_optin`): pure setting toggles (frost:400/432/440).
+  - **paladin/protection (4)** — `AvengerShield` (`prot_avenger_shield`):
+    setting + in-combat mode; `HammerOfWrath` (`prot_hammer_wrath`): DSL
+    setting + target_hp 15; `Judgement` (`prot_judgement`): setting + Seal of
+    Righteousness 27155 up -> damage mode; `SealOfCommandAoE`
+    (`prot_seal_command`): setting + 4 enemies + no seal up.
+  - **paladin/retribution (2)** — `Consecration` (`ret_consecration`): setting
+    + 4 enemies + mana 60; `Ret_Consecration_ManaDump` (`ret_consec_dump`):
+    setting + mana 80.
+  - **shaman/enhancement (1)** — `GraceOfAirTotemTwist` (`enh_goa_twist`): WF
+    buff 25587 up > 2s + GoA 25359 expiring < 5s + mana 60. REQUIRED the
+    battery's `buff_remains`/`buff_up`/`debuff_*` stubs to normalize
+    spell_action objects (ACTION.* exposes `.ids`, not top-level numeric keys)
+    via a shared `normalize_ids()` — the legacy iteration always missed the
+    map, so the totem-aura gates could never pass.
+  - **Remaining split: a=0 b=43 c=3 d=0** — every modelable TBC lane is now
+    observable; the only pins left are correctly-silent (b) and the 3
+    module-local-state (c) lanes. WotLK stays 0.

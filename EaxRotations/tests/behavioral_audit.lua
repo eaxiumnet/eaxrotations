@@ -1089,9 +1089,27 @@ function M.build_ns(class_key, era)
     -- Shared with has_player_buff below (same map-first + buffs_up fallback
     -- semantics, identical normalization) — keep them on ONE helper so they
     -- can't drift apart.
+    -- (a) opt-in close-out (2026-08-10): enh GraceOfAirTotemTwist reads
+    -- NS.buff_remains(PLAYER, ACTION.WindfuryTotem / ACTION.GraceOfAirTotem)
+    -- where ACTION.* is a spell_action OBJECT ({ids={...}}, no top-level
+    -- numeric keys) — the legacy stubs iterated the object itself, so the
+    -- map lookup always missed (buff 0) and the WF-buff/GoA-expiry gates
+    -- could never pass. cooldown_remains already normalizes via spell.ids;
+    -- share that normalization across every map-aware id consumer so
+    -- callers passing lists, numbers, or spell_action objects all resolve.
+    local function normalize_ids(ids)
+        if type(ids) == "number" then return { ids } end
+        if type(ids) == "table" then
+            -- spell_action object (method surface, .ids list) vs plain list
+            -- of numeric ids (SEAL_*_BUFF, RIP_DEBUFF, etc.).
+            if type(ids.ids) == "table" then return ids.ids end
+            return ids
+        end
+        return {}
+    end
     local function map_aware_buff(ids)
         local map = ns._bstate("buff_remains_map", nil)
-        if type(ids) == "number" then ids = { ids } end
+        ids = normalize_ids(ids)
         if type(map) == "table" then
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return true end
@@ -1102,9 +1120,10 @@ function M.build_ns(class_key, era)
     ns.buff_up = function(unit, ids) return map_aware_buff(ids) end
     ns.buff_remains = function(unit, ids)
         local map = ns._bstate("buff_remains_map", nil)
-        -- callers pass either a list of ids or a single numeric id (e.g. bear
-        -- THORNS_BUFF); normalize so ipairs never sees a number.
-        if type(ids) == "number" then ids = { ids } end
+        -- callers pass either a list of ids, a single numeric id (e.g. bear
+        -- THORNS_BUFF), or a spell_action object (enh totem auras);
+        -- normalize so ipairs never sees a number or an object.
+        ids = normalize_ids(ids)
         if type(map) == "table" then
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return map[id] end
@@ -1126,8 +1145,8 @@ function M.build_ns(class_key, era)
     ns.debuff_up = function(unit, ids)
         local map = ns._bstate("debuff_remains_map", nil)
         local prim = ns._bstate("primary_target", nil)
+        ids = normalize_ids(ids)
         if unit == prim and type(map) == "table" then
-            if type(ids) == "number" then ids = { ids } end
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return true end
             end
@@ -1138,8 +1157,8 @@ function M.build_ns(class_key, era)
     ns.debuff_remains = function(unit, ids)
         local map = ns._bstate("debuff_remains_map", nil)
         local prim = ns._bstate("primary_target", nil)
+        ids = normalize_ids(ids)
         if unit == prim and type(map) == "table" then
-            if type(ids) == "number" then ids = { ids } end
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return map[id] end
             end
@@ -1158,8 +1177,8 @@ function M.build_ns(class_key, era)
     -- debuffed unit (Cleanse_Ally falls back to me with no party members).
     ns.has_player_debuff = function(ids)
         local map = ns._bstate("player_debuff_remains_map", nil)
+        ids = normalize_ids(ids)
         if type(map) == "table" then
-            if type(ids) == "number" then ids = { ids } end
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return true end
             end
@@ -2013,6 +2032,63 @@ M.SCENARIOS = {
     -- fixture defaults to unset).
     { name = "enh_interrupt",   overrides = { in_combat = true, target_is_casting = true, target_cast_pct = 60 } },
     { name = "enh_low_mana",    overrides = { in_combat = true, mana_pct = 30, player_mana_pct = 30, ttd = 60, setting_overrides = { enhancement_cd_shamanistic_rage = true } } },
+
+    -- (a) opt-in close-out (2026-08-10): the 14 remaining TBC category-(a)
+    -- never-lanes are ALL gated on spec settings the battery's
+    -- setting_overrides fixture can drive (plus a few state shapes). One
+    -- scenario per lane, keys spec-scoped so nothing leaks across specs.
+    -- druid/balance MoonkinForm: setting + OUT of combat (DSL
+    -- `{ type = "in_combat", invert = true }` at balance:695) + spell ready.
+    -- NOTE: named moonkin_form_OPTIN — a pre-existing `moonkin_form`
+    -- scenario (form=2, mana_pct=90) already exists for the form-sync
+    -- scenarios; build_scenario returns the FIRST match, so reusing the
+    -- name would silently shadow this one.
+    { name = "moonkin_form_optin", overrides = { in_combat = false, setting_overrides = { balance_moonkin_auto = true } } },
+    -- druid/bear Barkskin: setting + in combat + NOT bear form (TBC: casting
+    -- it in bear breaks the form) + hp in (15, barkskin_hp=55] (15 reserved
+    -- for Frenzied Regen) + no barkskin buff.
+    { name = "bear_barkskin",   overrides = { in_combat = true, form = 0, hp = 40, player_hp = 40, setting_overrides = { bear_use_barkskin = true } } },
+    -- druid/cat RipTrick: cat_use_rip_trick + would_rip_fire (ttd >= floor) +
+    -- is_cat + mana >= 8 + combo >= 1 + rip NOT up + energy in the
+    -- [RIP_COST=30, MANGLE_COST=40) window (energy 35 sits inside; next tick
+    -- 55 exceeds the Mangle floor, so only the current-window branch passes).
+    { name = "cat_rip_trick",   overrides = { in_combat = true, form = 3, combo_points = 1, energy = 35, mana_pct = 50, ttd = 30, target_ttd = 30, setting_overrides = { cat_use_rip_trick = true } } },
+    -- druid/cat ShredTrick: cat_use_shred_trick + is_cat + behind + a bleed
+    -- up (rip map 27008 -> bleed_active) + mana >= 16 + energy >= SHRED_COST
+    -- (42; 80 leaves 58 >= MANGLE_COST after a tick) + next_tick_in > 1.0
+    -- (energy_time_to_x 2.0, see _scenario_me) + combo < 5.
+    { name = "cat_shred_trick", overrides = { in_combat = true, form = 3, is_behind = true, combo_points = 2, energy = 80, mana_pct = 50, debuff_remains_map = { [27008] = 8 }, energy_time_to_x = 2.0, setting_overrides = { cat_use_shred_trick = true } } },
+    -- mage/frost x3: pure setting toggles (frost:400/432/440 read
+    -- context.settings.<key> == true directly).
+    { name = "frost_fire_blast",   overrides = { setting_overrides = { frost_use_fire_blast = true } } },
+    { name = "frost_scorch",       overrides = { setting_overrides = { frost_use_scorch = true } } },
+    { name = "frost_arcane_missiles", overrides = { setting_overrides = { frost_use_arcane_missiles = true } } },
+    -- paladin/protection AvengerShield: setting + avenger_ready (spell_ready
+    -- stub) + no CC nearby + normal in-combat mode (has_valid_enemy_target +
+    -- in_combat, both base defaults).
+    { name = "prot_avenger_shield", overrides = { in_combat = true, setting_overrides = { prot_avenger_shield = true } } },
+    -- paladin/protection HammerOfWrath (DSL): prot_hammer_of_wrath + ready +
+    -- target_hp <= prot_hammer_of_wrath_hp (default 20).
+    { name = "prot_hammer_wrath",   overrides = { target_hp = 15, ttd = 30, target_ttd = 30, setting_overrides = { prot_hammer_of_wrath = true } } },
+    -- paladin/protection Judgement: prot_judgement + ready + damage mode
+    -- needs a damage seal up (Seal of Righteousness buff 27155 -> has_seal;
+    -- mana 100 > jow_threshold+5 so wisdom mode is off).
+    { name = "prot_judgement",      overrides = { buff_remains_map = { [27155] = 30 }, setting_overrides = { prot_judgement = true } } },
+    -- paladin/protection SealOfCommandAoE: prot_seal_of_command + 3+ enemies
+    -- + no seal up (no buff map) + spell ready + 3s throttle (module-local
+    -- stamp starts 0; battery now 100 -> passes).
+    { name = "prot_seal_command",   overrides = { enemy_count = 4, enemies_count = 4, setting_overrides = { prot_seal_of_command = true } } },
+    -- paladin/retribution Consecration: use_consecration + not twist-window
+    -- + not mana_emergency + mana >= 35 + 3+ enemies (aoe_self_meets stub).
+    { name = "ret_consecration",    overrides = { enemy_count = 4, enemies_count = 4, mana_pct = 60, setting_overrides = { use_consecration = true } } },
+    -- paladin/retribution Ret_Consecration_ManaDump: consecration_single_target
+    -- + not mana_emergency + mana >= 75 (single-target; no enemy gate).
+    { name = "ret_consec_dump",     overrides = { mana_pct = 80, setting_overrides = { consecration_single_target = true } } },
+    -- shaman/enhancement GraceOfAirTotemTwist: totem_twisting (default true)
+    -- + in combat + not moving + gcd 0 + mana >= 40 + GoA ready + WF buff up
+    -- (25587 > 2.0) + GoA buff expiring (25359 < 5.0) + no recent GoA cast
+    -- (battery now_ms 100000 >> 1500ms window).
+    { name = "enh_goa_twist",       overrides = { in_combat = true, mana_pct = 60, buff_remains_map = { [25587] = 4, [25359] = 4 } } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -2038,6 +2114,14 @@ local function _scenario_me(profile, ctx)
         if p == M.POWER.MANA then return ctx.player_mana or ctx.mana_pct or 100 end
         return 100
     end
+    -- (a) opt-in close-out (2026-08-10): cat ShredTrick gates on
+    -- state.next_tick_in > 1.0 (cat:1143), which derives from
+    -- me:energy_time_to_x (cat:543). The legacy mock hardwired 0.4 (inside
+    -- the pooling window), so the lane could never fire even with the
+    -- cat_use_shred_trick setting on. Scenario-overridable via the
+    -- energy_time_to_x ctx key (mirrors the batch-2 target_cast_pct stub);
+    -- default 0.4 preserves every existing scenario's energy shape.
+    me.energy_time_to_x = function(self, v) return ctx.energy_time_to_x or 0.4 end
     -- Arcane burn phase (ranked #2): the battery previously hardwired
     -- get_max_power to 100, so mage/arcane s.max_mana = 100 → mtte_burn ≈ 0.3
     -- < 5 → should_conserve always true → phase could never become "burn" and
@@ -2169,6 +2253,9 @@ function M.build_context_for(class_key, scenario)
         is_behind=true, group_injured=true, has_totems=true, target_cast_pct=true,
         player_debuff_remains_map=true, dead_ally=true, has_trinket=true,
         friend_class=true, setting_overrides=true,
+        -- (a) opt-in close-out (2026-08-10): cat ShredTrick's next_tick_in
+        -- gate reads me:energy_time_to_x; scenario-overridable (default 0.4).
+        energy_time_to_x=true,
         -- Healer (c) close-out (2026-08-09): lifebloom feeds the heal-scan
         -- stub's Lifebloom let-bloom fields (resto druid LifebloomLetBloom).
         lifebloom=true,

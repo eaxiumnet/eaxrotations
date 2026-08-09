@@ -45,14 +45,19 @@ local LANE_CLASS = {
             -- (c) close-out (2026-08-09, batch 2): HurricaneAoE + RebirthBattleRez
             -- cleared by the hurricane_aoe / rebirth_dead_ally scenarios (battery
             -- now stubs DruidSpells.Hurricane + find_dead_party_ally) — pins removed.
-            MoonkinForm = 'a', PvP_Cyclone = 'b',
+            -- (a) opt-in close-out (2026-08-10): MoonkinForm cleared by the
+            -- moonkin_form_optin scenario (balance_moonkin_auto + OOC) — pin removed.
+            PvP_Cyclone = 'b',
             PvP_EntanglingRoots = 'b', PvP_NaturesGrasp = 'b',
         },
         bear = {
             -- (c) close-out (2026-08-09, batch 2): Swipe + EnrageCombat cleared
             -- by the bear_swipe_aoe / bear_enrage scenarios (form=1 + rage) — pins
             -- removed.
-            Barkskin = 'a', ChallengingRoar = 'b',
+            -- (a) opt-in close-out (2026-08-10): Barkskin cleared by the
+            -- bear_barkskin scenario (bear_use_barkskin + caster form + hp 40) —
+            -- pin removed.
+            ChallengingRoar = 'b',
             FaerieFirePull = 'b', FeralChargePull = 'b', Growl = 'b',
             PrePullEnrage = 'b',
         },
@@ -63,8 +68,12 @@ local LANE_CLASS = {
             -- (cat:247-254) populated only by record_bleed_snapshot on a real
             -- cast — the battery never casts, so state.rake_ap/rip_ap stay 0 and
             -- the matchers' `<= 0` gate is genuinely unpinnable via fixtures.
-            RakeSnapshot = 'c', RipSnapshot = 'c', RipTrick = 'a',
-            ShredTrick = 'a', TrackHumanoids = 'b', TravelForm = 'b',
+            -- (a) opt-in close-out (2026-08-10): RipTrick + ShredTrick cleared
+            -- by the cat_rip_trick / cat_shred_trick scenarios (settings + energy
+            -- windows + energy_time_to_x stub for ShredTrick's next_tick gate) —
+            -- pins removed.
+            RakeSnapshot = 'c', RipSnapshot = 'c',
+            TrackHumanoids = 'b', TravelForm = 'b',
         },
         resto = {
             -- Healer (c) close-out (2026-08-09): LifebloomLetBloom +
@@ -92,8 +101,11 @@ local LANE_CLASS = {
         arcane = { Blink = 'b', Polymorph = 'b' },
         fire = { ManaGemConjure = 'b', Polymorph = 'b' },
         frost = {
-            ArcaneMissiles = 'a', Blink = 'b', FireBlast = 'a',
-            ManaGemConjure = 'b', Scorch = 'a',
+            -- (a) opt-in close-out (2026-08-10): ArcaneMissiles + FireBlast +
+            -- Scorch cleared by the frost_*_optin scenarios (pure setting
+            -- toggles, no state shape) — pins removed.
+            Blink = 'b',
+            ManaGemConjure = 'b',
         },
     },
     paladin = {
@@ -107,17 +119,22 @@ local LANE_CLASS = {
         protection = {
             -- (c) close-out (2026-08-09, batch 2): AvengingWrath + LayOnHands
             -- cleared by the prot_cd_window / prot_low_self scenarios — pins removed.
-            AvengerShield = 'a', BlessingOfProtectionAlly = 'b',
-            HammerOfWrath = 'a', Judgement = 'a',
-            RighteousDefense = 'b', SealOfCommandAoE = 'a',
+            -- (a) opt-in close-out (2026-08-10): AvengerShield + HammerOfWrath +
+            -- Judgement + SealOfCommandAoE cleared by the prot_* scenarios
+            -- (settings + seal buff map) — pins removed.
+            BlessingOfProtectionAlly = 'b',
+            RighteousDefense = 'b',
         },
         retribution = {
             -- (c) close-out (2026-08-09, batch 2): the 3 cleanse/purify lanes
             -- cleared by the ret_cleanse_self scenario — battery's
             -- has_player_debuff / has_target_debuff are now map-aware
             -- (player_debuff_remains_map) instead of the catch-all always-true.
-            Consecration = 'a', Ret_BlessingFreedom_Ally = 'b',
-            Ret_BlessingFreedom_Self = 'b', Ret_Consecration_ManaDump = 'a',
+            -- (a) opt-in close-out (2026-08-10): Consecration +
+            -- Ret_Consecration_ManaDump cleared by the ret_consecration /
+            -- ret_consec_dump scenarios (settings + mana) — pins removed.
+            Ret_BlessingFreedom_Ally = 'b',
+            Ret_BlessingFreedom_Self = 'b',
             Ret_HammerWrath_FleeingPvP = 'b',
         },
     },
@@ -151,8 +168,13 @@ local LANE_CLASS = {
             -- totem_state.fire_nova_active (enhancement:135), populated only by
             -- the spec's own totem-drop lifecycle during a real rotation update
             -- — the battery never drops totems, so it is genuinely unpinnable.
+            -- (a) opt-in close-out (2026-08-10): GraceOfAirTotemTwist cleared by
+            -- the enh_goa_twist scenario (WF-buff map + GoA-expiry map) — pin
+            -- removed. NOTE: this required the battery's buff_remains/buff_up/
+            -- debuff_* stubs to normalize spell_action objects (ACTION.* has an
+            -- .ids list, not top-level numeric keys), mirroring cooldown_remains.
             AutoAttack = 'b', FireNovaReplacement = 'c',
-            GraceOfAirTotemTwist = 'a', TremorTotem = 'b',
+            TremorTotem = 'b',
         },
         restoration = {
             -- Healer (c) close-out (2026-08-09): ChainLightning + LightningShield
