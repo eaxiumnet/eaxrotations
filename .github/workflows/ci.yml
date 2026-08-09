@@ -20,15 +20,18 @@ jobs:
 
       - name: Install Lua 5.1
         # The game runtime is LuaJIT (~Lua 5.1); parse-gate with the same
-        # version the local pre-commit hook uses.
-        uses: leafo/gh-actions-lua@v12
+        # version the local pre-commit hook uses. v13 is an ESM rewrite that
+        # DEFAULTS to luaVersion 5.5 — the explicit 5.1 pin below is
+        # load-bearing and must not be removed.
+        uses: leafo/gh-actions-lua@v13.0.0
         with:
           luaVersion: "5.1"
 
       - name: Install LuaRocks
         # Companion action to leafo/gh-actions-lua — auto-detects the Lua
-        # installation from the step above. v6 defaults to LuaRocks 3.13.0.
-        uses: leafo/gh-actions-luarocks@v6
+        # installation from the step above. v6.1.0 defaults to LuaRocks
+        # 3.13.0, same as v6.
+        uses: leafo/gh-actions-luarocks@v6.1.0
 
       - name: Install luafilesystem (lfs)
         # Hard requirement: the clean-checkout dependency probe fails closed
