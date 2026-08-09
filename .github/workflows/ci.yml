@@ -13,7 +13,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        # v5 runs on node24 (v4 was node20 and triggered the GitHub
+        # Node.js-20 deprecation annotation); actions/checkout@v7 is the
+        # newest major if we want to track latest later.
+        uses: actions/checkout@v5
 
       - name: Install Lua 5.1
         # The game runtime is LuaJIT (~Lua 5.1); parse-gate with the same
