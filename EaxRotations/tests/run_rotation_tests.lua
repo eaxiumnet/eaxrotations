@@ -495,6 +495,7 @@ local tests = {
     "test_healer_c_closeout_regression.lua",
     "test_c_batch2_closeout_regression.lua",
     "test_a_optin_closeout_regression.lua",
+    "test_b_bucket_closeout_regression.lua",
     "test_cache_hit_nil_guard_regression.lua",
     "test_ns_mock_pollution_guard.lua",
     "test_arcane_burn_regression.lua",

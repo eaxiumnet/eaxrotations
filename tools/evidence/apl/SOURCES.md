@@ -278,3 +278,49 @@ are pinned in `tests/test_c_batch2_closeout_regression.lua`; scenarios live in
   - **Remaining split: a=0 b=43 c=3 d=0** — every modelable TBC lane is now
     observable; the only pins left are correctly-silent (b) and the 3
     module-local-state (c) lanes. WotLK stays 0.
+
+## TBC (b)-bucket close-out (2026-08-10) — never 46 → 19 (a=0 b=16 c=3 d=0)
+
+The 43-lane (b) audit (PvP/OOC/situational) classified 28 as fixture-modelable;
+this campaign cleared **27** with pure battery-fixture work — zero spec-file
+edits, no matcher-logic or order changes. Fixtures added to
+`EaxRotations/tests/behavioral_audit.lua`:
+
+- **9 scenarios**: `pvp_melee` (is_pvp + melee_on_you + enemy_healer +
+  enemy_caster + cc_target + target_fleeing + target_hp 15), `pvp_pressure_resto`
+  (is_pvp + hp 30 + enemies_in_range {melee,healer}), `fear_nearby`,
+  `snare_self` (self_rooted_snared + player_debuff_remains_map [122] +
+  snared_friend), `shadow_cc_break` (player Polymorph 118),
+  `bm_misdirection` (combat_time 2 + use_misdirection), `bear_challenging_roar`
+  (form 1 + 4 enemies + bear_use_challenging_roar), `enh_autoattack`
+  (is_auto_attacking false), `pvp_succubus` (has_pet + pet_spells 27274).
+- **Stub surface**: scenario-driven `GetEnemiesInRange` (+ `_battery_enemy`
+  factory) for resto scan_pvp_pressure; `is_auto_attacking` stub now
+  bank-driven with default true (battery artifact only — the live client's
+  is_auto_attacking is false at combat start, so enh AutoAttack fires in-game);
+  `OffensiveDispelDB.is_breakable_cc_active` delegates to `debuff_up` over the
+  damage-breakable CC ids; `debuff_up`/`debuff_remains` gain a player-map
+  branch (unit == ns.me → player_debuff_remains_map); `NS.GetPlayer()` now
+  returns the scenario me unit once published (shadow resolves the player via
+  GetPlayer, so the player-map branch matches); `_scenario_me.has_pet/get_pet`
+  + `ns.core.spell_book.get_pet_spells` for demo pet classification;
+  `snared_friend` marks the lowest heal-scan ally `is_snared` (holy freedom);
+  `cc_target` resolves to a real unit (a boolean crashed the poly matcher);
+  `RACE_OVERRIDES = { smite = 4 }` (require-time race binding → Starshards).
+- **Lanes cleared (27)**: balance PvP_Cyclone/EntanglingRoots/NaturesGrasp;
+  bear ChallengingRoar (re-bucketed from (b) to (a)-shape); resto
+  BearFormFocusedByMelee/NaturesGraspMelee/CycloneEnemyHealer/EntanglingRootsMelee;
+  BM Misdirection; arcane Blink+Polymorph; fire Polymorph; frost Blink; holy
+  BlessingOfFreedomSnare; ret Ret_BlessingFreedom_Self/_Ally +
+  Ret_HammerWrath_FleeingPvP; shadow SWDCCBreak; smite Starshards; shaman
+  TremorTotem ×3 + enh AutoAttack; warlock CC_HowlOfTerror + PvP_CurseExhaustion
+  + PvP_CurseTongues + demo Seduction.
+- **Kept (16 b + 3 c)**: 9 correctly-silent OOC/disabled (PrePullEnrage,
+  FaerieFirePull, FeralChargePull, TrackHumanoids, TravelForm, MountedProtection,
+  ManaGemConjure ×2, DispelMagic); 5 threat-family deferred (Growl,
+  RighteousDefense, FeignDeath, BlessingOfProtectionAlly/FocusedAlly);
+  EncounterReactions (declined — vacuous without boss data); DevouringPlague
+  (require-time race binding needs a second race-5 load); c = RakeSnapshot,
+  RipSnapshot, FireNovaReplacement (module-local state, unpinnable).
+- **Pinned**: `test_b_bucket_closeout_regression.lua` (27 lanes), verify_all
+  battery pin 46 → 19, badges 475/475, scorecard regenerated.

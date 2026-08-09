@@ -169,9 +169,25 @@ local function assert_exclusive(class_key, spec, lane)
 end
 assert_exclusive("warrior", "arms", "Disarm")
 assert_exclusive("warrior", "arms", "SpellReflection")
-assert_exclusive("rogue", "combat", "Blind")
-assert_exclusive("rogue", "subtlety", "Blind")
-print("PASS: exclusivity — arms Disarm/SpellReflection + Blind x2 fire only in defensive_casting")
+-- (b) close-out (2026-08-10): the rogue Blind lanes are is_pvp + hp<=40
+-- gated (combat_sylvanas:568-579) and legitimately fire in ANY low-hp PvP
+-- scenario — the pvp_pressure_resto scenario (hp 30) added by the (b)
+-- campaign is a second such context, so strict single-scenario exclusivity no
+-- longer holds by design. Relax to the meaningful contract: fires in
+-- defensive_casting and NOT in the plain pvp scenario (hp 100 > 40 — the hp
+-- gate), which the per-spec subtlety assertions above already pin.
+local function assert_blind_contract(class_key, spec)
+    local report = aud.run_spec(class_key, spec)
+    assert_true(report ~= nil, "battery run for " .. class_key .. "/" .. spec .. " failed")
+    local fi = report.fires_in["Blind"]
+    assert_true(fi ~= nil and fi.defensive_casting == true,
+        class_key .. "/" .. spec .. " Blind must fire in defensive_casting")
+    assert_true(fi.pvp == nil,
+        class_key .. "/" .. spec .. " Blind must NOT fire in plain pvp (hp 100 > 40)")
+end
+assert_blind_contract("rogue", "combat")
+assert_blind_contract("rogue", "subtlety")
+print("PASS: exclusivity — arms Disarm/SpellReflection only in defensive_casting; Blind fires in defensive_casting + low-hp pvp contexts only")
 
 -- ============================================================================
 -- End-to-end: the battery must report none of the 6 lanes as never-firing.

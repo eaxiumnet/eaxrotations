@@ -55,6 +55,14 @@ M.SPEC_FILES = {
     warrior = { "arms", "fury", "protection", "kebab" },
 }
 
+-- (b) close-out (2026-08-10): per-spec require-time race override. smite binds
+-- _player_race from load_player:get_race_id() at module load (smite:30-32);
+-- the mock defaults to race 1 (human) so both racial lanes were structurally
+-- dead. Loading smite as night elf (4) makes Starshards observable;
+-- DevouringPlague (undead 5) needs a second race load and stays pinned (see
+-- tools/spec_scorecard.lua LANE_CLASS). Applied in load_spec around the dofile.
+M.RACE_OVERRIDES = { smite = 4 }
+
 M.SPEC_FILES_WOTLK = {
     deathknight = { "blood", "frost", "leveling", "unholy" },
     druid = { "balance", "bear", "cat", "leveling", "resto" },
@@ -100,6 +108,28 @@ M.CLASS_IDS = {
 M.POWER = { MANA = 0, RAGE = 1, FOCUS = 2, ENERGY = 3, COMBO = 4 }
 
 -- ---------------------------------------------------------------------------
+-- (b) close-out (2026-08-10): scenario-driven enemy mock for resto's
+-- scan_pvp_pressure (GetEnemiesInRange). PRIEST (5) lands in resto
+-- HEALER_CLASS_IDS; melee uses WARRIOR (1). Unit surface covers everything
+-- the PvP-pressure scan + offensive-dispel preemptive scan read.
+-- ---------------------------------------------------------------------------
+local function _battery_enemy(kind)
+    return {
+        is_valid = function() return true end,
+        is_alive = function() return true end,
+        is_dead = function() return false end,
+        is_cc = function() return false end,
+        get_name = function() return "AuditEnemy_" .. kind end,
+        get_class = function() return kind == "healer" and 5 or 1 end,
+        get_distance = function() return 5 end,
+        get_target = function() return nil end,
+        get_health_percentage = function() return 100 end,
+        get_active_spell_id = function() return 0 end,
+        get_active_cast_or_channel_id = function() return 0 end,
+    }
+end
+
+-- ---------------------------------------------------------------------------
 -- Helper: one shared permissive unit mock.
 -- ---------------------------------------------------------------------------
 local function _me_unit(class_id)
@@ -117,7 +147,7 @@ local function _me_unit(class_id)
         get_shapeshift_form_id = function(self) return 0 end,
         get_attack_power = function(self) return 500 end,
         get_player_stance = function(self) return 0 end,
-        get_race_id = function(self) return 1 end,
+        get_race_id = function(self) return M._race_override or 1 end,
         -- vec3 position (contract verified 2026-08-08): the platform's
         -- get_position returns ONE vec3 TABLE {x,y,z} (with [1]/[2] index
         -- aliases) — see shared/auto_loot (p.x,p.y,p.z), shared/targeting
@@ -276,6 +306,11 @@ function M.build_ns(class_key, era)
                 if ns._bstate("totem_active") then return { have_totem = true } end
                 return nil
             end,
+            -- (b) close-out (2026-08-10): demo pet-type detection
+            -- (demonology:210-228) reads NS.core.spell_book.get_pet_spells() to
+            -- classify imp vs succubus. Bank-driven; the pvp_succubus scenario
+            -- presents a Lash of Pain id (27274) so pet_type_succubus binds.
+            get_pet_spells = function() return ns._bstate("pet_spells", {}) end,
         },
         -- Scenario-aware mirror of the load_spec _G.core stub: the visible
         -- scan (enh TotemicCall, prot threat scan) must see the scenario's
@@ -438,7 +473,16 @@ function M.build_ns(class_key, era)
     ns.health_pct = function() return 100 end
     ns.mana = function() return 100 end
 
-    ns.GetPlayer = function() return _me_unit(class_id) end
+    -- (b) close-out (2026-08-10): return the scenario-aware me unit once
+    -- apply_battery_state publishes ns.me, so build_state reads that resolve
+    -- the player via NS.GetPlayer() (shadow:460, warlock files, etc.) see the
+    -- SAME unit the debuff_up/debuff_remains player-map branch compares
+    -- against (SW:D CC break's is_breakable_cc_active(me, NS)). Before this,
+    -- GetPlayer() minted a fresh default mock every call, so player-debuff
+    -- reads via me never matched ns.me. Require-time reads (smite's
+    -- load_player race binding) still hit the default mock — ns.me is nil
+    -- until the first scenario.
+    ns.GetPlayer = function() return ns.me or _me_unit(class_id) end
 
     ns.try_cast = function() return true end
     ns.use_item_by_id = function() return true end
@@ -503,7 +547,13 @@ function M.build_ns(class_key, era)
     ns.start_attack = function() return true end
     ns.start_auto_attack = function() return true end
     ns.stop_casting = function() return true end
-    ns.is_auto_attacking = function() return true end
+    -- (b) close-out (2026-08-10): enh AutoAttack gates on NOT auto-attacking
+    -- (enhancement:1207); the legacy always-true stub hard-blocked the lane.
+    -- Bank-driven with default true so every other scenario is unchanged; the
+    -- enh_autoattack scenario flips it to false. Battery artifact only — the
+    -- live client's is_auto_attacking is false at combat start, so the lane
+    -- fires in-game; no spec-file change.
+    ns.is_auto_attacking = function() return ns._bstate("is_auto_attacking", true) == true end
     ns.is_current_spell = function() return false end
     ns.is_execute_phase = function(hp, threshold) return type(hp) == "number" and hp <= (threshold or 20) end
     ns.is_valid_target = function() return true end
@@ -739,7 +789,19 @@ function M.build_ns(class_key, era)
             if ns._bstate("enemy_buffed", false) then return target, 10, "Bloodlust" end
             return nil, 0, nil
         end,
-        is_breakable_cc_active = function() return false, nil end,
+        -- (b) close-out (2026-08-10): shadow binds CCBreakDB = NS.OffensiveDispelDB
+        -- (shadow:55), so this stub IS the SW:D CC-break reader. Delegate to
+        -- ns.debuff_up over the damage-breakable CC ids (Polymorph/Sap/Gouge/
+        -- Blind/Repentance/Fear family) — debuff_up consults the player-debuff
+        -- map for the player unit, so the shadow_cc_break scenario's
+        -- player_debuff_remains_map { [118] = 5 } drives has_breakable_cc.
+        is_breakable_cc_active = function(unit, ns2)
+            local ids = { 118, 12824, 12825, 12826, 28271, 28272, 6770, 2070, 11297, 2094, 1776, 1079, 5782, 6215 }
+            for _, id in ipairs(ids) do
+                if ns.debuff_up(unit or ns.me, id) then return true, "CC" end
+            end
+            return false, nil
+        end,
         is_casting_preemptive_cc = function() return false, nil end,
     }
     -- Note: NS.purge_should_cast / NS.PurgeManager stubs were considered but
@@ -776,6 +838,10 @@ function M.build_ns(class_key, era)
         local a = { poison = aff.poison == true, disease = aff.disease == true,
                     curse = aff.curse == true, magic = aff.magic == true }
         local friend_class = ns._bstate("friend_class", nil)
+        -- (b) close-out (2026-08-10): snared_friend marks the lowest ally
+        -- entry is_snared → holy entry_needs_freedom (holy:319-324) picks it as
+        -- freedom_target → BlessingOfFreedomSnare observable. Only freedom
+        -- lanes read is_snared, so other heal-scan consumers are unaffected.
         local entries, count = {}, 0
         for i, hp in ipairs(hps) do
             count = count + 1
@@ -785,6 +851,7 @@ function M.build_ns(class_key, era)
             entries[count] = {
                 unit = _friend(hp, 30, friend_class), hp = hp, effective_hp = hp, max_hp = 10000,
                 time_to_die = ttd, future_hp = hp, death_risk = 0, will_die_soon = false,
+                is_snared = (ns._bstate("snared_friend", false) == true and i == 1) or nil,
                 -- Deficit must mirror the real scan semantics (heal modules set
                 -- deficit = max_hp - current_hp): a low-HP entry needs a
                 -- positive deficit or every deficit_of(...) > 0 gate (paladin
@@ -1151,6 +1218,19 @@ function M.build_ns(class_key, era)
                 if map[id] ~= nil then return true end
             end
         end
+        -- (b) close-out (2026-08-10): player-side debuff reads — SW:D CC break
+        -- (offensive_dispel.is_breakable_cc_active(me, NS) → ns.debuff_up(me,
+        -- id)) — consult the player-debuff map when the unit is the player
+        -- (ns.me, published per scenario by apply_battery_state). The snare_self
+        -- scenario uses player_debuff_remains_map { [122] = 5 }.
+        if unit ~= nil and unit == ns.me then
+            local pmap = ns._bstate("player_debuff_remains_map", nil)
+            if type(pmap) == "table" then
+                for _, id in ipairs(ids or {}) do
+                    if pmap[id] ~= nil then return true end
+                end
+            end
+        end
         if ns._bstate("buffs_up", false) then return true end
         return false
     end
@@ -1161,6 +1241,16 @@ function M.build_ns(class_key, era)
         if unit == prim and type(map) == "table" then
             for _, id in ipairs(ids or {}) do
                 if map[id] ~= nil then return map[id] end
+            end
+        end
+        -- (b) close-out (2026-08-10): player-side mirror of the debuff_up
+        -- branch above (unit == ns.me → player_debuff_remains_map).
+        if unit ~= nil and unit == ns.me then
+            local pmap = ns._bstate("player_debuff_remains_map", nil)
+            if type(pmap) == "table" then
+                for _, id in ipairs(ids or {}) do
+                    if pmap[id] ~= nil then return pmap[id] end
+                end
             end
         end
         if ns._bstate("buffs_up", false) then return 20 end
@@ -2089,6 +2179,45 @@ M.SCENARIOS = {
     -- (25587 > 2.0) + GoA buff expiring (25359 < 5.0) + no recent GoA cast
     -- (battery now_ms 100000 >> 1500ms window).
     { name = "enh_goa_twist",       overrides = { in_combat = true, mana_pct = 60, buff_remains_map = { [25587] = 4, [25359] = 4 } } },
+    -- (b) close-out (2026-08-10): PvP mega-scenario. is_pvp + melee_on_you +
+    -- enemy_healer + enemy_caster + cc_target + target_fleeing + a low-hp
+    -- fleeing target drive the 9 PvP-gated lanes (balance Cyclone /
+    -- EntanglingRoots / NaturesGrasp, affliction HowlOfTerror / CurseExhaustion
+    -- / CurseTongues, retribution HammerWrath_FleeingPvP, arcane + fire
+    -- Polymorph via cc_target).
+    { name = "pvp_melee",          overrides = { is_pvp = true, melee_on_you = true, enemy_healer = true, enemy_caster = true, cc_target = true, target_fleeing = true, target_hp = 15 } },
+    -- Resto PvP pressure: enemies_in_range feeds ns.GetEnemiesInRange so
+    -- scan_pvp_pressure fills melee_pressure_count / enemy_healer / root_target
+    -- → BearFormFocusedByMelee, NaturesGraspMelee, CycloneEnemyHealer,
+    -- EntanglingRootsMelee.
+    { name = "pvp_pressure_resto", overrides = { is_pvp = true, hp = 30, enemies_in_range = { melee = 1, healer = 1 } } },
+    -- Fear tremor: fear_nearby drives TremorTotem in elemental/enhancement/
+    -- restoration (each reads context.fear_nearby).
+    { name = "fear_nearby",        overrides = { fear_nearby = true } },
+    -- Snare: self_rooted_snared + a root-snare player debuff (122 ∈ COMMON_SNARES)
+    -- drive Blink ×2, retribution BlessingOfFreedom Self + Ally, holy
+    -- BlessingOfFreedomSnare (entry_needs_freedom → has_any_debuff → the
+    -- player-debuff map via has_target_debuff fallback to me).
+    { name = "snare_self",         overrides = { self_rooted_snared = true, player_debuff_remains_map = { [122] = 5 }, snared_friend = true } },
+    -- SW:D CC break: a damage-breakable CC on the player (Polymorph 118 ∈
+    -- BREAKABLE_CC_DEBUFFS) drives the has_breakable_cc fallback path of
+    -- swd_cc_break_matches (offensive_dispel.is_breakable_cc_active →
+    -- ns.debuff_up → debuff_remains_map).
+    { name = "shadow_cc_break",    overrides = { player_debuff_remains_map = { [118] = 5 } } },
+    -- BM Misdirection: opening-seconds window (combat_time ≤ 6) + the
+    -- use_misdirection setting.
+    { name = "bm_misdirection",    overrides = { combat_time = 2, setting_overrides = { use_misdirection = true } } },
+    -- Bear Challenging Roar: dedicated toggle (bear_use_challenging_roar) +
+    -- 3+ enemies (bear:610-616).
+    { name = "bear_challenging_roar", overrides = { form = 1, enemy_count = 4, enemies_count = 4, setting_overrides = { bear_use_challenging_roar = true } } },
+    -- Enh AutoAttack: the battery's is_auto_attacking stub defaults true
+    -- (legacy posture); flip it so the lane's `not auto-attacking` gate passes.
+    { name = "enh_autoattack",     overrides = { is_auto_attacking = false } },
+    -- Demo Seduction: succubus pet (has_pet) with Lash of Pain 27274 known
+    -- (pet_spells) + PvP. Starshards needs no scenario: the per-spec
+    -- RACE_OVERRIDES loads smite as night elf (race 4), so it fires in the
+    -- standard scenarios.
+    { name = "pvp_succubus",       overrides = { is_pvp = true, has_pet = true, pet_spells = { 27274 } } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -2122,6 +2251,20 @@ local function _scenario_me(profile, ctx)
     -- energy_time_to_x ctx key (mirrors the batch-2 target_cast_pct stub);
     -- default 0.4 preserves every existing scenario's energy shape.
     me.energy_time_to_x = function(self, v) return ctx.energy_time_to_x or 0.4 end
+    -- (b) close-out (2026-08-10): demo Seduction needs a live succubus pet
+    -- (demonology:198-228: me:has_pet() + me:get_pet() + pet:is_valid/alive +
+    -- pet spells). The pvp_succubus scenario sets has_pet; other scenarios
+    -- keep the legacy no-pet posture (nil from get_pet → scan skipped).
+    me.has_pet = function(self) return ctx.has_pet == true end
+    me.get_pet = function(self)
+        if not ctx.has_pet then return nil end
+        return {
+            is_valid = function() return true end,
+            is_alive = function() return true end,
+            is_dead = function() return false end,
+            get_health_percentage = function() return 100 end,
+        }
+    end
     -- Arcane burn phase (ranked #2): the battery previously hardwired
     -- get_max_power to 100, so mage/arcane s.max_mana = 100 → mtte_burn ≈ 0.3
     -- < 5 → should_conserve always true → phase could never become "burn" and
@@ -2319,6 +2462,16 @@ function M.build_context_for(class_key, scenario)
         bloodlust_ready=true, elemental_mastery_ready=true,
         fire_elemental_ready=true, water_totem_remains=true,
         maelstrom_stacks=true, injured_count=true, mana_tide_ready=true,
+        -- (b) close-out (2026-08-10): PvP/situational fixture keys. is_pvp /
+        -- combat_time / player_debuff_remains_map / setting_overrides already
+        -- whitelisted; these add the remaining ctx reads (balance/affliction
+        -- PvP lanes, ret fleeing, mage polymorph cc_target, snare self-root,
+        -- shaman tremor) and the stub-driven banks (enemies_in_range,
+        -- is_auto_attacking, pet_spells, has_pet).
+        melee_on_you=true, enemy_healer=true, enemy_caster=true, cc_target=true,
+        target_fleeing=true, target_is_fleeing=true, self_rooted_snared=true,
+        fear_nearby=true, enemies_in_range=true, is_auto_attacking=true,
+        pet_spells=true, has_pet=true, snared_friend=true,
     }
     for k, v in pairs(overrides) do
         if k == "friends_hp" then
@@ -2363,6 +2516,15 @@ function M.build_context_for(class_key, scenario)
     -- Scenario-aware player + target
     ctx.me = _scenario_me(profile, ctx)
     ctx.target = build_scenario_target(ctx)
+    -- (b) close-out (2026-08-10): mage Polymorph reads context.cc_target and
+    -- calls cc_t.is_cc() on it — a boolean scenario value crashes the matcher
+    -- (attempt to index a boolean). Present a real unit: default to the
+    -- scenario target so the PvP mega-scenario's cc_target=true resolves to a
+    -- CC-able unit (is_cc absent → the SDK skip-gate is bypassed, which is the
+    -- permissive-mock posture everywhere else).
+    if ctx.cc_target == true then
+        ctx.cc_target = ctx.target or build_scenario_target(ctx)
+    end
     if scenario.no_target then
         ctx.target = nil
         ctx.has_target = false
@@ -2535,6 +2697,14 @@ function M.apply_battery_state(ns, ctx, class_key)
         visible_enemies = ctx.visible_enemies,
         friend_class = ctx.friend_class,
         setting_overrides = ctx.setting_overrides,
+        -- (b) close-out (2026-08-10): stub-driven banks for the PvP/situational
+        -- fixtures (GetEnemiesInRange, is_auto_attacking, pet_spells). The
+        -- is_auto_attacking default stays TRUE (legacy posture) unless a
+        -- scenario explicitly sets it false.
+        enemies_in_range = ctx.enemies_in_range,
+        is_auto_attacking = ctx.is_auto_attacking ~= false,
+        pet_spells = ctx.pet_spells,
+        snared_friend = ctx.snared_friend == true,
         -- Equipped-weapon mock (2026-08-08): the mutilate_daggers scenario's
         -- equipped_daggers flag lands here so the get_equipped_item_id stub
         -- (which reads _bstate) returns a dagger id for both hands → assn
@@ -2601,8 +2771,18 @@ function M.apply_battery_state(ns, ctx, class_key)
     -- enemies-in-range consumers (fade fallback, defensive middleware) keep
     -- their current battery behavior.
     ns.GetEnemiesInRange = function(range)
-        if ctx.enemies_casting ~= true then return {} end
-        return { ctx.target }
+        if ctx.enemies_casting == true then return { ctx.target } end
+        -- (b) close-out (2026-08-10): the pvp_pressure_resto scenario sets
+        -- enemies_in_range = { melee = N, healer = N } so resto's
+        -- scan_pvp_pressure fills melee_pressure_count / enemy_healer /
+        -- root_target. Default (no key) stays {} — identical to the legacy
+        -- empty scan, so no other spec's reads change.
+        local spec = ctx.enemies_in_range
+        if type(spec) ~= "table" then return {} end
+        local out = {}
+        for i = 1, (spec.melee or 0) do out[#out + 1] = _battery_enemy("melee") end
+        for i = 1, (spec.healer or 0) do out[#out + 1] = _battery_enemy("healer") end
+        return out
     end
     -- Pets (hunter + warlock)
     if ctx.pet ~= nil then
@@ -2773,7 +2953,16 @@ function M.load_spec(class_key, spec_key, era)
             end,
         }
     end
+    -- (b) close-out (2026-08-10): smite binds _player_race from
+    -- load_player:get_race_id() at require time (smite:30-32). RACE_OVERRIDES
+    -- makes smite load as night elf (4) so Starshards is observable;
+    -- DevouringPlague (undead 5) would need a second race load and stays
+    -- pinned. Other specs get nil → race 1 (human), unchanged.
+    -- Era-gated: only the TBC battery binds the race override, so a future
+    -- WotLK-era smite load can't silently pick up the night-elf binding.
+    M._race_override = (era == "sylvanas") and M.RACE_OVERRIDES and M.RACE_OVERRIDES[spec_key]
     local ok, result = pcall(dofile, path)
+    M._race_override = nil
     -- Keep the stub installed when there was no pre-existing core: runtime
     -- reads during dispatch (protection's threat-scan throttle calls
     -- core.time() live) would otherwise see nil and freeze the scan at now=0,

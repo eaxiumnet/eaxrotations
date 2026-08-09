@@ -47,8 +47,8 @@ local LANE_CLASS = {
             -- now stubs DruidSpells.Hurricane + find_dead_party_ally) — pins removed.
             -- (a) opt-in close-out (2026-08-10): MoonkinForm cleared by the
             -- moonkin_form_optin scenario (balance_moonkin_auto + OOC) — pin removed.
-            PvP_Cyclone = 'b',
-            PvP_EntanglingRoots = 'b', PvP_NaturesGrasp = 'b',
+            -- (b) close-out (2026-08-10): PvP_Cyclone / PvP_EntanglingRoots /
+            -- PvP_NaturesGrasp cleared by the pvp_melee scenario.
         },
         bear = {
             -- (c) close-out (2026-08-09, batch 2): Swipe + EnrageCombat cleared
@@ -57,7 +57,9 @@ local LANE_CLASS = {
             -- (a) opt-in close-out (2026-08-10): Barkskin cleared by the
             -- bear_barkskin scenario (bear_use_barkskin + caster form + hp 40) —
             -- pin removed.
-            ChallengingRoar = 'b',
+            -- (b) close-out (2026-08-10): ChallengingRoar cleared via its
+            -- dedicated toggle (bear_use_challenging_roar) + enemy count — the
+            -- category-(a) shape, re-bucketed and closed here.
             FaerieFirePull = 'b', FeralChargePull = 'b', Growl = 'b',
             PrePullEnrage = 'b',
         },
@@ -79,8 +81,8 @@ local LANE_CLASS = {
             -- Healer (c) close-out (2026-08-09): LifebloomLetBloom +
             -- TravelFormReposition cleared by the resto_* scenarios — pins
             -- removed.
-            BearFormFocusedByMelee = 'b', CycloneEnemyHealer = 'b',
-            EntanglingRootsMelee = 'b', NaturesGraspMelee = 'b',
+            -- (b) close-out (2026-08-10): the four resto PvP-pressure lanes
+            -- cleared by pvp_pressure_resto (enemies_in_range → GetEnemiesInRange).
         },
     },
     hunter = {
@@ -92,19 +94,24 @@ local LANE_CLASS = {
             -- AND the spec's is_item_ready forward-declaration bug was fixed
             -- (beast_mastery:78 vs :458 shadowing — safe_any got nil, so
             -- trinket_1_ready was always false in LIVE game too).
-            FeignDeath = 'b', Misdirection = 'b',
+            -- (b) close-out (2026-08-10): Misdirection cleared by the
+            -- bm_misdirection scenario (combat_time window + setting);
+            -- FeignDeath stays pinned (threat-level model, deferred).
+            FeignDeath = 'b',
         },
         marksmanship = {},
         survival = {},
     },
     mage = {
-        arcane = { Blink = 'b', Polymorph = 'b' },
-        fire = { ManaGemConjure = 'b', Polymorph = 'b' },
+        -- (b) close-out (2026-08-10): arcane Blink + Polymorph, fire Polymorph,
+        -- frost Blink cleared (snare_self / pvp_melee scenarios). ManaGemConjure
+        -- stays pinned (OOC conjure, correctly silent).
+        arcane = { },
+        fire = { ManaGemConjure = 'b' },
         frost = {
             -- (a) opt-in close-out (2026-08-10): ArcaneMissiles + FireBlast +
             -- Scorch cleared by the frost_*_optin scenarios (pure setting
             -- toggles, no state shape) — pins removed.
-            Blink = 'b',
             ManaGemConjure = 'b',
         },
     },
@@ -114,7 +121,9 @@ local LANE_CLASS = {
             -- HammerOfWrathSolo, JudgementOfLightBoss, JudgementOfWisdomBoss,
             -- JudgementSoloRighteousness, LayOnHandsLastResort cleared by the
             -- holy_* scenarios — pins removed.
-            BlessingOfFreedomSnare = 'b', BlessingOfProtectionFocusedAlly = 'b',
+            -- (b) close-out (2026-08-10): BlessingOfFreedomSnare cleared by the
+            -- snare_self scenario (snared_friend entry flag).
+            BlessingOfProtectionFocusedAlly = 'b',
         },
         protection = {
             -- (c) close-out (2026-08-09, batch 2): AvengingWrath + LayOnHands
@@ -133,9 +142,8 @@ local LANE_CLASS = {
             -- (a) opt-in close-out (2026-08-10): Consecration +
             -- Ret_Consecration_ManaDump cleared by the ret_consecration /
             -- ret_consec_dump scenarios (settings + mana) — pins removed.
-            Ret_BlessingFreedom_Ally = 'b',
-            Ret_BlessingFreedom_Self = 'b',
-            Ret_HammerWrath_FleeingPvP = 'b',
+            -- (b) close-out (2026-08-10): Ret_BlessingFreedom_Ally / _Self +
+            -- Ret_HammerWrath_FleeingPvP cleared (snare_self / pvp_melee).
         },
     },
     priest = {
@@ -145,11 +153,18 @@ local LANE_CLASS = {
             -- removed.
             EncounterReactions = 'b', MountedProtection = 'b',
         },
-        shadow = { DispelMagic = 'b', SWDCCBreak = 'b' },
+        -- (b) close-out (2026-08-10): SWDCCBreak cleared by the
+        -- shadow_cc_break scenario (breakable-CC player debuff). DispelMagic
+        -- stays pinned (intentionally disabled; middleware handles dispels).
+        shadow = { DispelMagic = 'b' },
         smite = {
             -- Healer (c) close-out (2026-08-09): InnerFocus + SoloRenew cleared
             -- by the smite_* scenarios — pins removed.
-            DevouringPlague = 'b', Starshards = 'b',
+            -- (b) close-out (2026-08-10): Starshards cleared via RACE_OVERRIDES
+            -- (smite loads as night elf). DevouringPlague stays pinned — it binds
+            -- _player_race at require time and needs a second race-5 load (see
+            -- behavioral_audit.lua RACE_OVERRIDES).
+            DevouringPlague = 'b',
         },
     },
     shaman = {
@@ -158,7 +173,8 @@ local LANE_CLASS = {
             -- by the elem_shock_moving / elem_shock_pvp scenarios — pins removed.
             -- (c) close-out (2026-08-09, batch 2): ChainHeal + ElementalMastery +
             -- TotemicCall cleared by the elem_* scenarios — pins removed.
-            TremorTotem = 'b',
+            -- (b) close-out (2026-08-10): TremorTotem cleared by the fear_nearby
+            -- scenario.
         },
         enhancement = {
             -- (c) close-out (2026-08-09, batch 2): EarthShock + ShamanisticRage
@@ -173,20 +189,27 @@ local LANE_CLASS = {
             -- removed. NOTE: this required the battery's buff_remains/buff_up/
             -- debuff_* stubs to normalize spell_action objects (ACTION.* has an
             -- .ids list, not top-level numeric keys), mirroring cooldown_remains.
-            AutoAttack = 'b', FireNovaReplacement = 'c',
-            TremorTotem = 'b',
+            -- (b) close-out (2026-08-10): AutoAttack cleared via the
+            -- is_auto_attacking stub (battery artifact — live client unaffected);
+            -- TremorTotem cleared by fear_nearby.
+            FireNovaReplacement = 'c',
         },
         restoration = {
             -- Healer (c) close-out (2026-08-09): ChainLightning + LightningShield
             -- cleared by the resto_* scenarios — pins removed.
-            TremorTotem = 'b',
+            -- (b) close-out (2026-08-10): TremorTotem cleared by the fear_nearby
+            -- scenario.
         },
     },
     warlock = {
         affliction = {
-            CC_HowlOfTerror = 'b', PvP_CurseExhaustion = 'b', PvP_CurseTongues = 'b',
+            -- (b) close-out (2026-08-10): CC_HowlOfTerror + PvP_CurseExhaustion
+            -- + PvP_CurseTongues cleared by the pvp_melee scenario.
+
         },
-        demonology = { Seduction = 'b' },
+        -- (b) close-out (2026-08-10): Seduction cleared by the pvp_succubus
+        -- scenario (succubus pet + Lash of Pain).
+        demonology = { },
     },
 }
 
