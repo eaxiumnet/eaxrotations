@@ -84,7 +84,9 @@ print("=== test_apl_conformance ===")
 
 for _, e in ipairs(manifest.ENTRIES) do
     test(e.key .. ": strategy order conforms to wowsims reference", function()
-        local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+        -- Pass class_id exactly like compute() so both consumers share one load path
+        -- (entries that gate on enums.class_id would load differently otherwise).
+        local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
         local names = manifest.strategy_names(strategies)
         local violation
         if e.reference_names then
@@ -106,7 +108,7 @@ for _, e in ipairs(manifest.ENTRIES) do
     -- check_name_order). Requiring all-of-them keeps the pin provably live.
     if e.reference_names then
         test(e.key .. ": reference_names pin matches ALL real strategies", function()
-            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
             local names = manifest.strategy_names(strategies)
             local known = {}
             for _, n in ipairs(names) do known[n] = true end
@@ -123,7 +125,7 @@ for _, e in ipairs(manifest.ENTRIES) do
     -- resolver that resolves nothing would make the conformance check vacuous.
     if e.resolve then
         test(e.key .. ": resolver maps fixture ids to real strategies", function()
-            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions)
+            local strategies = manifest.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
             local names = manifest.strategy_names(strategies)
             local known = {}
             for _, n in ipairs(names) do known[n] = true end

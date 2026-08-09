@@ -164,11 +164,11 @@ local expected_order = {
     "ManaPotion",               -- 2
     "RighteousFury",            -- 3
     "HolyShield",               -- 4
-    "Judgement",                -- 5
-    "SealOfCommandAoE",         -- 6
-    "SealRighteousness",        -- 7
-    "SealOfWisdom",             -- 8
-    "Consecration",             -- 9
+    "Consecration",             -- 5 (wowsims: Consecration above Judgement)
+    "Judgement",                -- 6
+    "SealOfCommandAoE",         -- 7
+    "SealRighteousness",        -- 8
+    "SealOfWisdom",             -- 9
     "TurnEvil",                 -- 10
     "Exorcism",                 -- 11
     "HolyWrath",                -- 12 (DSL)

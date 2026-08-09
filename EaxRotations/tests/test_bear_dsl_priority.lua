@@ -159,7 +159,7 @@ local maul_idx = index_of("Maul")
 
 assert_true(bearform_idx < frenzied_idx, "BearForm should remain before FrenziedRegeneration")
 assert_true(frenzied_idx < demo_idx, "FrenziedRegeneration should remain before DemoralizingRoar")
-assert_true(demo_idx < ff_idx, "DemoralizingRoar should remain before FaerieFireFeral")
+assert_true(ff_idx < demo_idx, "FaerieFireFeral should remain before DemoralizingRoar (wowsims tank APL dispatch)")
 assert_true(ff_idx < mangle_idx, "FaerieFireFeral should remain before MangleBear")
 assert_true(mangle_idx < lacerate_idx, "MangleBear should remain before Lacerate")
 assert_true(lacerate_idx < maul_idx, "Lacerate should remain before Maul")

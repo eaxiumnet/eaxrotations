@@ -1276,15 +1276,8 @@ local strategies = {
 
  { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(ACTION.HolyShield, context.me, "[PROTECTION] HolyShield") end },
 
- -- Wowsims APL order: Judgement/Seal cycle > Consecration > Exorcism > Hammer of Wrath > Avenger's Shield
-
- { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(ACTION.Judgement, context.target, "[PROTECTION] Judgement") end },
-
- { name = "SealOfCommandAoE", matches = seal_command_aoe_matches, execute = function(context) return NS.try_cast(ACTION.SealCommand, context.me, "[PROTECTION] Seal of Command AoE") end },
-
- { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(ACTION.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
-
- { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(ACTION.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
+ -- Wowsims APL order (sim_paladin_protection_rotation.go):
+ -- HolyShield -> Consecration -> Judgement/Seal cycle -> Exorcism -> Hammer of Wrath -> Avenger's Shield
 
  { name = "Consecration", matches = consecration_matches, execute = function(context)
 
@@ -1301,6 +1294,14 @@ local strategies = {
   return NS.try_cast(ACTION.Consecration, context.me, "[PROTECTION] Consecration")
 
  end },
+
+ { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(ACTION.Judgement, context.target, "[PROTECTION] Judgement") end },
+
+ { name = "SealOfCommandAoE", matches = seal_command_aoe_matches, execute = function(context) return NS.try_cast(ACTION.SealCommand, context.me, "[PROTECTION] Seal of Command AoE") end },
+
+ { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(ACTION.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
+
+ { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(ACTION.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
 
  { name = "TurnEvil", matches = turn_evil_matches, execute = function(context) return NS.try_cast(ACTION.TurnEvil, context.target, "[PROTECTION] TurnEvil") end },
 

@@ -6,7 +6,7 @@
 -- WHEN:  bear form, in combat, with a valid enemy target.
 -- WHY:   mirrors wowsims/tbc tank APL (sim/druid/tank/rotation.go) + TBC community
 --         consensus (Icy Veins, Warcraft Tavern, Wowhead). GCD priority:
---           defensives -> taunts -> Demo Roar -> Faerie Fire ->
+--           defensives -> taunts -> Faerie Fire -> Demo Roar ->
 --           Mangle -> Lacerate (stack/refresh) -> Swipe (AoE) -> Maul (rage dump)
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update allocs;
 --          no caster/cat-form spells in combat (no form shifting); menu refs nil-guarded.
@@ -644,9 +644,9 @@ local function bash_interrupt_matches(context, action)
     return action_ready(context, action)
 end
 
--- DEBUFF MAINTENANCE  (wowsims: Demo Roar + Faerie Fire) ---------------------
--- NOTE: DemoralizingRoar MUST be registered BEFORE FaerieFireFeral (test contract
---       + TBC tanking priority — mitigation debuff before armor debuff).
+-- DEBUFF MAINTENANCE  (wowsims: Faerie Fire + Demo Roar) ---------------------
+-- NOTE: FaerieFireFeral MUST be registered BEFORE DemoralizingRoar (wowsims/tbc
+--       sim_druid_tank_rotation.go checks FF first; test contract mirrors it).
 
 local _demo_roar_attempts = {} -- keyed by target guid -> timestamp of last attempt
 local DEMO_ROAR_IMMUNE_COOLDOWN = 8
@@ -866,6 +866,19 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.FrenziedRegeneration, target = "self" },
     },
     {
+        name = "FaerieFireFeral",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.is_bear or not state.in_combat or not state.has_valid_target then return false end
+                if (context.target_armor or 0) == 1 then return false end
+                if (state.target_range or 40) > 30 then return false end
+                if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
+                return action_ready(context, { spell = ACTION.FaerieFireFeral })
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FaerieFireFeral },
+    },
+    {
         name = "DemoralizingRoar",
         conditions = {
             { type = "custom", fn = function(context, state)
@@ -887,19 +900,6 @@ local DSL_DEFS = {
             if key then _demo_roar_attempts[key] = state.now end
             return ok
         end },
-    },
-    {
-        name = "FaerieFireFeral",
-        conditions = {
-            { type = "custom", fn = function(context, state)
-                if not state.is_bear or not state.in_combat or not state.has_valid_target then return false end
-                if (context.target_armor or 0) == 1 then return false end
-                if (state.target_range or 40) > 30 then return false end
-                if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
-                return action_ready(context, { spell = ACTION.FaerieFireFeral })
-            end },
-        },
-        action = { type = "cast", spell = ACTION.FaerieFireFeral },
     },
     {
         name = "MangleBear",
@@ -1040,12 +1040,13 @@ local ACTIONS = {
     { name = "BashInterrupt",    spell = ACTION.Bash,             required_form = "bear",
       min_rage = RAGE_BASH, matches = bash_interrupt_matches },
 
-    -- Debuffs (Demo Roar BEFORE Faerie Fire — TBC tanking priority + test contract)
+    -- Debuffs (wowsims/tbc sim_druid_tank_rotation.go: Faerie Fire BEFORE
+    -- Demoralizing Roar — FF is the armor debuff checked first in the dispatch)
     -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
+    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, required_form = "bear", requires_in_combat = true },
     { name = "DemoralizingRoar", spell = ACTION.DemoralizingRoar, target = "self",
       requires_target = false, required_form = "bear", requires_in_combat = true, min_rage = RAGE_DEMO_ROAR,
       cooldown = 25 },
-    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, required_form = "bear", requires_in_combat = true },
 
 
     -- Core rotation (wowsims APL)

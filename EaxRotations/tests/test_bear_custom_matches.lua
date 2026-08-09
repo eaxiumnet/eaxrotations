@@ -364,7 +364,7 @@ for i, s in ipairs(strategies) do
     if s.name == "FaerieFireFeral" then ff_idx = i end
 end
 assert_true(demo_idx and ff_idx, "Both DemoRoar and FF Feral must be registered")
-assert_true(demo_idx < ff_idx, "DemoralizingRoar must be registered BEFORE FaerieFireFeral (TBC tanking priority)")
+assert_true(ff_idx < demo_idx, "FaerieFireFeral must be registered BEFORE DemoralizingRoar (wowsims tank APL dispatch)")
 
 local function strategy_exists(name)
     for i = 1, #strategies do

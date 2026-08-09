@@ -609,6 +609,47 @@ M.ENTRIES = {
         },
         reference_names = { "Execute", "Bloodthirst", "Whirlwind", "Overpower" },
     },
+    -- Batch 3: remaining DPS/tank specs with a wowsims/tbc Go dispatch.
+    -- druid bear: sim/druid_tank_rotation.go doRotation checks FaerieFire BEFORE
+    -- DemoralizingRoar, then Mangle > Lacerate (Swipe is AoE/AP-gated, Maul is
+    -- queued on-next-swing — both excluded as non-GCD branches).
+    {
+        key = "tbc/bear",
+        class_id = 11,
+        spec_file = "EaxRotations/classes/druid/bear_sylvanas.lua",
+        spells = "DruidSpells",
+        actions = {
+            FaerieFireFeral = 27011, DemoralizingRoar = 26998, MangleBear = 33987, Lacerate = 33745,
+        },
+        reference_names = { "FaerieFireFeral", "DemoralizingRoar", "MangleBear", "Lacerate" },
+    },
+    -- paladin protection: sim/paladin_protection_rotation.go OnGCDReady checks
+    -- HolyShield -> Consecration -> Judgement/Seal -> Exorcism (seal is applied
+    -- on the Judgement branch; AoE Avenger's Shield excluded as not in the GCD).
+    {
+        key = "tbc/paladin/protection",
+        class_id = 2,
+        spec_file = "EaxRotations/classes/paladin/protection_sylvanas.lua",
+        spells = "PaladinSpells",
+        actions = {
+            HolyShield = 27179, Consecration = 27173, Judgement = 20271,
+            SealRighteousness = 27155, Exorcism = 27138,
+        },
+        reference_names = { "HolyShield", "Consecration", "Judgement", "SealRighteousness", "Exorcism" },
+    },
+    -- warrior protection: sim/warrior_dps_rotation.go normalRotation casts
+    -- ShieldSlam as the prot priority, then tryMaintainDebuffs applies
+    -- Devastate/SunderArmor (Revenge is not modeled by the sim — excluded).
+    {
+        key = "tbc/warrior/protection",
+        class_id = 1,
+        spec_file = "EaxRotations/classes/warrior/protection_sylvanas.lua",
+        spells = "WarriorSpells",
+        actions = {
+            ShieldSlam = 30356, Devastate = 30022, SunderArmor = 25225,
+        },
+        reference_names = { "ShieldSlam", "Devastate", "SunderArmor" },
+    },
 }
 
 -- ---------------------------------------------------------------------------
@@ -625,14 +666,44 @@ function M.compute()
         local ok, err = pcall(function()
             local strategies = M.load_spec(e.spec_file, e.spells, e.actions, e.class_id)
             local names = M.strategy_names(strategies)
+            local known = {}
+            for _, n in ipairs(names) do known[n] = true end
             local violation
             if e.reference_names then
+                -- Vacuity guard (mirrors test_apl_conformance.lua): check_name_order
+                -- SILENTLY SKIPS names absent from our rotation, so a typo'd pin
+                -- would otherwise compute "pass" while testing nothing. Every
+                -- pinned name must resolve — else fail with the offenders.
+                local missing = {}
+                for _, n in ipairs(e.reference_names) do
+                    if not known[n] then missing[#missing + 1] = n end
+                end
+                if #missing > 0 then
+                    error("reference_names pin has names missing from the rotation: "
+                        .. table.concat(missing, ", ") .. " (actual: " .. table.concat(names, ", ") .. ")")
+                end
                 violation = apl.check_name_order(names, e.reference_names)
             else
                 local raw = M.read_file(e.fixture)
                 if not raw then error("missing fixture: " .. e.fixture) end
                 local ids = apl.priority_ids(apl.decode_json(raw))
                 if #ids == 0 then error("fixture has no priority ids: " .. e.fixture) end
+                -- Vacuity guard (mirrors the test): a resolver that maps ZERO
+                -- fixture ids to real strategy names is testing nothing — fail it.
+                -- Occurrence-aware like check_id_order (repeat ids may resolve to
+                -- names absent from the rotation, e.g. ArcaneBlastFiller).
+                local seen, resolved, occurrence = {}, 0, {}
+                for _, id in ipairs(ids) do
+                    occurrence[id] = (occurrence[id] or 0) + 1
+                    local name = e.resolve(id, occurrence[id])
+                    if name and not seen[name] then
+                        seen[name] = true
+                        if known[name] then resolved = resolved + 1 end
+                    end
+                end
+                if resolved == 0 then
+                    error("resolver maps 0 fixture ids to real strategies (vacuous check)")
+                end
                 violation = apl.check_id_order(names, ids, e.resolve)
             end
             if violation then
