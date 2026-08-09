@@ -198,6 +198,144 @@ local WOTLK_REJECTED_IDS = {
     [48999] = true, -- wowhead WotLK Classic spell=48999 = Counterattack (Warrior), NOT Avenger's Shield
 }
 
+-- Shared-module pin table (2026-08-08): every spell ID that legitimately lives
+-- in shared/talent_inference_sylvanas.lua or shared/pet_manager_sylvanas.lua
+-- but is ABSENT from the WotLK player-spell bridge.  Pet abilities are pet-book
+-- spells that never enter the player index; talent mid-ranks are TBC-era ranks
+-- of WotLK-max spells that the bridge omits.  The shared-ladder scan accepts
+-- an ID when it is bridge-known OR pinned here OR in WOTLK_REFERENCE_ALIASES.
+-- This closes the silent-typo hole: a wrong-family ID (e.g. 14261-14265 Raptor
+-- Strike in the Claw ladder) is neither bridge-known nor pinned and FAILS.
+-- IMPORTANT: WOTLK_SHARED_IDS documents TBC-era mid-list ranks and single-ID
+-- ladders.  A multi-ID ladder's WotLK-era max (its TAIL for pet ladders, HEAD
+-- for talent ladders) must instead be pinned in WOTLK_REFERENCE_ALIASES or
+-- WOTLK_BRIDGE_MAX_RANKS — STALE_TOP requires it (see the 35298 Gore case: a
+-- TBC-only rank at the tail fails until the WotLK max 35291 takes its place).
+local WOTLK_SHARED_IDS = {
+    -- Hunter pet abilities (DBC + wowhead TBC/WotLK verified 2026-08-08)
+    [2649] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r1", source = "wowhead TBC spell=2649/growl" },
+    [14916] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r2", source = "DBC family 14916-14925 (Growl); wowhead TBC 14916" },
+    [14917] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r3", source = "DBC family 14916-14925 (Growl)" },
+    [14918] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r4", source = "DBC family 14916-14925 (Growl)" },
+    [14919] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r5", source = "DBC family 14916-14925 (Growl)" },
+    [14920] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r6", source = "DBC family 14916-14925 (Growl)" },
+    [14921] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r7", source = "DBC family 14916-14925 (Growl)" },
+    [14925] = { kind = "VALID_SHARED_ID", family = "Pet: Growl r8 (TBC top)", source = "DBC family 14916-14925 (Growl)" },
+    [2981] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r1 (learn entry)", source = "wowhead TBC spell=2981/claw (Uncategorized learn spell; NOT the druid cat-form Claw 1082/3029)" },
+    [16827] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r5", source = "DBC family 16827-16832 (Claw); wowhead TBC 16827/claw" },
+    [16828] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r6", source = "DBC family 16827-16832 (Claw)" },
+    [16829] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r7", source = "DBC family 16827-16832 (Claw)" },
+    [16830] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r8", source = "DBC family 16827-16832 (Claw)" },
+    [16831] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r9", source = "DBC family 16827-16832 (Claw)" },
+    [16832] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r10", source = "DBC family 16827-16832 (Claw)" },
+    [3010] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r4", source = "wowhead TBC spell=3010/claw" },
+    [3009] = { kind = "VALID_SHARED_ID", family = "Pet: Claw r3", source = "wowhead TBC spell=3009/claw" },
+    [17253] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r1", source = "wowhead TBC spell=17253/bite" },
+    [17254] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r2", source = "wowhead TBC spell=17254/bite" },
+    [17255] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r3", source = "DBC family 17253-17261 (Bite)" },
+    [17256] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r4", source = "DBC family 17253-17261 (Bite)" },
+    [17257] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r5", source = "DBC family 17253-17261 (Bite)" },
+    [17258] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r6", source = "wowhead TBC spell=17258/bite" },
+    [17259] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r7", source = "wowhead TBC spell=17259/bite" },
+    [17260] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r8", source = "wowhead TBC spell=17260/bite" },
+    [17261] = { kind = "VALID_SHARED_ID", family = "Pet: Bite r9", source = "wowhead TBC spell=17261/bite" },
+    [35290] = { kind = "VALID_SHARED_ID", family = "Pet: Gore r1", source = "wowhead TBC spell=35290/gore" },
+    [35298] = { kind = "VALID_SHARED_ID", family = "Pet: Gore r2 (TBC max)", source = "wowhead TBC spell=35298/gore; wowsims/tbc pet_abilities.go" },
+    [24597] = { kind = "VALID_SHARED_ID", family = "Pet: Furious Howl r1", source = "wowhead TBC spell=24597/furious-howl" },
+    [24599] = { kind = "VALID_SHARED_ID", family = "Pet: Furious Howl (learn)", source = "wowhead TBC spell=24599/furious-howl" },
+    [24603] = { kind = "VALID_SHARED_ID", family = "Pet: Furious Howl r2", source = "wowhead TBC spell=24603/furious-howl" },
+    [24604] = { kind = "VALID_SHARED_ID", family = "Pet: Furious Howl r3", source = "wowhead TBC spell=24604/furious-howl" },
+    [24605] = { kind = "VALID_SHARED_ID", family = "Pet: Furious Howl r4", source = "wowhead TBC spell=24605/furious-howl" },
+    [24423] = { kind = "VALID_SHARED_ID", family = "Pet: Screech r1", source = "wowhead TBC spell=24423/screech" },
+    [26090] = { kind = "VALID_SHARED_ID", family = "Pet: Thunderstomp r1", source = "local TBC DBC family 26090-26093" },
+    [25011] = { kind = "VALID_SHARED_ID", family = "Pet: Lightning Breath r1", source = "DBC family 25011-25016 (Lightning Breath)" },
+    [25012] = { kind = "VALID_SHARED_ID", family = "Pet: Lightning Breath r2", source = "DBC family 25011-25016 (Lightning Breath)" },
+    [25013] = { kind = "VALID_SHARED_ID", family = "Pet: Lightning Breath r3", source = "DBC family 25011-25016 (Lightning Breath)" },
+    [25014] = { kind = "VALID_SHARED_ID", family = "Pet: Lightning Breath r4", source = "DBC family 25011-25016 (Lightning Breath)" },
+    [25015] = { kind = "VALID_SHARED_ID", family = "Pet: Lightning Breath r5", source = "DBC family 25011-25016 (Lightning Breath)" },
+    [24640] = { kind = "VALID_SHARED_ID", family = "Pet: Scorpid Poison", source = "wowhead TBC spell=24640" },
+    [23099] = { kind = "VALID_SHARED_ID", family = "Pet: Dash", source = "wowhead TBC spell=23099/dash" },
+    [23145] = { kind = "VALID_SHARED_ID", family = "Pet: Dive", source = "wowhead TBC spell=23145/dive" },
+    -- Warlock pet abilities
+    [3110] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r1 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [7799] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r2 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [7800] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r3 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [7801] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r4 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [7802] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r5 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [11762] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r6 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [11763] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r7 (imp)", source = "DBC family 3110-39023 (Firebolt)" },
+    [27267] = { kind = "VALID_SHARED_ID", family = "Pet: Firebolt r8 (imp)", source = "wowhead TBC spell=27267/firebolt" },
+    [17735] = { kind = "VALID_SHARED_ID", family = "Pet: Torment r1 (voidwalker)", source = "wowhead TBC spell=17735/torment" },
+    [11774] = { kind = "VALID_SHARED_ID", family = "Pet: Torment r2 (voidwalker)", source = "DBC family 11774-11775 (Torment)" },
+    [11775] = { kind = "VALID_SHARED_ID", family = "Pet: Torment r3 (voidwalker)", source = "DBC family 11774-11775 (Torment)" },
+    [7812] = { kind = "VALID_SHARED_ID", family = "Pet: Sacrifice r1 (voidwalker)", source = "wowhead TBC spell=7812/sacrifice" },
+    [19438] = { kind = "VALID_SHARED_ID", family = "Pet: Sacrifice r2 (voidwalker)", source = "wowhead TBC spell=19438/sacrifice" },
+    [19440] = { kind = "VALID_SHARED_ID", family = "Pet: Sacrifice r3 (voidwalker)", source = "wowhead TBC spell=19440/sacrifice" },
+    [19441] = { kind = "VALID_SHARED_ID", family = "Pet: Sacrifice r4 (voidwalker)", source = "wowhead TBC spell=19441/sacrifice" },
+    [19442] = { kind = "VALID_SHARED_ID", family = "Pet: Sacrifice r5 (voidwalker)", source = "wowhead TBC spell=19442/sacrifice" },
+    [17767] = { kind = "VALID_SHARED_ID", family = "Pet: Consume Shadows r1 (voidwalker)", source = "DBC family 17767-17854 (Consume Shadows)" },
+    [17850] = { kind = "VALID_SHARED_ID", family = "Pet: Consume Shadows r2 (voidwalker)", source = "DBC family 17767-17854 (Consume Shadows)" },
+    [17851] = { kind = "VALID_SHARED_ID", family = "Pet: Consume Shadows r3 (voidwalker)", source = "DBC family 17767-17854 (Consume Shadows)" },
+    [17852] = { kind = "VALID_SHARED_ID", family = "Pet: Consume Shadows r4 (voidwalker)", source = "DBC family 17767-17854 (Consume Shadows)" },
+    [17853] = { kind = "VALID_SHARED_ID", family = "Pet: Consume Shadows r5 (voidwalker)", source = "DBC family 17767-17854 (Consume Shadows)" },
+    [7814] = { kind = "VALID_SHARED_ID", family = "Pet: Lash of Pain r1 (succubus)", source = "wowhead TBC spell=7814/lash-of-pain" },
+    [11778] = { kind = "VALID_SHARED_ID", family = "Pet: Lash of Pain r2 (succubus)", source = "DBC family 11778-11781 (Lash of Pain)" },
+    [11779] = { kind = "VALID_SHARED_ID", family = "Pet: Lash of Pain r3 (succubus)", source = "DBC family 11778-11781 (Lash of Pain)" },
+    [11780] = { kind = "VALID_SHARED_ID", family = "Pet: Lash of Pain r4 (succubus)", source = "DBC family 11778-11781 (Lash of Pain)" },
+    [6358] = { kind = "VALID_SHARED_ID", family = "Pet: Seduction (succubus)", source = "wowhead TBC spell=6358/seduction" },
+    [54049] = { kind = "VALID_SHARED_ID", family = "Pet: Shadow Bite r1 (felhunter)", source = "wowhead WotLK spell=54049/shadow-bite" },
+    [54050] = { kind = "VALID_SHARED_ID", family = "Pet: Shadow Bite r2 (felhunter)", source = "wowhead WotLK spell=54050/shadow-bite" },
+    [54051] = { kind = "VALID_SHARED_ID", family = "Pet: Shadow Bite r3 (felhunter)", source = "wowhead WotLK spell=54051/shadow-bite" },
+    [54052] = { kind = "VALID_SHARED_ID", family = "Pet: Shadow Bite r4 (felhunter)", source = "wowhead WotLK spell=54052/shadow-bite" },
+    [19505] = { kind = "VALID_SHARED_ID", family = "Pet: Devour Magic (felhunter)", source = "wowhead TBC spell=19505/devour-magic" },
+    [30213] = { kind = "VALID_SHARED_ID", family = "Pet: Cleave (felguard)", source = "wowhead TBC spell=30213/cleave" },
+    [30195] = { kind = "VALID_SHARED_ID", family = "Pet: Intercept r1 (felguard)", source = "wowhead WotLK spell=30195/intercept (rank 2); 30196 disproven (404)" },
+    [30197] = { kind = "VALID_SHARED_ID", family = "Pet: Intercept r2 (felguard)", source = "wowhead WotLK spell=30197/intercept" },
+    [33698] = { kind = "VALID_SHARED_ID", family = "Pet: Anguish r1 (felguard)", source = "wowhead WotLK spell=33698/anguish" },
+    [33699] = { kind = "VALID_SHARED_ID", family = "Pet: Anguish r2 (felguard)", source = "wowhead WotLK spell=33699/anguish" },
+    -- Mage pet abilities (Water Elemental)
+    [31707] = { kind = "VALID_SHARED_ID", family = "Pet: Waterbolt (water elemental)", source = "wowhead TBC spell=31707/waterbolt" },
+    [33395] = { kind = "VALID_SHARED_ID", family = "Pet: Freeze (water elemental)", source = "wowhead TBC spell=33395/freeze" },
+    -- talent_inference mid-ranks (TBC-era ranks of WotLK-max spells, bridge-omitted)
+    [34861] = { kind = "VALID_SHARED_ID", family = "Circle of Healing r1", source = "wowhead TBC spell=34861/circle-of-healing" },
+    [34863] = { kind = "VALID_SHARED_ID", family = "Circle of Healing r2", source = "wowhead TBC spell=34863/circle-of-healing" },
+    [34864] = { kind = "VALID_SHARED_ID", family = "Circle of Healing r3", source = "wowhead TBC spell=34864/circle-of-healing" },
+    [34865] = { kind = "VALID_SHARED_ID", family = "Circle of Healing r4", source = "wowhead TBC spell=34865/circle-of-healing" },
+    [34866] = { kind = "VALID_SHARED_ID", family = "Circle of Healing r5", source = "wowhead TBC spell=34866/circle-of-healing" },
+    [18273] = { kind = "VALID_SHARED_ID", family = "Talent: Shadow Mastery r2", source = "wowhead WotLK talent ranks 18272-18275" },
+    [18274] = { kind = "VALID_SHARED_ID", family = "Talent: Shadow Mastery r3", source = "wowhead WotLK talent ranks 18272-18275" },
+    [18275] = { kind = "VALID_SHARED_ID", family = "Talent: Shadow Mastery r4", source = "wowhead WotLK talent ranks 18272-18275" },
+    [18770] = { kind = "VALID_SHARED_ID", family = "Talent: Unholy Power r2", source = "wowhead WotLK talent ranks 18769-18773" },
+    [18771] = { kind = "VALID_SHARED_ID", family = "Talent: Unholy Power r3", source = "wowhead WotLK talent ranks 18769-18773" },
+    [18772] = { kind = "VALID_SHARED_ID", family = "Talent: Unholy Power r4", source = "wowhead WotLK talent ranks 18769-18773" },
+    [18773] = { kind = "VALID_SHARED_ID", family = "Talent: Unholy Power r5", source = "wowhead WotLK talent ranks 18769-18773" },
+    [12676] = { kind = "VALID_SHARED_ID", family = "Talent: Tactical Mastery r2", source = "wowhead WotLK talent ranks 12295/12676/12677" },
+    [12677] = { kind = "VALID_SHARED_ID", family = "Talent: Tactical Mastery r3", source = "wowhead WotLK talent ranks 12295/12676/12677" },
+    [16511] = { kind = "VALID_SHARED_ID", family = "Hemorrhage r1", source = "wowhead TBC spell=16511/hemorrhage" },
+    [17347] = { kind = "VALID_SHARED_ID", family = "Hemorrhage r2", source = "wowhead TBC spell=17347/hemorrhage" },
+    [17348] = { kind = "VALID_SHARED_ID", family = "Hemorrhage r3", source = "wowhead TBC spell=17348/hemorrhage" },
+    [26864] = { kind = "VALID_SHARED_ID", family = "Hemorrhage r4", source = "wowhead TBC spell=26864/hemorrhage" },
+    [19386] = { kind = "VALID_SHARED_ID", family = "Wyvern Sting r1", source = "wowhead TBC spell=19386/wyvern-sting" },
+    [24132] = { kind = "VALID_SHARED_ID", family = "Wyvern Sting r2", source = "wowhead TBC spell=24132/wyvern-sting" },
+    [24133] = { kind = "VALID_SHARED_ID", family = "Wyvern Sting r3", source = "wowhead TBC spell=24133/wyvern-sting" },
+    [20929] = { kind = "VALID_SHARED_ID", family = "Holy Shock r2", source = "wowhead TBC spell=20929/holy-shock" },
+    [20930] = { kind = "VALID_SHARED_ID", family = "Holy Shock r3", source = "wowhead TBC spell=20930/holy-shock" },
+    [27174] = { kind = "VALID_SHARED_ID", family = "Holy Shock r4", source = "wowhead TBC spell=27174/holy-shock" },
+    [27175] = { kind = "VALID_SHARED_ID", family = "Holy Shock r5", source = "wowhead TBC spell=27175/holy-shock" },
+    -- talent_inference single-ID signatures absent from the bridge (talent spells)
+    [33206] = { kind = "VALID_SHARED_ID", family = "Talent: Pain Suppression", source = "wowhead WotLK spell=33206/pain-suppression" },
+    [10060] = { kind = "VALID_SHARED_ID", family = "Talent: Power Infusion", source = "wowhead WotLK spell=10060/power-infusion" },
+    [19028] = { kind = "VALID_SHARED_ID", family = "Talent: Soul Link", source = "wowhead WotLK spell=19028/soul-link" },
+    [13750] = { kind = "VALID_SHARED_ID", family = "Talent: Adrenaline Rush", source = "wowhead WotLK spell=13750/adrenaline-rush" },
+    [14185] = { kind = "VALID_SHARED_ID", family = "Talent: Preparation", source = "wowhead WotLK spell=14185/preparation" },
+    [19503] = { kind = "VALID_SHARED_ID", family = "Talent: Scatter Shot", source = "wowhead WotLK spell=19503/scatter-shot" },
+    [16188] = { kind = "VALID_SHARED_ID", family = "Talent: Nature's Swiftness", source = "wowhead WotLK spell=16188/natures-swiftness" },
+    [30798] = { kind = "VALID_SHARED_ID", family = "Talent: Dual Wield", source = "wowhead WotLK spell=30798/dual-wield" },
+    [29166] = { kind = "VALID_SHARED_ID", family = "Talent: Innervate", source = "wowhead WotLK spell=29166/innervate" },
+    [33831] = { kind = "VALID_SHARED_ID", family = "Talent: Force of Nature", source = "wowhead WotLK spell=33831/force-of-nature" },
+    [20216] = { kind = "VALID_SHARED_ID", family = "Talent: Divine Favor", source = "wowhead WotLK spell=20216/divine-favor" },
+}
+
 -- Verified WotLK 3.3.5 max ranks that live in the wowhead bridge (they did NOT
 -- need a REFERENCE_ALIAS entry). Every multi-ID define ladder's top-of-list ID
 -- (the cast priority for a max-level player under first-known-wins resolution)
@@ -496,15 +634,34 @@ end
 --     so the resolution head is the LAST element.  The campaign appended the
 --     WotLK-era pet rank at the END of each ladder; the tail is the pin target.
 --
---   Enforcement: STALE_TOP only (a ladder head that is not a pinned WotLK max
---   rank fails).  Full classify_id INVALID/TBC checks are intentionally NOT run
---   on shared modules: pet abilities and TBC-era mid-ranks legitimately live
---   outside the player-spell bridge, so those lists are validated by their heads.
+--   Enforcement (2026-08-08 part 2): two checks per ladder --
+--     * STALE_TOP: a multi-ID ladder head that is not a pinned WotLK max rank
+--       fails (a single-ID ladder has no head/max contrast; its only ID is
+--       covered by the UNPINNED check).
+--     * UNPINNED_SHARED_ID: EVERY ID in every ladder (mid-list and single-ID
+--       included) must be bridge-known, pinned in WOTLK_SHARED_IDS, or pinned
+--       in WOTLK_REFERENCE_ALIASES.  This closes the silent-typo hole: a
+--       wrong-family ID (e.g. 14261-14265 Raptor Strike in the Claw ladder)
+--       is neither bridge-known nor pinned, so it FAILS.
+--   Full classify_id INVALID/TBC checks are intentionally NOT run on shared
+--   modules: pet abilities and TBC-era mid-ranks legitimately live outside the
+--   player-spell bridge; the WOTLK_SHARED_IDS pin table documents them instead.
 -- ============================================================================
 local WOTLK_SHARED_LADDERS = {
     { file = "shared/talent_inference_sylvanas.lua", mode = "talent_ids",   head = "first" },
     { file = "shared/pet_manager_sylvanas.lua",      mode = "numeric_local", head = "last" },
 }
+
+-- Every ID inside a shared-module ladder must be bridge-known, pinned as a
+-- shared-module ID, or pinned as a reference alias.  This is what makes a typo'd
+-- mid-list rank (e.g. 14261-14265 Raptor Strike inside the Claw ladder) fail:
+-- the ID is neither bridge-known nor pinned, so it is reported as UNPINNED.
+local function shared_id_ok(id)
+    if valid_wotlk_ids[id] then return true end
+    if WOTLK_SHARED_IDS[id] then return true end
+    if WOTLK_REFERENCE_ALIASES[id] then return true end
+    return false
+end
 
 local function extract_shared_ladders(content, mode, head_pos)
     local ladders = {}
@@ -534,9 +691,11 @@ local function extract_shared_ladders(content, mode, head_pos)
                         local v = tonumber(n)
                         if v and v >= 1000 and v <= 99999 then nums[#nums + 1] = v end
                     end
-                    if #nums >= 2 then
+                    -- Single-ID ladders are captured too: a lone typo'd rank must
+                    -- still be pinned (no multi-ID head to catch it).
+                    if #nums >= 1 then
                         local head = (head_pos == "last") and nums[#nums] or nums[1]
-                        ladders[#ladders + 1] = { line = line_no, head = head, count = #nums }
+                        ladders[#ladders + 1] = { line = line_no, head = head, count = #nums, ids = nums }
                     end
                 end
             end
@@ -548,7 +707,10 @@ end
 local function scan_shared_ladders(content, mode, head_pos)
     local hits = {}
     for _, ladder in ipairs(extract_shared_ladders(content, mode, head_pos)) do
-        if not is_max_rank(ladder.head) then
+        -- STALE_TOP: a multi-ID ladder head must be a pinned WotLK max rank.
+        -- (A single-ID ladder has no "head vs. max" contrast; its only ID is
+        -- validated by the UNPINNED check below.)
+        if ladder.count >= 2 and not is_max_rank(ladder.head) then
             hits[#hits + 1] = {
                 line = ladder.line,
                 id = ladder.head,
@@ -556,6 +718,19 @@ local function scan_shared_ladders(content, mode, head_pos)
                 family = "shared-module ladder head is not a pinned WotLK max rank",
                 snippet = "head id " .. ladder.head .. " (" .. ladder.count .. " ids)",
             }
+        end
+        -- UNPINNED_SHARED_ID: every ID in the ladder (mid-list included) must be
+        -- bridge-known or pinned.  Closes the silent-typo hole for pet ranks.
+        for _, id in ipairs(ladder.ids) do
+            if not shared_id_ok(id) then
+                hits[#hits + 1] = {
+                    line = ladder.line,
+                    id = id,
+                    kind = "UNPINNED_SHARED_ID",
+                    family = "shared-module ladder ID is neither bridge-known nor pinned",
+                    snippet = "id " .. id .. " in ladder " .. (ladder.count == 1 and "(single)" or "(" .. ladder.count .. " ids)"),
+                }
+            end
         end
     end
     return hits
@@ -662,6 +837,7 @@ local function run_self_tests()
 
     expect(map_count(WOTLK_REFERENCE_ALIASES), 129, "pinned allowlist size")
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 93, "bridge max rank count")
+    expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")
     expect(WOTLK_REJECTED_IDS[48999], true, "disproven Counterattack ID rejected")
     expect(WOTLK_REFERENCE_ALIASES[44459], nil, "disproven ID absent from allowlist")
@@ -673,22 +849,41 @@ local function run_self_tests()
     end
 
     -- Shared-module ladder scan: talent signature heads (first) + pet ladder
-    -- tails (last) must all be pinned WotLK max ranks.
+    -- tails (last) must all be pinned WotLK max ranks, and EVERY ID in every
+    -- shared ladder (mid-list and single-ID included) must be bridge-known or
+    -- pinned, so typo'd pet ranks can never pass silently.
     expect(#WOTLK_SHARED_LADDERS, 2, "shared ladder inventory size")
     local ti = read_file("EaxRotations/shared/talent_inference_sylvanas.lua")
     expect(ti ~= nil, true, "talent_inference file readable")
     local pm = read_file("EaxRotations/shared/pet_manager_sylvanas.lua")
     expect(pm ~= nil, true, "pet_manager file readable")
-    expect(#scan_shared_ladders(ti, "talent_ids", "first"), 0, "talent_inference heads all pinned")
-    expect(#scan_shared_ladders(pm, "numeric_local", "last"), 0, "pet_manager tails all pinned")
-    -- extraction sanity: pet manager has 16 multi-ID ladders, talent has 18
-    expect(#extract_shared_ladders(pm, "numeric_local", "last"), 16, "pet_manager ladder count")
-    expect(#extract_shared_ladders(ti, "talent_ids", "first"), 18, "talent_inference ladder count")
-    -- negative probe: an unpinned shared head must be flagged
+    expect(#scan_shared_ladders(ti, "talent_ids", "first"), 0, "talent_inference ids all pinned")
+    expect(#scan_shared_ladders(pm, "numeric_local", "last"), 0, "pet_manager ids all pinned")
+    -- extraction sanity: pet manager has 25 ladders (16 multi + 9 single),
+    -- talent_inference has 40 (18 multi + 22 single-ID signatures)
+    expect(#extract_shared_ladders(pm, "numeric_local", "last"), 25, "pet_manager ladder count")
+    expect(#extract_shared_ladders(ti, "talent_ids", "first"), 40, "talent_inference ladder count")
+    -- negative probe 1: unpinned shared HEAD (stale tail) must be flagged STALE_TOP
     local stale_shared = scan_shared_ladders('local FOO = { 2649, 14268, 14925 }', "numeric_local", "last")
-    expect(#stale_shared, 1, "stale pet tail flagged")
+    expect(#stale_shared, 2, "stale pet tail + unpinned mid flagged")
     expect(stale_shared[1].kind, "STALE_TOP", "stale pet tail kind")
-    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder heads/tails, unverified aliases resolved, negative IDs, 41-file inventory")
+    -- negative probe 2: a mid-list typo (14261 Raptor Strike in a Claw-style
+    -- ladder) must be flagged UNPINNED_SHARED_ID even when the head is pinned
+    local typo_shared = scan_shared_ladders('local FOO = { 14261, 14262, 27049 }', "numeric_local", "last")
+    expect(#typo_shared, 2, "mid-list typo flagged twice (14261 + 14262)")
+    local saw_unpinned = false
+    for _, hit in ipairs(typo_shared) do
+        if hit.kind == "UNPINNED_SHARED_ID" then saw_unpinned = true end
+    end
+    expect(saw_unpinned, true, "mid-list typo flagged as UNPINNED_SHARED_ID")
+    -- negative probe 3: a single-ID ladder with an unpinned ID must be flagged
+    local single_shared = scan_shared_ladders('local FOO = { 99999 }', "numeric_local", "last")
+    expect(#single_shared, 1, "single-ID unpinned flagged")
+    expect(single_shared[1].kind, "UNPINNED_SHARED_ID", "single-ID unpinned kind")
+    -- positive probe: all-pinned ladder scans clean
+    local clean_shared = scan_shared_ladders('local FOO = { 2649, 14916, 27047 }', "numeric_local", "last")
+    expect(#clean_shared, 0, "all-pinned shared ladder clean")
+    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder id validation, unverified aliases resolved, negative IDs, 41-file inventory")
 end
 
 local function run_invalid_probe()

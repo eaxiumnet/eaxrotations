@@ -43,13 +43,24 @@ local _states = {}
 -- ============================================================================
 -- Pet spell ID tables (DBC-verified for TBC 2.5.5)
 -- ============================================================================
--- Hunter pet abilities
-local PET_GROWL       = { 2649, 14268, 14269, 14270, 14271, 14925, 27047 }
-local PET_CLAW        = { 2981, 14261, 14262, 14263, 14264, 14265, 27049, 52472 }
-local PET_BITE        = { 17253, 17254, 17255, 17256, 17257, 27050, 52474 }
-local PET_GORE        = { 35290, 35291 }
-local PET_HOWL        = { 24597, 24598, 24599, 24600, 64495 }
-local PET_SCREECH     = { 24604, 27051 }
+-- Hunter pet abilities (DBC + wowhead verified 2026-08-08; see
+-- run_wotlk_audit_tests.lua WOTLK_SHARED_IDS for the pin source of truth).
+-- Rank order is oldest-first; resolution scans TAIL-FIRST so the WotLK-era
+-- max rank is the tail (27047 Growl / 52472 Claw / 52474 Bite / 64495 Howl).
+-- Note: the WotLK-era max of each multi-ID ladder is pinned in
+-- WOTLK_REFERENCE_ALIASES / WOTLK_BRIDGE_MAX_RANKS (STALE_TOP requires it);
+-- WOTLK_SHARED_IDS documents the TBC-era mid-list + single-ID ranks only.
+-- Claw r1 = 2981 (pet learn entry; do NOT use druid cat-form Claw 1082/3029).
+local PET_GROWL       = { 2649, 14916, 14917, 14918, 14919, 14920, 14921, 14925, 27047 }
+local PET_CLAW        = { 2981, 3009, 3010, 16827, 16828, 16829, 16830, 16831, 16832, 27049, 52472 }
+local PET_BITE        = { 17253, 17254, 17255, 17256, 17257, 17258, 17259, 17260, 17261, 27050, 52474 }
+-- Gore: 35290/35298 are TBC-era ranks (35298 = TBC max per wowsims/tbc
+-- pet_abilities.go); 35291 is the WotLK-era max (35298 404s on WotLK
+-- wowhead).  Tail-first resolution + rank replacement makes the WotLK max
+-- the correct tail: on a TBC client only the known TBC rank is picked.
+local PET_GORE        = { 35290, 35298, 35291 }
+local PET_HOWL        = { 24597, 24599, 24603, 24604, 24605, 64495 }
+local PET_SCREECH     = { 24423, 27051 }
 local PET_THUNDER     = { 26090, 26093 }
 local PET_LIGHTNING   = { 25011, 25012, 25013, 25014, 25015, 25016 }
 local PET_POISON      = { 24640 }
@@ -67,7 +78,7 @@ local FELHUNTER_BITE  = { 54049, 54050, 54051, 54052, 54053 }
 local FELHUNTER_DEVOUR= { 19505 }
 local FELHUNTER_SPELL = { 19647 }
 local FELGUARD_CLEAVE = { 30213 }
-local FELGUARD_INTERCEPT = { 30196, 30197, 30198 }
+local FELGUARD_INTERCEPT = { 30195, 30197, 30198 }
 local FELGUARD_ANGUISH = { 33698, 33699, 33700 }
 
 -- Mage pet abilities (Water Elemental)

@@ -33,7 +33,7 @@ local TALENT_SIGNATURES = {
     -- Warlock
     warlock = {
         soul_link = { ids = { 19028 }, talent = "Soul Link", tree = "demonology" },
-        conflagrate = { ids = { 30912, 17962, 18930, 18931, 18932, 27266, 27267 }, talent = "Conflagrate", tree = "destruction" },
+        conflagrate = { ids = { 30912, 17962, 18930, 18931, 18932, 27266 }, talent = "Conflagrate", tree = "destruction" },
         shadow_mastery = { ids = { 18272, 18273, 18274, 18275 }, talent = "Shadow Mastery", tree = "affliction" },
         unholy_power = { ids = { 18769, 18770, 18771, 18772, 18773 }, talent = "Unholy Power", tree = "demonology" },
     },
