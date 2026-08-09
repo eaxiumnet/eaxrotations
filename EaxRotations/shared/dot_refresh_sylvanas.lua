@@ -184,10 +184,12 @@ function M.should_refresh_dot_by_ticks(spell_id, dot_remaining, threshold_ticks)
     return remaining_ticks <= threshold_ticks
 end
 
--- Export to NS namespace (Sylvanas production path)
+-- Export to NS namespace (Sylvanas production path). Mock-NS guard (survey
+-- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
+-- capture module instances via require-time write-back.
 local _G = _G
 _G.DotRefresh = M
-if _G.EaxRotations then
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.should_refresh_dot = M.should_refresh_dot
     _G.EaxRotations.is_dot_active = M.is_dot_active
     _G.EaxRotations.get_dot_tick_data = M.get_dot_tick_data

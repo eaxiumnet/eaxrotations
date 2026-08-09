@@ -44,10 +44,12 @@ function M.is_target_above_hp(target_hp, threshold)
     return (target_hp or 100) > (threshold or 0)
 end
 
--- Export to NS namespace (Sylvanas production path)
+-- Export to NS namespace (Sylvanas production path). Mock-NS guard (survey
+-- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
+-- capture module instances via require-time write-back.
 local _G = _G
 _G.ExecutePhase = M
-if _G.EaxRotations then
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.is_execute_phase = M.is_execute_phase
     _G.EaxRotations.is_target_above_hp = M.is_target_above_hp
 end

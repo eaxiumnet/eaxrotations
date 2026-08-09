@@ -122,7 +122,7 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 472 rotation suites
+    ├── run_rotation_tests.lua    # 473 rotation suites
     ├── run_leveling_tests.lua    # 33 leveling suites
     └── test_*.lua                # Individual test files
 ```
@@ -175,7 +175,7 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**472 suites**):
+Run the full rotation regression suite (**473 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua

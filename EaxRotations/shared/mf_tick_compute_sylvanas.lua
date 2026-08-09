@@ -97,10 +97,12 @@ function M.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, 
         and (mb_ready or swd_ready or vt_remaining < vt_clip_threshold or swp_remaining < 0.7)
 end
 
--- Export to NS namespace (Sylvanas production path)
+-- Export to NS namespace (Sylvanas production path). Mock-NS guard (survey
+-- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
+-- capture module instances via require-time write-back.
 local _G = _G
 _G.MfTickCompute = M
-if _G.EaxRotations then
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.compute_channel_state = M.compute_channel_state
     _G.EaxRotations.should_clip_mf = M.should_clip_mf
 end

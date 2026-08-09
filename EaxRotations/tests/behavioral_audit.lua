@@ -1197,6 +1197,15 @@ function M.build_ns(class_key, era)
     ns.unit_mana_pct = function() return ns._bstate("mana_pct", 100) end
     ns.get_player_stance = function() return ns._bstate("stance", 0) end
     ns.unit_faction = function() return ns._bstate("faction", 0) end
+    -- Mock marker (survey item #2, require-time NS-caching fix): shared modules
+    -- that bind their exports into _G.EaxRotations at require() time (e.g.
+    -- auto_tremor, dot_refresh, purge_manager, mf_tick_compute) must NOT write
+    -- into a mock NS — the mock is discarded after each battery load and any
+    -- bindings are pure pollution (they'd shadow the real engine's bindings if
+    -- the mock's table were ever cached by a later tool). All 8 write-back
+    -- modules now gate on `not _G.EaxRotations._EAX_MOCK`, so a mock NS can
+    -- never capture a module instance.
+    ns._EAX_MOCK = true
     return ns
 end
 
@@ -2623,8 +2632,89 @@ end
 -- ---------------------------------------------------------------------------
 -- Run everything, return aggregate report
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- Loud load-order guard (survey item #2): the require-time NS-caching hazard.
+-- 79 shared/*_sylvanas.lua modules capture `local NS = _G.EaxRotations` at
+-- require() time, and 8 write back into whatever NS is loaded (see the
+-- _EAX_MOCK gates in auto_tremor/dot_refresh/execute_phase/melee_combat_math/
+-- combat_forecast_gate/mf_tick_compute/purge_manager/ttd_tracker). If a tool
+-- requires shared modules while a MOCK NS is installed (e.g. the scorecard's
+-- compute() running before the battery, or a future tool dofiling specs), those
+-- modules silently cache the mock — the pollution signature tracked by
+-- tools/spec_scorecard.lua. The battery must ALWAYS see virgin shared modules:
+-- this guard fails loudly at run_all entry if any shared module was already
+-- loaded, and load_spec's restore block self-cleans after each spec so nothing
+-- leaks to sibling suites in the same process.
+function M.guard_shared_virgin()
+    -- Only shared modules that bind to _G.EaxRotations AT REQUIRE TIME are a
+    -- pollution hazard, in two forms:
+    --   (1) top-level capture at column 0: `local X = _G.EaxRotations` (X is
+    --       usually NS, but snapshot_sylvanas uses `_G_NS`) — the module is
+    --       bound to whatever NS is installed when it loads, so a preloaded
+    --       instance would keep referencing a discarded mock;
+    --   (2) write-back binding: `_G.EaxRotations.FIELD = ...` (or an alias
+    --       form `_G_NS.FIELD = ...`) at load time — the 8 gated modules'
+    --       export blocks.
+    -- LAZY references are harmless and must NOT trip the guard: spec_kit's
+    -- `ns()` returns _G.EaxRotations at CALL time (spec_kit:48), and
+    -- combat_forecast_gate captures it inside _is_boss() (line 15) — both
+    -- resolve against the current _G at call time, so preloading them under a
+    -- mock changes nothing. Pure utilities with zero NS references (e.g.
+    -- shared/apl_parser, loaded by tools/apl_status.lua before the battery in
+    -- the scorecard's process) are likewise exempt. The patterns below are
+    -- column-anchored / write-form specific so lazy readers never false-
+    -- positive, while a genuine require-time binder always fails loudly.
+    local loaded = {}
+    for k in pairs(package.loaded) do
+        if type(k) == "string" and k:find("^shared/", 1) then
+            local path = "EaxRotations/" .. k .. ".lua"
+            local f = io.open(path, "rb")
+            local hazardous = true  -- fail-closed: unreadable file is flagged
+            if f then
+                local src = f:read("*a")
+                f:close()
+                hazardous = false
+                if src then
+                    -- (1) top-level require-time capture at column 0, ANY
+                    -- identifier (NS, _G_NS, ...): the capture line begins at
+                    -- column 0 (`\nlocal` or file start), so lazy in-function
+                    -- captures (indented) never match. File-start uses a real
+                    -- PATTERN so `^` anchors (plain text would treat `^` as a
+                    -- literal caret); the newline-prefixed form matches every
+                    -- non-first line via plain text.
+                    if src:find("\nlocal [%a_][%w_]* = _G.EaxRotations")
+                        or src:find("^local [%a_][%w_]* = _G.EaxRotations") then
+                        hazardous = true
+                    end
+                    -- (2) write-back binding: `_G.EaxRotations.FIELD = ...` at
+                    -- load time (the 8 gated modules' export blocks). Matched
+                    -- as an ASSIGNMENT (`=`) so doc comments like spec_kit:25's
+                    -- "-- _G.EaxRotations. When NS is absent" never trip it.
+                    -- The snapshot alias form `_G_NS.SnapshotHelper = M` is
+                    -- caught via (1) (its top-level `_G_NS` capture).
+                    if src:find("_G.EaxRotations%.[%a_][%w_]*%s*=") then
+                        hazardous = true
+                    end
+                end
+            end
+            if hazardous then loaded[#loaded + 1] = k end
+        end
+    end
+    if #loaded > 0 then
+        table.sort(loaded)
+        error("behavioral_audit: " .. #loaded .. " NS-capturing shared module(s) already "
+            .. "loaded before the battery: " .. table.concat(loaded, ", ")
+            .. " — these cache _G.EaxRotations at require() time, so a preloaded "
+            .. "module would bind to whatever NS the caller installed (possibly a mock), "
+            .. "the compute()-vs-battery pollution signature. Run the battery before any "
+            .. "tool requires NS-capturing shared modules (see tools/spec_scorecard.lua "
+            .. "POLLUTION_SIGNATURE).", 0)
+    end
+end
+
 function M.run_all(era)
     era = era or "sylvanas"
+    M.guard_shared_virgin()
     local manifest = M.ERA_MANIFESTS[era]
     if not manifest then
         error("behavioral_audit: unknown era '" .. tostring(era)
@@ -2666,6 +2756,21 @@ function M.run_all(era)
         if a.class == b.class then return a.spec < b.spec end
         return a.class < b.class
     end)
+    -- Self-cleaning battery (survey item #2): guard_shared_virgin() guarantees a
+    -- virgin shared-module namespace at entry; evict everything we loaded so the
+    -- NEXT run_all in the same process (the scorecard runs TBC then WotLK) also
+    -- starts virgin, and so no sibling tool in the same process can reuse a
+    -- shared module bound to one of our (discarded) mock NSes. Also drop the
+    -- last mock from _G so a later tool that requires shared modules can't
+    -- silently capture a battery mock (the compute()-vs-battery pollution bug).
+    for k in pairs(package.loaded) do
+        if type(k) == "string" and k:find("^shared/", 1) then
+            package.loaded[k] = nil
+        end
+    end
+    if _G.EaxRotations and _G.EaxRotations._EAX_MOCK then
+        _G.EaxRotations = nil
+    end
     return { total = total, era = era, reports = reports, class_failures = load_failures }
 end
 

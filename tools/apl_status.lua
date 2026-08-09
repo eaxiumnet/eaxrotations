@@ -53,6 +53,13 @@ local _mock_player_class = 5 -- PRIEST default
 
 local function base_ns()
     return {
+        -- Mock marker (survey item #2): shared modules that bind exports into
+        -- _G.EaxRotations at require() time (auto_tremor, dot_refresh, purge_manager,
+        -- mf_tick_compute, etc.) must NOT write into a mock NS. base_ns() is installed
+        -- as _G.EaxRotations while spec files are dofile'd for APL conformance; without
+        -- the marker those write-backs would bind module instances into a mock that is
+        -- discarded per-entry — pure pollution that can shadow real-engine bindings.
+        _EAX_MOCK = true,
         GetPlayer = function() return {
             get_health_percentage = function() return 80 end,
             get_mana_percentage = function() return 80 end,

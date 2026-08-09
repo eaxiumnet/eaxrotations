@@ -48,5 +48,8 @@ end
 -- Export for unit-test dofile pattern
 _G.SnapshotHelper = M
 local _G_NS = _G.EaxRotations
-if _G_NS then _G_NS.SnapshotHelper = M end
+-- Mock-NS guard (survey item #2): a mock NS (battery / apl_status, marked
+-- _EAX_MOCK) must never capture module instances via require-time write-back.
+-- Written via the _G_NS alias — same hazard as the 8 direct write-backs.
+if _G_NS and not _G_NS._EAX_MOCK then _G_NS.SnapshotHelper = M end
 return M

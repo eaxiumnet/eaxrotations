@@ -236,8 +236,12 @@ function M.as_middleware_strategy(SPELLS)
     }
 end
 
--- Register with EaxRotations namespace if available
-if _G.EaxRotations then
+-- Register with EaxRotations namespace if available. Mock-NS guard (survey
+-- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
+-- capture module instances via require-time write-back — the bindings would
+-- be discarded pollution. The real engine's NS has no _EAX_MOCK, so the
+-- production write-back is unchanged.
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.AutoTremor = M
 end
 

@@ -31,5 +31,7 @@ function M.should_use_long_cd(context, spell_cooldown_seconds)
 end
 
 _G.CombatForecastGate = M
-if _G.EaxRotations then _G.EaxRotations.should_use_long_cd = M.should_use_long_cd end
+-- Mock-NS guard (survey item #2): a mock NS (battery / apl_status, marked
+-- _EAX_MOCK) must never capture module instances via require-time write-back.
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then _G.EaxRotations.should_use_long_cd = M.should_use_long_cd end
 return M

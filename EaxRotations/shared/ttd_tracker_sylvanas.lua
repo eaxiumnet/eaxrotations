@@ -264,7 +264,9 @@ end
 -- ============================================================================
 local _G = _G
 _G.TTDTracker = M
-if _G.EaxRotations then
+-- Mock-NS guard (survey item #2): a mock NS (battery / apl_status, marked
+-- _EAX_MOCK) must never capture module instances via require-time write-back.
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.TTDTracker = M
 end
 

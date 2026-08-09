@@ -82,8 +82,10 @@ end
 local _G = _G
 _G.MeleeCombatMath = M
 
--- Export to NS namespace (Sylvanas production path)
-if _G.EaxRotations then
+-- Export to NS namespace (Sylvanas production path). Mock-NS guard (survey
+-- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
+-- capture module instances via require-time write-back.
+if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.MeleeCombatMath = M
     _G.EaxRotations.glancing_chance = M.glancing_chance
     _G.EaxRotations.glancing_damage_penalty = M.glancing_damage_penalty
