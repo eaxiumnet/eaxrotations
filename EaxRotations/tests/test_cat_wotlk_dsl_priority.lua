@@ -218,15 +218,25 @@ test("FerociousBite: does not match when target_hp >= 25", function()
     assert_false(cat.strategies[5].matches(ctx, state), "FerociousBite should not match above execute range")
 end)
 
--- MangleCat (6): energy >= 45
-test("MangleCat: matches when energy >= 45", function()
+-- MangleCat (6): bleed debuff expiring (mangle_remains < 3) and energy >= 45
+-- (wowsims mangleNow gate: refresh only when the Mangle bleed debuff needs it)
+test("MangleCat: matches when debuff expiring and energy >= 45", function()
     local state = cat.build_state(ctx)
+    state.mangle_remains = 1
     state.energy = 45
-    assert_true(cat.strategies[6].matches(ctx, state), "MangleCat should match when energy >= 45")
+    assert_true(cat.strategies[6].matches(ctx, state), "MangleCat should match when debuff expiring + energy >= 45")
+end)
+
+test("MangleCat: does not match when debuff fresh", function()
+    local state = cat.build_state(ctx)
+    state.mangle_remains = 20
+    state.energy = 100
+    assert_false(cat.strategies[6].matches(ctx, state), "MangleCat should not match when the bleed debuff is still up")
 end)
 
 test("MangleCat: does not match when energy < 45", function()
     local state = cat.build_state(ctx)
+    state.mangle_remains = 1
     state.energy = 30
     assert_false(cat.strategies[6].matches(ctx, state), "MangleCat should not match when energy < 45")
 end)

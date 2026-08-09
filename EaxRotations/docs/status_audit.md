@@ -188,7 +188,7 @@ Healing support surfaces include class heal helpers and shared predictive/triage
 | File | Category | Functions | Status | Tests | Priority | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | EaxRotations/shared/aoe_heal_sylvanas.lua | healing | 5 | Complete | run_rotation_tests.lua | P4 runtime polish | EaxRotations/shared/aoe_heal_sylvanas.lua; evidence/eaxrotations-status-audit/01-source-inventory.txt |
-| EaxRotations/shared/apl_parser.lua | unclear | 24 | Needs Review | test_apl_parser.lua | P3 maintainability | EaxRotations/shared/apl_parser.lua; evidence/eaxrotations-status-audit/01-source-inventory.txt |
+| EaxRotations/shared/apl_parser.lua | verify | 16 | Complete | test_apl_conformance.lua | P1 CI gate | tools/evidence/apl/SOURCES.md |
 | EaxRotations/shared/arena_priority_sylvanas.lua | PvP/CC | 13 | Complete | test_arena_priority.lua | P4 runtime polish | EaxRotations/shared/arena_priority_sylvanas.lua; evidence/eaxrotations-status-audit/01-source-inventory.txt |
 | EaxRotations/shared/aspect_manager_sylvanas.lua | class core | 8 | Complete | test_reset_api_health_aspect_manager.lua | P4 runtime polish | EaxRotations/shared/aspect_manager_sylvanas.lua; evidence/eaxrotations-status-audit/01-source-inventory.txt |
 | EaxRotations/shared/aura_probe_sylvanas.lua | unclear | 18 | Needs Review | test_aura_probe_sylvanas.lua | P3 maintainability | EaxRotations/shared/aura_probe_sylvanas.lua; evidence/eaxrotations-status-audit/01-source-inventory.txt |

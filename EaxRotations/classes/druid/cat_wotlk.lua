@@ -28,6 +28,10 @@ local ACTION = {
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
 local RIP_DEBUFF = { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }
 local FAERIE_FIRE_FERAL_DEBUFF = { 27011, 17392, 17391, 17390, 16857 }
+-- Mangle (Cat) applies a bleed-vulnerability debuff with the same ids as the
+-- spell ranks; wowsims mangleNow fires only when this debuff needs refreshing
+-- (mangleRefreshNow = !bleedAura.IsActive()), NOT as an unconditional filler.
+local MANGLE_DEBUFF = { 48566, 33983, 33982, 33876 }
 local SAVAGE_ROAR_BUFF = { 52610 }
 
 local cat_state = {
@@ -40,6 +44,7 @@ local cat_state = {
     rake_remains = 0,
     rip_remains = 0,
     faerie_fire_remains = 0,
+    mangle_remains = 0,
     savage_roar_remains = 0,
     is_stealthed = false,
     is_behind = false,
@@ -58,6 +63,7 @@ local function build_state(context)
     state.rake_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RAKE_DEBUFF)) or 0
     state.rip_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RIP_DEBUFF)) or 0
     state.faerie_fire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_FERAL_DEBUFF)) or 0
+    state.mangle_remains = (target and NS.debuff_remains and NS.debuff_remains(target, MANGLE_DEBUFF)) or 0
     state.savage_roar_remains = (me and NS.buff_remains and NS.buff_remains(me, SAVAGE_ROAR_BUFF)) or 0
     state.is_stealthed = (context and context.is_stealthed == true) or (me and NS.buff_up and NS.buff_up(me, { 9913, 6783, 5215 })) or false
     -- Strict behind check for Shred (spell requires being behind target)
@@ -120,6 +126,12 @@ local DSL_DEFS = {
     {
         name = "MangleCat",
         conditions = {
+            -- wowsims mangleNow is bleed-debuff-refresh gated (mangleRefreshNow
+            -- = !bleedAura.IsActive()); without this gate the reorder above
+            -- Rake would let an unconditional Mangle filler preempt Rake
+            -- refreshes at 45+ energy. Interim gate: refresh only when the
+            -- Mangle bleed debuff is down or expiring.
+            { type = "state", field = "mangle_remains", op = "<", value = 3 },
             { type = "state", field = "energy", op = ">=", value = 45 },
         },
         action = { type = "cast", spell = ACTION.MangleCat, target = "target" },
