@@ -246,6 +246,19 @@ local components = {
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
+    -- Spec scorecard (Phase 0): runs the live battery, classifies every
+    -- never-firing lane (a)/(b)/(c)/(d) against the pinned LANE_CLASS table,
+    -- and drift-checks docs/scorecard.md. Fails on unclassified lanes, stale
+    -- pins, dead lanes, or a stale doc — so the triage split is a live,
+    -- CI-enforced number instead of stale doc paragraphs.
+    {
+        label = "spec scorecard",
+        cmd = "lua tools/spec_scorecard.lua --check",
+        check = function(c)
+            return { { "in-sync marker present (never/(a)/(b)/(c)/(d) pins + doc current)",
+                       c:find("in sync", 1, true) ~= nil } }
+        end,
+    },
 }
 
 print("verify_all: full verification matrix")

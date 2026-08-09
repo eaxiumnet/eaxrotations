@@ -1,0 +1,14 @@
+/*
+!/EaxRotations/
+!/README.md
+!/.github/
+!/.github/workflows/
+!/.github/workflows/ci.yml
+!/tools/
+/tools/*
+!/tools/update_badges.lua
+!/tools/spec_scorecard.lua
+!/tools/pre-commit
+!/tools/evidence/
+!/tools/evidence/**
+EaxRotations/.omo/
