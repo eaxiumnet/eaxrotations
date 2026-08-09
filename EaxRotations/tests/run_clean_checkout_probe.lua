@@ -68,6 +68,16 @@ local function canonical(path)
     return p
 end
 
+-- Directory fragments from path concatenation (root .. "/" .. file) carry a
+-- trailing separator ("EaxRotations/classes/", "/", "//").  Strip it before
+-- the lfs mode check: lfs.attributes() with a trailing slash is inconsistent
+-- across Windows spawn contexts (works from bash, returns nil under
+-- cmd.exe-spawned os.execute), which would otherwise make the file-only check
+-- platform/context-dependent.
+local function strip_trailing_sep(p)
+    return (p:gsub("[/\\]+$", ""))
+end
+
 -- A path is trackable only if it lives under EaxRotations/ (the only
 -- tracked subtree) and is actually listed by git ls-files.
 local function is_tracked(path)
@@ -134,7 +144,10 @@ local function exists_on_disk(path)
         -- directory, so the old io.open probe flagged them on Linux CI while
         -- passing on Windows — a platform-dependent false positive.  Use lfs
         -- (already required below) to check the mode explicitly, falling back
-        -- to the io.open probe only when lfs is unavailable.
+        -- to the io.open probe only when lfs is unavailable.  Strip the
+        -- trailing separator first (see strip_trailing_sep): lfs.attributes
+        -- on "dir/" is inconsistent across spawn contexts on Windows.
+        cand = strip_trailing_sep(cand)
         if lfs_ok then
             local attr = lfs.attributes(cand)
             if attr and attr.mode == "file" then return true end
@@ -144,6 +157,60 @@ local function exists_on_disk(path)
         end
     end
     return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Self-test: prove the directory-vs-file fix is live on every platform.
+-- ---------------------------------------------------------------------------
+-- The fix under test: exists_on_disk() must only count REGULAR FILES.  On
+-- POSIX io.open(dir, "rb") succeeds (a directory is openable for read), so
+-- the old io.open probe flagged directory fragments like "classes/" / "/" /
+-- "//" / "EaxRotations/" (path-concatenation leftovers in audit files) as
+-- untracked read targets on Linux CI while passing on Windows.  These
+-- assertions fail if the mode check is ever reverted to the bare io.open
+-- probe.
+local function run_self_tests()
+    local function expect(cond, label)
+        if not cond then
+            error("run_clean_checkout_probe self-test: " .. label)
+        end
+    end
+
+    -- 1. Root-cause guard: a directory's lfs mode must NOT be "file".  This is
+    --    the exact property the old io.open probe got wrong on POSIX (io.open
+    --    on a directory returns a handle there), so it is the regression pin.
+    --    The trailing separator is stripped first (same normalization the
+    --    probe applies) so the assertion is valid under every spawn context.
+    local dattr = lfs.attributes(strip_trailing_sep(canonical("EaxRotations/classes/")))
+    expect(dattr ~= nil, "EaxRotations/classes/ must resolve via lfs.attributes")
+    expect(dattr.mode == "directory", "EaxRotations/classes/ must be a directory")
+    expect(dattr.mode ~= "file", "directory must not report mode=file (POSIX io.open regression guard)")
+
+    -- 2. exists_on_disk must be file-only for directory fragments.
+    expect(exists_on_disk("EaxRotations/classes/") == false, "classes/ directory fragment must not count as a file")
+    expect(exists_on_disk("EaxRotations/") == false, "repo-root dir must not count as a file")
+    expect(exists_on_disk("/") == false, "root dir must not count as a file")
+    expect(exists_on_disk("EaxRotations/tests/") == false, "tests/ dir must not count as a file")
+
+    -- 3. Real files must still be detected (the probe must keep catching the
+    --    gitignored-read gap class it exists for).
+    expect(exists_on_disk("EaxRotations/tests/run_clean_checkout_probe.lua") == true, "real tracked file must be detected")
+
+    -- 4. Nonexistent paths must not be detected.
+    expect(exists_on_disk("EaxRotations/tests/__no_such_probe_fixture__.lua") == false, "nonexistent path must not be detected")
+
+    -- 5. Classification helpers stay sane: tracked-set loads from git and the
+    --    self-provisioning allowance for .omo evidence still holds.
+    load_tracked()
+    local tcount = 0
+    for _ in pairs(TRACKED) do tcount = tcount + 1 end
+    expect(tcount > 0, "git ls-files must return tracked files (git on PATH)")
+    expect(is_tracked("EaxRotations/tests/run_clean_checkout_probe.lua") == true, "probe file must be tracked")
+    expect(is_tracked("EaxRotations/classes/") == false, "directory fragment must not be tracked")
+    expect(is_self_provisioning(".omo/evidence/x.json") == true, ".omo evidence must be self-provisioning")
+
+    print("[PASS] run_clean_checkout_probe self-tests: dir-vs-file (POSIX regression guard), real-file detection, missing-path handling, tracked-set + self-provisioning classification")
+    return 0
 end
 
 -- ---------------------------------------------------------------------------
@@ -171,6 +238,9 @@ local function scan_dir(dir)
 end
 
 local function main()
+    if arg and arg[1] == "--self-test" then
+        return run_self_tests()
+    end
     if not lfs_ok or not lfs then
         -- Hard-fail (not SKIP): this probe is the enforcement gate for the
         -- gitignored-read gap class, so it must never silently disappear on a

@@ -235,6 +235,17 @@ local components = {
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
+    -- Clean-checkout probe self-test: pins the directory-vs-file fix so a
+    -- revert to the bare io.open existence probe (which false-flags directory
+    -- fragments like "classes/" / "//" on POSIX) fails CI immediately.
+    {
+        label = "clean-checkout probe self-test",
+        cmd = "lua " .. R .. "/run_clean_checkout_probe.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (POSIX dir-vs-file guard)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
 }
 
 print("verify_all: full verification matrix")
