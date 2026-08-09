@@ -226,9 +226,11 @@ local components = {
         end,
     },
     -- WotLK-era battery (Phase 1): same harness, era = "wotlk" (41 specs incl.
-    -- Death Knight blood/frost/unholy + leveling). Pins the FIRST WotLK
-    -- inventory (2026-08-09): 0 load failures / 149 never-firing. Bump the
-    -- never expectation when lanes are cleared by era-appropriate scenarios.
+    -- Death Knight blood/frost/unholy + leveling). Phase-1 triage (2026-08-09)
+    -- COMPLETE: the 149-lane inventory was cleared to 0 never-firing via
+    -- battery-fixture upgrades (resource/cooldown accessors, scenario banks,
+    -- DK stub rewiring) — the era is now STRICT in the scorecard, so a future
+    -- regression here hard-fails verify_all (and --check) until pinned.
     {
         label = "behavioral battery (wotlk)",
         cmd = "lua " .. R .. "/behavioral_audit.lua wotlk",
@@ -240,7 +242,7 @@ local components = {
             return {
                 { "wotlk specs " .. tostring(specs) .. " (expected 41)", specs == 41 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 149)", never == 149 },
+                { "never-firing " .. never .. " (expected 0)", never == 0 },
             }
         end,
     },

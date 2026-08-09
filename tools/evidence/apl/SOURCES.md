@@ -129,3 +129,30 @@ Notes:
   they legitimately remain `pending` in the scorecard.
 - Adding a TBC spec = add a `reference_names` entry to `tools/apl_status.lua`
   (`M.ENTRIES`) + a row here; no JSON fetch required.
+
+## WotLK battery triage provenance (2026-08-09)
+
+The WotLK never-firing inventory (149 lanes) was cleared to **0** in the Phase-1
+triage — the result lives in `tests/behavioral_audit.lua`, not here. What changed
+and why:
+
+- **Resource/cooldown accessors** — `me:get_rage()/get_energy()/get_combo_points()/
+  get_runic_power()` and `action:cooldown_remaining()` were absent from the battery
+  unit/spell mocks; WotLK specs read them directly (`NS.me or NS.GetPlayer()`),
+  so every resource-gated lane read 0/99. Added bank-driven accessors.
+- **DK shared-manager stubs** — `rune_manager`, `presence_manager`,
+  `interrupt_manager` were stubbed before `ns` was in scope (dead closures);
+  rewired after `build_ns`, bank-driven. Cleared runic-power gates
+  (DancingRuneWeapon/DeathCoil), EmpowerRuneWeapon (depleted-rune bank),
+  Presence/FrostPresence (optimal_presence bank), MindFreeze ×3
+  (target_is_casting-aware interrupt).
+- **Scenario banks** — 17 new scenarios: `dk_runic/dk_boss/dk_disease/
+  dk_runes_depleted/dk_presence`, `lvl_feral/lvl_bear/lvl_cat_form/lvl_bear_form`,
+  `resto_swiftmend`, `surv_lockload`, `fire_scorch`, `ooc_low_mana`,
+  `lvl_shadowform`, `shaman_ready`, `enh_procs`, `resto_triage`.
+- **Note:** the DK leveling/unholy files install the real `aoe_hit_volume`
+  (overrides the battery's always-true `aoe_target_meets`), so AoE-gated lanes
+  need `enemy_count` in their scenario, not just a stub.
+- All fixes were **battery-fixture only** — zero spec-file matcher/order edits
+  (no (d) dead lanes existed; the discipline holds).
+- Scorecard era "wotlk" flipped from LENIENT to STRICT (no untriaged backlog).

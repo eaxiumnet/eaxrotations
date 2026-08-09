@@ -392,6 +392,12 @@ function M.build_ns(class_key, era)
     ns.has_form = function(name)
         local form = ns._bstate("form", 0) or 0
         if name == nil then return form ~= 0 end
+        -- String forms ("cat"/"bear") come from the leveling_wotlk scenarios
+        -- (leveling_wotlk compares state.form STRINGS) and must match by NAME;
+        -- numeric ids compare against FORM_IDS. Without this branch a string
+        -- form would silently read as "not in form" for every name — the same
+        -- string-in-numeric-slot hazard fixed for ctx.stance below.
+        if type(form) == "string" then return form == name end
         local want = FORM_IDS[name]
         if want == nil then return false end
         return form == want
@@ -862,6 +868,22 @@ function M.build_ns(class_key, era)
             rank = function(self, r) return ids[r or #ids] end,
             cooldown = function(self) return 0 end,
             is_known = function(self) return true end,
+            -- WotLK era (Phase 1 triage): *_wotlk.lua specs gate on
+            -- `action:cooldown_remaining() <= 0` (e.g. retribution Judgement /
+            -- CrusaderStrike / DivineStorm, mage arcane PresenceOfMind, rogue
+            -- combat BladeFlurry). Without this method the caller's
+            -- cd_remaining() fell through to 99, so every `<= 0` gate failed
+            -- and all 8 retri lanes (plus others) never fired. Mirrors
+            -- ns.get_spell_cd: on_cd-map aware, 0 (ready) otherwise.
+            cooldown_remaining = function(self)
+                local on_cd = ns._bstate and ns._bstate("on_cd", nil)
+                if type(on_cd) == "table" then
+                    for _, id in ipairs(ids or {}) do
+                        if on_cd[id] then return on_cd[id] end
+                    end
+                end
+                return 0
+            end,
         }
         obj.rank_ids = function() return ids end
         return obj
@@ -1117,7 +1139,22 @@ function M.build_ns(class_key, era)
     -- it charges read nil->0 and WaterShield fires before FSRPause even in
     -- buffs_up scenarios. Mirroring get_buff_stacks (1 when buffs_up) also
     -- keeps earth-shield refresh suppressed (remains 20 > 5 + charges 1).
-    ns.buff_stacks = function() if ns._bstate("buffs_up", false) then return 1 end return 0 end
+    -- buff_stacks alias (enh LightningBolt maelstrom gate reads this with the
+    -- MAELSTROM_WEAPON_BUFF ids): make it map-aware like buff_remains — a
+    -- buff_remains_map entry for a queried id returns its stack value (the
+    -- enh_procs scenario sets [53817] = 5), else the buffs_up fallback (1) to
+    -- keep resto water/earth-shield reads byte-identical.
+    ns.buff_stacks = function(unit, ids)
+        local map = ns._bstate("buff_remains_map", nil)
+        if type(ids) == "number" then ids = { ids } end
+        if type(map) == "table" then
+            for _, id in ipairs(ids or {}) do
+                if map[id] ~= nil then return map[id] end
+            end
+        end
+        if ns._bstate("buffs_up", false) then return 1 end
+        return 0
+    end
     -- Scenario-driven debuff stacks (poison_stacks scenario). Scoped by aura
     -- ids so one spec's stacks never bleed into another (e.g. mage AB stacks /
     -- frost Winter's Chill must stay 0 when only deadly-poison stacks are set).
@@ -1744,6 +1781,98 @@ M.SCENARIOS = {
     -- self-blocks here (its matcher requires IV not on cd), so each lane
     -- stays exclusive to its own scenario.
     { name = "burn_coldsnap",   overrides = { player_mana = 45000, mana_pct = 100, ttd = 60, target_ttd = 60, on_cd = { [12042] = 180, [12472] = 180 } } },
+    -- =========================================================================
+    -- WotLK Phase-1 triage (2026-08-09): the 38 remaining never-lanes after the
+    -- resource/cooldown accessor fixes (149 -> 65 -> 38). ALL 38 are (c) mock/
+    -- shape gaps — zero (d) dead lanes and zero order divergences, so no spec
+    -- file changes; these scenarios + the DK stub upgrades clear the lanes.
+    -- =========================================================================
+    -- DK runic power (runic_power >= 60 DancingRuneWeapon blood; >= 100
+    -- DeathCoil unholy). Base ctx defaults runic_power 50 — one flag short.
+    { name = "dk_runic",        overrides = { runic_power = 100 } },
+    -- DK unholy SummonGargoyle: is_boss truthy AND runic_power >= 60. is_boss
+    -- is a new bank key (ctx.is_boss); runic_power rides the same flag as
+    -- dk_runic. (Gargoyle is a boss-target DPS CD — realistic shape.)
+    { name = "dk_boss",         overrides = { is_boss = true, runic_power = 100 } },
+    -- DK disease refresh (Pestilence x3 — blood/unholy/leveling): all three
+    -- gate on frost_fever_remains > 0 AND blood_plague_remains > 0 with one
+    -- below 3s (blood/unholy) or diseases_up (leveling: ff>0 or bp>0). The
+    -- debuff_remains_map mechanism (frost fever 55095, blood plague 55078)
+    -- marks the primary target. NOTE: the DK files install the REAL
+    -- aoe_hit_volume (leveling/unholy Pestilence gate on aoe_target_meets(2)),
+    -- which overrides the battery's always-true stub — its ctx fallback
+    -- consults enemy_count/enemies_count, so the scenario must carry 2+ real
+    -- enemies or the spread lane stays 0. Blood's Pestilence (no aoe gate)
+    -- clears from the disease map alone.
+    { name = "dk_disease",      overrides = { debuff_remains_map = { [55095] = 1, [55078] = 1 }, enemy_count = 3, enemies_count = 3 } },
+    -- DK EmpowerRuneWeapon x2 (frost + unholy): both gate on total runes ready
+    -- == 0; the rune bank defaults 2/2/2/0 (6 total), so an all-zero ready map
+    -- is the only shape where the CD fires. rune_state is a new bank key
+    -- consumed by the rune_manager stub getters.
+    { name = "dk_runes_depleted", overrides = { rune_state = { ready = { blood = 0, frost = 0, unholy = 0, death = 0 } } } },
+    -- DK presence switch x3 (blood Presence, unholy Presence, frost
+    -- FrostPresence): all go through presence_manager.get_optimal_presence /
+    -- should_switch_presence. optimal_presence is a new bank key; with it set
+    -- and no presence buff up (state.presence nil/1), each lane fires here.
+    { name = "dk_presence",     overrides = { optimal_presence = "blood" } },
+    -- Druid leveling feral opt-in: CatForm gates on druid_leveling_feral=true
+    -- (and druid_leveling_bear=false, the default) + in_combat + form ~= cat.
+    -- The settings fixture makes this opt-in lane observable (mirrors the TBC
+    -- (a) close-out: use_sunder_armor etc.).
+    { name = "lvl_feral",       overrides = { setting_overrides = { druid_leveling_feral = true } } },
+    -- Druid leveling bear opt-in: DireBearForm gates on druid_leveling_bear
+    -- = true + in_combat + form ~= bear.
+    { name = "lvl_bear",        overrides = { setting_overrides = { druid_leveling_bear = true } } },
+    -- Druid leveling cat abilities x6 (Rip/FerociousBite/Rake/MangleCat/
+    -- Shred/Claw): all gate `form == "cat"` (STRING — leveling_wotlk compares
+    -- strings, unlike the numeric form ids TBC specs use). The battery context
+    -- passes ctx.form through verbatim, so a string override lands in
+    -- state.form and the string gates match. combo_points 4 satisfies both the
+    -- >= 4 finishers (Rip/FerociousBite) and < 5 builders (MangleCat/Shred/
+    -- Claw) — default 5 blocks the builders, default 0 blocks the finishers.
+    { name = "lvl_cat_form",    overrides = { form = "cat", combo_points = 4 } },
+    -- Druid leveling bear abilities x3 (Swipe/Lacerate/MangleBear): form ==
+    -- "bear" string; Swipe additionally needs enemy_count >= 2.
+    { name = "lvl_bear_form",   overrides = { form = "bear", enemy_count = 3, enemies_count = 3 } },
+    -- Druid resto Swiftmend: target_hp < 50 AND (rejuvenation_remains > 0 or
+    -- regrowth_remains > 0). Rejuv id 26982 (first in REJUVENATION_BUFF) in
+    -- the buff_remains_map marks the primary target as carrying the HoT;
+    -- target_hp 30 satisfies the low-health gate. (buffs_up=false elsewhere so
+    -- the lane stays silent in every other scenario.)
+    { name = "resto_swiftmend", overrides = { target_hp = 30, buff_remains_map = { [26982] = 1 } } },
+    -- Hunter survival ExplosiveShotProc: lock_and_load truthy (proc flag —
+    -- new bank key, ctx.lock_and_load). No other scenario sets it.
+    { name = "surv_lockload",   overrides = { lock_and_load = true } },
+    -- Mage fire FireBlast (scorch-window weave): gates on scorch_cast_time > 0
+    -- (number) AND state.ttd <= cast_time. scorch_cast_time is a new bank key;
+    -- ttd 2 <= cast_time 3 makes the lane fire (base ttd 60 > 3 blocks it
+    -- everywhere else). FireBlast is a real weaving lane, not a dead one.
+    { name = "fire_scorch",     overrides = { scorch_cast_time = 3, ttd = 2, target_ttd = 2 } },
+    -- Mage leveling ConjureManaGem: in_combat falsy + mana_pct < 80. The
+    -- existing out_of_combat scenario has mana_pct 100 (never < 80); this is
+    -- the OOC + low-mana combo (like low_mana but OOC — low_mana keeps
+    -- in_combat=true, and the lane requires falsy).
+    { name = "ooc_low_mana",    overrides = { in_combat = false, mana_pct = 70 } },
+    -- Priest leveling Shadowform opt-in: eaxpriestlvl_use_shadowform=true +
+    -- in_combat falsy + shadowform_up falsy. Settings fixture, like lvl_feral.
+    { name = "lvl_shadowform",  overrides = { in_combat = false, setting_overrides = { eaxpriestlvl_use_shadowform = true } } },
+    -- Shaman ready flags x4 (elem Bloodlust + ElementalMastery + FireElemental,
+    -- enh Bloodlust): all gate on ctx.bloodlust_ready / elemental_mastery_ready
+    -- / fire_elemental_ready, which the base ctx leaves false. One scenario
+    -- with all three set clears the four lanes (elem + enh share bloodlust).
+    { name = "shaman_ready",    overrides = { bloodlust_ready = true, elemental_mastery_ready = true, fire_elemental_ready = true } },
+    -- Shaman enh totem/proc lanes x2: CallOfTheElements gates water_totem_remains
+    -- < 20 (base 300); LightningBolt gates maelstrom_stacks >= 5 — enh reads
+    -- NS.buff_stacks(me, MAELSTROM_WEAPON_BUFF {53817,..}), which is
+    -- buff_remains_map-aware, so the map entry [53817] = 5 supplies the stacks
+    -- (buffs_up=false elsewhere keeps the lane silent). water_totem_remains is
+    -- a ctx/bank key read directly by build_state.
+    { name = "enh_procs",       overrides = { water_totem_remains = 5, buff_remains_map = { [53817] = 5 } } },
+    -- Shaman resto triage x2: ChainHeal needs injured_count >= 2 + lowest_hp
+    -- < 85 + mana >= 25; ManaTideTotem needs mana_tide_ready + mana < 30. One
+    -- scenario satisfies both: mana 27 (>= 25 and < 30), 2 injured, lowest_hp
+    -- 50. injured_count/mana_tide_ready are new bank keys.
+    { name = "resto_triage",    overrides = { injured_count = 2, lowest_hp = 50, mana_pct = 27, mana_tide_ready = true } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -1754,7 +1883,12 @@ local function _scenario_me(profile, ctx)
     me.get_health = function(self) return (ctx.hp or 100) * 100 end
     me.get_mana_percentage = function(self) return ctx.mana_pct or 100 end
     me.is_in_combat = function(self) return ctx.in_combat == true end
-    me.get_shapeshift_form_id = function(self) return ctx.form or 0 end
+    me.get_shapeshift_form_id = function(self)
+        -- Coerce string forms (leveling_wotlk scenarios pass form="cat"/"bear")
+        -- to 0 (caster) so numeric form-id consumers never see a string.
+        local f = ctx.form
+        return type(f) == "number" and f or 0
+    end
     me.is_moving = function(self) return ctx.is_moving == true end
     me.get_power = function(self, p)
         if p == M.POWER.COMBO then return ctx.combo_points or 5 end
@@ -1793,6 +1927,16 @@ local function _scenario_me(profile, ctx)
     me.get_distance = function(self, t) return ctx.target_distance or ctx.target_range or 5 end
     me.get_player_stance = function(self) return ctx.stance or 0 end
     me.get_stance = function(self) return ctx.stance or 0 end
+    -- WotLK era resource accessors (Phase 1 triage): the 41 *_wotlk.lua
+    -- files resolve `local me = NS.me or NS.GetPlayer()` and read rage /
+    -- energy / combo points / runic power DIRECTLY off the player unit, while
+    -- TBC-era files read context.rage / ns.rage() etc. (bank-driven). Without
+    -- these, every WotLK resource read fell back to 0 — warrior arms 18/19,
+    -- fury 5/6, protection 6/6, rogue 4+5+8+3, cat 7/8, DK lanes all dead.
+    me.get_rage = function(self) return ctx.rage or 70 end
+    me.get_energy = function(self) return ctx.energy or 100 end
+    me.get_combo_points = function(self) return ctx.combo_points or 5 end
+    me.get_runic_power = function(self) return ctx.runic_power or 50 end
     return me
 end
 
@@ -1910,6 +2054,24 @@ function M.build_context_for(class_key, scenario)
         -- appends a distant totem mock to the visible-objects scan. Both are
         -- shaman/enhancement-scoped reads.
         totem_active=true, totem_far=true,
+        -- WotLK Phase-1 triage (2026-08-09): resource/state banks for the
+        -- *_wotlk.lua specs. runic_power feeds the DK rune stub (DancingRune
+        -- Weapon >= 60 / DeathCoil >= 100); rune_state drives the rune bank
+        -- (dk_runes_depleted → EmpowerRuneWeapon); is_boss gates unholy
+        -- SummonGargoyle; optimal_presence drives the presence stub
+        -- (dk_presence → blood/unholy Presence + frost FrostPresence);
+        -- lock_and_load gates survival ExplosiveShotProc; scorch_cast_time
+        -- + ttd unlock fire FireBlast's scorch-window gate; bloodlust_ready /
+        -- elemental_mastery_ready / fire_elemental_ready drive the shaman
+        -- ready flags; water_totem_remains + maelstrom_stacks gate enh
+        -- CallOfTheElements / LightningBolt; injured_count + mana_tide_ready
+        -- gate resto ChainHeal / ManaTideTotem; diseases/ff-bp remain handled
+        -- by the existing debuff_remains_map (dk_disease scenario).
+        runic_power=true, rune_state=true, is_boss=true, optimal_presence=true,
+        lock_and_load=true, scorch_cast_time=true,
+        bloodlust_ready=true, elemental_mastery_ready=true,
+        fire_elemental_ready=true, water_totem_remains=true,
+        maelstrom_stacks=true, injured_count=true, mana_tide_ready=true,
     }
     for k, v in pairs(overrides) do
         if k == "friends_hp" then
@@ -1942,9 +2104,15 @@ function M.build_context_for(class_key, scenario)
     if class_key == "warrior" and ctx.stance == 0 then ctx.stance = 1 end
     -- Druids: stance IS form (bear=1, moonkin=2, cat=3, travel=4). Keep them
     -- in sync so shared scenarios that set stance (e.g. aoe→1) can't make a
-    -- druid spec believe it is in bear form, and form scenarios actually flip
-    -- stance-based checks.
-    if class_key == "druid" then ctx.stance = ctx.form or 0 end
+    -- druid spec believe it is in bear form, and NUMERIC form scenarios
+    -- actually flip stance-based checks. String forms ("cat"/"bear") are
+    -- only consumed by leveling_wotlk via context.form and must NOT leak into
+    -- ctx.stance — TBC druid files compare stance against numeric STANCE
+    -- constants (bear_sylvanas:376, cat_sylvanas:737), and a string would
+    -- silently read as 'not in form' (or crash on arithmetic if ever added).
+    if class_key == "druid" and type(ctx.form) == "number" then
+        ctx.stance = ctx.form
+    end
     -- Scenario-aware player + target
     ctx.me = _scenario_me(profile, ctx)
     ctx.target = build_scenario_target(ctx)
@@ -2060,6 +2228,12 @@ end
 -- every match/state read reflects this scenario's realistic state.
 -- ---------------------------------------------------------------------------
 function M.apply_battery_state(ns, ctx, class_key)
+    -- WotLK era (Phase 1 triage): *_wotlk.lua specs resolve the player unit
+    -- via `NS.me or NS.GetPlayer()` (not `context.me` like TBC files), so the
+    -- scenario-aware unit must be published as NS.me per scenario or every
+    -- WotLK unit read (rage/energy/combo/runic) hits the raw mock and returns
+    -- 0 — the root cause of the 149-lane WotLK never-firing inventory.
+    if ctx.me then ns.me = ctx.me end
     -- Advance the scenario clock: module-level 1s scan caches (hunter_core pet
     -- scan, purge delay cache, swing gates) must see a fresh timestamp per
     -- scenario or they freeze on the first scenario's observations.
@@ -2121,6 +2295,22 @@ function M.apply_battery_state(ns, ctx, class_key)
         fsr_seconds = ctx.fsr_seconds or 0,
         fsr_regen_delta = ctx.fsr_regen_delta or 0,
         fsr_pause_ok = ctx.fsr_pause_ok == true,
+        -- WotLK Phase-1 triage (2026-08-09): resource/state banks for the DK
+        -- stubs (rune_manager/presence_manager/interrupt_manager read these via
+        -- ns._bstate) and the *_wotlk build_state context reads.
+        runic_power = ctx.runic_power,
+        rune_state = ctx.rune_state,
+        is_boss = ctx.is_boss == true,
+        optimal_presence = ctx.optimal_presence,
+        lock_and_load = ctx.lock_and_load == true,
+        scorch_cast_time = ctx.scorch_cast_time,
+        bloodlust_ready = ctx.bloodlust_ready == true,
+        elemental_mastery_ready = ctx.elemental_mastery_ready == true,
+        fire_elemental_ready = ctx.fire_elemental_ready == true,
+        water_totem_remains = ctx.water_totem_remains,
+        maelstrom_stacks = ctx.maelstrom_stacks,
+        injured_count = ctx.injured_count,
+        mana_tide_ready = ctx.mana_tide_ready == true,
         -- Friendly-target context (2026-08-08): friendly_target_hp feeds
         -- NS.get_friendly_target_entry so the healer FriendlyTarget lanes
         -- (disc + holy priest, holy paladin, resto druid + shaman) get a
@@ -2217,36 +2407,9 @@ function M.load_spec(class_key, spec_key, era)
     -- game state (rune APIs, presence settings) that the battery cannot
     -- reproduce; without stubs every DK rune read returns 0/{} and the
     -- presence lane can never fire. Scenario-driven where useful (see below).
-    -- Restored after dofile in the FSR/TSHelper block.
-    if class_key == "deathknight" then
-        package.loaded["shared/rune_manager_sylvanas"] = {
-            get_runic_power = function(unit)
-                return ns and ns._bstate and ns._bstate("runic_power", 50) or 50
-            end,
-            get_rune_state = function()
-                return ns and ns._bstate and ns._bstate("rune_state", nil) or {
-                    blood = 2, frost = 2, unholy = 2, death = 0,
-                    ready = { blood = 2, frost = 2, unholy = 2, death = 0 },
-                }
-            end,
-            get_blood_runes_ready = function() return 2 end,
-            get_frost_runes_ready = function() return 2 end,
-            get_unholy_runes_ready = function() return 2 end,
-            get_death_runes_ready = function() return 0 end,
-        }
-        package.loaded["shared/presence_manager_sylvanas"] = {
-            get_optimal_presence = function() return nil end,
-            should_switch_presence = function() return false end,
-            presence_id = function(name) return name end,
-            presence_name = function(id) return id end,
-            presence_spell_id = function() return 0 end,
-        }
-        package.loaded["shared/interrupt_manager_sylvanas"] = {
-            register_interrupt_spell = function()
-                return { name = "MindFreeze", matches = function() return false end, execute = function() return false end }
-            end,
-        }
-    end
+    -- Restored after dofile: load_spec nils package.loaded for the six stubbed
+    -- modules (rune/presence/interrupt/fsr/ts/stealth managers) in the dofile
+    -- error-handler block so later suites get the real modules back.
 
     -- Seed binary-only game modules spec files require (present in the live
     -- client but absent from this repo). Without this, hunter specs' item
@@ -2283,6 +2446,80 @@ function M.load_spec(class_key, spec_key, era)
             get_visible_objects = function() return ns._bstate("visible_enemies", {}) end,
         },
     }
+    if class_key == "deathknight" then
+        -- Rune bank (Phase 1, second pass): the per-rune getters were hardcoded
+        -- 2/2/2/0, so frost/unholy EmpowerRuneWeapon (gate: total_runes_ready
+        -- == 0) could NEVER fire — the dk_runes_depleted scenario's rune_state
+        -- override never reached them. All four now read the bank's ready map
+        -- (default 2s, the original battery posture).
+        local function _rune_bank()
+            local rs = ns and ns._bstate and ns._bstate("rune_state", nil)
+            if type(rs) == "table" and type(rs.ready) == "table" then return rs end
+            return nil
+        end
+        package.loaded["shared/rune_manager_sylvanas"] = {
+            get_runic_power = function(unit)
+                return ns and ns._bstate and ns._bstate("runic_power", 50) or 50
+            end,
+            get_rune_state = function()
+                return ns and ns._bstate and ns._bstate("rune_state", nil) or {
+                    blood = 2, frost = 2, unholy = 2, death = 0,
+                    ready = { blood = 2, frost = 2, unholy = 2, death = 0 },
+                }
+            end,
+            get_blood_runes_ready = function()
+                local rs = _rune_bank()
+                return rs and rs.ready.blood or 2
+            end,
+            get_frost_runes_ready = function()
+                local rs = _rune_bank()
+                return rs and rs.ready.frost or 2
+            end,
+            get_unholy_runes_ready = function()
+                local rs = _rune_bank()
+                return rs and rs.ready.unholy or 2
+            end,
+            get_death_runes_ready = function()
+                local rs = _rune_bank()
+                return rs and rs.ready.death or 0
+            end,
+        }
+        -- Presence (Phase 1, second pass): get_optimal_presence hardcoded nil and
+        -- should_switch_presence hardcoded false, so the 3 presence lanes (blood
+        -- Presence, unholy Presence, frost FrostPresence) could never fire. Now
+        -- scenario-driven: the dk_presence scenario sets optimal_presence in the
+        -- bank; the lanes fire wherever the bank's desired presence differs from
+        -- the current state (nil in the battery — no presence buffs up).
+        package.loaded["shared/presence_manager_sylvanas"] = {
+            get_optimal_presence = function()
+                return ns and ns._bstate and ns._bstate("optimal_presence", nil)
+            end,
+            should_switch_presence = function(ctx, st, desired)
+                local want = ns and ns._bstate and ns._bstate("optimal_presence", nil)
+                if not want or not desired then return false end
+                local cur = st and st.presence
+                return cur == nil or cur ~= desired
+            end,
+            presence_id = function(name) return name end,
+            presence_name = function(id) return id end,
+            presence_spell_id = function() return 0 end,
+        }
+        -- Interrupts (Phase 1, second pass): register_interrupt_spell returned a
+        -- matches=false strategy, so MindFreeze (blood/frost/unholy) could never
+        -- fire. Now bank-aware: matches on target_is_casting, so the existing
+        -- target_casting scenario makes the 3 MindFreeze lanes observable.
+        package.loaded["shared/interrupt_manager_sylvanas"] = {
+            register_interrupt_spell = function()
+                return {
+                    name = "MindFreeze",
+                    matches = function()
+                        return ns and ns._bstate and ns._bstate("target_is_casting", false) == true
+                    end,
+                    execute = function() return false end,
+                }
+            end,
+        }
+    end
     local ok, result = pcall(dofile, path)
     -- Keep the stub installed when there was no pre-existing core: runtime
     -- reads during dispatch (protection's threat-scan throttle calls

@@ -131,11 +131,12 @@ local LANE_CLASS = {
 }
 
 -- ---------------------------------------------------------------------------
--- WotLK (Phase 1) lane pins. The 149-lane WotLK inventory is UNTRIAGED: with an
--- empty table every never-lane lands in bucket "p" (pending) and --check never
--- hard-fails on it. As the Phase-1 (a)/(b)/(c)/(d) triage lands (mirroring the
--- TBC reports), pin lanes here with the same bucket letters — stale/bad pins and
--- (d) lanes hard-fail in both eras.
+-- WotLK lane pins. The Phase-1 triage (2026-08-09) is COMPLETE: the 149-lane
+-- inventory was cleared to 0 never-firing (battery fixture upgrades — resource/
+-- cooldown accessors, scenario banks, DK stub rewiring — not spec edits), so
+-- WOTLK_LANE_CLASS is empty because there are NO never-lanes to classify, and
+-- the era is STRICT like TBC: any future never-lane without a pin here is a
+-- hard-fail. Stale/bad pins and (d) lanes hard-fail in both eras.
 -- ---------------------------------------------------------------------------
 local WOTLK_LANE_CLASS = {}
 
@@ -260,13 +261,15 @@ local problems = {} -- { {kind=...} } collected for --check / hard-fail
 -- Aggregate one era's battery reports into rows/totals/lane-buckets.
 --   era "sylvanas": STRICT - every never-lane needs a LANE_CLASS pin; an
 --                   unclassified lane is a hard-fail (pre-Phase-1 gate).
---   era "wotlk"   : LENIENT - the Phase-1 inventory is untriaged, so lanes
---                   without a WOTLK_LANE_CLASS pin land in bucket "p"
---                   (pending) and never hard-fail; stale/bad pins + (d)
---                   still fail in both eras.
+--   era "sylvanas": STRICT - every never-lane needs a LANE_CLASS pin; an
+--                   unclassified lane is a hard-fail (pre-Phase-1 gate).
+--   era "wotlk"   : STRICT as of the Phase-1 triage (2026-08-09) — the 149-lane
+--                   inventory was cleared to 0 never-firing, so there is no
+--                   untriaged backlog left to stay lenient about; a future
+--                   never-lane without a WOTLK_LANE_CLASS pin hard-fails.
 local function classify_reports(agg, era)
     local pin_table = (era == 'sylvanas') and LANE_CLASS or WOTLK_LANE_CLASS
-    local strict = (era == 'sylvanas')
+    local strict = true
     local rows = {}       -- per-spec rows, sorted
     local totals = { strategies = 0, never = 0, a = 0, b = 0, c = 0, d = 0, p = 0 }
     local lanes_by_bucket = {} -- [bucket] = { "class/spec: lane", ... }
@@ -527,8 +530,10 @@ add('')
 add('Rating rubric: **S+** never=0 ∧ (c)=0 ∧ APL pass · **S** never=0 · **A** never≤3 · '
     .. '**B** never≤6 · **C** never≥7 · **F** (d)>0. Suite columns: class = tests whose '
     .. 'name contains the class keyword; spec = word-matched spec keyword (informational). '
-    .. 'WotLK-era rows are **untriaged** — every never-lane is counted in the (p) pending '
-    .. 'bucket until the Phase-1 focused triage pins it.')
+    .. 'WotLK-era rows were triaged in Phase-1 (2026-08-09): the 149-lane inventory was '
+    .. 'cleared to **0 never-firing** via battery fixture upgrades (resource/cooldown '
+    .. 'accessors, scenario banks, DK stub rewiring), so the era is STRICT like TBC — a '
+    .. 'future never-lane is a hard-fail until pinned.')
 add('')
 emit_rows_table('TBC/Sylvanas era', rows, false)
 emit_rows_table('WotLK era', wotlk_rows, true)
@@ -590,9 +595,10 @@ emit_buckets('WotLK era', wotlk_lanes_by_bucket, { 'p', 'c', 'b', 'a', 'd' })
 
 add('## Notes')
 add('')
-add('- `(p)` lanes are the Phase-1 WotLK inventory — untriaged. The next focused triage '
-    .. '(mirroring the TBC (a)/(b)/(c)/(d) classification) pins them into WOTLK_LANE_CLASS; '
-    .. 'until then they never hard-fail --check.')
+add('- `(p)` lanes are the pending bucket. The WotLK Phase-1 triage (2026-08-09) is '
+    .. 'complete: the 149-lane inventory was cleared to 0 never-firing (battery fixtures '
+    .. 'only — no spec edits), so no WotLK lane is pending today; the era is STRICT, so '
+    .. 'a future never-lane hard-fails --check until pinned.')
 add('- `(c)` lanes are the actionable Phase-3 inventory (ranked fixtures exist in the '
     .. 'non-DPS triage report items 1–20) **minus the documented correct-suppressions** '
     .. 'listed below.')
