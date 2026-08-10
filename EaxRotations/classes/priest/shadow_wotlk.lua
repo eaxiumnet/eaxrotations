@@ -22,6 +22,10 @@ local ACTION = {
     DevouringPlague = define("DevouringPlague", { 48300, 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
     MindBlast = define("MindBlast", { 48127, 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
     MindFlay = define("MindFlay", { 48156, 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
+    -- Baseline shadow priest interrupt (3.3.5): Silence (shadow-tree talent,
+    -- single rank). Not in the wowsims shadow APL, so it sits outside the
+    -- pinned order (first, like the rogue Kick template).
+    Silence = define("Silence", 15487, "Silence"),
 }
 
 local VAMPIRIC_TOUCH_DEBUFF = { 34917, 34916, 34914 }
@@ -34,6 +38,7 @@ local shadow_state = {
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
+    target_is_casting = false,
     vampiric_touch_remains = 0,
     shadow_word_pain_remains = 0,
     devouring_plague_remains = 0,
@@ -48,6 +53,7 @@ local function build_state(context)
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.vampiric_touch_remains = (target and NS.debuff_remains and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF)) or 0
     state.shadow_word_pain_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF)) or 0
     state.devouring_plague_remains = (target and NS.debuff_remains and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF)) or 0
@@ -58,6 +64,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Silence",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Silence, target = "target" },
+    },
     {
         name = "VampiricTouch",
         conditions = {
@@ -99,6 +113,7 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Silence" },
     { name = "DevouringPlague" },
     { name = "ShadowWordPain" },
     { name = "VampiricTouch" },

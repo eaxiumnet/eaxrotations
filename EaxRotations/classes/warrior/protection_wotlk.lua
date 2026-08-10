@@ -25,6 +25,9 @@ local ACTION = {
     HeroicStrike = define("HeroicStrike", { 47450, 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
     ThunderClap = define("ThunderClap", { 47502, 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
     ShieldBlock = define("ShieldBlock", 2565, "ShieldBlock"),
+    -- Baseline warrior interrupt (3.3.5): not in the wowsims protection APL, so
+    -- it sits outside the pinned order (first, like the rogue Kick template).
+    Pummel = define("Pummel", { 6554, 6552 }, "Pummel"),
 }
 
 local THUNDER_CLAP_DEBUFF = { 47502, 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
@@ -49,6 +52,7 @@ local protection_state = {
     target_hp = 100,
     enemy_count = 1,
     in_combat = false,
+    target_is_casting = false,
     tclap_remains = 0,
     shield_block_ready = false,
 }
@@ -67,6 +71,7 @@ local function build_state(context)
     state.target_hp = (target and type(target.get_health_percentage) == "function" and target:get_health_percentage()) or 100
     state.enemy_count = (context.enemy_count or 1)
     state.in_combat = (context.in_combat == true)
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.tclap_remains = (target and NS.debuff_remains and NS.debuff_remains(target, THUNDER_CLAP_DEBUFF)) or 0
     state.shield_block_ready = cd_remaining(ACTION.ShieldBlock, 999) <= 0
 
@@ -77,6 +82,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Pummel",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Pummel, target = "target" },
+    },
     {
         name = "ShieldBlock",
         conditions = {
@@ -132,6 +145,7 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Pummel" },
     { name = "ShieldBlock" },
     { name = "ShieldSlam" },
     { name = "Revenge" },

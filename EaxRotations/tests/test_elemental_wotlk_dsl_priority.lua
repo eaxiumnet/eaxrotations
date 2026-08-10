@@ -101,8 +101,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    -- wowsims elemental APL order (ui/elemental_shaman/apls/advanced.apl.json): LavaBurst before ChainLightning
-    local expected = { "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
+    -- wowsims elemental APL order (ui/elemental_shaman/apls/advanced.apl.json): LavaBurst before ChainLightning.
+    -- EarthShock is a baseline interrupt NOT in the fixture — first, outside the pinned order.
+    local expected = { "EarthShock", "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
         "FlameShock", "LavaBurst", "ChainLightning", "LightningBolt", "Thunderstorm" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
@@ -177,6 +178,12 @@ tests.test_Thunderstorm_does_not_match_when_high_mana = test_match("Thunderstorm
 -- LightningBolt: matches when mana_pct >= 15
 tests.test_LightningBolt_matches_when_mana_ok = test_match("LightningBolt", { mana_pct = 50 }, true)
 tests.test_LightningBolt_does_not_match_when_low_mana = test_match("LightningBolt", { mana_pct = 10 }, false)
+
+-- EarthShock: baseline interrupt — matches only when in combat AND target is casting
+tests.test_EarthShock_matches_when_target_casting = test_match("EarthShock", { target_is_casting = true }, true)
+tests.test_EarthShock_does_not_match_when_not_casting = test_match("EarthShock", { target_is_casting = false }, false)
+tests.test_EarthShock_does_not_match_out_of_combat = test_match("EarthShock",
+    { in_combat = false, target_is_casting = true }, false)
 
 for name, fn in pairs(tests) do
     local ok, err = pcall(fn)

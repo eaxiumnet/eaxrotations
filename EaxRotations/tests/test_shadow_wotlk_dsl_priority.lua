@@ -1,5 +1,5 @@
 -- test_shadow_wotlk_dsl_priority.lua — WotLK Shadow priest DSL priority order tests.
--- WHAT:  Validates that the 5 shadow_wotlk strategies are compiled correctly by the DSL
+-- WHAT:  Validates that the 6 shadow_wotlk strategies are compiled correctly by the DSL
 --        and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
@@ -37,6 +37,7 @@ _G.EaxRotations = {
         DevouringPlague = make_action(25467, "DevouringPlague"),
         MindBlast = make_action(25375, "MindBlast"),
         MindFlay = make_action(25387, "MindFlay"),
+        Silence = make_action(15487, "Silence"),
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
@@ -80,7 +81,7 @@ print("=== test_shadow_wotlk_dsl_priority ===")
 local shadow = dofile("EaxRotations/classes/priest/shadow_wotlk.lua")
 assert_true(type(shadow) == "table", "shadow_wotlk should return a table")
 assert_true(type(shadow.strategies) == "table", "shadow_wotlk should expose strategies")
-assert_true(#shadow.strategies == 5, "shadow_wotlk should have 5 strategies")
+assert_true(#shadow.strategies == 6, "shadow_wotlk should have 6 strategies")
 
 local registered = _G.EaxRotations._registered_shadow
 assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
@@ -88,8 +89,10 @@ assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
--- wowsims shadow APL order (ui/shadow_priest/apls/default.apl.json): DP > SWP > VT > MindBlast > MindFlay
+-- wowsims shadow APL order (ui/shadow_priest/apls/default.apl.json): DP > SWP > VT > MindBlast > MindFlay.
+-- Silence is a baseline interrupt NOT in the fixture — first, outside the pinned order.
 local expected_order = {
+    "Silence",
     "DevouringPlague",
     "ShadowWordPain",
     "VampiricTouch",
@@ -97,7 +100,7 @@ local expected_order = {
     "MindFlay",
 }
 
-test("priority order: 5 strategies match expected order", function()
+test("priority order: 6 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(shadow.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], shadow.strategies[i].name))
@@ -109,78 +112,98 @@ end)
 -- ============================================================================
 
 local ctx = { in_combat = true, target = {}, settings = {} }
+local cast_ctx = { in_combat = true, target = { is_casting = function() return true end }, settings = {} }
 
--- DevouringPlague (1): matches when remains < 3
+-- Silence (1): matches when in combat and target is casting (baseline interrupt)
+test("Silence: matches when target is casting", function()
+    local state = shadow.build_state(cast_ctx)
+    assert_true(shadow.strategies[1].matches(cast_ctx, state), "Silence should match when target is casting")
+end)
+
+-- Silence: should NOT match when target is not casting
+test("Silence: does not match when target is not casting", function()
+    local state = shadow.build_state(ctx)
+    assert_false(shadow.strategies[1].matches(ctx, state), "Silence should not match when target is not casting")
+end)
+
+-- Silence: should NOT match out of combat
+test("Silence: does not match when out of combat", function()
+    local state = shadow.build_state({ in_combat = false, target = { is_casting = function() return true end }, settings = {} })
+    assert_false(shadow.strategies[1].matches({ in_combat = false, target = { is_casting = function() return true end }, settings = {} }, state),
+        "Silence should not match when out of combat")
+end)
+
+-- DevouringPlague (2): matches when remains < 3
 test("DevouringPlague: matches when remains < 3", function()
     local state = shadow.build_state(ctx)  -- defaults: debuff_remains returns 0
-    assert_true(shadow.strategies[1].matches(ctx, state), "DevouringPlague should match when remains < 3")
+    assert_true(shadow.strategies[2].matches(ctx, state), "DevouringPlague should match when remains < 3")
 end)
 
 test("DevouringPlague: does not match when remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[1].matches(ctx, state)
+    local ok = shadow.strategies[2].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "DevouringPlague should not match when remains >= 3")
 end)
 
--- ShadowWordPain (2): matches when remains < 3
+-- ShadowWordPain (3): matches when remains < 3
 test("ShadowWordPain: matches when remains < 3", function()
     local state = shadow.build_state(ctx)
-    assert_true(shadow.strategies[2].matches(ctx, state), "ShadowWordPain should match when remains < 3")
+    assert_true(shadow.strategies[3].matches(ctx, state), "ShadowWordPain should match when remains < 3")
 end)
 
 test("ShadowWordPain: does not match when remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[2].matches(ctx, state)
+    local ok = shadow.strategies[3].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "ShadowWordPain should not match when remains >= 3")
 end)
 
--- VampiricTouch (3): matches when remains < 3
+-- VampiricTouch (4): matches when remains < 3
 test("VampiricTouch: matches when remains < 3", function()
     local state = shadow.build_state(ctx)
-    assert_true(shadow.strategies[3].matches(ctx, state), "VampiricTouch should match when remains < 3")
+    assert_true(shadow.strategies[4].matches(ctx, state), "VampiricTouch should match when remains < 3")
 end)
 
 test("VampiricTouch: does not match when remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[3].matches(ctx, state)
+    local ok = shadow.strategies[4].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "VampiricTouch should not match when remains >= 3")
 end)
 
--- MindBlast: matches when mana >= 20
+-- MindBlast (5): matches when mana >= 20
 test("MindBlast: matches when mana >= 20", function()
     local state = shadow.build_state(ctx)  -- default mana 80
-    assert_true(shadow.strategies[4].matches(ctx, state), "MindBlast should match when mana >= 20")
+    assert_true(shadow.strategies[5].matches(ctx, state), "MindBlast should match when mana >= 20")
 end)
 
 test("MindBlast: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
     _G.EaxRotations.me.get_mana_percentage = function() return 10 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[4].matches(ctx, state)
+    local ok = shadow.strategies[5].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_false(ok, "MindBlast should not match when mana < 20")
 end)
 
--- MindFlay: matches when mana >= 20
+-- MindFlay (6): matches when mana >= 20
 test("MindFlay: matches when mana >= 20", function()
     local state = shadow.build_state(ctx)  -- default mana 80
-    assert_true(shadow.strategies[5].matches(ctx, state), "MindFlay should match when mana >= 20")
+    assert_true(shadow.strategies[6].matches(ctx, state), "MindFlay should match when mana >= 20")
 end)
 
 test("MindFlay: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
     _G.EaxRotations.me.get_mana_percentage = function() return 10 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[5].matches(ctx, state)
+    local ok = shadow.strategies[6].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_false(ok, "MindFlay should not match when mana < 20")
 end)

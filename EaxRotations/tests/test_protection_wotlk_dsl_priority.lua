@@ -1,5 +1,5 @@
 -- test_protection_wotlk_dsl_priority.lua — WotLK Protection warrior DSL priority order tests.
--- WHAT:  Validates that the 6 protection_wotlk strategies are compiled correctly by the DSL
+-- WHAT:  Validates that the 7 protection_wotlk strategies are compiled correctly by the DSL
 --        and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
@@ -38,6 +38,7 @@ _G.EaxRotations = {
         HeroicStrike = make_action(47497, "HeroicStrike"),
         ThunderClap = make_action(47502, "ThunderClap"),
         ShieldBlock = make_action(2565, "ShieldBlock"),
+        Pummel = make_action(6554, "Pummel"),
     },
     WarriorConstants = {
         STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
@@ -90,7 +91,7 @@ print("=== test_protection_wotlk_dsl_priority ===")
 local prot = dofile("EaxRotations/classes/warrior/protection_wotlk.lua")
 assert_true(type(prot) == "table", "protection_wotlk should return a table")
 assert_true(type(prot.strategies) == "table", "protection_wotlk should expose strategies")
-assert_true(#prot.strategies == 6, "protection_wotlk should have 6 strategies")
+assert_true(#prot.strategies == 7, "protection_wotlk should have 7 strategies")
 
 local registered = _G.EaxRotations._registered_protection
 assert_true(registered ~= nil, "protection_wotlk should register under 'protection'")
@@ -99,6 +100,7 @@ assert_true(registered ~= nil, "protection_wotlk should register under 'protecti
 -- Priority order test
 -- ============================================================================
 local expected_order = {
+    "Pummel",
     "ShieldBlock",
     "ShieldSlam",
     "Revenge",
@@ -107,7 +109,7 @@ local expected_order = {
     "HeroicStrike",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 7 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(prot.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], prot.strategies[i].name))
@@ -119,24 +121,44 @@ end)
 -- ============================================================================
 
 local ctx = { in_combat = true, target = {}, settings = {} }
+local cast_ctx = { in_combat = true, target = { is_casting = function() return true end }, settings = {} }
 
--- ShieldBlock: should match when ready (cooldown <= 0)
+-- Pummel (1): matches when in combat and target is casting (baseline interrupt)
+test("Pummel: matches when target is casting", function()
+    local state = prot.build_state(cast_ctx)
+    assert_true(prot.strategies[1].matches(cast_ctx, state), "Pummel should match when target is casting")
+end)
+
+-- Pummel: should NOT match when target is not casting
+test("Pummel: does not match when target is not casting", function()
+    local state = prot.build_state(ctx)
+    assert_false(prot.strategies[1].matches(ctx, state), "Pummel should not match when target is not casting")
+end)
+
+-- Pummel: should NOT match out of combat
+test("Pummel: does not match when out of combat", function()
+    local state = prot.build_state({ in_combat = false, target = { is_casting = function() return true end }, settings = {} })
+    assert_false(prot.strategies[1].matches({ in_combat = false, target = { is_casting = function() return true end }, settings = {} }, state),
+        "Pummel should not match when out of combat")
+end)
+
+-- ShieldBlock (2): should match when ready (cooldown <= 0)
 test("ShieldBlock: matches when ready", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[1].matches(ctx, state), "ShieldBlock should match when ready")
+    assert_true(prot.strategies[2].matches(ctx, state), "ShieldBlock should match when ready")
 end)
 
 -- ShieldBlock: should NOT match when not in combat
 test("ShieldBlock: does not match when out of combat", function()
     local state = prot.build_state({ in_combat = false, target = {}, settings = {} })
-    assert_false(prot.strategies[1].matches({ in_combat = false, target = {}, settings = {} }, state),
+    assert_false(prot.strategies[2].matches({ in_combat = false, target = {}, settings = {} }, state),
         "ShieldBlock should not match when out of combat")
 end)
 
--- ShieldSlam: should match when rage >= 20
+-- ShieldSlam (3): should match when rage >= 20
 test("ShieldSlam: matches when rage >= 20", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[2].matches(ctx, state), "ShieldSlam should match when rage >= 20")
+    assert_true(prot.strategies[3].matches(ctx, state), "ShieldSlam should match when rage >= 20")
 end)
 
 -- ShieldSlam: should NOT match when rage < 20
@@ -144,15 +166,15 @@ test("ShieldSlam: does not match when rage < 20", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 15 end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[2].matches(ctx, state)
+    local ok = prot.strategies[3].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_false(ok, "ShieldSlam should not match when rage < 20")
 end)
 
--- Revenge: should match when rage >= 5
+-- Revenge (4): should match when rage >= 5
 test("Revenge: matches when rage >= 5", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[3].matches(ctx, state), "Revenge should match when rage >= 5")
+    assert_true(prot.strategies[4].matches(ctx, state), "Revenge should match when rage >= 5")
 end)
 
 -- Revenge: should NOT match when rage < 5
@@ -160,12 +182,12 @@ test("Revenge: does not match when rage < 5", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 3 end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[3].matches(ctx, state)
+    local ok = prot.strategies[4].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_false(ok, "Revenge should not match when rage < 5")
 end)
 
--- ThunderClap: should match when debuff remains < 3 and rage >= 20
+-- ThunderClap (5): should match when debuff remains < 3 and rage >= 20
 test("ThunderClap: matches when debuff remains < 3 and rage >= 20", function()
     local state = prot.build_state({
         in_combat = true,
@@ -174,7 +196,7 @@ test("ThunderClap: matches when debuff remains < 3 and rage >= 20", function()
         enemy_count = 2,
     })
     -- tclap_remains defaults to 0 (since debuff_remains returns 0)
-    assert_true(prot.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_true(prot.strategies[5].matches({ in_combat = true, target = {}, settings = {} }, state),
         "ThunderClap should match when debuff remains 0 and rage >= 20")
 end)
 
@@ -183,15 +205,15 @@ test("ThunderClap: does not match when debuff remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = prot.build_state({ in_combat = true, target = {}, settings = {} })
-    local ok = prot.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state)
+    local ok = prot.strategies[5].matches({ in_combat = true, target = {}, settings = {} }, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "ThunderClap should not match when debuff remains >= 3")
 end)
 
--- Devastate: should match when rage >= 15
+-- Devastate (6): should match when rage >= 15
 test("Devastate: matches when rage >= 15", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[5].matches(ctx, state), "Devastate should match when rage >= 15")
+    assert_true(prot.strategies[6].matches(ctx, state), "Devastate should match when rage >= 15")
 end)
 
 -- Devastate: should NOT match when rage < 15
@@ -199,17 +221,17 @@ test("Devastate: does not match when rage < 15", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 10 end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[5].matches(ctx, state)
+    local ok = prot.strategies[6].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_false(ok, "Devastate should not match when rage < 15")
 end)
 
--- HeroicStrike: should match when rage >= 60
+-- HeroicStrike (7): should match when rage >= 60
 test("HeroicStrike: matches when rage >= 60", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 65 end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[6].matches(ctx, state)
+    local ok = prot.strategies[7].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_true(ok, "HeroicStrike should match when rage >= 60")
 end)
@@ -217,7 +239,7 @@ end)
 -- HeroicStrike: should NOT match when rage < 60
 test("HeroicStrike: does not match when rage < 60", function()
     local state = prot.build_state(ctx)
-    assert_false(prot.strategies[6].matches(ctx, state), "HeroicStrike should not match when rage < 60")
+    assert_false(prot.strategies[7].matches(ctx, state), "HeroicStrike should not match when rage < 60")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

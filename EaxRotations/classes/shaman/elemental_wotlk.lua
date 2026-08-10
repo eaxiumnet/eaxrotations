@@ -24,6 +24,10 @@ local ACTION = {
     LavaBurst = define("LavaBurst", 60043, "LavaBurst"),
     LightningBolt = define("LightningBolt", 49238, "LightningBolt"),
     Thunderstorm = define("Thunderstorm", 59159, "Thunderstorm"),
+    -- Baseline shaman interrupt (3.3.5): Earth Shock interrupts spellcasting;
+    -- Wind Shear only arrives in Cataclysm. Not in the wowsims elemental APL,
+    -- so it sits outside the pinned order (first, like the rogue Kick template).
+    EarthShock = define("EarthShock", 49231, "EarthShock"),
 }
 
 local FLAME_SHOCK_DEBUFF = { 49233, 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
@@ -37,6 +41,7 @@ local elemental_state = {
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
+    target_is_casting = false,
     flame_shock_remains = 0,
     bloodlust_ready = false,
     fire_elemental_ready = false,
@@ -55,6 +60,7 @@ local function build_state(context)
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0
     state.bloodlust_ready = (context and context.bloodlust_ready) or false
     state.fire_elemental_ready = (context and context.fire_elemental_ready) or false
@@ -78,6 +84,14 @@ local function build_state(context)
 end
 
 local DSL_DEFS = {
+    {
+        name = "EarthShock",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.EarthShock, target = "target" },
+    },
     {
         name = "Bloodlust",
         conditions = {
@@ -156,6 +170,7 @@ local DSL_DEFS = {
 }
 
 local strategies = {
+    { name = "EarthShock" },
     { name = "Bloodlust" },
     { name = "FireElemental" },
     { name = "ElementalMastery" },

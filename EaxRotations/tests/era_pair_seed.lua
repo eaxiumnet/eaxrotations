@@ -320,7 +320,7 @@ return {
     {
         spec = "priest/shadow",
         missing_in = "wotlk",
-        names = { "DispelMagic", "Fade", "FlashHeal", "Healthstone", "HolyNovaAoE", "InnerFire", "InnerFocusMindBlast", "ManaBelow5Wand", "ManaEmergencyWand", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PowerWordShield", "PreCombatPull", "PsychicScream", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "SWDCCBreak", "SWPSpread", "ShackleUndead", "ShadowWordDeath", "Shadowfiend", "Shadowform", "Silence", "Starshards", "VTSpread", "VampiricEmbrace" },
+        names = { "DispelMagic", "Fade", "FlashHeal", "Healthstone", "HolyNovaAoE", "InnerFire", "InnerFocusMindBlast", "ManaBelow5Wand", "ManaEmergencyWand", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PowerWordShield", "PreCombatPull", "PsychicScream", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "SWDCCBreak", "SWPSpread", "ShackleUndead", "ShadowWordDeath", "Shadowfiend", "Shadowform", "Starshards", "VTSpread", "VampiricEmbrace" },
         reason = "WotLK-era build-out: priest_shadow_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -398,7 +398,7 @@ return {
     {
         spec = "shaman/elemental",
         missing_in = "wotlk",
-        names = { "ChainHeal", "EarthShock", "EarthShockMoving", "EarthbindTotem", "FireNovaTotem", "FlameShockMoving", "FlametongueWeapon", "FrostShockMoving", "GhostWolf", "HealingWave", "Healthstone", "LightningShield", "MagmaTotem", "ManaEmergencyWand", "ManaPotion", "ManaSpringTotem", "ManaTideTotem", "NaturesSwiftness", "RockbiterWeapon", "TotemicCall", "TremorTotem", "WaterShield", "WindfuryWeapon", "WrathOfAirTotem" },
+        names = { "ChainHeal", "EarthShockMoving", "EarthbindTotem", "FireNovaTotem", "FlameShockMoving", "FlametongueWeapon", "FrostShockMoving", "GhostWolf", "HealingWave", "Healthstone", "LightningShield", "MagmaTotem", "ManaEmergencyWand", "ManaPotion", "ManaSpringTotem", "ManaTideTotem", "NaturesSwiftness", "RockbiterWeapon", "TotemicCall", "TremorTotem", "WaterShield", "WindfuryWeapon", "WrathOfAirTotem" },
         reason = "WotLK-era build-out: shaman_elemental_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -524,7 +524,7 @@ return {
     {
         spec = "warrior/fury",
         missing_in = "wotlk",
-        names = { "BattleStance", "BerserkerRage", "BerserkerStance", "Bloodrage", "Charge", "Cleave", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "HeroicStrike", "HitCapPriority", "Intercept", "Overpower", "Pummel", "Rampage", "Recklessness", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
+        names = { "BattleStance", "BerserkerRage", "BerserkerStance", "Bloodrage", "Charge", "Cleave", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "HeroicStrike", "HitCapPriority", "Intercept", "Overpower", "Rampage", "Recklessness", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
         reason = "WotLK-era build-out: warrior_fury_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -542,7 +542,7 @@ return {
     {
         spec = "warrior/protection",
         missing_in = "wotlk",
-        names = { "BattleShout", "BerserkerRage", "Bloodrage", "ChallengingShout", "Cleave", "CommandingShout", "ConcussionBlow", "DamagePotion", "DemoralizingShout", "Disarm", "Execute", "Hamstring", "HealthPotion", "Healthstone", "Intercept", "Intervene", "IntimidatingShout", "LastStand", "MockingBlow", "Pummel", "RageDumpSafetyNet", "Rend", "ShieldBash", "ShieldSlamPurge", "ShieldWall", "SpellReflection", "StanceSwitch", "SunderArmor", "Taunt", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
+        names = { "BattleShout", "BerserkerRage", "Bloodrage", "ChallengingShout", "Cleave", "CommandingShout", "ConcussionBlow", "DamagePotion", "DemoralizingShout", "Disarm", "Execute", "Hamstring", "HealthPotion", "Healthstone", "Intercept", "Intervene", "IntimidatingShout", "LastStand", "MockingBlow", "RageDumpSafetyNet", "Rend", "ShieldBash", "ShieldSlamPurge", "ShieldWall", "SpellReflection", "StanceSwitch", "SunderArmor", "Taunt", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
         reason = "WotLK-era build-out: warrior_protection_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
 }

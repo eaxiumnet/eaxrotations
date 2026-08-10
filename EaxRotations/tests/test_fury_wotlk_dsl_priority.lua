@@ -1,5 +1,5 @@
 -- test_fury_wotlk_dsl_priority.lua — WotLK Fury warrior DSL priority order tests.
--- WHAT:  Validates that the 6 fury_wotlk strategies are compiled correctly by the DSL
+-- WHAT:  Validates that the 7 fury_wotlk strategies are compiled correctly by the DSL
 --        and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
@@ -46,6 +46,7 @@ _G.EaxRotations = {
         Execute = make_action(47498, "Execute"),
         DeathWish = make_action_cd(12292, "DeathWish", 0),
         BattleShout = make_action(47436, "BattleShout"),
+        Pummel = make_action(6554, "Pummel"),
     },
     WarriorConstants = {
         STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
@@ -101,7 +102,7 @@ print("=== test_fury_wotlk_dsl_priority ===")
 local fury = dofile("EaxRotations/classes/warrior/fury_wotlk.lua")
 assert_true(type(fury) == "table", "fury_wotlk should return a table")
 assert_true(type(fury.strategies) == "table", "fury_wotlk should expose strategies")
-assert_true(#fury.strategies == 6, "fury_wotlk should have 6 strategies")
+assert_true(#fury.strategies == 7, "fury_wotlk should have 7 strategies")
 
 local registered = _G.EaxRotations._registered_fury
 assert_true(registered ~= nil, "fury_wotlk should register under 'fury'")
@@ -110,6 +111,7 @@ assert_true(registered ~= nil, "fury_wotlk should register under 'fury'")
 -- Priority order test
 -- ============================================================================
 local expected_order = {
+    "Pummel",
     "BattleShout",
     "DeathWish",
     "Execute",
@@ -118,7 +120,7 @@ local expected_order = {
     "Slam",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 7 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(fury.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], fury.strategies[i].name))
@@ -130,12 +132,32 @@ end)
 -- ============================================================================
 
 local ctx = { in_combat = true, target = {}, settings = {} }
+local cast_ctx = { in_combat = true, target = { is_casting = function() return true end }, settings = {} }
 
--- BattleShout: should match when buff is down
+-- Pummel (1): matches when in combat and target is casting (baseline interrupt)
+test("Pummel: matches when target is casting", function()
+    local state = fury.build_state(cast_ctx)
+    assert_true(fury.strategies[1].matches(cast_ctx, state), "Pummel should match when target is casting")
+end)
+
+-- Pummel: should NOT match when target is not casting
+test("Pummel: does not match when target is not casting", function()
+    local state = fury.build_state(ctx)
+    assert_false(fury.strategies[1].matches(ctx, state), "Pummel should not match when target is not casting")
+end)
+
+-- Pummel: should NOT match out of combat
+test("Pummel: does not match when out of combat", function()
+    local state = fury.build_state({ in_combat = false, target = { is_casting = function() return true end }, settings = {} })
+    assert_false(fury.strategies[1].matches({ in_combat = false, target = { is_casting = function() return true end }, settings = {} }, state),
+        "Pummel should not match when out of combat")
+end)
+
+-- BattleShout (2): should match when buff is down
 test("BattleShout: matches when buff is down", function()
     local state = fury.build_state(ctx)
-    local s = fury.strategies[1]
-    assert_true(s.name == "BattleShout", "strategy[1] is BattleShout")
+    local s = fury.strategies[2]
+    assert_true(s.name == "BattleShout", "strategy[2] is BattleShout")
     assert_true(s.matches(ctx, state), "BattleShout should match when buff is down")
 end)
 
@@ -144,15 +166,15 @@ test("BattleShout: does not match when buff is up", function()
     local orig_buff_up = _G.EaxRotations.buff_up
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[1].matches(ctx, state)
+    local ok = fury.strategies[2].matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff_up
     assert_false(ok, "BattleShout should not match when buff is up")
 end)
 
--- DeathWish: should match when in combat and ready
+-- DeathWish (3): should match when in combat and ready
 test("DeathWish: matches when in combat and ready", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[2].matches(ctx, state), "DeathWish should match when ready")
+    assert_true(fury.strategies[3].matches(ctx, state), "DeathWish should match when ready")
 end)
 
 -- DeathWish: should NOT match when should_use_long_cd returns false
@@ -160,29 +182,29 @@ test("DeathWish: does not match when long CD blocked", function()
     local orig_long_cd = _G.EaxRotations.should_use_long_cd
     _G.EaxRotations.should_use_long_cd = function(ctx, cd) return false end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[2].matches(ctx, state)
+    local ok = fury.strategies[3].matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig_long_cd
     assert_false(ok, "DeathWish should not match when long CD blocked")
 end)
 
--- Execute: should match when target HP < 20% and rage >= 10
+-- Execute (4): should match when target HP < 20% and rage >= 10
 test("Execute: matches when target HP < 20% and rage >= 10", function()
     local state = fury.build_state({ in_combat = true, target = { get_health_percentage = function() return 15 end }, settings = {} })
-    assert_true(fury.strategies[3].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_true(fury.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state),
         "Execute should match when target HP < 20% and rage >= 10")
 end)
 
 -- Execute: should NOT match when target HP >= 20%
 test("Execute: does not match when target HP >= 20%", function()
     local state = fury.build_state({ in_combat = true, target = { get_health_percentage = function() return 50 end }, settings = {} })
-    assert_false(fury.strategies[3].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_false(fury.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state),
         "Execute should not match when target HP >= 20%")
 end)
 
--- Bloodthirst: should match when rage >= 30
+-- Bloodthirst (5): should match when rage >= 30
 test("Bloodthirst: matches when rage >= 30", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[4].matches(ctx, state), "Bloodthirst should match when rage >= 30")
+    assert_true(fury.strategies[5].matches(ctx, state), "Bloodthirst should match when rage >= 30")
 end)
 
 -- Bloodthirst: should NOT match when rage < 30
@@ -190,21 +212,21 @@ test("Bloodthirst: does not match when rage < 30", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 20 end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[4].matches(ctx, state)
+    local ok = fury.strategies[5].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_false(ok, "Bloodthirst should not match when rage < 30")
 end)
 
--- Whirlwind: should match when rage >= 25
+-- Whirlwind (6): should match when rage >= 25
 test("Whirlwind: matches when rage >= 25", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[5].matches(ctx, state), "Whirlwind should match when rage >= 25")
+    assert_true(fury.strategies[6].matches(ctx, state), "Whirlwind should match when rage >= 25")
 end)
 
--- Slam: should match when rage >= 15
+-- Slam (7): should match when rage >= 15
 test("Slam: matches when rage >= 15", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[6].matches(ctx, state), "Slam should match when rage >= 15")
+    assert_true(fury.strategies[7].matches(ctx, state), "Slam should match when rage >= 15")
 end)
 
 -- Slam: should NOT match when rage < 15
@@ -212,7 +234,7 @@ test("Slam: does not match when rage < 15", function()
     local orig_rage = _G.EaxRotations.me.get_rage
     _G.EaxRotations.me.get_rage = function() return 10 end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[6].matches(ctx, state)
+    local ok = fury.strategies[7].matches(ctx, state)
     _G.EaxRotations.me.get_rage = orig_rage
     assert_false(ok, "Slam should not match when rage < 15")
 end)

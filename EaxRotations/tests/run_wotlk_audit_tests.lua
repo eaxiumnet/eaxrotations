@@ -49,6 +49,12 @@ local WOTLK_REFERENCE_ALIASES = {
     [3661] = { kind = "VALID_RANK_ALIAS", family = "Mend Pet", source = "sim/hunter/pet_abilities.go pet surface" },
     [38692] = { kind = "VALID_RANK_ALIAS", family = "Fireball", source = "sim/mage/fireball.go" },
     [55360] = { kind = "VALID_BRIDGE_GAP", family = "Living Bomb", source = "sim/mage/living_bomb.go" },
+    -- 15487 Silence: shadow-talent interrupt, single rank, unchanged since
+    -- vanilla (vanilla + TBC wowhead bridges both identify it as Silence /
+    -- Priest / shadow). The WotLK bridge is file-derived (spells used in
+    -- _wotlk.lua files), so a newly-wired interrupt is absent until the
+    -- generator re-runs; wowsims does not model interrupts (no sim source).
+    [15487] = { kind = "VALID_BRIDGE_GAP", family = "Silence", source = "shared/interrupt_manager_sylvanas.lua:27 (Silence = { 15487 }) + vanilla/TBC wowhead bridges" },
     -- 42873 (Fire Blast) is pinned once, in the rank-audit section below, with
     -- the authoritative wowhead WotLK Classic verification as source.
     [44448] = { kind = "VALID_AURA_ALIAS", family = "Hot Streak", source = "sim/mage/talents.go" },
@@ -837,7 +843,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 130, "pinned allowlist size") -- 47610 Frostfire Bolt added 2026-08-09
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 131, "pinned allowlist size") -- +15487 Silence 2026-08-10 (era-coverage interrupts)
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 93, "bridge max rank count")
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

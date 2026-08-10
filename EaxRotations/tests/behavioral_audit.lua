@@ -1554,6 +1554,12 @@ M.SCENARIOS = {
     -- like arcane Counterspell; this scenario keeps it observable so the
     -- WotLK never=0 pin stays non-vacuous.
     { name = "wotlk_rogue_kick", overrides = { target_is_casting = true, target_cast_pct = 60 } },
+    -- WotLK era-coverage close-out (2026-08-10): prot/fury Pummel, elemental
+    -- EarthShock, shadow Silence — the remaining specs whose class siblings
+    -- already interrupted (arms Pummel, rogue Kick, arcane Counterspell) but
+    -- that had zero interrupt handling. Same gate, same dedicated scenario so
+    -- the WotLK never=0 pin stays non-vacuous for the new strategies.
+    { name = "wotlk_interrupts", overrides = { target_is_casting = true, target_cast_pct = 60 } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
     -- Rogue stealth openers (ranked #7): combat Garrote needs stealth + a
     -- casting target; subtlety CheapShot needs stealth + the explicit

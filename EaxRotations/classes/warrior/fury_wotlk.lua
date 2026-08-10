@@ -25,6 +25,9 @@ local ACTION = {
     Execute = define("Execute", { 47471, 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
     DeathWish = define("DeathWish", { 12292, 12328 }, "DeathWish"),
     BattleShout = define("BattleShout", { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    -- Baseline warrior interrupt (3.3.5): not in the wowsims fury APL, so it
+    -- sits outside the pinned order (first, like arms' class-sibling template).
+    Pummel = define("Pummel", { 6554, 6552 }, "Pummel"),
 }
 
 local BATTLE_SHOUT_BUFF = { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
@@ -52,6 +55,7 @@ local fury_state = {
     target_hp = 100,
     enemy_count = 1,
     in_combat = false,
+    target_is_casting = false,
     battle_shout_up = false,
     execute_ready = false,
     death_wish_ready = false,
@@ -71,6 +75,7 @@ local function build_state(context)
     state.target_hp = (target and type(target.get_health_percentage) == "function" and target:get_health_percentage()) or 100
     state.enemy_count = (context.enemy_count or 1)
     state.in_combat = (context.in_combat == true)
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.battle_shout_up = (me and NS.buff_up and NS.buff_up(me, BATTLE_SHOUT_BUFF)) or false
 
     -- Cooldown / availability tracking
@@ -94,6 +99,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Pummel",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Pummel, target = "target" },
+    },
     {
         name = "BattleShout",
         conditions = {
@@ -151,6 +164,7 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Pummel" },
     { name = "BattleShout" },
     { name = "DeathWish" },
     { name = "Execute" },
