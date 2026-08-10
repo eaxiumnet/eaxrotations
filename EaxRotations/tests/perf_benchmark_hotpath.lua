@@ -1,6 +1,10 @@
 -- perf_benchmark_hotpath.lua -- performance hot-path benchmark tests.
 -- WHAT:  performance hot-path benchmark tests
--- WHEN:  During CI or manual performance validation.
+-- WHEN:  Manual performance validation ONLY — deliberately NOT registered in
+--        run_rotation_tests.lua, run_verify_all.lua, or the pre-commit gate:
+--        it measures hot-path CPU cost in relative A/B numbers, not pass/fail
+--        assertions, so wiring it into the gate would add noise, not signal.
+--        Run it directly: lua EaxRotations/tests/perf_benchmark_hotpath.lua
 -- WHY:   Measures hot-path performance and prevents regression in frame-budget.
 -- SAFETY: Run in isolation; results are relative to baseline.
 
