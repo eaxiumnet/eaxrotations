@@ -687,57 +687,32 @@ add('|---|---|---|---|')
 local apl_keys = {}
 for k in pairs(APL_STATUS) do apl_keys[#apl_keys + 1] = k end
 table.sort(apl_keys)
+-- Fixture column is DERIVED from the manifest (apl_status.lua ENTRIES), the
+-- single source of truth — never a hardcoded per-key map. basename of
+-- entry.fixture for JSON pins, else "Go: <go_ref>" for TBC Go-dispatch pins.
+-- A manifest key with neither fixture nor go_ref (or a key absent from the
+-- manifest entirely) is a HARD FAIL: the dk_frost evidence mislabeling during
+-- the pin campaign (scorecard showed the mage frost fixture's evidence) was
+-- exactly this drift class — a key the hardcoded map missed rendering the
+-- wrong fixture instead of failing.
+local manifest_by_key = {}
+for _, e in ipairs(apl_mod.ENTRIES or {}) do manifest_by_key[e.key] = e end
 for _, k in ipairs(apl_keys) do
-    local fixture = (k == 'wotlk/fire' and 'fire_wotlk.apl.json')
-        or (k == 'wotlk/affliction' and 'affliction_wotlk.apl.json')
-        or (k == 'wotlk/cat' and 'feralcat_wotlk.apl.json')
-        or (k == 'wotlk/arcane' and 'arcane_wotlk.apl.json')
-        or (k == 'wotlk/frost' and 'frost_wotlk.apl.json')
-        or (k == 'wotlk/combat' and 'combat_wotlk.apl.json')
-        or (k == 'wotlk/assassination' and 'mutilate_wotlk.apl.json')
-        or (k == 'wotlk/elemental' and 'elemental_wotlk.apl.json')
-        or (k == 'wotlk/shadow' and 'shadow_wotlk.apl.json')
-        or (k == 'wotlk/priest/holy' and 'holy_priest_wotlk.apl.json')
-        or (k == 'wotlk/priest/discipline' and 'disc_priest_wotlk.apl.json')
-        or (k == 'wotlk/deathknight/blood' and 'dk_blood_wotlk.apl.json')
-        or (k == 'wotlk/deathknight/frost' and 'dk_frost_wotlk.apl.json')
-        or (k == 'wotlk/deathknight/unholy' and 'dk_unholy_wotlk.apl.json')
-        or (k == 'wotlk/druid/balance' and 'druid_balance_wotlk.apl.json')
-        or (k == 'wotlk/druid/bear' and 'druid_bear_wotlk.apl.json')
-        or (k == 'wotlk/hunter/beast_mastery' and 'hunter_bm_wotlk.apl.json')
-        or (k == 'wotlk/hunter/marksmanship' and 'hunter_mm_wotlk.apl.json')
-        or (k == 'wotlk/hunter/survival' and 'hunter_sv_wotlk.apl.json')
-        or (k == 'wotlk/paladin/protection' and 'pal_prot_wotlk.apl.json')
-        or (k == 'wotlk/paladin/retribution' and 'pal_ret_wotlk.apl.json')
-        or (k == 'wotlk/shaman/enhancement' and 'sham_enh_wotlk.apl.json')
-        or (k == 'wotlk/warlock/demonology' and 'wl_demo_wotlk.apl.json')
-        or (k == 'wotlk/warlock/destruction' and 'wl_destro_wotlk.apl.json')
-        or (k == 'wotlk/warrior/arms' and 'war_arms_wotlk.apl.json')
-        or (k == 'wotlk/warrior/fury' and 'war_fury_wotlk.apl.json')
-        or (k == 'wotlk/warrior/protection' and 'war_prot_wotlk.apl.json')
-        or (k == 'tbc/shadow' and 'Go: sim/priest/shadow_rotation.go')
-        or (k == 'tbc/affliction' and 'Go: sim/warlock_rotations.go')
-        or (k == 'tbc/combat' and 'Go: sim/rogue_rotation.go')
-        or (k == 'tbc/elemental' and 'Go: sim/shaman_elemental_rotation.go')
-        or (k == 'tbc/fire' and 'Go: sim/mage_rotations.go')
-        or (k == 'tbc/frost' and 'Go: sim/mage_rotations.go')
-        or (k == 'tbc/balance' and 'Go: sim/druid_balance_rotation.go')
-        or (k == 'tbc/cat' and 'Go: sim/druid_feral_rotation.go')
-        or (k == 'tbc/beast_mastery' and 'Go: sim/hunter_rotation.go')
-        or (k == 'tbc/marksmanship' and 'Go: sim/hunter_rotation.go')
-        or (k == 'tbc/survival' and 'Go: sim/hunter_rotation.go')
-        or (k == 'tbc/arcane' and 'Go: sim/mage_rotations.go')
-        or (k == 'tbc/retribution' and 'Go: sim/paladin_retribution_rotation.go')
-        or (k == 'tbc/smite' and 'Go: sim/priest_smite_rotation.go')
-        or (k == 'tbc/enhancement' and 'Go: sim/shaman_enhancement_rotation.go')
-        or (k == 'tbc/demonology' and 'Go: sim/warlock_rotations.go')
-        or (k == 'tbc/destruction' and 'Go: sim/warlock_rotations.go')
-        or (k == 'tbc/arms' and 'Go: sim/warrior_dps_rotation.go')
-        or (k == 'tbc/fury' and 'Go: sim/warrior_dps_rotation.go')
-        or (k == 'tbc/bear' and 'Go: sim/druid_tank_rotation.go')
-        or (k == 'tbc/paladin/protection' and 'Go: sim/paladin_protection_rotation.go')
-        or (k == 'tbc/warrior/protection' and 'Go: sim/warrior/protection/rotation.go')
-        or (k == 'tbc/caster' and 'Go: sim/druid/balance/rotation.go (damage-chain subset)') or '-'
+    local entry = manifest_by_key[k]
+    local fixture
+    if entry and entry.fixture then
+        fixture = entry.fixture:match('[^/\\]+$') -- basename
+    elseif entry and entry.go_ref then
+        fixture = 'Go: ' .. entry.go_ref
+    end
+    if not fixture then
+        problems[#problems + 1] = {
+            kind = 'badapl',
+            msg = 'APL manifest key "' .. tostring(k) .. '" has no fixture or go_ref ' ..
+                '(scorecard fixture column cannot render; add one to tools/apl_status.lua)',
+        }
+        fixture = '-'
+    end
     add('| ' .. k .. ' | ' .. fixture .. ' | ' .. APL_STATUS[k] .. ' | '
         .. tostring(APL_EVIDENCE[k] or '-') .. ' |')
 end
