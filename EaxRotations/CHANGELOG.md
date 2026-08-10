@@ -1,5 +1,73 @@
 # Changelog
 
+## 2.22.0 — 2026-08-10
+
+### Customer Changelog
+- **Release pipeline automated end-to-end**: the release artifact is now
+  built in CI, not on a maintainer machine. `tools/create_release_zip.py`
+  is tracked and fixed (cwd-independent git archive, Windows-safe staging,
+  pinned timestamps — the zip is byte-reproducible, 833 entries of tracked
+  lua+md only, self-verifying). GitHub Actions runs a release-artifact job
+  on master pushes that builds the zip, guards it (>1 MB), verifies its
+  exact-set contents against `git ls-files` (no extra, missing, or
+  duplicate entries), and uploads it (`eaxrotations-release`, ~3.1 MB).
+  ~115 MB of stale release zips were purged from the working tree.
+- **Buff/debuff data pipeline made honest**: the committed
+  `buff_debuff_full_verification.json` was stale by 5 WotLK spell IDs;
+  regenerated to 2231/2231 unique IDs (fail 0). The local-only manual
+  regeneration step over the gitignored wowsims DBC is now documented in
+  the generator and the PvP page, so the committed artifact stays current.
+- **Pre-commit gate extended to 12 steps**: added the vanilla existence
+  audit, the three spell-audit `--self-test` modes, and the clean-checkout
+  dependency probe + its self-test — closing the last local-vs-CI gap
+  (every verify_all component now runs locally except the intentional
+  battery duplication).
+- **Dead-code removal (208 lines)**: never-called `dump_form_detection`
+  debug block in cat, the zero-consumer `izi_unit_state_sylvanas.lua`
+  module, and two never-used DSL exports removed — all verified
+  unreferenced before deletion.
+- **Paladin middleware dedup**: the duplicated `unitNeedsCleanse`
+  predicate (two byte-identical inline closures) hoisted to one
+  module-level function — a debuff-list edit can no longer silently miss
+  one copy.
+- **Triage preserved**: `never_strategy_triage_tbc_2026-08-10.md`
+  documents the full TBC battery campaign trail (91 → 13) and the gate
+  reasons for each of the 13 remaining pins.
+- Version **2.22.0**.
+- Tests: 475 rotation + 31 leveling suites registered (506 total; all
+  green at runtime).
+
+### Developer Notes
+- **Release-zip builder fixes** (`tools/create_release_zip.py`): derived
+  the repo root from `__file__` so `git -C REPO_ROOT archive HEAD` works
+  from any cwd; replaced the hardcoded Git-Bash `/tmp` staging path with
+  `tempfile.mkstemp` (Windows-safe); pinned entry timestamps via
+  `ZipInfo(date_time=(1980,1,1,0,0,0))` so consecutive builds are md5-
+  identical; failure branches remove a stale/partial output zip.
+- **CI entry-count pin**: the release-artifact job compares the zip to
+  the tracked lua+md set computed dynamically from `git ls-files` (833
+  today — no hardcoded number) and fails on any extra/missing/duplicate
+  entry; actionlint 1.7.12 clean; verified live in CI (log shows 833/833,
+  `OK: artifact == tracked tree`).
+- **Pre-commit 6 → 10 → 12**: step 11 runs the vanilla existence audit +
+  the three spell-audit `--self-test` modes; step 12 runs the
+  clean-checkout probe + self-test; all new invocations use the exact
+  verify_all commands/flags; `.git/hooks/pre-commit` re-synced via the
+  documented cp (md5-identical).
+- **Dead-code evidence**: `dump_form_detection` (cat:44-87) had zero call
+  sites incl. dynamic; `izi_unit_state` had zero requires/package.loaded
+  refs; DSL `register_condition`/`register_action` were never the builtin
+  population path (direct table assignment is) and had zero callers.
+- **unitNeedsCleanse hoist**: single module-level local at
+  `middleware_sylvanas.lua:121`; both handlers call it; debuff id-sets
+  verified byte-identical (appear exactly once each); dup-name rescan of
+  all class files now 0.
+- **buff_debuff regeneration**: +5 WotLK IDs (39023, 47488, 47610, 48089,
+  48660) from the rank-audit pins; summary ok 2226 → 2231, online_wotlk
+  1073 → 1075, fail 0; artifact pinned to LF via
+  `EaxRotations/tools/.gitattributes` so the run_all_checks.sh drift
+  check is line-ending-independent.
+
 ## 2.21.0 — 2026-08-10
 
 ### Customer Changelog
