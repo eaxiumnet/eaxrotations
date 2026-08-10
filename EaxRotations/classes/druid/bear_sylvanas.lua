@@ -607,7 +607,7 @@ end
 
 -- DEBUFF MAINTENANCE  (wowsims: Faerie Fire + Demo Roar) ---------------------
 -- NOTE: FaerieFireFeral MUST be registered BEFORE DemoralizingRoar (wowsims/tbc
---       sim_druid_tank_rotation.go checks FF first; test contract mirrors it).
+--       sim/druid/tank/rotation.go checks FF first; test contract mirrors it).
 
 local _demo_roar_attempts = {} -- keyed by target guid -> timestamp of last attempt
 local DEMO_ROAR_IMMUNE_COOLDOWN = 8
@@ -938,7 +938,7 @@ local ACTIONS = {
     { name = "BashInterrupt",    spell = ACTION.Bash,             required_form = "bear",
       min_rage = RAGE_BASH, matches = bash_interrupt_matches },
 
-    -- Debuffs (wowsims/tbc sim_druid_tank_rotation.go: Faerie Fire BEFORE
+    -- Debuffs (wowsims/tbc sim/druid/tank/rotation.go: Faerie Fire BEFORE
     -- Demoralizing Roar — FF is the armor debuff checked first in the dispatch)
     -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
     { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, required_form = "bear", requires_in_combat = true },

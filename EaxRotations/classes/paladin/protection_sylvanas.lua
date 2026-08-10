@@ -1262,7 +1262,7 @@ local strategies = {
 
  { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(ACTION.HolyShield, context.me, "[PROTECTION] HolyShield") end },
 
- -- Wowsims APL order (sim_paladin_protection_rotation.go):
+ -- Wowsims APL order (sim/paladin/protection/rotation.go):
  -- HolyShield -> Consecration -> Judgement/Seal cycle -> Exorcism -> Hammer of Wrath -> Avenger's Shield
 
  { name = "Consecration", matches = consecration_matches, execute = function(context)

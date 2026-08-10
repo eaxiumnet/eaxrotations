@@ -106,7 +106,7 @@ local strategies = {
     { name = "MindFlay" },
 }
 
--- Priority order mirrors wowsims shadow APL (ui/priest/apls/shadow.apl.json):
+-- Priority order mirrors wowsims shadow APL (ui/shadow_priest/apls/default.apl.json):
 -- DP > SWP > VT > MindBlast > MindFlay.
 -- Name-based substitution preserves the existing priority order.
 for i = 1, #strategies do

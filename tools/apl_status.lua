@@ -927,7 +927,7 @@ M.ENTRIES = {
     -- -----------------------------------------------------------------------
     {
         key = "tbc/shadow",
-        go_ref = "sim/priest/shadow_rotation.go",
+        go_ref = "sim/priest/shadow/rotation.go",
         class_id = 5,
         spec_file = "EaxRotations/classes/priest/shadow_sylvanas.lua",
         spells = "PriestSpells",
@@ -939,7 +939,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/affliction",
-        go_ref = "sim/warlock_rotations.go",
+        go_ref = "sim/warlock/rotations.go",
         class_id = 9,
         spec_file = "EaxRotations/classes/warlock/affliction_sylvanas.lua",
         spells = "WarlockSpells",
@@ -954,7 +954,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/combat",
-        go_ref = "sim/rogue_rotation.go",
+        go_ref = "sim/rogue/rotation.go",
         class_id = 4,
         spec_file = "EaxRotations/classes/rogue/combat_sylvanas.lua",
         spells = "RogueSpells",
@@ -965,7 +965,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/elemental",
-        go_ref = "sim/shaman_elemental_rotation.go",
+        go_ref = "sim/shaman/elemental/rotation.go",
         class_id = 7,
         spec_file = "EaxRotations/classes/shaman/elemental_sylvanas.lua",
         spells = "ShamanSpells",
@@ -978,7 +978,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/fire",
-        go_ref = "sim/mage_rotations.go",
+        go_ref = "sim/mage/rotations.go",
         class_id = 8,
         spec_file = "EaxRotations/classes/mage/fire_sylvanas.lua",
         spells = "MageSpells",
@@ -992,7 +992,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/frost",
-        go_ref = "sim/mage_rotations.go",
+        go_ref = "sim/mage/rotations.go",
         class_id = 8,
         spec_file = "EaxRotations/classes/mage/frost_sylvanas.lua",
         spells = "MageSpells",
@@ -1012,7 +1012,7 @@ M.ENTRIES = {
     -- -----------------------------------------------------------------------
     {
         key = "tbc/balance",
-        go_ref = "sim/druid_balance_rotation.go",
+        go_ref = "sim/druid/balance/rotation.go",
         class_id = 11,
         spec_file = "EaxRotations/classes/druid/balance_sylvanas.lua",
         spells = "DruidSpells",
@@ -1023,7 +1023,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/cat",
-        go_ref = "sim/druid_feral_rotation.go",
+        go_ref = "sim/druid/feral/rotation.go",
         class_id = 11,
         spec_file = "EaxRotations/classes/druid/cat_sylvanas.lua",
         spells = "DruidSpells",
@@ -1034,7 +1034,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/beast_mastery",
-        go_ref = "sim/hunter_rotation.go",
+        go_ref = "sim/hunter/rotation.go",
         class_id = 3,
         spec_file = "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua",
         spells = "HunterSpells",
@@ -1045,7 +1045,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/marksmanship",
-        go_ref = "sim/hunter_rotation.go",
+        go_ref = "sim/hunter/rotation.go",
         class_id = 3,
         spec_file = "EaxRotations/classes/hunter/marksmanship_sylvanas.lua",
         spells = "HunterSpells",
@@ -1056,7 +1056,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/survival",
-        go_ref = "sim/hunter_rotation.go",
+        go_ref = "sim/hunter/rotation.go",
         class_id = 3,
         spec_file = "EaxRotations/classes/hunter/survival_sylvanas.lua",
         spells = "HunterSpells",
@@ -1067,7 +1067,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/arcane",
-        go_ref = "sim/mage_rotations.go",
+        go_ref = "sim/mage/rotations.go",
         class_id = 8,
         spec_file = "EaxRotations/classes/mage/arcane_sylvanas.lua",
         spells = "MageSpells",
@@ -1078,7 +1078,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/retribution",
-        go_ref = "sim/paladin_retribution_rotation.go",
+        go_ref = "sim/paladin/retribution/rotation.go",
         class_id = 2,
         spec_file = "EaxRotations/classes/paladin/retribution_sylvanas.lua",
         spells = "PaladinSpells",
@@ -1089,7 +1089,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/smite",
-        go_ref = "sim/priest_smite_rotation.go",
+        go_ref = "sim/priest/smite/rotation.go",
         class_id = 5,
         spec_file = "EaxRotations/classes/priest/smite_sylvanas.lua",
         spells = "PriestSpells",
@@ -1100,7 +1100,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/enhancement",
-        go_ref = "sim/shaman_enhancement_rotation.go",
+        go_ref = "sim/shaman/enhancement/rotation.go",
         class_id = 7,
         spec_file = "EaxRotations/classes/shaman/enhancement_sylvanas.lua",
         spells = "ShamanSpells",
@@ -1111,7 +1111,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/demonology",
-        go_ref = "sim/warlock_rotations.go",
+        go_ref = "sim/warlock/rotations.go",
         class_id = 9,
         spec_file = "EaxRotations/classes/warlock/demonology_sylvanas.lua",
         spells = "WarlockSpells",
@@ -1122,7 +1122,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/destruction",
-        go_ref = "sim/warlock_rotations.go",
+        go_ref = "sim/warlock/rotations.go",
         class_id = 9,
         spec_file = "EaxRotations/classes/warlock/destruction_sylvanas.lua",
         spells = "WarlockSpells",
@@ -1133,7 +1133,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/arms",
-        go_ref = "sim/warrior_dps_rotation.go",
+        go_ref = "sim/warrior/dps/rotation.go",
         class_id = 1,
         spec_file = "EaxRotations/classes/warrior/arms_sylvanas.lua",
         spells = "WarriorSpells",
@@ -1144,7 +1144,7 @@ M.ENTRIES = {
     },
     {
         key = "tbc/fury",
-        go_ref = "sim/warrior_dps_rotation.go",
+        go_ref = "sim/warrior/dps/rotation.go",
         class_id = 1,
         spec_file = "EaxRotations/classes/warrior/fury_sylvanas.lua",
         spells = "WarriorSpells",
@@ -1154,12 +1154,12 @@ M.ENTRIES = {
         reference_names = { "Execute", "Bloodthirst", "Whirlwind", "Overpower" },
     },
     -- Batch 3: remaining DPS/tank specs with a wowsims/tbc Go dispatch.
-    -- druid bear: sim/druid_tank_rotation.go doRotation checks FaerieFire BEFORE
+    -- druid bear: sim/druid/tank/rotation.go doRotation checks FaerieFire BEFORE
     -- DemoralizingRoar, then Mangle > Lacerate (Swipe is AoE/AP-gated, Maul is
     -- queued on-next-swing — both excluded as non-GCD branches).
     {
         key = "tbc/bear",
-        go_ref = "sim/druid_tank_rotation.go",
+        go_ref = "sim/druid/tank/rotation.go",
         class_id = 11,
         spec_file = "EaxRotations/classes/druid/bear_sylvanas.lua",
         spells = "DruidSpells",
@@ -1168,12 +1168,12 @@ M.ENTRIES = {
         },
         reference_names = { "FaerieFireFeral", "DemoralizingRoar", "MangleBear", "Lacerate" },
     },
-    -- paladin protection: sim/paladin_protection_rotation.go OnGCDReady checks
+    -- paladin protection: sim/paladin/protection/rotation.go OnGCDReady checks
     -- HolyShield -> Consecration -> Judgement/Seal -> Exorcism (seal is applied
     -- on the Judgement branch; AoE Avenger's Shield excluded as not in the GCD).
     {
         key = "tbc/paladin/protection",
-        go_ref = "sim/paladin_protection_rotation.go",
+        go_ref = "sim/paladin/protection/rotation.go",
         class_id = 2,
         spec_file = "EaxRotations/classes/paladin/protection_sylvanas.lua",
         spells = "PaladinSpells",

@@ -16,7 +16,7 @@ here + one entry in `tools/apl_status.lua`'s `M.ENTRIES`.
 | `combat_wotlk.apl.json` | `wowsims/wotlk` `ui/rogue/apls/combat.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `mutilate_wotlk.apl.json` | `wowsims/wotlk` `ui/rogue/apls/mutilate.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `elemental_wotlk.apl.json` | `wowsims/wotlk` `ui/elemental_shaman/apls/advanced.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
-| `shadow_wotlk.apl.json` | `wowsims/wotlk` `ui/priest/apls/shadow.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `shadow_wotlk.apl.json` | `wowsims/wotlk` `ui/shadow_priest/apls/default.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `disc_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/disc.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `holy_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/holy.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `dk_blood_wotlk.apl.json` | `wowsims/wotlk` `ui/deathknight/apls/blood_dps.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
@@ -122,27 +122,27 @@ extra strategies (potions/defensives/moving variants).
 
 | Manifest key | Go source (wowsims/tbc `master`) | Reference order |
 |---|---|---|
-| `tbc/shadow` | `sim/priest/shadow_rotation.go` `tryUseGCD` | VampiricTouch → ShadowWordPain → DevouringPlague → MindBlast → MindFlay |
-| `tbc/affliction` | `sim/warlock_rotations.go` `tryUseGCD` (after curse switch) | UnstableAffliction → Corruption → SiphonLife → Immolate → ShadowBolt |
-| `tbc/combat` | `sim/rogue_rotation.go` `doPlan*` family | SliceAndDice → Eviscerate → SinisterStrike |
-| `tbc/elemental` | `sim/shaman_elemental_rotation.go` (LB/CL-only sim) | ChainLightning → LightningBolt |
-| `tbc/fire` | `sim/mage_rotations.go` `doFireRotation` | Scorch (5-stack) → Fireball |
-| `tbc/frost` | `sim/mage_rotations.go` `doFrostRotation` | Frostbolt |
-| `tbc/balance` | `sim/druid_balance_rotation.go` `actRotation` | FaerieFire → InsectSwarm → Moonfire → Starfire |
-| `tbc/cat` | `sim/druid_feral_rotation.go` `doRotation` | FaerieFire → Rip → Mangle → FerociousBite → Shred |
-| `tbc/beast_mastery` | `sim/hunter_rotation.go` `tryUsePrioGCD`/`lazyRotation` | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
-| `tbc/marksmanship` | `sim/hunter_rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
-| `tbc/survival` | `sim/hunter_rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
-| `tbc/arcane` | `sim/mage_rotations.go` `doArcaneRotation` | ArcaneBlast → Frostbolt(conserve) → ArcaneMissiles |
-| `tbc/retribution` | `sim/paladin_retribution_rotation.go` `mainRotation` | Judge(Crusader) → ApplySeal → CrusaderStrike → SealOfBlood |
-| `tbc/smite` | `sim/priest_smite_rotation.go` `tryUseGCD` | ShadowWordPain → Starshards → DevPlague → MindBlast → Smite |
-| `tbc/enhancement` | `sim/shaman_enhancement_rotation.go` (schedule) | Stormstrike → FlameShock → EarthShock → FrostShock |
-| `tbc/demonology` | `sim/warlock_rotations.go` `tryUseGCD` | Corruption → SiphonLife → Immolate → ShadowBolt |
-| `tbc/destruction` | `sim/warlock_rotations.go` (Incinerate branch) | Corruption → Immolate → Incinerate |
-| `tbc/arms` | `sim/warrior_dps_rotation.go` `normalRotation` | Execute → MortalStrike → Whirlwind → Overpower |
-| `tbc/fury` | `sim/warrior_dps_rotation.go` `normalRotation` | Execute → Bloodthirst → Whirlwind → Overpower |
-| `tbc/bear` | `sim/druid_tank_rotation.go` `doRotation` | FaerieFire → DemoralizingRoar → Mangle → Lacerate |
-| `tbc/paladin/protection` | `sim/paladin_protection_rotation.go` `OnGCDReady` | HolyShield → Consecration → Judgement → Seal → Exorcism |
+| `tbc/shadow` | `sim/priest/shadow/rotation.go` `tryUseGCD` | VampiricTouch → ShadowWordPain → DevouringPlague → MindBlast → MindFlay |
+| `tbc/affliction` | `sim/warlock/rotations.go` `tryUseGCD` (after curse switch) | UnstableAffliction → Corruption → SiphonLife → Immolate → ShadowBolt |
+| `tbc/combat` | `sim/rogue/rotation.go` `doPlan*` family | SliceAndDice → Eviscerate → SinisterStrike |
+| `tbc/elemental` | `sim/shaman/elemental/rotation.go` (LB/CL-only sim) | ChainLightning → LightningBolt |
+| `tbc/fire` | `sim/mage/rotations.go` `doFireRotation` | Scorch (5-stack) → Fireball |
+| `tbc/frost` | `sim/mage/rotations.go` `doFrostRotation` | Frostbolt |
+| `tbc/balance` | `sim/druid/balance/rotation.go` `actRotation` | FaerieFire → InsectSwarm → Moonfire → Starfire |
+| `tbc/cat` | `sim/druid/feral/rotation.go` `doRotation` | FaerieFire → Rip → Mangle → FerociousBite → Shred |
+| `tbc/beast_mastery` | `sim/hunter/rotation.go` `tryUsePrioGCD`/`lazyRotation` | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/marksmanship` | `sim/hunter/rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/survival` | `sim/hunter/rotation.go` (same dispatch) | SerpentSting → MultiShot → ArcaneShot → SteadyShot |
+| `tbc/arcane` | `sim/mage/rotations.go` `doArcaneRotation` | ArcaneBlast → Frostbolt(conserve) → ArcaneMissiles |
+| `tbc/retribution` | `sim/paladin/retribution/rotation.go` `mainRotation` | Judge(Crusader) → ApplySeal → CrusaderStrike → SealOfBlood |
+| `tbc/smite` | `sim/priest/smite/rotation.go` `tryUseGCD` | ShadowWordPain → Starshards → DevPlague → MindBlast → Smite |
+| `tbc/enhancement` | `sim/shaman/enhancement/rotation.go` (schedule) | Stormstrike → FlameShock → EarthShock → FrostShock |
+| `tbc/demonology` | `sim/warlock/rotations.go` `tryUseGCD` | Corruption → SiphonLife → Immolate → ShadowBolt |
+| `tbc/destruction` | `sim/warlock/rotations.go` (Incinerate branch) | Corruption → Immolate → Incinerate |
+| `tbc/arms` | `sim/warrior/dps/rotation.go` `normalRotation` | Execute → MortalStrike → Whirlwind → Overpower |
+| `tbc/fury` | `sim/warrior/dps/rotation.go` `normalRotation` | Execute → Bloodthirst → Whirlwind → Overpower |
+| `tbc/bear` | `sim/druid/tank/rotation.go` `doRotation` | FaerieFire → DemoralizingRoar → Mangle → Lacerate |
+| `tbc/paladin/protection` | `sim/paladin/protection/rotation.go` `OnGCDReady` | HolyShield → Consecration → Judgement → Seal → Exorcism |
 | `tbc/warrior/protection` | `sim/warrior/protection/rotation.go` `doRotation` | ShieldSlam → Revenge → Devastate → SunderArmor |
 | `tbc/caster` | `sim/druid/balance/rotation.go` `doRotation` (damage-chain subset) | FaerieFire → Moonfire → Wrath |
 

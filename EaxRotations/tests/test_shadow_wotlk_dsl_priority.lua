@@ -88,7 +88,7 @@ assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
--- wowsims shadow APL order (ui/priest/apls/shadow.apl.json): DP > SWP > VT > MindBlast > MindFlay
+-- wowsims shadow APL order (ui/shadow_priest/apls/default.apl.json): DP > SWP > VT > MindBlast > MindFlay
 local expected_order = {
     "DevouringPlague",
     "ShadowWordPain",

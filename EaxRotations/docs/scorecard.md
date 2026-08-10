@@ -121,28 +121,28 @@ Status is computed live by `tools/apl_status.lua` from the pinned wowsims APL fi
 
 | Spec | Fixture | Verdict | Evidence |
 |---|---|---|---|
-| tbc/affliction | Go: sim/warlock_rotations.go | pass | Go reference: UnstableAffliction > CorruptionDoT > SiphonLife > ImmolateDoT > ShadowBoltFiller |
-| tbc/arcane | Go: sim/mage_rotations.go | pass | Go reference: ArcaneBlast > FrostboltConserve > ArcaneMissiles |
-| tbc/arms | Go: sim/warrior_dps_rotation.go | pass | Go reference: Execute > MortalStrike > Whirlwind > Overpower |
-| tbc/balance | Go: sim/druid_balance_rotation.go | pass | Go reference: FaerieFireDebuff > InsectSwarmDoT > MoonfireDoT > StarfirePrimary |
-| tbc/bear | Go: sim/druid_tank_rotation.go | pass | Go reference: FaerieFireFeral > DemoralizingRoar > MangleBear > Lacerate |
-| tbc/beast_mastery | Go: sim/hunter_rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
+| tbc/affliction | Go: sim/warlock/rotations.go | pass | Go reference: UnstableAffliction > CorruptionDoT > SiphonLife > ImmolateDoT > ShadowBoltFiller |
+| tbc/arcane | Go: sim/mage/rotations.go | pass | Go reference: ArcaneBlast > FrostboltConserve > ArcaneMissiles |
+| tbc/arms | Go: sim/warrior/dps/rotation.go | pass | Go reference: Execute > MortalStrike > Whirlwind > Overpower |
+| tbc/balance | Go: sim/druid/balance/rotation.go | pass | Go reference: FaerieFireDebuff > InsectSwarmDoT > MoonfireDoT > StarfirePrimary |
+| tbc/bear | Go: sim/druid/tank/rotation.go | pass | Go reference: FaerieFireFeral > DemoralizingRoar > MangleBear > Lacerate |
+| tbc/beast_mastery | Go: sim/hunter/rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
 | tbc/caster | Go: sim/druid/balance/rotation.go (damage-chain subset) | pass | Go reference: FaerieFire > Moonfire > Wrath |
-| tbc/cat | Go: sim/druid_feral_rotation.go | pass | Go reference: FaerieFireFeral > Rip > MangleDebuff > FerociousBite > Shred |
-| tbc/combat | Go: sim/rogue_rotation.go | pass | Go reference: SliceAndDice > Eviscerate > SinisterStrike |
-| tbc/demonology | Go: sim/warlock_rotations.go | pass | Go reference: Corruption > SiphonLife > Immolate > ShadowBolt |
-| tbc/destruction | Go: sim/warlock_rotations.go | pass | Go reference: Corruption > Immolate > Incinerate |
-| tbc/elemental | Go: sim/shaman_elemental_rotation.go | pass | Go reference: ChainLightning > LightningBolt |
-| tbc/enhancement | Go: sim/shaman_enhancement_rotation.go | pass | Go reference: Stormstrike > FlameShock > EarthShock > FrostShock |
-| tbc/fire | Go: sim/mage_rotations.go | pass | Go reference: Scorch > Fireball |
-| tbc/frost | Go: sim/mage_rotations.go | pass | Go reference: Frostbolt |
-| tbc/fury | Go: sim/warrior_dps_rotation.go | pass | Go reference: Execute > Bloodthirst > Whirlwind > Overpower |
-| tbc/marksmanship | Go: sim/hunter_rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
-| tbc/paladin/protection | Go: sim/paladin_protection_rotation.go | pass | Go reference: HolyShield > Consecration > Judgement > SealRighteousness > Exorcism |
-| tbc/retribution | Go: sim/paladin_retribution_rotation.go | pass | Go reference: Ret_JudgeCrusader > Ret_ApplyCrusaderSeal > CrusaderStrike > Ret_SealBlood_Primary |
-| tbc/shadow | Go: sim/priest/shadow_rotation.go | pass | Go reference: VampiricTouch > ShadowWordPain > DevouringPlague > MindBlast > MindFlay |
-| tbc/smite | Go: sim/priest_smite_rotation.go | pass | Go reference: ShadowWordPain > Starshards > DevouringPlague > MindBlast > SmiteFiller |
-| tbc/survival | Go: sim/hunter_rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
+| tbc/cat | Go: sim/druid/feral/rotation.go | pass | Go reference: FaerieFireFeral > Rip > MangleDebuff > FerociousBite > Shred |
+| tbc/combat | Go: sim/rogue/rotation.go | pass | Go reference: SliceAndDice > Eviscerate > SinisterStrike |
+| tbc/demonology | Go: sim/warlock/rotations.go | pass | Go reference: Corruption > SiphonLife > Immolate > ShadowBolt |
+| tbc/destruction | Go: sim/warlock/rotations.go | pass | Go reference: Corruption > Immolate > Incinerate |
+| tbc/elemental | Go: sim/shaman/elemental/rotation.go | pass | Go reference: ChainLightning > LightningBolt |
+| tbc/enhancement | Go: sim/shaman/enhancement/rotation.go | pass | Go reference: Stormstrike > FlameShock > EarthShock > FrostShock |
+| tbc/fire | Go: sim/mage/rotations.go | pass | Go reference: Scorch > Fireball |
+| tbc/frost | Go: sim/mage/rotations.go | pass | Go reference: Frostbolt |
+| tbc/fury | Go: sim/warrior/dps/rotation.go | pass | Go reference: Execute > Bloodthirst > Whirlwind > Overpower |
+| tbc/marksmanship | Go: sim/hunter/rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
+| tbc/paladin/protection | Go: sim/paladin/protection/rotation.go | pass | Go reference: HolyShield > Consecration > Judgement > SealRighteousness > Exorcism |
+| tbc/retribution | Go: sim/paladin/retribution/rotation.go | pass | Go reference: Ret_JudgeCrusader > Ret_ApplyCrusaderSeal > CrusaderStrike > Ret_SealBlood_Primary |
+| tbc/shadow | Go: sim/priest/shadow/rotation.go | pass | Go reference: VampiricTouch > ShadowWordPain > DevouringPlague > MindBlast > MindFlay |
+| tbc/smite | Go: sim/priest/smite/rotation.go | pass | Go reference: ShadowWordPain > Starshards > DevouringPlague > MindBlast > SmiteFiller |
+| tbc/survival | Go: sim/hunter/rotation.go | pass | Go reference: SerpentSting > MultiShot > ArcaneShot > SteadyShot |
 | tbc/warrior/protection | Go: sim/warrior/protection/rotation.go | pass | Go reference: ShieldSlam > Revenge > ThunderClap > DemoralizingShout > Devastate > SunderArmor |
 | wotlk/affliction | affliction_wotlk.apl.json | pass | tools/evidence/apl/affliction_wotlk.apl.json: conformant |
 | wotlk/arcane | arcane_wotlk.apl.json | pass | tools/evidence/apl/arcane_wotlk.apl.json: conformant |
