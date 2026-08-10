@@ -53,7 +53,7 @@ jobs:
         run: luarocks install luafilesystem
 
       - name: luac -p syntax gate (all EaxRotations .lua)
-        # Mirrors pre-commit step [1/4] and run_all_checks.sh step [2/7].
+        # Mirrors pre-commit step [1/15] (luac parse).
         # NOTE: self-contained on tracked files — tools/, AGENTS.md and .github/
         # are untracked by design, so the workflow runs the tracked gate
         # directly instead of shelling out to the local tools/ scripts.
@@ -63,7 +63,7 @@ jobs:
           done
 
       - name: badge-drift check (README + PVP registered totals)
-        # Mirrors pre-commit step [4/4] and run_all_checks.sh step [5/7].
+        # Mirrors pre-commit step [4/15] (badge drift).
         # tools/update_badges.lua is tracked; AGENTS.md is documented
         # local-only, so the tool skips its section with a note when absent.
         run: lua tools/update_badges.lua --check

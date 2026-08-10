@@ -96,9 +96,9 @@ absent) plus the
 files and writes `REPORT_JSON = EaxRotations/tools/buff_debuff_full_verification.json`.
 Run from the project root:
 `python EaxRotations/tools/generate_buff_debuff_verification.py`.
-`run_all_checks.sh` step 1 regenerates it on every gate run and fails on
-drift from the committed JSON, so CI provably regenerates the evidence
-before the rotation suite executes.
+the pre-commit gate regenerates it when the DB is present and fails on
+drift from the committed JSON, so the evidence is provably fresh before
+the rotation suite executes.
 
 ## 5. `test_sod_warlock_warrior_adversarial.lua` — multi-return spread (bug, not env)
 
@@ -134,8 +134,8 @@ Probe-verified: `#roles = 4`, all slots tables. (Note: `select(1, …)` does
   2. `.omo/evidence/task-1-sod-action-map.jsonl` — external SoD Task-1 evidence artifact;
   3. `tools/buff_debuff_full_verification.json` — regenerate offline with
      `python EaxRotations/tools/generate_buff_debuff_verification.py`
-     (generator is now tracked under `EaxRotations/tools/`; `run_all_checks.sh`
-     step 1 regenerates it and drift-checks the committed copy).
+     (generator is now tracked under `EaxRotations/tools/`; the pre-commit
+     gate regenerates it and drift-checks the committed copy).
 - **Test bugs (2, minimal verified fixes, not yet applied):**
   - `test_sod_rotation_matrix.lua` — warden context: use `mainhand_imbue = "rockbiter"` + `sod_runes = { [408531] = true }`;
   - `test_sod_warlock_warrior_adversarial.lua` — `return (require(path))` in `load_role`.
@@ -155,7 +155,7 @@ env-gated in clean checkouts because its evidence artifact is gitignored.
 | `test_aoe_range_audit_contracts.lua` | Plan doc created **tracked** at `EaxRotations/docs/aoe_range_audit_plan_2026-07-16.md`; test repointed (line 108). | ✅ (doc is in `EaxRotations/docs/`) |
 | `test_sod_rotation_matrix.lua` | Warden fixture context → `mainhand_imbue = "rockbiter"` + `sod_runes = { [408531] = true }` (build_state reads `mainhand_imbue`, WardenGate rune gates ShamanisticRage). | ✅ |
 | `test_sod_source_audit.lua` | **Self-provisioning** via the tracked generator `EaxRotations/tools/generate_sod_task1_action_map.lua` (mirrors the test's capture mock, loads all 20 real roles) → 136 unique action IDs into `.omo/evidence/task-1-sod-action-map.jsonl` + manifest. The test regenerates on a cache-miss (clean checkouts included) and clears `package.loaded` so both its own load loop and the generator re-register each role. | ✅ (self-provisioning; no manual step) |
-| `test_id_audit_report.lua` | `python EaxRotations/tools/generate_buff_debuff_verification.py` (offline, reads `wowheadScrape/dbc_extract/wowsims.db` + spell-index bridges; now TRACKED at `EaxRotations/tools/` so CI regenerates it) → `EaxRotations/tools/buff_debuff_full_verification.json` (unique=2226 ok=2226 fail=0). | ✅ (generator + json both tracked; `run_all_checks.sh` step 1 regenerates + drift-checks) |
+| `test_id_audit_report.lua` | `python EaxRotations/tools/generate_buff_debuff_verification.py` (offline, reads `wowheadScrape/dbc_extract/wowsims.db` + spell-index bridges; now TRACKED at `EaxRotations/tools/` so CI regenerates it) → `EaxRotations/tools/buff_debuff_full_verification.json` (unique=2226 ok=2226 fail=0). | ✅ (generator + json both tracked; pre-commit gate regenerates + drift-checks) |
 | `test_sod_warlock_warrior_adversarial.lua` | `return (require(path))` in `load_role` — parens force a single return value (require returns module + resolved path; the path string leaked into the `roles` table). | ✅ |
 
 **Verified:** `run_rotation_tests.lua` → **Total: 466 / Passed: 466 / Failed: 0**;

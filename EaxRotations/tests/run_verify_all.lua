@@ -10,7 +10,7 @@
 --        silently return); parses each runner's own totals instead of
 --        trusting exit codes (the rotation runner exits 0 even when suites
 --        fail).
--- WHEN:  invoked via lua EaxRotations/tests/verify_all.lua (or CI).
+-- WHEN:  invoked via lua EaxRotations/tests/run_verify_all.lua (or CI).
 -- WHY:   single entry point that fails ONLY on *unexpected* failures. The 5
 --        rotation suites that fail on missing env/data-file inputs are
 --        allowed (see docs/rotation_suite_env_gap_triage_2026-08-08.md for
@@ -48,7 +48,16 @@
 --         prot_judgement/prot_seal_command/ret_consecration/ret_consec_dump/
 --         enh_goa_twist scenarios + the buff/debuff spell_action-object
 --         normalization for enh totem auras) cleared the 14 remaining (a)
---         lanes 60->46. When a lane is cleared or a scenario is added, update
+--         lanes 60->46, the (b) bucket close-out (2026-08-10: PvP
+--         mega-scenario + cc_target/succubus/melee_on_you/enemy_healer/
+--         fear_nearby fixtures, combat_time+use_misdirection, race variants,
+--         snare-debuff fixtures, ChallengingRoar toggle, AutoAttack stub)
+--         cleared the 28 fixture-modelable lanes 46->19 (9 correctly-silent +
+--         EncounterReactions declined + the 3 (c) unpinnable remain), and the
+--         threat-family + race close-out (2026-08-10: target-target/threat/
+--         focused-ally stub surface for bear Growl, prot RighteousDefense/BoP,
+--         BM FeignDeath, plus the shadow DevouringPlague race-5 load) cleared
+--         19->13. When a lane is cleared or a scenario is added, update
 --         these expectations here, otherwise verify_all will (correctly) fail
 --         until they are bumped.
 

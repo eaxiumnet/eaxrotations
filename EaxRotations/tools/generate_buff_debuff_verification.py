@@ -18,9 +18,9 @@ fresh checkout has no DB), and the committed JSON embeds DB-derived fields
 Run this script on a machine that HAS the DB, verify the new output with
   lua EaxRotations/tests/test_id_audit_report.lua
 and COMMIT the regenerated EaxRotations/tools/buff_debuff_full_verification.json
-manually. CI does not regenerate it; tools/run_all_checks.sh drift-checks it
-only when the DB is present, and the pre-commit gate / rotation suite simply
-consume the committed artifact.
+manually. CI does not regenerate it; the pre-commit gate drift-checks it only
+when the DB is present, and the rotation suite simply consumes the committed
+artifact.
 """
 from __future__ import annotations
 
@@ -529,7 +529,8 @@ def main() -> int:
 
     # newline="" disables Windows CRLF translation so the artifact is LF on
     # every platform — keeps it byte-identical across dev boxes and CI and
-    # makes the run_all_checks.sh drift check (git diff --quiet) deterministic
+    # keeps the committed artifact deterministic so a drift check
+    # (git diff --quiet) stays quiet
     # (see EaxRotations/tools/.gitattributes: text eol=lf).
     open(REPORT_JSON, "w", encoding="utf-8", newline="").write(json.dumps(report, indent=2))
     print(f"\nWrote {REPORT_JSON}")

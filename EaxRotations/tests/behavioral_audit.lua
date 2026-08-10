@@ -5,7 +5,8 @@
 --        contexts exactly like the dispatcher (build state once, first match wins)
 --        and reports which strategies fire and which NEVER fire across the battery.
 -- WHEN:  Run standalone (`lua behavioral_audit.lua [wotlk]`, report-only, exit 0) or
---        via tests/test_behavioral_audit_battery.lua.
+--        via run_verify_all.lua (which parses this harness's never-firing totals
+--        and pins the live contract: TBC never=13, WotLK 0).
 -- WHY:   Structural audits already pass (spell IDs exist, load compliance, safe_state
 --        nil-guards). This harness hunts the SILENT-GATE defect class -- a strategy
 --        that can never return true in any realistic state (e.g. the cat Rip TTD bug:

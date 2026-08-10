@@ -65,7 +65,7 @@
 - **buff_debuff regeneration**: +5 WotLK IDs (39023, 47488, 47610, 48089,
   48660) from the rank-audit pins; summary ok 2226 → 2231, online_wotlk
   1073 → 1075, fail 0; artifact pinned to LF via
-  `EaxRotations/tools/.gitattributes` so the run_all_checks.sh drift
+  `EaxRotations/tools/.gitattributes` so the committed-artifact drift
   check is line-ending-independent.
 
 ## 2.21.0 — 2026-08-10
@@ -342,7 +342,7 @@
 - `shared/strategy_dsl_sylvanas.lua` — declarative strategy compiler used by all 29 specs.
 - `shared/lazy_context_sylvanas.lua` — per-tick dependency-aware context proxy.
 - Pre-commit hook step [4/4] runs `lua tools/update_badges.lua --check`.
-- Badge drift caught at commit time, matching CI's `run_all_checks.sh` step [4/4].
+- Badge drift caught at commit time, matching CI's badge-drift check.
 - All spec-to-spec variations validated: rage, energy/combo, mana (caster/tank/healer),
   focus/pet, shadow DoT, frost/arcane/fire proc, melee/totem, warlock curse/execute,
   bear tank, feral cat powershift across all 10 classes.
