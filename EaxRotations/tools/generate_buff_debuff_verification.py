@@ -134,7 +134,10 @@ def extract_ids() -> dict:
                 continue
             path = os.path.join(dirpath, fn)
             rel = os.path.relpath(path, ROOT).replace("\\", "/")
-            if rel.endswith("tbc_data_sylvanas.lua") or rel.endswith("wotlk_data_sylvanas.lua"):
+            # tbc_data is a consumable/elixir ID table, not buff/debuff data.
+            # (wotlk_data_sylvanas.lua was deleted 2026-08-10 — dead module,
+            # zero consumers; its clause was removed here with it.)
+            if rel.endswith("tbc_data_sylvanas.lua"):
                 continue
             try:
                 lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
