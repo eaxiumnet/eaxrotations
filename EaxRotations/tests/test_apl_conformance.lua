@@ -313,6 +313,57 @@ for _, pin in ipairs(WOTLK_PIN_CAMPAIGN_FIXTURES) do
 end
 
 -- ---------------------------------------------------------------------------
+-- Unknown action-kind audit (2026-08-10): the parser's priority extraction
+-- silently SKIPS any action kind it does not recognize — the multishield gap
+-- the healer unit had to fix is exactly this class (the disc APL's PW:S was
+-- silently dropped until multishield was added to priority_actions). Every
+-- action node in every pinned fixture must use only KNOWN_ACTION_KINDS, so a
+-- new wowsims action kind fails loudly here instead of silently weakening the
+-- pin. Nested containers (sequence/strictSequence/schedule) are walked too.
+-- ---------------------------------------------------------------------------
+test("every pinned fixture uses only known action kinds (no silent skips)", function()
+    local found = {}
+    for _, e in ipairs(manifest.ENTRIES) do
+        if e.fixture then
+            local raw, err = read_file(e.fixture)
+            assert_true(raw ~= nil, err or ("no fixture content for " .. e.key))
+            local unknown = apl.unknown_action_kinds(apl.decode_json(raw))
+            for _, u in ipairs(unknown) do
+                found[#found + 1] = e.key .. " " .. u.path .. " has unknown action kind '" .. u.kind .. "'"
+            end
+        end
+    end
+    assert_true(#found == 0,
+        "parser would silently skip unknown action kind(s):\n  " .. table.concat(found, "\n  "))
+end)
+
+-- Non-vacuity: a synthetic fixture carrying an unknown kind must be caught.
+test("unknown-kind audit is non-vacuous (synthetic unknown kind is caught)", function()
+    local fake = {
+        type = "TypeAPL",
+        priorityList = {
+            { action = { castSpell = { spellId = { spellId = 42833 } } } },
+            { action = { multiaura = { spellId = { spellId = 12345 } } } }, -- invented kind
+            {
+                action = {
+                    strictSequence = {
+                        actions = {
+                            { action = { castSpell = { spellId = { spellId = 42873 } } } },
+                            { action = { waitUntil = { condition = { spellCanCast = { spellId = { spellId = 55360 } } } } } },
+                        },
+                    },
+                },
+            },
+        },
+    }
+    local unknown = apl.unknown_action_kinds(fake)
+    assert_true(#unknown == 1 and unknown[1].kind == "multiaura",
+        "expected exactly the invented kind 'multiaura' to be flagged, got "
+        .. (#unknown > 0 and unknown[1].kind .. "@" .. unknown[1].path or "nothing"))
+    -- and the known nested kind (waitUntil inside a strictSequence) must NOT be flagged
+end)
+
+-- ---------------------------------------------------------------------------
 -- Negative self-tests: prove the checker actually catches a reorder.
 -- ---------------------------------------------------------------------------
 test("checker: reversed affliction order is caught", function()

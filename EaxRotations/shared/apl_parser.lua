@@ -180,6 +180,58 @@ end
 -- multishield is the healer-analog of multidot (maintain N shields on the
 -- raid, e.g. the wowsims disc priest APL's Power Word: Shield entry) —
 -- extracted the same way so healer APLs pin fully.
+-- Known TypeAPL action-node keys. The four spell-carrying forms are
+-- extracted (cast/channel/multidot/multishield); the rest are documented
+-- non-spell forms the parser intentionally skips (autocastOtherCooldowns,
+-- sequence/strictSequence/resetSequence, schedule, wait/waitUntil, and the
+-- feral catOptimalRotationAction black box). `condition` is per-action
+-- metadata, not an action kind. Anything else is an UNKNOWN action kind — the
+-- silent-skip defect class (the multishield gap the healer unit fixed is this
+-- exact class: the disc APL's PW:S was silently dropped until multishield was
+-- added). unknown_action_kinds() audits every pinned fixture so a new wowsims
+-- action kind fails loudly instead of silently weakening the pin.
+local KNOWN_ACTION_KINDS = {
+    castSpell = true, channelSpell = true, multidot = true, multishield = true,
+    autocastOtherCooldowns = true, sequence = true, strictSequence = true,
+    resetSequence = true, schedule = true, wait = true, waitUntil = true,
+    catOptimalRotationAction = true,
+}
+
+-- Walk the priority list and return every unknown action-kind occurrence as
+-- { kind = <name>, path = <"action.sequence..."> }. Empty when every action
+-- node uses only KNOWN_ACTION_KINDS. Recurses into sequence/strictSequence/
+-- schedule containers so a nested unknown kind (e.g. a waitUntil inside a
+-- strictSequence) is caught, not just top-level nodes.
+function M.unknown_action_kinds(apl)
+    local unknown = {}
+    local pl = type(apl) == "table" and apl.priorityList or {}
+    local function walk_node(a, path)
+        if type(a) ~= "table" then return end
+        for k, v in pairs(a) do
+            if k == "condition" then
+                -- per-action metadata (spellCanCast / spellReady / ...), not an action kind
+            elseif not KNOWN_ACTION_KINDS[k] then
+                unknown[#unknown + 1] = { kind = k, path = path }
+            elseif k == "sequence" or k == "strictSequence" then
+                if type(v) == "table" and type(v.actions) == "table" then
+                    for _, sub in ipairs(v.actions) do
+                        walk_node(sub.action or sub, path .. "." .. k)
+                    end
+                end
+            elseif k == "schedule" then
+                if type(v) == "table" then walk_node(v.innerAction, path .. "." .. k) end
+            end
+            -- castSpell/channelSpell/multidot/multishield and the non-spell
+            -- leaves carry no nested action nodes; their internals (spellId,
+            -- condition fields) are not action kinds.
+        end
+    end
+    for _, entry in ipairs(pl) do
+        walk_node(entry.action, "action")
+    end
+    return unknown
+end
+
 function M.priority_actions(apl, opts)
     local include_sequences = opts and opts.include_sequences
     local out = {}
