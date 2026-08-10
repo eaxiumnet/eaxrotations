@@ -3,7 +3,9 @@
 --        (sylvanas/vanilla-contamination/vanilla-existence/wotlk), the three
 --        audits' --self-test pinned-rank enforcement modes (vanilla TBC_IDS,
 --        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the
---        behavioral battery, and the clean-checkout dependency probe
+--        behavioral battery, the era-pair coverage audit (era-mirror strategy
+--        divergence baseline, run_era_pair_audit_tests.lua), and the
+--        clean-checkout dependency probe
 --        (run_clean_checkout_probe.lua -- flags any test file-read target
 --        that resolves to a gitignored file instead of a tracked or
 --        self-provisioning path, so the 5-suite env-gap class can never
@@ -293,6 +295,23 @@ local components = {
         cmd = "lua " .. R .. "/run_ns_member_audit_tests.lua --self-test",
         check = function(c)
             return { { "self-test [PASS] marker present (bare NS-member calls fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
+        label = "era-pair audit",
+        cmd = "lua " .. R .. "/run_era_pair_audit_tests.lua",
+        check = function(c)
+            local unallowed = num(c, "(%d+) unallowlisted%)")
+            return { { "unallowlisted divergences " .. tostring(unallowed) .. " (expected 0)",
+                       unallowed == 0 } }
+        end,
+    },
+    {
+        label = "era-pair audit self-test",
+        cmd = "lua " .. R .. "/run_era_pair_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (era gaps fire)",
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
