@@ -14,6 +14,10 @@
 #   9. WotLK spell ID audit (positive: every ID exists in the WotLK bridge)
 #  10. Cache-hit safe_state audit (static: frame-cache returns must wrap)
 #      + self-test
+#  11. Vanilla existence audit + spell-audit self-tests (sylvanas/vanilla/
+#      wotlk --self-test modes — pinned-rank enforcement, CI parity)
+#  12. Clean-checkout dependency probe + self-test (untracked test-read
+#      targets; the env-gap class that failed only in CI)
 #
 # INSTALL:
 #   cp tools/pre-commit .git/hooks/pre-commit
@@ -40,7 +44,7 @@ if [ -x "$_LUA51/lua.exe" ]; then LUA="$_LUA51/lua.exe"; else LUA=lua; fi
 # ---------------------------------------------------------------------------
 # 1. luac -p syntax check
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [1/10] Parsing all .lua files with luac -p..."
+echo "[pre-commit] [1/12] Parsing all .lua files with luac -p..."
 
 FAILED=0
 TOTAL=0
@@ -70,7 +74,7 @@ echo "[pre-commit] All Lua files pass syntax check."
 # ---------------------------------------------------------------------------
 # 2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [2/10] Running vanilla TBC spell ID audit..."
+echo "[pre-commit] [2/12] Running vanilla TBC spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_vanilla_audit_tests.lua 2>&1; then
     echo "[pre-commit] Vanilla TBC spell ID audit FAILED. Commit aborted."
@@ -83,7 +87,7 @@ echo "[pre-commit] Vanilla TBC spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 3. Sylvanas spell ID audit (positive: ensures every ID exists in DBC)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [3/10] Running sylvanas spell ID audit..."
+echo "[pre-commit] [3/12] Running sylvanas spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_sylvanas_audit_tests.lua 2>&1; then
     echo "[pre-commit] Sylvanas spell ID audit FAILED. Commit aborted."
@@ -97,7 +101,7 @@ echo "[pre-commit] Sylvanas spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 4. Badge drift check (README.md + AGENTS.md test counts match runners)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [4/10] Checking badge counts are in sync..."
+echo "[pre-commit] [4/12] Checking badge counts are in sync..."
 
 if ! "$LUA" tools/update_badges.lua --check 2>&1; then
     echo "[pre-commit] Badge count drift detected. Commit aborted."
@@ -112,7 +116,7 @@ echo "[pre-commit] Badge counts are in sync."
 # 5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #    Phase 0 gate: unclassified lanes, stale pins, or a stale doc abort.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [5/10] Checking spec scorecard is in sync..."
+echo "[pre-commit] [5/12] Checking spec scorecard is in sync..."
 
 if ! "$LUA" tools/spec_scorecard.lua --check 2>&1; then
     echo "[pre-commit] Spec scorecard drift detected. Commit aborted."
@@ -128,7 +132,7 @@ echo "[pre-commit] Spec scorecard is in sync."
 #    full run_rotation_tests.lua matrix is the only gate that catches rotation
 #    regressions before push; quiet mode suppresses per-suite chatter).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [6/10] Running rotation test suite..."
+echo "[pre-commit] [6/12] Running rotation test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_rotation_tests.lua --quiet 2>&1; then
     echo "[pre-commit] Rotation test suite FAILED. Commit aborted."
@@ -144,7 +148,7 @@ echo "[pre-commit] Rotation test suite passed."
 #    that CI's verify_all runs — a leveling regression must not pass the local
 #    gate and fail only after push.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [7/10] Running leveling test suite..."
+echo "[pre-commit] [7/12] Running leveling test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_leveling_tests.lua --quiet 2>&1; then
     echo "[pre-commit] Leveling test suite FAILED. Commit aborted."
@@ -157,7 +161,7 @@ echo "[pre-commit] Leveling test suite passed."
 # ---------------------------------------------------------------------------
 # 8. WotLK rotation + leveling test suites (45 suites; quiet mode).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [8/10] Running WotLK test suite..."
+echo "[pre-commit] [8/12] Running WotLK test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_wotlk_tests.lua --quiet 2>&1; then
     echo "[pre-commit] WotLK test suite FAILED. Commit aborted."
@@ -170,7 +174,7 @@ echo "[pre-commit] WotLK test suite passed."
 # ---------------------------------------------------------------------------
 # 9. WotLK spell ID audit (positive: every ID exists in the WotLK bridge).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [9/10] Running WotLK spell ID audit..."
+echo "[pre-commit] [9/12] Running WotLK spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_wotlk_audit_tests.lua 2>&1; then
     echo "[pre-commit] WotLK spell ID audit FAILED. Commit aborted."
@@ -188,7 +192,7 @@ echo "[pre-commit] WotLK spell ID audit passed."
 #     warlock/leveling_sylvanas.lua on its first run. --self-test proves the
 #     detector fires on synthetic raw returns.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [10/10] Running cache-hit safe_state audit..."
+echo "[pre-commit] [10/12] Running cache-hit safe_state audit..."
 
 if ! "$LUA" EaxRotations/tests/run_cache_hit_audit_tests.lua 2>&1; then
     echo "[pre-commit] Cache-hit safe_state audit FAILED. Commit aborted."
@@ -202,5 +206,55 @@ if ! "$LUA" EaxRotations/tests/run_cache_hit_audit_tests.lua --self-test 2>&1; t
 fi
 
 echo "[pre-commit] Cache-hit safe_state audit passed."
-echo "[pre-commit] All 10 checks passed."
+
+# ---------------------------------------------------------------------------
+# 11. Vanilla existence audit + spell-audit self-tests (CI parity). The
+#     existence audit is the positive vanilla check (every ID in Vanilla
+#     data) complementing step 2's negative TBC-contamination check; the
+#     three --self-test modes prove the pinned-rank allowlists/blocklists
+#     still fire (a dropped pin silently passes the full-run audits). All
+#     four are sub-second.
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [11/12] Running vanilla existence audit..."
+
+if ! "$LUA" EaxRotations/tests/run_vanilla_existence_audit.lua 2>&1; then
+    echo "[pre-commit] Vanilla existence audit FAILED. Commit aborted."
+    exit 1
+fi
+
+echo "[pre-commit] Vanilla existence audit passed."
+
+for AUDIT in run_sylvanas_audit_tests run_vanilla_audit_tests run_wotlk_audit_tests; do
+    echo "[pre-commit] Running $AUDIT --self-test..."
+    if ! "$LUA" "EaxRotations/tests/$AUDIT.lua" --self-test 2>&1; then
+        echo "[pre-commit] $AUDIT self-test FAILED (pinned ranks/pins no longer fire). Commit aborted."
+        exit 1
+    fi
+done
+
+echo "[pre-commit] Spell-audit self-tests passed."
+
+# ---------------------------------------------------------------------------
+# 12. Clean-checkout dependency probe + self-test. Every io.open/read_file
+#     literal in tests/ must resolve to a git-tracked file or a
+#     self-provisioning artifact (.omo/evidence regenerated per run) — a
+#     test reading a gitignored file passes on a dev box and silently fails
+#     on a clean checkout (the 5-suite env-gap class). The self-test pins
+#     the POSIX directory-vs-file guard.
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [12/12] Running clean-checkout dependency probe..."
+
+if ! "$LUA" EaxRotations/tests/run_clean_checkout_probe.lua 2>&1; then
+    echo "[pre-commit] Clean-checkout dependency probe FAILED. Commit aborted."
+    echo "[pre-commit] A test reads an untracked/non-self-provisioning file. Fix or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+if ! "$LUA" EaxRotations/tests/run_clean_checkout_probe.lua --self-test 2>&1; then
+    echo "[pre-commit] Clean-checkout probe self-test FAILED. Commit aborted."
+    exit 1
+fi
+
+echo "[pre-commit] Clean-checkout dependency probe passed."
+echo "[pre-commit] All 12 checks passed."
 exit 0
