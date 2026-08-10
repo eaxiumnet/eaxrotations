@@ -1,6 +1,6 @@
 #!/bin/sh
-# Git pre-commit hook: prevent Lua syntax, TBC spell ID, badge-count,
-# spec-scorecard, and rotation-suite regressions in EaxRotations.
+# Git pre-commit hook: prevent Lua syntax, spell ID, badge-count,
+# spec-scorecard, and rotation/leveling/WotLK regressions in EaxRotations.
 #
 # Runs in this order:
 #   1. luac -p on all .lua files (syntax check)
@@ -9,6 +9,9 @@
 #   4. Badge drift check (README.md + AGENTS.md test counts match runners)
 #   5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #   6. Rotation test suite (full run, quiet mode)
+#   7. Leveling test suite (full run, quiet mode)
+#   8. WotLK rotation + leveling test suites (full run, quiet mode)
+#   9. WotLK spell ID audit (positive: every ID exists in the WotLK bridge)
 #
 # INSTALL:
 #   cp tools/pre-commit .git/hooks/pre-commit
@@ -35,7 +38,7 @@ if [ -x "$_LUA51/lua.exe" ]; then LUA="$_LUA51/lua.exe"; else LUA=lua; fi
 # ---------------------------------------------------------------------------
 # 1. luac -p syntax check
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [1/6] Parsing all .lua files with luac -p..."
+echo "[pre-commit] [1/9] Parsing all .lua files with luac -p..."
 
 FAILED=0
 TOTAL=0
@@ -65,7 +68,7 @@ echo "[pre-commit] All Lua files pass syntax check."
 # ---------------------------------------------------------------------------
 # 2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [2/6] Running vanilla TBC spell ID audit..."
+echo "[pre-commit] [2/9] Running vanilla TBC spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_vanilla_audit_tests.lua 2>&1; then
     echo "[pre-commit] Vanilla TBC spell ID audit FAILED. Commit aborted."
@@ -78,7 +81,7 @@ echo "[pre-commit] Vanilla TBC spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 3. Sylvanas spell ID audit (positive: ensures every ID exists in DBC)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [3/6] Running sylvanas spell ID audit..."
+echo "[pre-commit] [3/9] Running sylvanas spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_sylvanas_audit_tests.lua 2>&1; then
     echo "[pre-commit] Sylvanas spell ID audit FAILED. Commit aborted."
@@ -92,7 +95,7 @@ echo "[pre-commit] Sylvanas spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 4. Badge drift check (README.md + AGENTS.md test counts match runners)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [4/6] Checking badge counts are in sync..."
+echo "[pre-commit] [4/9] Checking badge counts are in sync..."
 
 if ! "$LUA" tools/update_badges.lua --check 2>&1; then
     echo "[pre-commit] Badge count drift detected. Commit aborted."
@@ -107,7 +110,7 @@ echo "[pre-commit] Badge counts are in sync."
 # 5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #    Phase 0 gate: unclassified lanes, stale pins, or a stale doc abort.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [5/6] Checking spec scorecard is in sync..."
+echo "[pre-commit] [5/9] Checking spec scorecard is in sync..."
 
 if ! "$LUA" tools/spec_scorecard.lua --check 2>&1; then
     echo "[pre-commit] Spec scorecard drift detected. Commit aborted."
@@ -123,7 +126,7 @@ echo "[pre-commit] Spec scorecard is in sync."
 #    full run_rotation_tests.lua matrix is the only gate that catches rotation
 #    regressions before push; quiet mode suppresses per-suite chatter).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [6/6] Running rotation test suite..."
+echo "[pre-commit] [6/9] Running rotation test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_rotation_tests.lua --quiet 2>&1; then
     echo "[pre-commit] Rotation test suite FAILED. Commit aborted."
@@ -132,5 +135,47 @@ if ! "$LUA" EaxRotations/tests/run_rotation_tests.lua --quiet 2>&1; then
 fi
 
 echo "[pre-commit] Rotation test suite passed."
-echo "[pre-commit] All 6 checks passed."
+
+# ---------------------------------------------------------------------------
+# 7. Leveling test suite (31 suites; quiet mode). The scorecard battery covers
+#    the rotation specs, but the leveling runners are a separate suite family
+#    that CI's verify_all runs — a leveling regression must not pass the local
+#    gate and fail only after push.
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [7/9] Running leveling test suite..."
+
+if ! "$LUA" EaxRotations/tests/run_leveling_tests.lua --quiet 2>&1; then
+    echo "[pre-commit] Leveling test suite FAILED. Commit aborted."
+    echo "[pre-commit] Fix the failing suite(s) above or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Leveling test suite passed."
+
+# ---------------------------------------------------------------------------
+# 8. WotLK rotation + leveling test suites (45 suites; quiet mode).
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [8/9] Running WotLK test suite..."
+
+if ! "$LUA" EaxRotations/tests/run_wotlk_tests.lua --quiet 2>&1; then
+    echo "[pre-commit] WotLK test suite FAILED. Commit aborted."
+    echo "[pre-commit] Fix the failing suite(s) above or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] WotLK test suite passed."
+
+# ---------------------------------------------------------------------------
+# 9. WotLK spell ID audit (positive: every ID exists in the WotLK bridge).
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [9/9] Running WotLK spell ID audit..."
+
+if ! "$LUA" EaxRotations/tests/run_wotlk_audit_tests.lua 2>&1; then
+    echo "[pre-commit] WotLK spell ID audit FAILED. Commit aborted."
+    echo "[pre-commit] Fix the invalid WotLK spell IDs above or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] WotLK spell ID audit passed."
+echo "[pre-commit] All 9 checks passed."
 exit 0
