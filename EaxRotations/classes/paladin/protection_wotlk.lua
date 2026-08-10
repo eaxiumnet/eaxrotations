@@ -70,18 +70,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.AvengersShield, target = "target" },
     },
     {
-        name = "HammerOfTheRighteous",
-        conditions = {
-            { type = "state", field = "in_combat", op = "truthy" },
-        },
-        action = { type = "cast", spell = ACTION.HammerOfTheRighteous, target = "target" },
-    },
-    {
         name = "ShieldOfRighteousness",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.ShieldOfRighteousness, target = "target" },
+    },
+    {
+        name = "HammerOfTheRighteous",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.HammerOfTheRighteous, target = "target" },
     },
     {
         name = "Consecration",
@@ -106,8 +106,8 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 local strategies = {
     { name = "AvengersShield" },
-    { name = "HammerOfTheRighteous" },
     { name = "ShieldOfRighteousness" },
+    { name = "HammerOfTheRighteous" },
     { name = "Consecration" },
     { name = "Judgement" },
 }

@@ -109,18 +109,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.KillShot, target = "target" },
     },
     {
-        name = "ExplosiveTrap",
-        conditions = {
-            { type = "state", field = "explosive_trap_remains", op = "<", value = 1 },
-        },
-        action = { type = "cast", spell = ACTION.ExplosiveTrap, target = "target" },
-    },
-    {
         name = "SerpentSting",
         conditions = {
             { type = "state", field = "serpent_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.SerpentSting, target = "target" },
+    },
+    {
+        name = "ExplosiveTrap",
+        conditions = {
+            { type = "state", field = "explosive_trap_remains", op = "<", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.ExplosiveTrap, target = "target" },
     },
     {
         name = "ChimeraShot",
@@ -159,8 +159,8 @@ local strategies = {
     { name = "SilencingShot" },
     { name = "HuntersMark" },
     { name = "KillShot" },
-    { name = "ExplosiveTrap" },
     { name = "SerpentSting" },
+    { name = "ExplosiveTrap" },
     { name = "ChimeraShot" },
     { name = "AimedShot" },
     { name = "MultiShot" },

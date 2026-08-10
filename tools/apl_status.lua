@@ -290,6 +290,262 @@ local function shadow_resolve(id, occurrence)
     return nil
 end
 
+-- ---------------------------------------------------------------------------
+-- Full WotLK pin campaign (2026-08-10): every remaining unpinned WotLK spec
+-- wired from its wowsims/wotlk TypeAPL JSON at 563e4a08 (see SOURCES.md).
+-- Convention mirrors the Phase-2 pins: occurrence-aware resolution (repeat ids
+-- resolve per occurrence so execute/AoE/refresh branches can map to nil or to
+-- absent names), long CDs / racials / queued-next-swing branches resolve nil
+-- (they impose no order constraint), and every entry must map >= 1 real name
+-- (vacuity guard in compute()). Keys are CLASS-QUALIFIED (wotlk/<class>/<spec>)
+-- — never bare — because "holy"/"protection"/"frost" collide across classes.
+-- ---------------------------------------------------------------------------
+-- deathknight blood (ui/deathknight/apls/blood_dps.apl.json): steady chain
+-- PlagueStrike(refresh) -> DeathStrike -> Pestilence(refresh) -> HeartStrike
+-- -> DeathCoil. DancingRuneWeapon/ERW/RaiseDead/HornOfWinter are long CDs/buffs
+-- -> nil (ours sit as defensives at the top; the sim casts them mid-list).
+local function dk_blood_resolve(id, occurrence)
+    if id == 49921 then return "PlagueStrike" end
+    -- DeathStrike appears twice (pos 14 main chain, pos 18 steady re-cast after
+    -- HeartStrike); resolving both would force DeathStrike<Pestilence AND
+    -- HeartStrike<DeathStrike — unsatisfiable with one strategy. Pin occ1 only.
+    if id == 49924 then return occurrence == 1 and "DeathStrike" or nil end
+    if id == 50842 then return "Pestilence" end
+    if id == 55262 then return "HeartStrike" end
+    if id == 49895 then return "DeathCoil" end
+    return nil
+end
+
+-- deathknight frost (ui/deathknight/apls/frost_bl_pesti.apl.json): the first
+-- occurrences of Obliterate/FrostStrike/HowlingBlast/BloodStrike (positions
+-- 2-6) are remainingTime<=X EXECUTE branches -> occ 1 resolves nil. Steady
+-- chain: PlagueStrike -> HowlingBlast(refresh) -> FrostStrike(runeGrace/RP) ->
+-- Obliterate -> BloodStrike(refresh) -> HowlingBlast -> FrostStrike. FrostStrike
+-- must precede Obliterate (sim: FrostStrike@20 < Obliterate@21); ours had
+-- Obliterate above FrostStrike — pure order move 2026-08-10.
+local function dk_frost_resolve(id, occurrence)
+    if id == 51425 then return occurrence == 3 and "Obliterate" or nil end -- occ1/2 = execute, occ3 = steady
+    -- FrostStrike appears at pos 20 (runeGrace steady), pos 22 (RP>=115 cap
+    -- dump) and pos 27 (plain filler); HowlingBlast at pos 19 (refresh) and
+    -- pos 25 (refresh). Resolving every occurrence would force FrostStrike
+    -- both before AND after Obliterate (20<21 but 21<22) — unsatisfiable with
+    -- one strategy each. Pin occ2 (the runeGrace FrostStrike / first refresh
+    -- HowlingBlast, the main-chain positions); later re-casts -> nil.
+    if id == 55268 then return occurrence == 2 and "FrostStrike" or nil end -- occ1 = execute
+    if id == 51411 then return occurrence == 2 and "HowlingBlast" or nil end -- occ1 = execute
+    if id == 49930 then return occurrence == 2 and "BloodStrike" or nil end -- occ1 = execute, occ2 = steady
+    if id == 49921 then return "PlagueStrike" end
+    return nil
+end
+
+-- deathknight unholy (ui/deathknight/apls/uh_2h_ss.apl.json): PlagueStrike ->
+-- BloodStrike -> ScourgeStrike -> DeathCoil(filler). The sim's DeathCoil@15 is
+-- the rune-cooldown FILLER — maps to our DeathCoilDump (RP>=40 dump), NOT our
+-- DeathCoil (RP>=100 cap guard, a separate lane absent from the sim). Long CDs
+-- (ERW/SummonGargoyle/HornOfWinter/RaiseDead/BoneShield) -> nil. BloodStrike
+-- must precede ScourgeStrike (sim: BS@4 < SS@11); ours had SS above BS — pure
+-- order move 2026-08-10.
+local function dk_unholy_resolve(id, occurrence)
+    if id == 49921 then return "PlagueStrike" end
+    -- BloodStrike appears twice: pos 4 is the gated opener (not auraIsActive
+    -- 66803, a one-time branch) and pos 12 is the steady filler AFTER
+    -- ScourgeStrike. Pin occ2 only — the steady chain is PlagueStrike ->
+    -- ScourgeStrike -> BloodStrike, which our rotation already satisfies.
+    if id == 49930 then return occurrence == 2 and "BloodStrike" or nil end
+    if id == 55271 then return "ScourgeStrike" end
+    if id == 49895 then return "DeathCoilDump" end
+    return nil
+end
+
+-- druid balance (ui/balance_druid/apls/basic_p3.apl.json): Moonfire(occ1 is
+-- the remainingTime<0.5 execute refresh -> nil) -> Starfire -> Wrath ->
+-- InsectSwarm (sim casts IS LAST; ours had it above Moonfire — order move) and
+-- Starfire must precede Wrath (sim: Starfire@9 < Wrath@10; ours had Wrath above
+-- Starfire — order move 2026-08-10). Bloodlust/Starfall(65861)/racials -> nil.
+local function druid_balance_resolve(id, occurrence)
+    if id == 48463 then return occurrence >= 2 and "Moonfire" or nil end -- occ1 = execute
+    -- Starfire appears at pos 9 (eclipse) and pos 12 (plain filler); Wrath at
+    -- pos 10 (eclipse) and pos 13 (plain filler). Resolving both occurrences
+    -- forces Starfire<Wrath AND Wrath<Starfire — unsatisfiable. Pin occ1 (the
+    -- eclipse main chain) only: Starfire(9) < Wrath(10) < InsectSwarm(11).
+    if id == 48465 then return occurrence == 1 and "Starfire" or nil end
+    if id == 48461 then return occurrence == 1 and "Wrath" or nil end
+    if id == 48468 then return "InsectSwarm" end
+    return nil
+end
+
+-- druid bear (ui/feral_tank_druid/apls/default.apl.json): Lacerate(refresh@5
+-- stacks, occ1; build, occ2) -> MangleBear -> FeralFaerieFire (sim casts FF
+-- AFTER Mangle; ours had FF first — pure order move 2026-08-10). Swipe(rage
+-- dump)/Maul(queued next-swing) excluded like the TBC bear pin; 48560
+-- (DemoralizingRoar) not in our rotation -> nil.
+local function druid_bear_resolve(id, occurrence)
+    -- Lacerate appears at pos 3 (5-stack refresh) and pos 9 (build); pinning
+    -- both forces Lacerate<Mangle AND FF<Lacerate — unsatisfiable. Pin occ1.
+    if id == 48568 then return occurrence == 1 and "Lacerate" or nil end
+    if id == 48564 then return "MangleBear" end
+    if id == 16857 then return "FeralFaerieFire" end
+    return nil
+end
+
+-- hunter beast_mastery (ui/hunter/apls/bm.apl.json): Viper -> Dragonhawk ->
+-- KillShot -> ExplosiveTrap -> SerpentSting -> AimedShot -> MultiShot ->
+-- ArcaneShot -> SteadyShot. Conformant as-is.
+local function hunter_bm_resolve(id)
+    if id == 34074 then return "AspectOfTheViper" end
+    if id == 61847 then return "AspectOfTheDragonhawk" end
+    if id == 61006 then return "KillShot" end
+    if id == 49067 then return "ExplosiveTrap" end
+    if id == 49001 then return "SerpentSting" end
+    if id == 49050 then return "AimedShot" end
+    if id == 49048 then return "MultiShot" end
+    if id == 49045 then return "ArcaneShot" end
+    if id == 49052 then return "SteadyShot" end
+    return nil
+end
+
+-- hunter marksmanship (ui/hunter/apls/mm.apl.json): SerpentSting must precede
+-- ExplosiveTrap (sim: SS@6 < ET@7; ours had ET above SS — order move
+-- 2026-08-10). Everything else conformant.
+local function hunter_mm_resolve(id)
+    if id == 34074 then return "AspectOfTheViper" end
+    if id == 61847 then return "AspectOfTheDragonhawk" end
+    if id == 34490 then return "SilencingShot" end
+    if id == 61006 then return "KillShot" end
+    if id == 49001 then return "SerpentSting" end
+    if id == 49067 then return "ExplosiveTrap" end
+    if id == 53209 then return "ChimeraShot" end
+    if id == 49050 then return "AimedShot" end
+    if id == 49048 then return "MultiShot" end
+    if id == 49045 then return "ArcaneShot" end
+    if id == 49052 then return "SteadyShot" end
+    return nil
+end
+
+-- hunter survival (ui/hunter/apls/sv.apl.json): SerpentSting must precede
+-- BlackArrow (sim: SS@8 < BA@9; ours had BA above SS — order move
+-- 2026-08-10). Everything else conformant.
+local function hunter_sv_resolve(id)
+    if id == 34074 then return "AspectOfTheViper" end
+    if id == 61847 then return "AspectOfTheDragonhawk" end
+    if id == 61006 then return "KillShot" end
+    if id == 60053 then return "ExplosiveShot" end
+    if id == 60052 then return "ExplosiveShotProc" end
+    if id == 49067 then return "ExplosiveTrap" end
+    if id == 49001 then return "SerpentSting" end
+    if id == 63672 then return "BlackArrow" end
+    if id == 49050 then return "AimedShot" end
+    if id == 49048 then return "MultiShot" end
+    if id == 49052 then return "SteadyShot" end
+    return nil
+end
+
+-- paladin protection (ui/protection_paladin/apls/default.apl.json):
+-- ShieldOfRighteousness must precede HammerOfTheRighteous (sim: SoR@2 < HoTR@3;
+-- ours had HoTR above SoR — order move 2026-08-10). 48806 (HoW talent) and
+-- 48952 not in our prot rotation -> nil.
+local function pal_prot_resolve(id)
+    if id == 61411 then return "ShieldOfRighteousness" end
+    if id == 53595 then return "HammerOfTheRighteous" end
+    if id == 48819 then return "Consecration" end
+    if id == 53408 then return "Judgement" end
+    return nil
+end
+
+-- paladin retribution (ui/retribution_paladin/apls/default.apl.json):
+-- HammerOfWrath -> Judgement -> CrusaderStrike -> DivineStorm -> Exorcism ->
+-- Consecration. Conformant as-is (67485 = Seal line, not in our rotation).
+local function pal_ret_resolve(id)
+    if id == 48806 then return "HammerOfWrath" end
+    if id == 53408 then return "Judgement" end
+    if id == 35395 then return "CrusaderStrike" end
+    if id == 53385 then return "DivineStorm" end
+    if id == 48801 then return "Exorcism" end
+    if id == 48819 then return "Consecration" end
+    return nil
+end
+
+-- shaman enhancement (ui/enhancement_shaman/apls/default_wf.apl.json): order
+-- identical to ours (FeralSpirit -> Bloodlust -> LightningBolt -> Stormstrike
+-- -> FlameShock -> EarthShock -> CallOfTheElements -> MagmaTotem -> FireNova
+-- -> LightningShield -> LavaLash). Conformant as-is.
+local function sham_enh_resolve(id)
+    if id == 51533 then return "FeralSpirit" end
+    if id == 2825 then return "Bloodlust" end
+    if id == 49238 then return "LightningBolt" end
+    if id == 17364 then return "Stormstrike" end
+    if id == 49233 then return "FlameShock" end
+    if id == 49231 then return "EarthShock" end
+    if id == 66842 then return "CallOfTheElements" end
+    if id == 58734 then return "MagmaTotem" end
+    if id == 61657 then return "FireNova" end
+    if id == 49281 then return "LightningShield" end
+    if id == 60103 then return "LavaLash" end
+    return nil
+end
+
+-- warlock demonology (ui/warlock/apls/demo.apl.json): Corruption(multidot) ->
+-- Immolate -> SoulFire -> ShadowBolt. Corruption must precede Immolate (sim:
+-- Corruption@4 < Immolate@7; ours had Immolate above Corruption — order move
+-- 2026-08-10). Metamorphosis(50589)/curses not in the APL pin set -> nil.
+local function wl_demo_resolve(id)
+    if id == 47813 then return "Corruption" end
+    if id == 47811 then return "Immolate" end
+    if id == 47825 then return "SoulFire" end
+    if id == 47809 then return "ShadowBolt" end
+    return nil
+end
+
+-- warlock destruction (ui/warlock/apls/destro.apl.json): Conflagrate ->
+-- Immolate -> Incinerate. Conformant as-is (ChaosBolt/SoulFire are our extras).
+local function wl_destro_resolve(id)
+    if id == 17962 then return "Conflagrate" end
+    if id == 47811 then return "Immolate" end
+    if id == 47838 then return "Incinerate" end
+    return nil
+end
+
+-- warrior arms (ui/warrior/apls/arms.apl.json): Rend -> Overpower ->
+-- MortalStrike -> Execute -> ThunderClap -> Slam. Overpower must precede
+-- MortalStrike (sim: OP@8 < MS@10; ours had MS above OP — order move
+-- 2026-08-10). Bladestorm(long CD)/Cleave(AoE)/HeroicStrike(queued) -> nil.
+local function war_arms_resolve(id)
+    if id == 47465 then return "Rend" end
+    if id == 7384 then return "Overpower" end
+    if id == 47486 then return "MortalStrike" end
+    if id == 47471 then return "Execute" end
+    if id == 47502 then return "ThunderClap" end
+    if id == 47475 then return "Slam" end
+    return nil
+end
+
+-- warrior fury (ui/warrior/apls/fury.apl.json): Bloodthirst -> Whirlwind(occ2;
+-- occ1 is the numberTargets>1 AoE branch -> nil) -> Slam. Execute is the
+-- execute-phase filler at the BOTTOM of the sim (isExecutePhase@13, below the
+-- Slam!-proc-gated Slam@11); ours sits at the TOP as the execute-phase
+-- priority. Both are execute-gated (ours: execute_ready + rage >= EXECUTE_RAGE_MIN;
+-- sim: isExecutePhase) so the ordering between them is a phase-priority choice,
+-- not a steady-GCD constraint — a pure order move would change live behavior
+-- (our un-proc-gated Slam@rage>=15 would fire before Execute in execute phase).
+-- STRUCTURAL DIVERGENCE, documented 2026-08-10: Execute resolves nil, the fury
+-- pin covers the steady chain Bloodthirst < Whirlwind < Slam only.
+local function war_fury_resolve(id, occurrence)
+    if id == 1680 then return occurrence >= 2 and "Whirlwind" or nil end -- occ1 = AoE
+    if id == 23881 then return "Bloodthirst" end
+    if id == 47475 then return "Slam" end
+    return nil -- Execute: structural divergence, see above
+end
+
+-- warrior protection (ui/protection_warrior/apls/default.apl.json): ShieldSlam
+-- -> ThunderClap -> Devastate. Conformant as-is (HeroicStrike queued,
+-- DemoralizingShout not in our prot rotation -> nil).
+local function war_prot_resolve(id)
+    if id == 47488 then return "ShieldSlam" end
+    if id == 47502 then return "ThunderClap" end
+    if id == 47498 then return "Devastate" end
+    return nil
+end
+
 M.ENTRIES = {
     {
         key = "wotlk/fire",
@@ -450,6 +706,211 @@ M.ENTRIES = {
             if id == 48063 then return nil end -- GreaterHeal filler: not in disc rotation
             return nil
         end,
+    },
+    -- -----------------------------------------------------------------------
+    -- FULL WotLK pin campaign (2026-08-10): every remaining unpinned WotLK
+    -- spec. Fixtures fetched from wowsims/wotlk @ 563e4a08 and byte-verified
+    -- against the pinned commit (see tools/evidence/apl/SOURCES.md). Keys are
+    -- class-qualified (wotlk/<class>/<spec>) — the bare fallback wotlk/<spec>
+    -- would collide "holy" (paladin vs priest), "protection" (paladin vs
+    -- warrior), and "frost" (mage vs DK). Resolvers are occurrence-aware where
+    -- the APL repeats a spell across execute/AoE/refresh branches (see each
+    -- resolver's comment). 11 specs needed a PURE order move to conform (no
+    -- matcher-logic changes); 5 were already conformant.
+    -- -----------------------------------------------------------------------
+    {
+        key = "wotlk/deathknight/blood",
+        fixture = "tools/evidence/apl/dk_blood_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/deathknight/blood_wotlk.lua",
+        class_id = 6,
+        spells = "DeathKnightSpells",
+        actions = {
+            PlagueStrike = 49921, DeathStrike = 49924, Pestilence = 50842,
+            HeartStrike = 55262, DeathCoil = 49895, DancingRuneWeapon = 49028,
+            HornOfWinter = 57623,
+        },
+        resolve = dk_blood_resolve,
+    },
+    {
+        key = "wotlk/deathknight/frost",
+        fixture = "tools/evidence/apl/dk_frost_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/deathknight/frost_wotlk.lua",
+        class_id = 6,
+        spells = "DeathKnightSpells",
+        actions = {
+            PlagueStrike = 49921, HowlingBlast = 51411, FrostStrike = 55268,
+            Obliterate = 51425, BloodStrike = 49930,
+        },
+        resolve = dk_frost_resolve,
+    },
+    {
+        key = "wotlk/deathknight/unholy",
+        fixture = "tools/evidence/apl/dk_unholy_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/deathknight/unholy_wotlk.lua",
+        class_id = 6,
+        spells = "DeathKnightSpells",
+        actions = {
+            PlagueStrike = 49921, BloodStrike = 49930, ScourgeStrike = 55271,
+            DeathCoil = 49895,
+        },
+        resolve = dk_unholy_resolve,
+    },
+    {
+        key = "wotlk/druid/balance",
+        fixture = "tools/evidence/apl/druid_balance_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/druid/balance_wotlk.lua",
+        class_id = 11,
+        spells = "DruidSpells",
+        actions = {
+            Moonfire = 48463, Starfire = 48465, Wrath = 48461, InsectSwarm = 48468,
+        },
+        resolve = druid_balance_resolve,
+    },
+    {
+        key = "wotlk/druid/bear",
+        fixture = "tools/evidence/apl/druid_bear_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/druid/bear_wotlk.lua",
+        class_id = 11,
+        spells = "DruidSpells",
+        actions = {
+            Lacerate = 48568, MangleBear = 48564, FeralFaerieFire = 16857,
+        },
+        resolve = druid_bear_resolve,
+    },
+    {
+        key = "wotlk/hunter/beast_mastery",
+        fixture = "tools/evidence/apl/hunter_bm_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/hunter/beast_mastery_wotlk.lua",
+        class_id = 3,
+        spells = "HunterSpells",
+        actions = {
+            AspectOfTheViper = 34074, AspectOfTheDragonhawk = 61847, KillShot = 61006,
+            ExplosiveTrap = 49067, SerpentSting = 49001, AimedShot = 49050,
+            MultiShot = 49048, ArcaneShot = 49045, SteadyShot = 49052,
+        },
+        resolve = hunter_bm_resolve,
+    },
+    {
+        key = "wotlk/hunter/marksmanship",
+        fixture = "tools/evidence/apl/hunter_mm_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/hunter/marksmanship_wotlk.lua",
+        class_id = 3,
+        spells = "HunterSpells",
+        actions = {
+            AspectOfTheViper = 34074, AspectOfTheDragonhawk = 61847, SilencingShot = 34490,
+            KillShot = 61006, SerpentSting = 49001, ExplosiveTrap = 49067,
+            ChimeraShot = 53209, AimedShot = 49050, MultiShot = 49048,
+            ArcaneShot = 49045, SteadyShot = 49052,
+        },
+        resolve = hunter_mm_resolve,
+    },
+    {
+        key = "wotlk/hunter/survival",
+        fixture = "tools/evidence/apl/hunter_sv_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/hunter/survival_wotlk.lua",
+        class_id = 3,
+        spells = "HunterSpells",
+        actions = {
+            AspectOfTheViper = 34074, AspectOfTheDragonhawk = 61847, KillShot = 61006,
+            ExplosiveShot = 60053, ExplosiveShotProc = 60052, ExplosiveTrap = 49067,
+            SerpentSting = 49001, BlackArrow = 63672, AimedShot = 49050,
+            MultiShot = 49048, SteadyShot = 49052,
+        },
+        resolve = hunter_sv_resolve,
+    },
+    {
+        key = "wotlk/paladin/protection",
+        fixture = "tools/evidence/apl/pal_prot_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/paladin/protection_wotlk.lua",
+        class_id = 2,
+        spells = "PaladinSpells",
+        actions = {
+            ShieldOfRighteousness = 61411, HammerOfTheRighteous = 53595,
+            Consecration = 48819, Judgement = 53408,
+        },
+        resolve = pal_prot_resolve,
+    },
+    {
+        key = "wotlk/paladin/retribution",
+        fixture = "tools/evidence/apl/pal_ret_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/paladin/retribution_wotlk.lua",
+        class_id = 2,
+        spells = "PaladinSpells",
+        actions = {
+            HammerOfWrath = 48806, Judgement = 53408, CrusaderStrike = 35395,
+            DivineStorm = 53385, Exorcism = 48801, Consecration = 48819,
+        },
+        resolve = pal_ret_resolve,
+    },
+    {
+        key = "wotlk/shaman/enhancement",
+        fixture = "tools/evidence/apl/sham_enh_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/shaman/enhancement_wotlk.lua",
+        class_id = 7,
+        spells = "ShamanSpells",
+        actions = {
+            FeralSpirit = 51533, Bloodlust = 2825, LightningBolt = 49238,
+            Stormstrike = 17364, FlameShock = 49233, EarthShock = 49231,
+            CallOfTheElements = 66842, MagmaTotem = 58734, FireNova = 61657,
+            LightningShield = 49281, LavaLash = 60103,
+        },
+        resolve = sham_enh_resolve,
+    },
+    {
+        key = "wotlk/warlock/demonology",
+        fixture = "tools/evidence/apl/wl_demo_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/warlock/demonology_wotlk.lua",
+        class_id = 9,
+        spells = "WarlockSpells",
+        actions = {
+            Corruption = 47813, Immolate = 47811, SoulFire = 47825, ShadowBolt = 47809,
+        },
+        resolve = wl_demo_resolve,
+    },
+    {
+        key = "wotlk/warlock/destruction",
+        fixture = "tools/evidence/apl/wl_destro_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/warlock/destruction_wotlk.lua",
+        class_id = 9,
+        spells = "WarlockSpells",
+        actions = {
+            Conflagrate = 17962, Immolate = 47811, Incinerate = 47838,
+        },
+        resolve = wl_destro_resolve,
+    },
+    {
+        key = "wotlk/warrior/arms",
+        fixture = "tools/evidence/apl/war_arms_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/warrior/arms_wotlk.lua",
+        class_id = 1,
+        spells = "WarriorSpells",
+        actions = {
+            Rend = 47465, Overpower = 7384, MortalStrike = 47486, Execute = 47471,
+            ThunderClap = 47502, Slam = 47475,
+        },
+        resolve = war_arms_resolve,
+    },
+    {
+        key = "wotlk/warrior/fury",
+        fixture = "tools/evidence/apl/war_fury_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/warrior/fury_wotlk.lua",
+        class_id = 1,
+        spells = "WarriorSpells",
+        actions = {
+            Bloodthirst = 23881, Whirlwind = 1680, Slam = 47475, Execute = 47471,
+        },
+        resolve = war_fury_resolve,
+    },
+    {
+        key = "wotlk/warrior/protection",
+        fixture = "tools/evidence/apl/war_prot_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/warrior/protection_wotlk.lua",
+        class_id = 1,
+        spells = "WarriorSpells",
+        actions = {
+            ShieldSlam = 47488, ThunderClap = 47502, Devastate = 47498,
+        },
+        resolve = war_prot_resolve,
     },
     -- -----------------------------------------------------------------------
     -- TBC era (Phase 2-TBC, 2026-08-09). wowsims/tbc has NO TypeAPL JSON

@@ -1,8 +1,8 @@
--- test_demonology_wotlk_dsl_priority.lua — WotLK Demonology DSL priority order validation.
+-- test_demonology_wotlk_dsl_priority.lua ï¿½ WotLK Demonology DSL priority order validation.
 -- WHAT:  Asserts the declarative DSL strategies appear in the correct priority order
 --        and that key match/no-match gates behave correctly under mocked combat state.
 -- WHEN:  Runs as part of the WotLK rotation test suite.
--- WHY:   Regression guard for the WotLK DSL adoption — ensures declarative conditions
+-- WHY:   Regression guard for the WotLK DSL adoption ï¿½ ensures declarative conditions
 --        produce the same behavior as the original imperative match functions.
 -- SAFETY: Uses synthetic context/state; no live game data required.
 
@@ -85,7 +85,7 @@ end
 -- ============================================================================
 local tests = {}
 
--- Priority order: Metamorphosis > Immolate > Corruption > SoulFire > ShadowBolt
+-- Priority order: Metamorphosis > Corruption > Immolate > SoulFire > ShadowBolt
 tests.priority_order = function()
     -- All conditions met for highest-priority (Metamorphosis)
     local ctx = make_context({

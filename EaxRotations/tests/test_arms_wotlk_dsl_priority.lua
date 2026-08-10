@@ -92,7 +92,7 @@ assert_true(strategies, "arms_wotlk strategies should load")
 local expected_order = {
     "ShieldWall", "Retaliation", "BattleShout", "Charge",
     "BerserkerStance", "BattleStance", "Intercept", "Pummel",
-    "Rend", "MortalStrike", "Overpower", "Execute",
+    "Rend", "Overpower", "MortalStrike", "Execute",
     "SweepingStrikes", "Bladestorm", "ThunderClap", "DemoralizingShout",
     "Hamstring", "Slam", "HeroicStrike",
 }

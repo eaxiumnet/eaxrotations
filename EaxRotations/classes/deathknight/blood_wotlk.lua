@@ -151,6 +151,20 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.DancingRuneWeapon, target = "target" },
     },
     {
+        name = "PlagueStrike",
+        conditions = {
+            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
+    },
+    {
+        name = "DeathStrike",
+        conditions = {
+            { type = "state", field = "hp", op = "<", value = 80 },
+        },
+        action = { type = "cast", spell = ACTION.DeathStrike, target = "target" },
+    },
+    {
         name = "Pestilence",
         conditions = {
             { type = "custom", fn = function(context, state)
@@ -168,20 +182,6 @@ local DSL_DEFS = {
             { type = "state", field = "frost_fever_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.IcyTouch, target = "target" },
-    },
-    {
-        name = "PlagueStrike",
-        conditions = {
-            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
-        },
-        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
-    },
-    {
-        name = "DeathStrike",
-        conditions = {
-            { type = "state", field = "hp", op = "<", value = 80 },
-        },
-        action = { type = "cast", spell = ACTION.DeathStrike, target = "target" },
     },
     {
         name = "HeartStrike",
@@ -214,10 +214,10 @@ local strategies = {
     { name = "VampiricBlood" },
     { name = "HornOfWinter" },
     { name = "DancingRuneWeapon" },
-    { name = "Pestilence" },
-    { name = "IcyTouch" },
     { name = "PlagueStrike" },
     { name = "DeathStrike" },
+    { name = "Pestilence" },
+    { name = "IcyTouch" },
     { name = "HeartStrike" },
     { name = "DeathCoil" },
 }

@@ -78,18 +78,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Starfall, target = "target" },
     },
     {
-        name = "InsectSwarm",
-        conditions = {
-            { type = "state", field = "insect_swarm_remains", op = "<", value = 3 },
-        },
-        action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
-    },
-    {
         name = "Moonfire",
         conditions = {
             { type = "state", field = "moonfire_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.Moonfire, target = "target" },
+    },
+    {
+        name = "Starfire",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Starfire, target = "target" },
     },
     {
         name = "Wrath",
@@ -99,11 +99,11 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Wrath, target = "target" },
     },
     {
-        name = "Starfire",
+        name = "InsectSwarm",
         conditions = {
-            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            { type = "state", field = "insect_swarm_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.Starfire, target = "target" },
+        action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
     },
 }
 
@@ -113,10 +113,10 @@ local DSL_DEFS = {
 local strategies = {
     { name = "MoonkinForm" },
     { name = "Starfall" },
-    { name = "InsectSwarm" },
     { name = "Moonfire" },
-    { name = "Wrath" },
     { name = "Starfire" },
+    { name = "Wrath" },
+    { name = "InsectSwarm" },
 }
 
 -- Name-based substitution preserves the existing priority order.

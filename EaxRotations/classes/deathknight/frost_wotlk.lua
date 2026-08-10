@@ -204,6 +204,13 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.FrostStrike, target = "target" },
     },
     {
+        name = "FrostStrike",
+        conditions = {
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.FrostStrike, target = "target" },
+    },
+    {
         name = "Obliterate",
         conditions = {
             { type = "state", field = "frost_fever_remains", op = ">", value = 0 },
@@ -215,13 +222,6 @@ local DSL_DEFS = {
             end },
         },
         action = { type = "cast", spell = ACTION.Obliterate, target = "target" },
-    },
-    {
-        name = "FrostStrike",
-        conditions = {
-            { type = "state", field = "runic_power", op = ">=", value = 40 },
-        },
-        action = { type = "cast", spell = ACTION.FrostStrike, target = "target" },
     },
     {
         name = "BloodStrike",
@@ -287,8 +287,8 @@ local strategies = {
     { name = "PlagueStrike" },
     { name = "HowlingBlast" },
     { name = "FrostStrikeKM" },
-    { name = "Obliterate" },
     { name = "FrostStrike" },
+    { name = "Obliterate" },
     { name = "BloodStrike" },
 }
 

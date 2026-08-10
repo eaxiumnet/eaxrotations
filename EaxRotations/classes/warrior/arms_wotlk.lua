@@ -283,15 +283,6 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Rend, target = "target" },
     },
     {
-        name = "MortalStrike",
-        conditions = {
-            { type = "state", field = "in_combat", op = "truthy" },
-            { type = "state", field = "ms_cd", op = "<=", value = 0 },
-            { type = "state", field = "rage", op = ">=", value = 30 },
-        },
-        action = { type = "cast", spell = ACTION.MortalStrike, target = "target" },
-    },
-    {
         name = "Overpower",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -303,6 +294,15 @@ local DSL_DEFS = {
             end },
         },
         action = { type = "cast", spell = ACTION.Overpower, target = "target" },
+    },
+    {
+        name = "MortalStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "ms_cd", op = "<=", value = 0 },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.MortalStrike, target = "target" },
     },
     {
         name = "Execute",
@@ -407,8 +407,8 @@ local strategies = {
     { name = "Intercept" },
     { name = "Pummel" },
     { name = "Rend" },
-    { name = "MortalStrike" },
     { name = "Overpower" },
+    { name = "MortalStrike" },
     { name = "Execute" },
     { name = "SweepingStrikes" },
     { name = "Bladestorm" },

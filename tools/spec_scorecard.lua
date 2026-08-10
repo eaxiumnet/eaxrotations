@@ -451,7 +451,8 @@ local function classify_reports(agg, era)
         problems[#problems + 1] = {
             kind = 'aplfail',
             msg = era .. '/' .. class_key .. '/' .. spec_key .. ': APL conformance FAIL ('
-                .. tostring(APL_EVIDENCE['tbc/' .. class_key .. '/' .. spec_key]
+                .. tostring(APL_EVIDENCE[era .. '/' .. class_key .. '/' .. spec_key]
+                    or APL_EVIDENCE['tbc/' .. class_key .. '/' .. spec_key]
                     or APL_EVIDENCE[era .. '/' .. spec_key]
                     or APL_EVIDENCE['tbc/' .. spec_key]) .. ')',
         }
@@ -698,6 +699,22 @@ for _, k in ipairs(apl_keys) do
         or (k == 'wotlk/shadow' and 'shadow_wotlk.apl.json')
         or (k == 'wotlk/priest/holy' and 'holy_priest_wotlk.apl.json')
         or (k == 'wotlk/priest/discipline' and 'disc_priest_wotlk.apl.json')
+        or (k == 'wotlk/deathknight/blood' and 'dk_blood_wotlk.apl.json')
+        or (k == 'wotlk/deathknight/frost' and 'dk_frost_wotlk.apl.json')
+        or (k == 'wotlk/deathknight/unholy' and 'dk_unholy_wotlk.apl.json')
+        or (k == 'wotlk/druid/balance' and 'druid_balance_wotlk.apl.json')
+        or (k == 'wotlk/druid/bear' and 'druid_bear_wotlk.apl.json')
+        or (k == 'wotlk/hunter/beast_mastery' and 'hunter_bm_wotlk.apl.json')
+        or (k == 'wotlk/hunter/marksmanship' and 'hunter_mm_wotlk.apl.json')
+        or (k == 'wotlk/hunter/survival' and 'hunter_sv_wotlk.apl.json')
+        or (k == 'wotlk/paladin/protection' and 'pal_prot_wotlk.apl.json')
+        or (k == 'wotlk/paladin/retribution' and 'pal_ret_wotlk.apl.json')
+        or (k == 'wotlk/shaman/enhancement' and 'sham_enh_wotlk.apl.json')
+        or (k == 'wotlk/warlock/demonology' and 'wl_demo_wotlk.apl.json')
+        or (k == 'wotlk/warlock/destruction' and 'wl_destro_wotlk.apl.json')
+        or (k == 'wotlk/warrior/arms' and 'war_arms_wotlk.apl.json')
+        or (k == 'wotlk/warrior/fury' and 'war_fury_wotlk.apl.json')
+        or (k == 'wotlk/warrior/protection' and 'war_prot_wotlk.apl.json')
         or (k == 'tbc/shadow' and 'Go: sim/priest/shadow_rotation.go')
         or (k == 'tbc/affliction' and 'Go: sim/warlock_rotations.go')
         or (k == 'tbc/combat' and 'Go: sim/rogue_rotation.go')
@@ -730,6 +747,14 @@ emit_buckets('WotLK era', wotlk_lanes_by_bucket, { 'p', 'c', 'b', 'a', 'd' })
 
 add('## Notes')
 add('')
+add('- The 2026-08-10 WotLK APL pin campaign wired every remaining unpinned spec '
+    .. 'from its wowsims/wotlk TypeAPL JSON at 563e4a08 (16 new fixtures in '
+    .. 'tools/evidence/apl/; provenance in SOURCES.md). The remaining `pending` '
+    .. 'WotLK rows are deliberate: `rogue/subtlety` has NO wowsims APL (the rogue '
+    .. 'dir ships combat/mutilate only), the `*/leveling` specs are the TBC-era '
+    .. 'leveling rotations (no WotLK sim dispatch), and the non-priest healers '
+    .. '(holy paladin, resto druid/shaman) are engine scaffolding only — see the '
+    .. 'healer-fix note above.')
 add('- `(p)` lanes are the pending bucket. The WotLK Phase-1 triage (2026-08-09) is '
     .. 'complete: the 149-lane inventory was cleared to 0 never-firing (battery fixtures '
     .. 'only — no spec edits), so no WotLK lane is pending today; the era is STRICT, so '

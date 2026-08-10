@@ -89,8 +89,8 @@ assert_true(registered ~= nil, "protection_paladin_wotlk should register under '
 -- ============================================================================
 local expected_order = {
     "AvengersShield",
-    "HammerOfTheRighteous",
     "ShieldOfRighteousness",
+    "HammerOfTheRighteous",
     "Consecration",
     "Judgement",
 }

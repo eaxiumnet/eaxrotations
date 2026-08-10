@@ -54,13 +54,6 @@ end
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
     {
-        name = "FeralFaerieFire",
-        conditions = {
-            { type = "state", field = "faerie_fire_remains", op = "<", value = 3 },
-        },
-        action = { type = "cast", spell = ACTION.FeralFaerieFire, target = "target" },
-    },
-    {
         name = "Lacerate",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -87,6 +80,13 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.MangleBear, target = "target" },
     },
     {
+        name = "FeralFaerieFire",
+        conditions = {
+            { type = "state", field = "faerie_fire_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.FeralFaerieFire, target = "target" },
+    },
+    {
         name = "Maul",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -100,10 +100,10 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
-    { name = "FeralFaerieFire" },
     { name = "Lacerate" },
     { name = "SwipeBear" },
     { name = "MangleBear" },
+    { name = "FeralFaerieFire" },
     { name = "Maul" },
 }
 

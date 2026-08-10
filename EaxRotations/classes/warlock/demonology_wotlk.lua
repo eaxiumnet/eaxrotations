@@ -66,18 +66,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Metamorphosis, target = "self", label = "[DEMONOLOGY WOTLK] Metamorphosis" },
     },
     {
-        name = "Immolate",
-        conditions = {
-            { type = "state", field = "immolate_remains", op = "<", value = 3 },
-        },
-        action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DEMONOLOGY WOTLK] Immolate" },
-    },
-    {
         name = "Corruption",
         conditions = {
             { type = "state", field = "corruption_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.Corruption, target = "target", label = "[DEMONOLOGY WOTLK] Corruption" },
+    },
+    {
+        name = "Immolate",
+        conditions = {
+            { type = "state", field = "immolate_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DEMONOLOGY WOTLK] Immolate" },
     },
     {
         name = "SoulFire",
@@ -100,8 +100,8 @@ local DSL_DEFS = {
 -- ============================================================================
 local strategies = {
     { name = "Metamorphosis" },
-    { name = "Immolate" },
     { name = "Corruption" },
+    { name = "Immolate" },
     { name = "SoulFire" },
     { name = "ShadowBolt" },
 }

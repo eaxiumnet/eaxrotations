@@ -102,7 +102,7 @@ local failed = 0
 
 function tests.priority_order()
     local expected = { "AspectOfTheViper", "AspectOfTheDragonhawk", "SilencingShot", "HuntersMark",
-        "KillShot", "ExplosiveTrap", "SerpentSting", "ChimeraShot", "AimedShot", "MultiShot",
+        "KillShot", "SerpentSting", "ExplosiveTrap", "ChimeraShot", "AimedShot", "MultiShot",
         "ArcaneShot", "SteadyShot" }
     for i, name in ipairs(expected) do
         local s = strategies[i]

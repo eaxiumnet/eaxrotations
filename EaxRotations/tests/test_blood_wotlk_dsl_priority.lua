@@ -123,10 +123,10 @@ local expected_order = {
     "VampiricBlood",
     "HornOfWinter",
     "DancingRuneWeapon",
-    "Pestilence",
-    "IcyTouch",
     "PlagueStrike",
     "DeathStrike",
+    "Pestilence",
+    "IcyTouch",
     "HeartStrike",
     "DeathCoil",
 }
@@ -195,7 +195,7 @@ end)
 -- IcyTouch: matches when frost_fever_remains < 3
 test("IcyTouch: matches when frost fever remains < 3", function()
     local state = blood.build_state(ctx)
-    assert_true(blood.strategies[8].matches(ctx, state), "IcyTouch should match when frost fever < 3")
+    assert_true(blood.strategies[10].matches(ctx, state), "IcyTouch should match when frost fever < 3")
 end)
 
 -- IcyTouch: does NOT match when frost_fever_remains >= 3
@@ -203,7 +203,7 @@ test("IcyTouch: does not match when frost fever remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = blood.build_state(ctx)
-    local ok = blood.strategies[8].matches(ctx, state)
+    local ok = blood.strategies[10].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "IcyTouch should not match when frost fever >= 3")
 end)
@@ -211,7 +211,7 @@ end)
 -- PlagueStrike: matches when blood_plague_remains < 3
 test("PlagueStrike: matches when blood plague remains < 3", function()
     local state = blood.build_state(ctx)
-    assert_true(blood.strategies[9].matches(ctx, state), "PlagueStrike should match when blood plague < 3")
+    assert_true(blood.strategies[7].matches(ctx, state), "PlagueStrike should match when blood plague < 3")
 end)
 
 -- PlagueStrike: does NOT match when blood_plague_remains >= 3
@@ -219,7 +219,7 @@ test("PlagueStrike: does not match when blood plague remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = blood.build_state(ctx)
-    local ok = blood.strategies[9].matches(ctx, state)
+    local ok = blood.strategies[7].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "PlagueStrike should not match when blood plague >= 3")
 end)
@@ -229,7 +229,7 @@ test("DeathStrike: matches when HP < 80", function()
     local orig_hp = _G.EaxRotations.me.get_health_percentage
     _G.EaxRotations.me.get_health_percentage = function() return 70 end
     local state = blood.build_state(ctx)
-    local ok = blood.strategies[10].matches(ctx, state)
+    local ok = blood.strategies[8].matches(ctx, state)
     _G.EaxRotations.me.get_health_percentage = orig_hp
     assert_true(ok, "DeathStrike should match when HP < 80")
 end)
@@ -237,7 +237,7 @@ end)
 -- DeathStrike: does NOT match when HP >= 80
 test("DeathStrike: does not match when HP >= 80", function()
     local state = blood.build_state(ctx)
-    assert_false(blood.strategies[10].matches(ctx, state), "DeathStrike should not match when HP >= 80")
+    assert_false(blood.strategies[8].matches(ctx, state), "DeathStrike should not match when HP >= 80")
 end)
 
 -- HeartStrike: always matches (filler, no conditions)

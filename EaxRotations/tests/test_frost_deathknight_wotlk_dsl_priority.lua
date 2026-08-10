@@ -125,8 +125,8 @@ local expected_order = {
     "PlagueStrike",
     "HowlingBlast",
     "FrostStrikeKM",
-    "Obliterate",
     "FrostStrike",
+    "Obliterate",
     "BloodStrike",
 }
 
@@ -237,7 +237,7 @@ end)
 -- FrostStrike: matches when runic_power >= 40
 test("FrostStrike: matches when runic_power >= 40", function()
     local state = frost.build_state(ctx)
-    assert_true(frost.strategies[11].matches(ctx, state), "FrostStrike should match when runic_power >= 40")
+    assert_true(frost.strategies[10].matches(ctx, state), "FrostStrike should match when runic_power >= 40")
 end)
 
 -- BloodStrike: matches when blood/death runes available
@@ -271,7 +271,7 @@ test("Obliterate: matches when both diseases are up and runes available", functi
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[10].matches(ctx, state)
+    local ok = frost.strategies[11].matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_true(ok, "Obliterate should match when both diseases are up and runes available")
 end)
@@ -279,7 +279,7 @@ end)
 -- Obliterate: does NOT match when diseases are down
 test("Obliterate: does not match when diseases are down", function()
     local state = frost.build_state(ctx)
-    assert_false(frost.strategies[10].matches(ctx, state), "Obliterate should not match when diseases are down")
+    assert_false(frost.strategies[11].matches(ctx, state), "Obliterate should not match when diseases are down")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

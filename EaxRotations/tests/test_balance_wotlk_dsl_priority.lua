@@ -94,10 +94,10 @@ assert_true(registered ~= nil, "balance_wotlk should register under 'balance'")
 local expected_order = {
     "MoonkinForm",
     "Starfall",
-    "InsectSwarm",
     "Moonfire",
-    "Wrath",
     "Starfire",
+    "Wrath",
+    "InsectSwarm",
 }
 
 test("priority order: 6 strategies match expected order", function()
@@ -163,26 +163,26 @@ end)
 test("InsectSwarm: matches when debuff remains < 3", function()
     local state = balance.build_state(ctx)
     state.insect_swarm_remains = 1
-    assert_true(balance.strategies[3].matches(ctx, state), "InsectSwarm should match when debuff < 3")
+    assert_true(balance.strategies[6].matches(ctx, state), "InsectSwarm should match when debuff < 3")
 end)
 
 test("InsectSwarm: does not match when debuff remains >= 3", function()
     local state = balance.build_state(ctx)
     state.insect_swarm_remains = 5
-    assert_false(balance.strategies[3].matches(ctx, state), "InsectSwarm should not match when debuff >= 3")
+    assert_false(balance.strategies[6].matches(ctx, state), "InsectSwarm should not match when debuff >= 3")
 end)
 
 -- Moonfire: matches when debuff remains < 3
 test("Moonfire: matches when debuff remains < 3", function()
     local state = balance.build_state(ctx)
     state.moonfire_remains = 1
-    assert_true(balance.strategies[4].matches(ctx, state), "Moonfire should match when debuff < 3")
+    assert_true(balance.strategies[3].matches(ctx, state), "Moonfire should match when debuff < 3")
 end)
 
 test("Moonfire: does not match when debuff remains >= 3", function()
     local state = balance.build_state(ctx)
     state.moonfire_remains = 5
-    assert_false(balance.strategies[4].matches(ctx, state), "Moonfire should not match when debuff >= 3")
+    assert_false(balance.strategies[3].matches(ctx, state), "Moonfire should not match when debuff >= 3")
 end)
 
 -- Wrath: matches when mana >= 15
@@ -202,13 +202,13 @@ end)
 test("Starfire: matches when mana >= 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
-    assert_true(balance.strategies[6].matches(ctx, state), "Starfire should match when mana >= 15")
+    assert_true(balance.strategies[4].matches(ctx, state), "Starfire should match when mana >= 15")
 end)
 
 test("Starfire: does not match when mana < 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 10
-    assert_false(balance.strategies[6].matches(ctx, state), "Starfire should not match when mana < 15")
+    assert_false(balance.strategies[4].matches(ctx, state), "Starfire should not match when mana < 15")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

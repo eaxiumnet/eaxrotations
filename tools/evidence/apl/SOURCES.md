@@ -19,6 +19,22 @@ here + one entry in `tools/apl_status.lua`'s `M.ENTRIES`.
 | `shadow_wotlk.apl.json` | `wowsims/wotlk` `ui/priest/apls/shadow.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `disc_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/disc.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `holy_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/holy.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `dk_blood_wotlk.apl.json` | `wowsims/wotlk` `ui/deathknight/apls/blood_dps.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `dk_frost_wotlk.apl.json` | `wowsims/wotlk` `ui/deathknight/apls/frost_bl_pesti.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `dk_unholy_wotlk.apl.json` | `wowsims/wotlk` `ui/deathknight/apls/uh_2h_ss.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `druid_balance_wotlk.apl.json` | `wowsims/wotlk` `ui/balance_druid/apls/basic_p3.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `druid_bear_wotlk.apl.json` | `wowsims/wotlk` `ui/feral_tank_druid/apls/default.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `hunter_bm_wotlk.apl.json` | `wowsims/wotlk` `ui/hunter/apls/bm.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `hunter_mm_wotlk.apl.json` | `wowsims/wotlk` `ui/hunter/apls/mm.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `hunter_sv_wotlk.apl.json` | `wowsims/wotlk` `ui/hunter/apls/sv.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `pal_prot_wotlk.apl.json` | `wowsims/wotlk` `ui/protection_paladin/apls/default.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `pal_ret_wotlk.apl.json` | `wowsims/wotlk` `ui/retribution_paladin/apls/default.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `sham_enh_wotlk.apl.json` | `wowsims/wotlk` `ui/enhancement_shaman/apls/default_wf.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `war_arms_wotlk.apl.json` | `wowsims/wotlk` `ui/warrior/apls/arms.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `war_fury_wotlk.apl.json` | `wowsims/wotlk` `ui/warrior/apls/fury.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `war_prot_wotlk.apl.json` | `wowsims/wotlk` `ui/protection_warrior/apls/default.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `wl_demo_wotlk.apl.json` | `wowsims/wotlk` `ui/warlock/apls/demo.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `wl_destro_wotlk.apl.json` | `wowsims/wotlk` `ui/warlock/apls/destro.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 
 - **Repo:** github.com/wowsims/wotlk, branch `master`.
 - **Commit:** `563e4a08cb15729f1fdcbcf68e6d68224553bfef` (2025-12-22).

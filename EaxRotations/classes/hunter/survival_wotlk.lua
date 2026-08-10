@@ -125,6 +125,14 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.ExplosiveTrap, target = "target" },
     },
     {
+        name = "SerpentSting",
+        conditions = {
+            { type = "state", field = "serpent_remains", op = "<", value = 3 },
+            { type = "state", field = "target_remaining_time", op = ">", value = 6 },
+        },
+        action = { type = "cast", spell = ACTION.SerpentSting, target = "target" },
+    },
+    {
         name = "BlackArrow",
         conditions = {
             { type = "state", field = "black_arrow_remains", op = "<", value = 3 },
@@ -135,14 +143,6 @@ local DSL_DEFS = {
         name = "ExplosiveShot",
         conditions = {},
         action = { type = "cast", spell = ACTION.ExplosiveShot, target = "target" },
-    },
-    {
-        name = "SerpentSting",
-        conditions = {
-            { type = "state", field = "serpent_remains", op = "<", value = 3 },
-            { type = "state", field = "target_remaining_time", op = ">", value = 6 },
-        },
-        action = { type = "cast", spell = ACTION.SerpentSting, target = "target" },
     },
     {
         name = "AimedShot",
@@ -171,8 +171,8 @@ local strategies = {
     { name = "ExplosiveShot" },
     { name = "ExplosiveShotProc" },
     { name = "ExplosiveTrap" },
-    { name = "BlackArrow" },
     { name = "SerpentSting" },
+    { name = "BlackArrow" },
     { name = "AimedShot" },
     { name = "MultiShot" },
     { name = "SteadyShot" },

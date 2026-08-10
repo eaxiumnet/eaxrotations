@@ -258,6 +258,61 @@ test("healer: disc order — PowerWordShield before Penance before PrayerOfMendi
 end)
 
 -- ---------------------------------------------------------------------------
+-- WotLK APL pin campaign (2026-08-10): every remaining unpinned WotLK spec is
+-- now wired from its wowsims/wotlk TypeAPL JSON at 563e4a08 (see SOURCES.md).
+-- The generic per-entry loop above already asserts order conformance + resolver
+-- non-vacuity for all 16 new entries; these tests pin the EXTRACTION semantics
+-- (each fixture's first steady-chain action resolves to the expected strategy)
+-- so a fixture edit that drops/renames the lead action fails loudly even if the
+-- relative order of the survivors still conforms.
+-- ---------------------------------------------------------------------------
+local WOTLK_PIN_CAMPAIGN_FIXTURES = {
+    { fixture = "dk_blood_wotlk.apl.json",          first = "PlagueStrike" },
+    { fixture = "dk_frost_wotlk.apl.json",          first = "PlagueStrike" },
+    { fixture = "dk_unholy_wotlk.apl.json",         first = "PlagueStrike" },
+    { fixture = "druid_balance_wotlk.apl.json",     first = "Moonfire" },
+    { fixture = "druid_bear_wotlk.apl.json",        first = "Lacerate" },
+    { fixture = "hunter_bm_wotlk.apl.json",         first = "AspectOfTheViper" },
+    { fixture = "hunter_mm_wotlk.apl.json",         first = "AspectOfTheViper" },
+    { fixture = "hunter_sv_wotlk.apl.json",         first = "AspectOfTheViper" },
+    { fixture = "pal_prot_wotlk.apl.json",          first = "ShieldOfRighteousness" },
+    { fixture = "pal_ret_wotlk.apl.json",           first = "HammerOfWrath" },
+    { fixture = "sham_enh_wotlk.apl.json",          first = "FeralSpirit" },
+    { fixture = "war_arms_wotlk.apl.json",          first = "Rend" },
+    { fixture = "war_fury_wotlk.apl.json",          first = "Bloodthirst" },
+    { fixture = "war_prot_wotlk.apl.json",          first = "ShieldSlam" },
+    { fixture = "wl_demo_wotlk.apl.json",           first = "Corruption" },
+    { fixture = "wl_destro_wotlk.apl.json",         first = "Conflagrate" },
+}
+
+-- Resolve the first occurrence of each action in the fixture through the
+-- manifest entry's resolver; the first non-nil resolved name must equal the
+-- expected lead strategy (proves the fixture's head action is live).
+for _, pin in ipairs(WOTLK_PIN_CAMPAIGN_FIXTURES) do
+    test("wotlk pin campaign: " .. pin.fixture .. " lead action resolves to " .. pin.first, function()
+        local entry
+        for _, e in ipairs(manifest.ENTRIES) do
+            if e.fixture and e.fixture:find(pin.fixture, 1, true) then entry = e break end
+        end
+        assert_true(entry ~= nil, "no manifest entry for fixture " .. pin.fixture)
+        assert_true(entry.resolve ~= nil, pin.fixture .. " entry must use a resolver")
+        local raw = read_file(entry.fixture)
+        assert_true(raw ~= nil, "missing fixture: " .. entry.fixture)
+        local ids = apl.priority_ids(apl.decode_json(raw))
+        assert_true(#ids > 0, pin.fixture .. " fixture extracts no actions")
+        local seen, resolved_first = {}, nil
+        for _, id in ipairs(ids) do
+            seen[id] = (seen[id] or 0) + 1
+            local name = entry.resolve(id, seen[id])
+            if name and not resolved_first then resolved_first = name end
+        end
+        assert_true(resolved_first == pin.first,
+            pin.fixture .. " lead action should resolve to " .. pin.first
+            .. " but resolved to " .. tostring(resolved_first))
+    end)
+end
+
+-- ---------------------------------------------------------------------------
 -- Negative self-tests: prove the checker actually catches a reorder.
 -- ---------------------------------------------------------------------------
 test("checker: reversed affliction order is caught", function()
