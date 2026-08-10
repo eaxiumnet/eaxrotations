@@ -161,7 +161,10 @@ local function build_state(context)
 
     local now = context.now or (NS.time_now and NS.time_now() or 0)
 
-    if now == _last_build_state_time then return leveling_state end
+    -- Cache-hit branch MUST wrap in safe_state too (cache-hit audit 2026-08-10):
+    -- a raw return lets nil-guard defaults leak as nil on frame-cache hits,
+    -- the same family as the bear/cat bypass (6abb9039). Mirrors line 284.
+    if now == _last_build_state_time then return spec_kit.safe_state(leveling_state) end
 
     if context.now then _last_build_state_time = now end
 

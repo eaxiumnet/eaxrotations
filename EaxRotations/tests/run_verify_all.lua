@@ -224,6 +224,22 @@ local components = {
         end,
     },
     {
+        label = "cache-hit safe_state audit",
+        cmd = "lua " .. R .. "/run_cache_hit_audit_tests.lua",
+        check = function(c)
+            local invalid = num(c, "Invalid:%s*(%d+)")
+            return { { "invalid " .. tostring(invalid), invalid == 0 } }
+        end,
+    },
+    {
+        label = "cache-hit audit self-test",
+        cmd = "lua " .. R .. "/run_cache_hit_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (raw-return violations fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "behavioral battery",
         cmd = "lua " .. R .. "/behavioral_audit.lua",
         check = function(c)
