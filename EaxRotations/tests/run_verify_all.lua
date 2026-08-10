@@ -256,6 +256,22 @@ local components = {
         end,
     },
     {
+        label = "version-consistency audit",
+        cmd = "lua " .. R .. "/run_version_consistency_audit_tests.lua",
+        check = function(c)
+            return { { "header.lua version matches CHANGELOG top (no MISMATCH)",
+                       c:find("MISMATCH", 1, true) == nil and c:find("matches the top changelog release", 1, true) ~= nil } }
+        end,
+    },
+    {
+        label = "version-consistency audit self-test",
+        cmd = "lua " .. R .. "/run_version_consistency_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (mismatch detection fires)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "behavioral battery",
         cmd = "lua " .. R .. "/behavioral_audit.lua",
         check = function(c)
