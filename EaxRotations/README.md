@@ -204,6 +204,8 @@ lua EaxRotations/tests/test_fury_custom_matches.lua
 | **Phase 3** | Jun 2026 | Ranged & Caster Supremacy — MultiDoT, TTD gating, shot timer, melee weave |
 | **Phase 4** | Jun 2026 | Warrior & Polish — stance dance, rage dump, healthstone parity, strategy gating dedup |
 
+> ⚠️ *Claim precision:* the phase titles above are marketing shorthand, not measured rankings. What is actually **measured**: DPS/tank strategy priority order is sim-conformant against pinned wowsims APLs (32/32 pass, see `docs/scorecard.md`). The healer claim is validated **internally** (behavioral battery never=0 + regression suites) — no healer rotation simulator exists for any classic era (wowsims is DPS-only), so there is no comparative hps benchmark in or out of this repo. See `docs/scorecard.md` "Why healer rows show APL = `pending`" for the full rationale.
+
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---

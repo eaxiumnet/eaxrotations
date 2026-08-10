@@ -638,6 +638,16 @@ add('Rating rubric: **S+** never=0 ∧ (c)=0 ∧ APL pass · **S** never=0 · **
     .. 'accessors, scenario banks, DK stub rewiring), so the era is STRICT like TBC — a '
     .. 'future never-lane is a hard-fail until pinned.')
 add('')
+add('**Why healer rows show APL = `pending`:** wowsims (tbc, tbc-new, wotlk, '
+    .. 'classic/SoD) is explicitly a DPS-only simulator — its checked-out rotation '
+    .. 'trees contain zero healer files (druid = balance/feral/tank, paladin = '
+    .. 'protection/retribution, priest = shadow/smite) — and no healer rotation '
+    .. 'simulator exists for any classic era (GitHub repo search returns 0). Healer '
+    .. 'validation is therefore battery-verified internal correctness (never=0, S '
+    .. 'ratings, the ~60 healer regression suites), with priority logic based on '
+    .. 'community guides (Icy Veins / Wowhead; see the provenance note at '
+    .. 'holy_sylvanas.lua:4) rather than sim-authored APLs.')
+add('')
 emit_rows_table('TBC/Sylvanas era', rows, false)
 emit_rows_table('WotLK era', wotlk_rows, true)
 

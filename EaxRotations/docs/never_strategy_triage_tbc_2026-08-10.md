@@ -14,6 +14,12 @@ Companion docs: `never_strategy_triage_dps_2026-08-07.md` and
 `never_strategy_triage_non_dps_2026-08-07.md` (the original 304 → 100
 triage), `never_strategy_triage_wotlk_2026-08-09.md` (WotLK era, now 0).
 
+**Healer APL note:** healer rows in `docs/scorecard.md` show APL =
+`pending` because no healer rotation simulator exists for any classic era
+(wowsims is explicitly DPS-only; see scorecard.md "Why healer rows show
+APL = `pending`"). Healer validation is battery-verified internal
+correctness, not sim conformance.
+
 ## How to reproduce
 
 ```bash
