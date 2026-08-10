@@ -134,7 +134,6 @@ jobs:
         # bullet>". Body: the full top changelog entry (from "## X.Y.Z" to the
         # next "## "), so the release notes always mirror the changelog.
         run: |
-          VERSION="${{ steps.resolve.outputs.version }}"
           python3 - <<'PY'
           import re
           version = "${{ steps.resolve.outputs.version }}"
