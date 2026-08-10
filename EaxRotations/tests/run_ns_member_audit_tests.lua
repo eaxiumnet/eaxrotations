@@ -13,6 +13,14 @@
 --        assigned anywhere; the survey's bare-call scanner missed exactly
 --        this member form).
 -- WHEN:  Run manually, in CI (verify_all), and in the pre-commit gate.
+-- CI-PARITY: the engine census reads GITIGNORED local dirs (.api/,
+--        apidocs/pages/, scraped_docs_md/dev/api/) that a clean CI
+--        checkout does NOT contain — so in CI the engine surface is empty
+--        and a name that resolves locally via those docs is flagged unless
+--        it is also on the ALLOWLIST. Keep the allowlist as the portable
+--        guarantee: any engine member the docs enumerate locally must ALSO
+--        have an allowlist entry (mock= / guarded=, live-verified), or CI
+--        diverges from the local run. See the third allowlist batch.
 -- WHY:   A future spec copying an optional-engine-method call could drop the
 --        guard (the los_guard shape) or reference a member that never
 --        exists; this audit mechanically covers every file so it is caught
@@ -82,6 +90,19 @@ local ALLOWLIST = {
     unit_creature_type    = "mock: battery ns.unit_creature_type",
     unit_is_boss          = "mock: battery ns.unit_is_boss",
     unit_mana_pct         = "mock: battery ns.unit_mana_pct",
+    -- Third batch (2026-08-10, CI parity fix): these four names resolve on
+    -- the maintainer's machine ONLY via the gitignored engine-doc dirs
+    -- (.api/, apidocs/pages/, scraped_docs_md/dev/api/ — absent in CI's
+    -- clean checkout, so the engine census is empty there and CI flagged
+    -- them as never-assigned). All four are legitimate engine members:
+    --   mock=      battery build_ns defines ns.<name> (live stale-check
+    --              against behavioral_audit.lua pins it).
+    --   guarded=   every real call site uses the optional-method guard
+    --              (live unguarded-site check, los_guard shape).
+    get_local_player      = "mock: battery ns.get_local_player (engine core.object_manager.get_local_player)",
+    power_pct             = "mock: battery ns.power_pct",
+    is_casting            = "guarded: arena_priority_sylvanas:85-86 + pvp_burst_window_sylvanas:78-79 (`if NS and NS.is_casting then`)",
+    get_spell_name        = "guarded: combat_stats_sylvanas:115 (NS.get_spell_name and NS.get_spell_name(...))",
 }
 
 -- ============================================================================
