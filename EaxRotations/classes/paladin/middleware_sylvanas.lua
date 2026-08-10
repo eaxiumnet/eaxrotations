@@ -115,6 +115,22 @@ local function get_divine_shield_spell()
     return nil
 end
 
+-- Shared cleanse predicate for Paladin_Cleanse (matches + execute). Hoisted to
+-- module level so a debuff-list edit can never silently diverge between the
+-- two closures (they were byte-identical 15-line locals before).
+local function unitNeedsCleanse(unit)
+    if type(NS.has_dispel_type_debuff) == "function" then
+        if NS.has_dispel_type_debuff(unit, "Poison") then return true end
+        if NS.has_dispel_type_debuff(unit, "Disease") then return true end
+        if NS.has_dispel_type_debuff(unit, "Magic") then return true end
+    elseif NS.has_debuff then
+        if NS.has_debuff(unit, {2764, 5237, 11359, 13240}) then return true end
+        if NS.has_debuff(unit, {853, 1368, 2047}) then return true end
+        if NS.has_debuff(unit, {33786, 2855, 30982}) then return true end
+    end
+    return false
+end
+
 local strategies = {
 
     (interrupt_manager and interrupt_manager.register_interrupt_spell
@@ -227,18 +243,6 @@ local strategies = {
             if (context.is_mounted or false) then return false end
             local me = context.me
             if not me then return false end
-            local function unitNeedsCleanse(unit)
-                if type(NS.has_dispel_type_debuff) == "function" then
-                    if NS.has_dispel_type_debuff(unit, "Poison") then return true end
-                    if NS.has_dispel_type_debuff(unit, "Disease") then return true end
-                    if NS.has_dispel_type_debuff(unit, "Magic") then return true end
-                elseif NS.has_debuff then
-                    if NS.has_debuff(unit, {2764, 5237, 11359, 13240}) then return true end
-                    if NS.has_debuff(unit, {853, 1368, 2047}) then return true end
-                    if NS.has_debuff(unit, {33786, 2855, 30982}) then return true end
-                end
-                return false
-            end
             if unitNeedsCleanse(me) then return true end
             if NS.GetPartyMembers then
                 for _, member in ipairs(NS.GetPartyMembers() or {}) do
@@ -250,18 +254,6 @@ local strategies = {
         execute = function(context)
             local spell = SPELLS.Cleanse
             if not spell then return false end
-            local function unitNeedsCleanse(unit)
-                if type(NS.has_dispel_type_debuff) == "function" then
-                    if NS.has_dispel_type_debuff(unit, "Poison") then return true end
-                    if NS.has_dispel_type_debuff(unit, "Disease") then return true end
-                    if NS.has_dispel_type_debuff(unit, "Magic") then return true end
-                elseif NS.has_debuff then
-                    if NS.has_debuff(unit, {2764, 5237, 11359, 13240}) then return true end
-                    if NS.has_debuff(unit, {853, 1368, 2047}) then return true end
-                    if NS.has_debuff(unit, {33786, 2855, 30982}) then return true end
-                end
-                return false
-            end
             local me = context.me
             if me and unitNeedsCleanse(me) and NS.spell_ready and NS.spell_ready(spell, me, {}) then
                 return NS.try_cast(spell, me, "[PALADIN] Cleanse (Self)")
