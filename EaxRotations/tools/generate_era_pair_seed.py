@@ -14,12 +14,23 @@ because CI's clean checkout has no way to know which divergences are intended.
 The committed seed is the reviewed, reasoned baseline; regeneration is a
 human-reviewed commit like the scorecard doc.
 
-Usage: python EaxRotations/tools/generate_era_pair_seed.py
+The generator does expose a drift guard (scorecard --check discipline):
+`--check` compares the committed seed against a fresh in-memory regeneration
+(no writes) and fails if they differ — wired into verify_all and the
+pre-commit gate so a stale or hand-edited seed can never silently weaken the
+era-pair audit. `--self-test` proves the drift detection is non-vacuous
+(in-memory corruption is caught).
+
+Usage:
+  python EaxRotations/tools/generate_era_pair_seed.py          # regenerate (manual, commit with the change)
+  python EaxRotations/tools/generate_era_pair_seed.py --check  # drift guard (verify_all / pre-commit)
+  python EaxRotations/tools/generate_era_pair_seed.py --self-test
 """
 import glob
 import json
 import os
 import re
+import sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 CLASS = os.path.normpath(os.path.join(ROOT, "EaxRotations", "classes"))
@@ -105,7 +116,15 @@ REASONS = {
 }
 
 
-def main():
+def _normalize(s):
+    """Content comparison is line-ending agnostic: git may check the seed out
+    as CRLF on Windows (autocrlf), while the generator emits LF. Strip \r so
+    a checkout-mode difference can never false-fail the drift guard."""
+    return s.replace("\r\n", "\n")
+
+
+def generate_content():
+    """Build the seed file content in memory. Returns (content, entries, total)."""
     mid = middleware_interrupts()
     specs = collect_specs()
     entries = []
@@ -165,9 +184,58 @@ def main():
         lines.append(f"        reason = {json.dumps(reason)},")
         lines.append("    },")
     lines.append("}")
+    return "\n".join(lines) + "\n", len(entries), total
+
+
+def check_freshness(committed_content=None):
+    """Drift guard: the committed seed must match a fresh regeneration.
+    committed_content is optional for the in-memory self-test; when omitted,
+    the committed file on disk is read. Returns 0 (in sync) or 1 (drift)."""
+    content, entries, total = generate_content()
+    if committed_content is None:
+        if not os.path.exists(OUT):
+            print(f"era-pair seed freshness: MISSING {OUT} (expected a committed seed)")
+            return 1
+        with open(OUT, encoding="utf-8", errors="replace") as fh:
+            committed_content = fh.read()
+    if _normalize(content) == _normalize(committed_content):
+        print(f"era-pair seed freshness: in sync ({entries} entries, {total} names)")
+        return 0
+    print("era-pair seed freshness: DRIFT — committed " + OUT + " does not match a fresh")
+    print("  regeneration of EaxRotations/tools/generate_era_pair_seed.py.")
+    print("  Fix: regenerate and commit the seed TOGETHER with the rotation change that")
+    print("  re-baselined it:  python EaxRotations/tools/generate_era_pair_seed.py")
+    return 1
+
+
+def self_test():
+    """In-memory non-vacuity: the clean comparison passes and a corrupted
+    copy of the generated content is detected as drift. No filesystem writes."""
+    content, _, _ = generate_content()
+    ok = True
+    if check_freshness(content) != 0:
+        ok = False
+    corrupt = content.replace('"Pummel"', '"PummelX"', 1)
+    if corrupt == content:  # Pummel absent from the generated content — corrupt a name instead
+        corrupt = content.replace('names = { "', 'names = { "X', 1)
+    if check_freshness(corrupt) != 1:
+        ok = False
+    if not ok:
+        print("era-pair seed freshness self-test: FAILED")
+        return 1
+    print("[PASS] Era-pair seed freshness self-tests: clean comparison passes, corrupted-seed drift detection fires")
+    return 0
+
+
+def main():
+    if "--check" in sys.argv:
+        sys.exit(check_freshness())
+    if "--self-test" in sys.argv:
+        sys.exit(self_test())
+    content, entries, total = generate_content()
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("\n".join(lines) + "\n")
-    print(f"wrote {OUT}: {len(entries)} entries, {total} names")
+        fh.write(content)
+    print(f"wrote {OUT}: {entries} entries, {total} names")
 
 
 if __name__ == "__main__":

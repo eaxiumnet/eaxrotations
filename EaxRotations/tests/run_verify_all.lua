@@ -4,7 +4,9 @@
 --        audits' --self-test pinned-rank enforcement modes (vanilla TBC_IDS,
 --        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the
 --        behavioral battery, the era-pair coverage audit (era-mirror strategy
---        divergence baseline, run_era_pair_audit_tests.lua), and the
+--        divergence baseline, run_era_pair_audit_tests.lua) plus its seed
+--        freshness guard (the committed era_pair_seed.lua must match a fresh
+--        regeneration — run_era_pair_seed_freshness.lua), and the
 --        clean-checkout dependency probe
 --        (run_clean_checkout_probe.lua -- flags any test file-read target
 --        that resolves to a gitignored file instead of a tracked or
@@ -312,6 +314,22 @@ local components = {
         cmd = "lua " .. R .. "/run_era_pair_audit_tests.lua --self-test",
         check = function(c)
             return { { "self-test [PASS] marker present (era gaps fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
+        label = "era-pair seed freshness",
+        cmd = "lua " .. R .. "/run_era_pair_seed_freshness.lua",
+        check = function(c)
+            return { { "seed in-sync marker present, no DRIFT (matches a fresh regeneration)",
+                       c:find("in sync", 1, true) ~= nil and c:find("DRIFT", 1, true) == nil } }
+        end,
+    },
+    {
+        label = "era-pair seed freshness self-test",
+        cmd = "lua " .. R .. "/run_era_pair_seed_freshness.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (corrupted-seed drift detection fires)",
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
