@@ -5,6 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   verify-all:
@@ -77,3 +78,43 @@ jobs:
         # .omo/evidence via the tracked generator, so no untracked inputs are
         # needed on a clean checkout.
         run: lua EaxRotations/tests/run_verify_all.lua
+
+  # Build the release artifact (eaxrotations.zip: tracked lua + md only) so
+  # releases don't depend on the maintainer's machine. Runs only on master
+  # pushes and manual dispatch — NOT on PRs — to avoid artifact churn.
+  # python3 is preinstalled on ubuntu-latest; no extra setup step needed.
+  release-artifact:
+    name: Build release artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The script runs `git -C REPO_ROOT archive HEAD -- EaxRotations/`, so the
+    # checkout must be a real repo; actions/checkout@v5 (full clone, no depth
+    # limit) as used by verify-all satisfies that.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build release zip
+        # cwd-independent: the script derives the repo root from its own path,
+        # so it is safe to run from the checkout root. The script self-verifies
+        # (zero entries, any non-lua/md file, or a git archive failure exits
+        # nonzero), which fails this step and therefore the job.
+        run: python3 tools/create_release_zip.py eaxrotations.zip
+
+      - name: Verify artifact is non-empty
+        # The script's own checks are the primary gate; this is a belt-and-
+        # suspenders guard against a silently-empty (but script-valid) zip.
+        run: |
+          test -s eaxrotations.zip
+          SZ=$(stat -c %s eaxrotations.zip)
+          echo "eaxrotations.zip is $SZ bytes"
+          [ "$SZ" -gt 1048576 ] || { echo "ERROR: artifact suspiciously small"; exit 1; }
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eaxrotations-release
+          path: eaxrotations.zip
+          if-no-files-found: error
+          retention-days: 30
