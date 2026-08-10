@@ -1,5 +1,82 @@
 # Changelog
 
+## 2.23.0 — 2026-08-10
+
+### Customer Changelog
+- **WotLK APL conformance complete (34/34 → 50/50)**: every remaining
+  unpinned WotLK spec is now pinned to its wowsims/wotlk TypeAPL fixture
+  at commit 563e4a08 (byte-verified provenance in SOURCES.md) — 16 new
+  fixtures covering DK blood/frost/unholy, druid balance/bear, hunter
+  BM/mm/sv, paladin prot/ret, shaman enhancement, warrior
+  arms/fury/prot, warlock demo/destro, plus the holy/disc priest healer
+  pins. Manifest keys are class-qualified (`wotlk/<class>/<spec>` — never
+  bare: the wotlk/holy paladin-vs-priest collision proved why). Pure
+  order moves only (9 spec files) to match the sim steady chains — no
+  matcher-logic edits. One structural divergence is kept and documented:
+  fury Execute stays top-priority (the sim's execute-phase filler sits
+  below a proc-gated Slam).
+- **Live-game crash fixes** (surfaced by the new audits and shared-module
+  tests):
+  - `los_guard` unguarded `NS.same_unit` nil-call — every non-self
+    try_cast crashed (core_sylvanas:2301-2303); now guarded with the
+    module's fall-through semantics.
+  - `incoming_heal_predictor` missing `cleanup_caches` — a crash on every
+    healer build_state tick after ~1s uptime; implemented from the
+    module's own caching constants.
+  - `combat_stats` downtime dead-branch increment; `match_helpers`
+    early-return guard moved after its definitions.
+- **Three new static audits** (each with a `--self-test`): dead-matcher
+  audit (removed 38 orphaned matchers, −428 lines), NS-member audit
+  (never-defined `NS.<member>(` calls — the los_guard / cleanup_caches
+  crash class), version-consistency audit (header.lua runtime version
+  must equal the CHANGELOG top release — caught the stale 2.18.1
+  runtime version that every reload logged).
+- **Shared-module test coverage**: 8 new regression suites pinning
+  previously-untested live modules — combat_log_parser (~45 asserts incl.
+  the exact-60s prune boundary), swing_timer, player_helpers,
+  combat_stats, incoming_heal_predictor, middleware_scan_cache,
+  gear_score, match_helpers. Dead `aura_cache` module deleted (its
+  dormant 1000x TTL bug dies with it).
+- **Middleware performance**: non-urgent middleware is skipped while
+  casting/channeling and out of combat (18 `mid_cast_safe` marks) — the
+  paladin's 259 NS.* calls/frame and the other 7 middleware classes no
+  longer evaluate on every frame.
+- **Docs honesty**: the healer "on paper" claims corrected — healers are
+  battery-verified, not sim-conformant; the "no healer sim exists" claim
+  falsified for WotLK holy/disc priest and corrected; ghost file paths
+  fixed and deleted `run_all_checks.sh` de-referenced.
+- Version **2.23.0**.
+- Tests: 485 rotation + 31 leveling suites registered (516 total; all
+  green at runtime).
+
+### Developer Notes
+- **APL pipeline**: occurrence-aware resolvers map each repeated fixture
+  id to exactly ONE main-chain occurrence (execute/AoE/refresh branches
+  resolve nil) — mapping every occurrence created unsatisfiable reference
+  sequences (dk_blood's two DeathStrikes forced both
+  DeathStrike<Pestilence and HeartStrike<DeathStrike). The scorecard's
+  APL-evidence lookup now tries the class-qualified key first (dk/frost
+  previously showed the *mage* fixture's evidence; dk/blood showed nil).
+  Fixture display names remain a 50-entry hardcoded map in the scorecard
+  generator — candidate for deriving from the manifest entry.
+- **NS-member audit resolver**: comment/string stripping; exact-RHS
+  module binding (`local NS = _G.EaxRotations` forms only); engine
+  surface via .api stubs + @field annotations; 34-entry allowlist (19
+  mock + 11 guarded + 4 engine members) after the CI-parity fix — the
+  engine census reads gitignored local dirs absent in CI, so the
+  allowlist is the portable guarantee (reproduced locally with empty
+  ENGINE_DIRS: Invalid 20 matching CI; now Invalid 0).
+- **Pre-commit gate 12 → 15 steps**: dead-matcher audit, version-
+  consistency audit, and NS-member audit added as steps 13-15 with their
+  self-tests; verify_all now runs 23 components; hook re-synced via the
+  documented cp.
+- **cleanup_caches implementation**: built from the module's own
+  constants (cache TTL/tick interval); the regression suite that caught
+  it stays as the semantic guard.
+- **CI**: the WotLK campaign push (2a9ba82) verified green — Verify +
+  release-artifact jobs both pass, artifact ~3.16 MB — pipeline commits
+  CI-confirmed per the NS-member incident discipline.
+
 ## 2.22.0 — 2026-08-10
 
 ### Customer Changelog
