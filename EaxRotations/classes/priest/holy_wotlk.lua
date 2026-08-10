@@ -48,6 +48,12 @@ local function build_state(context)
     return state
 end
 
+-- Order note (2026-08-10): GreaterHeal sits ABOVE Renew/PrayerOfMending to match
+-- the wowsims healing-priest APL evaluation order (ui/healing_priest/apls/holy.apl.json:
+-- GreaterHeal -> CircleOfHealing -> Renew -> PrayerOfMending). The prior order had
+-- Renew/PoM above GreaterHeal — a genuine divergence from the sim, fixed as a pure
+-- order move (no matcher-logic change) when the healer pins were wired. GuardianSpirit
+-- stays the emergency top; FlashHeal is our extra below (both absent from the sim APL).
 local DSL_DEFS = {
     {
         name = "GuardianSpirit",
@@ -56,6 +62,14 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 30 },
         },
         action = { type = "cast", spell = ACTION.GuardianSpirit, target = "friendly" },
+    },
+    {
+        name = "GreaterHeal",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.GreaterHeal, target = "friendly" },
     },
     {
         name = "Renew",
@@ -70,14 +84,6 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.PrayerOfMending, target = "friendly" },
     },
     {
-        name = "GreaterHeal",
-        conditions = {
-            { type = "state", field = "target_hp", op = "<", value = 50 },
-            { type = "state", field = "mana_pct", op = ">=", value = 30 },
-        },
-        action = { type = "cast", spell = ACTION.GreaterHeal, target = "friendly" },
-    },
-    {
         name = "FlashHeal",
         conditions = {
             { type = "state", field = "target_hp", op = "<", value = 70 },
@@ -89,9 +95,9 @@ local DSL_DEFS = {
 
 local strategies = {
     { name = "GuardianSpirit" },
+    { name = "GreaterHeal" },
     { name = "Renew" },
     { name = "PrayerOfMending" },
-    { name = "GreaterHeal" },
     { name = "FlashHeal" },
 }
 

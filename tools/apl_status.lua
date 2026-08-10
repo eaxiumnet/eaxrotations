@@ -396,6 +396,62 @@ M.ENTRIES = {
         resolve = shadow_resolve,
     },
     -- -----------------------------------------------------------------------
+    -- HEALER pins (2026-08-10): wowsims/wotlk HAS a real, executed healing
+    -- priest sim — sim/priest/healing/healing_priest.go + healing_priest_test.go
+    -- (TestDisc/TestHoly run with IsHealer:true against core.GetAplRotation of
+    -- these exact JSONs). This corrects the earlier "no healer APL exists" claim
+    -- (see tools/evidence/apl/SOURCES.md). The APLs are CPM-budget profiles
+    -- (spellCpm conditions), NOT full DPS priority lists — the pin therefore
+    -- enforces the ORDER of the spell actions (the sim's evaluation order), not
+    -- the CPM budgets. Spells absent from our rotation resolve to nil and are
+    -- ignored (holy: Circle of Healing 48089 — no CoH strategy in holy_wotlk;
+    -- disc: the 1-CPM filler GreaterHeal 48063 — disc_wotlk uses Renew instead),
+    -- mirroring the TBC seed/AoE-branch exclusion policy. Keys are
+    -- class-qualified (wotlk/priest/holy NOT wotlk/holy) so the scorecard's
+    -- WotLK lookup cannot collide with holy PALADIN.
+    -- -----------------------------------------------------------------------
+    {
+        key = "wotlk/priest/holy",
+        fixture = "tools/evidence/apl/holy_priest_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/priest/holy_wotlk.lua",
+        spells = "PriestSpells",
+        actions = {
+            GreaterHeal = 48063, Renew = 48068, PrayerofMending = 33076,
+            GuardianSpirit = 47788, FlashHeal = 48071,
+        },
+        -- APL order: GreaterHeal(48063) -> CircleOfHealing(48089, absent) ->
+        -- Renew(48068, multidot) -> PrayerOfMending(48113). Our rotation was
+        -- Renew/PoM ABOVE GreaterHeal (a genuine divergence, fixed 2026-08-10
+        -- as a pure order move in holy_wotlk.lua — see SOURCES.md).
+        resolve = function(id, occurrence)
+            if id == 48063 then return "GreaterHeal" end
+            if id == 48089 then return nil end -- Circle of Healing: no CoH strategy
+            if id == 48068 then return "Renew" end
+            if id == 48113 then return "PrayerOfMending" end
+            return nil
+        end,
+    },
+    {
+        key = "wotlk/priest/discipline",
+        fixture = "tools/evidence/apl/disc_priest_wotlk.apl.json",
+        spec_file = "EaxRotations/classes/priest/discipline_wotlk.lua",
+        spells = "PriestSpells",
+        actions = {
+            PowerWordShield = 48066, Penance = 47540, PrayerofMending = 33076,
+            Renew = 48068,
+        },
+        -- APL order: PowerWordShield(48066, multishield) -> Penance(53007) ->
+        -- PrayerOfMending(48113) -> GreaterHeal(48063, 1-CPM filler, absent
+        -- from disc_wotlk — Renew is our filler instead, imposes no constraint).
+        resolve = function(id, occurrence)
+            if id == 48066 then return "PowerWordShield" end
+            if id == 53007 then return "Penance" end -- sim max-rank; ours is 47540
+            if id == 48113 then return "PrayerOfMending" end -- sim max-rank; ours is 33076
+            if id == 48063 then return nil end -- GreaterHeal filler: not in disc rotation
+            return nil
+        end,
+    },
+    -- -----------------------------------------------------------------------
     -- TBC era (Phase 2-TBC, 2026-08-09). wowsims/tbc has NO TypeAPL JSON
     -- fixtures (that format postdates the TBC repo) — rotations are imperative
     -- Go dispatch files, so each pin below is a `reference_names` list extracted

@@ -151,6 +151,113 @@ for _, e in ipairs(manifest.ENTRIES) do
 end
 
 -- ---------------------------------------------------------------------------
+-- Healer APL semantics (2026-08-10): the wowsims healing-priest APLs are
+-- CPM-budget profiles (spellCpm conditions), NOT full DPS priority lists. The
+-- pin therefore enforces the ORDER of the spell actions (the sim evaluation
+-- order). These tests pin the extraction semantics so the healer pins stay
+-- provably live and non-vacuous:
+--   disc: PowerWordShield(48066, multishield) > Penance(53007) >
+--         PrayerOfMending(48113) > GreaterHeal filler(48063, absent)
+--   holy: GreaterHeal(48063) > CircleOfHealing(48089, absent) >
+--         Renew(48068, multidot) > PrayerOfMending(48113)
+-- ---------------------------------------------------------------------------
+test("healer: disc fixture extracts multishield PW:S as priority id 1", function()
+    local raw = read_file("tools/evidence/apl/disc_priest_wotlk.apl.json")
+    assert_true(raw ~= nil, "missing disc healer fixture")
+    local t = apl.decode_json(raw)
+    local ids = apl.priority_ids(t)
+    -- The parser must extract the multishield action form, else PW:S (the
+    -- sim's TOP disc action) is silently dropped and the pin is weak.
+    assert_true(#ids >= 1 and ids[1] == 48066,
+        "disc healer APL: expected multishield PowerWordShield 48066 first, got "
+        .. table.concat(ids, ","))
+end)
+
+test("healer: holy fixture extracts full ordered action list", function()
+    local raw = read_file("tools/evidence/apl/holy_priest_wotlk.apl.json")
+    assert_true(raw ~= nil, "missing holy healer fixture")
+    local t = apl.decode_json(raw)
+    local ids = apl.priority_ids(t)
+    assert_true(#ids == 4, "holy healer APL should extract 4 actions, got " .. #ids)
+    assert_true(ids[1] == 48063 and ids[3] == 48068 and ids[4] == 48113,
+        "holy healer APL order: expected GreaterHeal 48063, [CoH 48089], Renew 48068, PoM 48113 — got "
+        .. table.concat(ids, ","))
+end)
+
+test("healer: disc resolver is non-vacuous and every mapped name is real", function()
+    local strategies = manifest.load_spec("EaxRotations/classes/priest/discipline_wotlk.lua",
+        "PriestSpells", {
+            PowerWordShield = 48066, Penance = 47540, PrayerofMending = 33076, Renew = 48068,
+        }, 5)
+    local names = manifest.strategy_names(strategies)
+    local known = {}
+    for _, n in ipairs(names) do known[n] = true end
+    local raw = read_file("tools/evidence/apl/disc_priest_wotlk.apl.json")
+    local ids = apl.priority_ids(apl.decode_json(raw))
+    local seen, count = {}, 0
+    for _, id in ipairs(ids) do
+        local name = ({ [48066] = "PowerWordShield", [53007] = "Penance",
+            [48113] = "PrayerOfMending", [48063] = nil })[id]
+        if name and not seen[name] then
+            seen[name] = true
+            assert_true(known[name], "disc resolver maps id " .. id .. " to unknown strategy " .. name)
+            count = count + 1
+        end
+    end
+    assert_true(count >= 3, "disc resolver must map at least 3 fixture ids (non-vacuous), got " .. count)
+end)
+
+test("healer: holy resolver is non-vacuous and every mapped name is real", function()
+    local strategies = manifest.load_spec("EaxRotations/classes/priest/holy_wotlk.lua",
+        "PriestSpells", {
+            GreaterHeal = 48063, Renew = 48068, PrayerofMending = 33076,
+            GuardianSpirit = 47788, FlashHeal = 48071,
+        }, 5)
+    local names = manifest.strategy_names(strategies)
+    local known = {}
+    for _, n in ipairs(names) do known[n] = true end
+    local raw = read_file("tools/evidence/apl/holy_priest_wotlk.apl.json")
+    local ids = apl.priority_ids(apl.decode_json(raw))
+    local seen, count = {}, 0
+    for _, id in ipairs(ids) do
+        local name = ({ [48063] = "GreaterHeal", [48089] = nil, [48068] = "Renew",
+            [48113] = "PrayerOfMending" })[id]
+        if name and not seen[name] then
+            seen[name] = true
+            assert_true(known[name], "holy resolver maps id " .. id .. " to unknown strategy " .. name)
+            count = count + 1
+        end
+    end
+    assert_true(count >= 3, "holy resolver must map at least 3 fixture ids (non-vacuous), got " .. count)
+end)
+
+-- The healer pins also enforce ORDER: GreaterHeal must precede Renew/PoM in
+-- holy (this was the pure order move in holy_wotlk.lua, 2026-08-10) and
+-- PowerWordShield must precede Penance/PoM in disc.
+test("healer: holy order — GreaterHeal before Renew before PrayerOfMending", function()
+    local strategies = manifest.load_spec("EaxRotations/classes/priest/holy_wotlk.lua",
+        "PriestSpells", {
+            GreaterHeal = 48063, Renew = 48068, PrayerofMending = 33076,
+            GuardianSpirit = 47788, FlashHeal = 48071,
+        }, 5)
+    local names = manifest.strategy_names(strategies)
+    local violation = apl.check_name_order(names, { "GreaterHeal", "Renew", "PrayerOfMending" })
+    assert_true(violation == nil,
+        "holy order divergence: " .. tostring(violation and (violation.prev .. " should precede " .. violation.name) or "none"))
+end)
+
+test("healer: disc order — PowerWordShield before Penance before PrayerOfMending", function()
+    local strategies = manifest.load_spec("EaxRotations/classes/priest/discipline_wotlk.lua",
+        "PriestSpells", {
+            PowerWordShield = 48066, Penance = 47540, PrayerofMending = 33076, Renew = 48068,
+        }, 5)
+    local names = manifest.strategy_names(strategies)
+    local violation = apl.check_name_order(names, { "PowerWordShield", "Penance", "PrayerOfMending" })
+    assert_true(violation == nil,
+        "disc order divergence: " .. tostring(violation and (violation.prev .. " should precede " .. violation.name) or "none"))
+end)
+
+-- ---------------------------------------------------------------------------
 -- Negative self-tests: prove the checker actually catches a reorder.
 -- ---------------------------------------------------------------------------
 test("checker: reversed affliction order is caught", function()

@@ -423,7 +423,14 @@ local function classify_reports(agg, era)
         local class_suites, spec_suites = count_suites(class_key, spec_key)
         local apl
         if era == 'wotlk' then
-            apl = APL_STATUS['wotlk/' .. spec_key] or 'pending'
+            -- Class-qualified keys disambiguate shared spec names ("holy" is
+            -- BOTH priest/holy and paladin/holy; "protection" exists for paladin
+            -- and warrior): try wotlk/<class>/<spec> first, mirroring the TBC
+            -- branch below. The healer pins are therefore wotlk/priest/holy +
+            -- wotlk/priest/discipline (2026-08-10).
+            apl = APL_STATUS['wotlk/' .. class_key .. '/' .. spec_key]
+                or APL_STATUS['wotlk/' .. spec_key]
+                or 'pending'
         else
             -- Class-qualified keys disambiguate shared spec names ("protection"
             -- exists for both paladin and warrior): try tbc/<class>/<spec> first.
@@ -638,15 +645,25 @@ add('Rating rubric: **S+** never=0 ∧ (c)=0 ∧ APL pass · **S** never=0 · **
     .. 'accessors, scenario banks, DK stub rewiring), so the era is STRICT like TBC — a '
     .. 'future never-lane is a hard-fail until pinned.')
 add('')
-add('**Why healer rows show APL = `pending`:** wowsims (tbc, tbc-new, wotlk, '
-    .. 'classic/SoD) is explicitly a DPS-only simulator — its checked-out rotation '
-    .. 'trees contain zero healer files (druid = balance/feral/tank, paladin = '
-    .. 'protection/retribution, priest = shadow/smite) — and no healer rotation '
-    .. 'simulator exists for any classic era (GitHub repo search returns 0). Healer '
-    .. 'validation is therefore battery-verified internal correctness (never=0, S '
-    .. 'ratings, the ~60 healer regression suites), with priority logic based on '
-    .. 'community guides (Icy Veins / Wowhead; see the provenance note at '
-    .. 'holy_sylvanas.lua:4) rather than sim-authored APLs.')
+add('**Why some healer rows show APL = `pending` (corrected 2026-08-10):** the '
+    .. 'earlier claim that "no healer rotation simulator exists for any classic era" '
+    .. 'was wrong for WotLK holy/disc priest. wowsims/wotlk HAS a real, executed '
+    .. 'healer sim: `sim/priest/healing/healing_priest.go` + `healing_priest_test.go` '
+    .. '(TestDisc/TestHoly run with `IsHealer: true` against `core.GetAplRotation` '
+    .. 'of `ui/healing_priest/apls/disc.apl.json` + `holy.apl.json`), and both APLs '
+    .. 'are now pinned here (keys `wotlk/priest/holy` + `wotlk/priest/discipline`). '
+    .. 'Verified claim boundaries: holy/disc priest = real sim + APL (pinned); holy '
+    .. 'paladin = engine scaffolding only (`sim/paladin/holy/rotation.go` is a 5s-wait '
+    .. 'stub, no `ui/holy_paladin/apls/`); resto druid + resto shaman = agent '
+    .. 'scaffolding only (`restoration.go` defines no `OnGCDReady`, no `apls/` dirs); '
+    .. 'TBC-era has zero healer dirs and there is no vanilla-era wowsims project '
+    .. '(wowsims/classic is SoD) — those rows stay `pending`. See '
+    .. 'tools/evidence/apl/SOURCES.md "Healer fixtures" for the full evidence. The '
+    .. 'pinned healer APLs are CPM-budget profiles (spellCpm conditions), so the '
+    .. 'conformance pins enforce the ORDER of the spell actions (the sim evaluation '
+    .. 'order), not the CPM budgets; spells absent from our rotation (holy CoH 48089, '
+    .. 'disc filler GH 48063) resolve to nil and impose no constraint, mirroring the '
+    .. 'TBC exclusion policy.')
 add('')
 emit_rows_table('TBC/Sylvanas era', rows, false)
 emit_rows_table('WotLK era', wotlk_rows, true)
@@ -658,8 +675,11 @@ add('Status is computed live by `tools/apl_status.lua` from the pinned wowsims A
     .. 'the same manifest `tests/test_apl_conformance.lua` iterates, so this table '
     .. 'and the CI gate can never drift. TBC-era rows are pinned from wowsims/tbc '
     .. 'Go dispatch order (`reference_names` — the TBC repo predates TypeAPL JSON; '
-    .. 'see SOURCES.md). Healers (holy/disc/resto/healing) have no wowsims rotation '
-    .. 'and remain `pending`.')
+    .. 'see SOURCES.md). WotLK holy/disc priest are pinned from the wowsims healer '
+    .. 'APLs (keys `wotlk/priest/holy` + `wotlk/priest/discipline`, 2026-08-10); the '
+    .. 'remaining healers (holy paladin, resto druid/shaman, TBC-era) stay `pending` '
+    .. '— engine scaffolding only, no implemented rotation (see the healer-fix note '
+    .. 'above + SOURCES.md).')
 add('')
 add('| Spec | Fixture | Verdict | Evidence |')
 add('|---|---|---|---|')
@@ -676,6 +696,8 @@ for _, k in ipairs(apl_keys) do
         or (k == 'wotlk/assassination' and 'mutilate_wotlk.apl.json')
         or (k == 'wotlk/elemental' and 'elemental_wotlk.apl.json')
         or (k == 'wotlk/shadow' and 'shadow_wotlk.apl.json')
+        or (k == 'wotlk/priest/holy' and 'holy_priest_wotlk.apl.json')
+        or (k == 'wotlk/priest/discipline' and 'disc_priest_wotlk.apl.json')
         or (k == 'tbc/shadow' and 'Go: sim/priest/shadow_rotation.go')
         or (k == 'tbc/affliction' and 'Go: sim/warlock_rotations.go')
         or (k == 'tbc/combat' and 'Go: sim/rogue_rotation.go')
@@ -724,7 +746,9 @@ add('- APL status is COMPUTED, not hardcoded: `tools/apl_status.lua` loads each 
     .. 'for Go-dispatch TBC pins) live and returns pass/fail + evidence; '
     .. '`tests/test_apl_conformance.lua` iterates the same manifest, so the APL '
     .. 'column and the CI gate can never drift. TBC-era rows are pinned from '
-    .. 'wowsims/tbc Go dispatch order; healers stay `pending` (no wowsims rotation).')
+    .. 'wowsims/tbc Go dispatch order. WotLK healer pins (2026-08-10): holy/disc '
+    .. 'priest from the real wowsims healing-priest APLs; the rest stay `pending` '
+    .. '(no implemented rotation — see the healer-fix note above).')
 add('- Phase 2 note: `shared/apl_parser.lua` (resurrected) parses the pinned wowsims '
     .. 'TypeAPL JSON; test_apl_conformance.lua asserts strategy order for the 3 pilots '
     .. 'and fails CI on drift.')

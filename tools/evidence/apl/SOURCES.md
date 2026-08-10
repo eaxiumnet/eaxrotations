@@ -17,13 +17,56 @@ here + one entry in `tools/apl_status.lua`'s `M.ENTRIES`.
 | `mutilate_wotlk.apl.json` | `wowsims/wotlk` `ui/rogue/apls/mutilate.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `elemental_wotlk.apl.json` | `wowsims/wotlk` `ui/elemental_shaman/apls/advanced.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 | `shadow_wotlk.apl.json` | `wowsims/wotlk` `ui/priest/apls/shadow.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `disc_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/disc.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
+| `holy_priest_wotlk.apl.json` | `wowsims/wotlk` `ui/healing_priest/apls/holy.apl.json` | `563e4a08cb15729f1fdcbcf68e6d68224553bfef` |
 
 - **Repo:** github.com/wowsims/wotlk, branch `master`.
 - **Commit:** `563e4a08cb15729f1fdcbcf68e6d68224553bfef` (2025-12-22).
-- **Fetched:** 2026-08-09 via the GitHub raw endpoint.
+- **Fetched:** 2026-08-09 via the GitHub raw endpoint (healer fixtures: 2026-08-10,
+  same commit — both `disc.apl.json` + `holy.apl.json` exist at `563e4a08`).
 - **Format:** wowsims `TypeAPL` JSON (`priorityList` of actions).
 - **Update policy:** re-fetch only on an intentional conformance re-baseline;
   update this table + the commit ref in `shared/apl_parser.lua` together.
+
+## Healer fixtures (2026-08-10): the correction to the "no healer APL" claim
+
+The scorecard/README previously stated no healer rotation simulator exists for
+any classic era. **That is wrong for WotLK holy/disc priest.** `wowsims/wotlk`
+has a real, executed healer sim:
+
+- `sim/priest/healing/healing_priest.go` — agent engine (registers healing
+  spells, Rapture, Hymn of Hope).
+- `sim/priest/healing/healing_priest_test.go` — `TestDisc`/`TestHoly` run the
+  full character test suite with `IsHealer: true` and
+  `Rotation: core.GetAplRotation("../../../ui/healing_priest/apls", "disc"/"holy")`
+  — the two APL JSONs below are the sim's ACTUAL rotation, executed in CI.
+- `ui/healing_priest/apls/disc.apl.json` + `holy.apl.json` — TypeAPL JSON
+  (`spellCpm` budget conditions + `castSpell`/`multidot`/`multishield` actions;
+  `priority_ids` extracts them via `shared/apl_parser.lua`, which handles the
+  `multishield` action form used by the disc PW:S entry).
+
+`wowsims/classic` (SoD) carries the same two `ui/healing_priest/apls/*.apl.json`
+files at master, but the pins below use the wotlk repo at the pinned commit.
+
+**Claim boundaries (verified 2026-08-10 against the wotlk tree):**
+- holy/disc **priest** — real sim + APL (pinned here).
+- **holy paladin** — engine scaffolding exists (`sim/paladin/holy/holy.go`,
+  `holy_test.go` with `IsHealer: true`) but `rotation.go` is a stub
+  (`OnGCDReady` just waits 5s) and there is no `ui/holy_paladin/apls/` — no
+  defensible rotation, stays `pending`.
+- **resto druid / resto shaman** — agent scaffolding exists
+  (`sim/{druid,shaman}/restoration/restoration.go`, `TestRestoration.results`)
+  but neither file defines `OnGCDReady` (no rotation implemented) and their UI
+  dirs have no `apls/` — stays `pending`.
+- **TBC-era** (`wowsims/tbc`) — zero healer dirs at all; **vanilla-era** — no
+  wowsims project (wowsims/classic is SoD, not vanilla) — both stay `pending`.
+- The healer APLs are CPM-budget profiles ("keep X casts/minute"), not the
+  full priority lists of the DPS APLs — the pins therefore enforce the ORDER of
+  the spell actions in the list (e.g. holy: GreaterHeal before Renew before
+  PrayerOfMending), which is the sim's evaluation order. Spells absent from our
+  rotation (holy's Circle of Healing 48089; disc's filler GreaterHeal 48063)
+  resolve to nil and impose no constraint, mirroring the TBC seed/AoE-branch
+  exclusion policy.
 
 ## Why feralcat is special
 

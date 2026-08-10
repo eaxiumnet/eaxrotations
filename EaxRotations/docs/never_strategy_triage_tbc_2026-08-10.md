@@ -14,11 +14,20 @@ Companion docs: `never_strategy_triage_dps_2026-08-07.md` and
 `never_strategy_triage_non_dps_2026-08-07.md` (the original 304 → 100
 triage), `never_strategy_triage_wotlk_2026-08-09.md` (WotLK era, now 0).
 
-**Healer APL note:** healer rows in `docs/scorecard.md` show APL =
-`pending` because no healer rotation simulator exists for any classic era
-(wowsims is explicitly DPS-only; see scorecard.md "Why healer rows show
-APL = `pending`"). Healer validation is battery-verified internal
-correctness, not sim conformance.
+**Healer APL note (corrected 2026-08-10):** the earlier claim that no healer
+rotation simulator exists for any classic era was wrong for WotLK holy/disc
+priest — wowsims/wotlk has a real, executed healing-priest sim
+(`sim/priest/healing/healing_priest_test.go` runs `TestDisc`/`TestHoly` with
+`IsHealer: true` against `ui/healing_priest/apls/{disc,holy}.apl.json`), and
+both APLs are pinned in the conformance manifest (`wotlk/priest/holy` +
+`wotlk/priest/discipline` — see `docs/scorecard.md` "Why some healer rows
+show APL = `pending`" and `tools/evidence/apl/SOURCES.md`). The remaining
+healer rows (holy paladin, resto druid/shaman, TBC-era) still show
+`pending`: those wowsims trees carry agent scaffolding but no implemented
+rotation (holy paladin's `rotation.go` is a 5s-wait stub; resto
+`restoration.go` defines no `OnGCDReady`; TBC has zero healer dirs), so
+those specs remain battery-verified internal correctness, not sim
+conformance.
 
 ## How to reproduce
 

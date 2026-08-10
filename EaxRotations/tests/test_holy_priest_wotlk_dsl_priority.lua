@@ -98,7 +98,10 @@ local tests = {}
 local passed = 0
 local failed = 0
 function tests.priority_order()
-    local expected = { "GuardianSpirit", "Renew", "PrayerOfMending", "GreaterHeal", "FlashHeal" }
+    -- Order matches the wowsims healing-priest APL evaluation order (2026-08-10
+    -- pure order move): GreaterHeal above Renew/PrayerOfMending per the pinned
+    -- holy.apl.json (GreaterHeal -> CircleOfHealing -> Renew -> PrayerOfMending).
+    local expected = { "GuardianSpirit", "GreaterHeal", "Renew", "PrayerOfMending", "FlashHeal" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -167,7 +170,8 @@ tests.test_heals_use_lowest_friendly_target = function()
     local state = build_state(ctx)
     if state.target_hp ~= 35 then return false, "Holy priest should score the lowest friendly unit" end
     last_execute_target = nil
-    if not strategies[4].execute(ctx, state) then return false, "Greater Heal should execute" end
+    -- GreaterHeal is index 2 post-2026-08-10 order move (was 4).
+    if not strategies[2].execute(ctx, state) then return false, "Greater Heal should execute" end
     if last_execute_target ~= ally then return false, "Greater Heal should target the lowest friendly unit" end
     return true
 end

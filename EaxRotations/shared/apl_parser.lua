@@ -172,11 +172,14 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Extract the ordered priority-list actions from a decoded TypeAPL table.
--- Returns an array of { kind = "cast"|"channel"|"multidot", id = <number> }.
+-- Returns an array of { kind = "cast"|"channel"|"multidot"|"multishield", id = <number> }.
 -- Non-spell actions (autocastOtherCooldowns, triggerIcd, activateAura,
 -- condition-only entries) are skipped. Sequence entries (opener/execute
 -- macros) are skipped by default — they are condition-gated one-shots, not
 -- steady-state priority — pass include_sequences = true to flatten them.
+-- multishield is the healer-analog of multidot (maintain N shields on the
+-- raid, e.g. the wowsims disc priest APL's Power Word: Shield entry) —
+-- extracted the same way so healer APLs pin fully.
 function M.priority_actions(apl, opts)
     local include_sequences = opts and opts.include_sequences
     local out = {}
@@ -204,6 +207,14 @@ function M.priority_actions(apl, opts)
             local sid = type(md) == "table" and md.spellId
             if type(sid) == "table" and type(sid.spellId) == "number" then
                 into[#into + 1] = { kind = "multidot", id = sid.spellId }
+            end
+            return
+        end
+        local ms = a.multishield
+        if ms then
+            local sid = type(ms) == "table" and ms.spellId
+            if type(sid) == "table" and type(sid.spellId) == "number" then
+                into[#into + 1] = { kind = "multishield", id = sid.spellId }
             end
             return
         end
