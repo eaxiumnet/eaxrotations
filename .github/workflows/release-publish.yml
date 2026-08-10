@@ -154,6 +154,12 @@ jobs:
 
       - name: Check for existing tag + release (idempotency)
         id: check
+        # Explicit GH_TOKEN: gh does not reliably pick up the ambient
+        # GITHUB_TOKEN for reads, so without this the view check would wrongly
+        # report "no release" and the create step would then fail on the
+        # already-published release instead of idempotently skipping.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.resolve.outputs.version }}"
           if gh release view "v${VERSION}" >/dev/null 2>&1; then
