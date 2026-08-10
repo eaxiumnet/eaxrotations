@@ -321,6 +321,35 @@ local function estimate_heal_amount(spell_name, healer_guid, target_guid)
     return HEAL_SIZE_FALLBACK[lower] or 1000
 end
 
+-- Prune stale healer-preference entries (older than COMBAT_LOG_LOOKBACK) and
+-- expired spell-info cache entries (older than HEAL_SPELL_CACHE_TTL).
+--
+-- NOTE: scan_party_casts has always called cleanup_caches(now) but the function
+-- was never defined — every scan after 1s of uptime crashed with "attempt to
+-- call a nil value (global 'cleanup_caches')", and since M.get() is not
+-- pcall-wrapped the error propagated into every healer build_state tick.
+-- Fixed 2026-08-10; the regression test (first scan) surfaces it.
+local function cleanup_caches(now)
+    for healer_guid, prefs in pairs(_healer_prefs) do
+        local alive = false
+        for tguid, pt in pairs(prefs) do
+            if (now - (pt.last_time or 0)) > COMBAT_LOG_LOOKBACK then
+                prefs[tguid] = nil
+            else
+                alive = true
+            end
+        end
+        if not alive then
+            _healer_prefs[healer_guid] = nil
+        end
+    end
+    for spell_id, cached in pairs(_spell_cache) do
+        if (now - (cached.cached_at or 0)) > HEAL_SPELL_CACHE_TTL then
+            _spell_cache[spell_id] = nil
+        end
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- Combat log integration
 -- ---------------------------------------------------------------------------

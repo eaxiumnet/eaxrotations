@@ -134,8 +134,12 @@ function M.on_update(context)
         
         -- Downtime = GCD ready + not casting + not channeling
         if gcd_remains == 0 and not is_casting and not is_channeling then
-            -- Only count as downtime if we also didn't act last tick
-            -- This is simplified - real downtime detection needs more context
+            -- NOTE: the "also didn't act last tick" refinement was never
+            -- implemented (no state tracks last-tick actions), so downtime is
+            -- the simplified GCD-ready + idle-tick definition below. Before
+            -- 2026-08-10 this block was empty and downtime_pct was
+            -- structurally always 0 in the combat summary (dead branch).
+            session_data.downtime_ticks = session_data.downtime_ticks + 1
         end
     end
     
