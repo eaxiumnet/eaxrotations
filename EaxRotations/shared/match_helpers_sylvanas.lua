@@ -14,7 +14,6 @@
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations
-if not NS then return M end
 
 -- ============================================================================
 -- ttd_gate(ctx, min_ttd)
@@ -43,6 +42,13 @@ end
 -- NS Registration
 -- ============================================================================
 
-NS.match_helpers = M
+-- NOTE: registration is guarded (every other shared module returns M
+-- unconditionally); when NS is absent the module still returns a fully-formed
+-- M so ttd_gate is usable pre-bootstrap. Before 2026-08-10 the `if not NS then
+-- return M end` guard sat BEFORE the function definitions, so the no-NS path
+-- returned an empty module with no ttd_gate.
+if NS then
+    NS.match_helpers = M
+end
 
 return M

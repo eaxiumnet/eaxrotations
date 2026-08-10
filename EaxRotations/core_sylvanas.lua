@@ -232,9 +232,6 @@ if _srr_ok and type(_spell_rank_resolver) == "table" then NS.SpellRankResolver =
 local _sc_ok, _spell_corpus = pcall(require, "shared/spell_corpus_sylvanas")
 if _sc_ok and type(_spell_corpus) == "table" then NS.SpellCorpus = _spell_corpus end
 
--- AuraCache: per-frame unit aura snapshot cache (avoids repeated UnitBuff/UnitDebuff calls)
-local _ac_ok, _aura_cache = pcall(require, "shared/aura_cache_sylvanas")
-if _ac_ok and type(_aura_cache) == "table" then NS.AuraCache = _aura_cache end
 
 -- EnemyCDTracker adapter: preserves API compatibility while delegating to native cooldown_tracker
 -- Replaces EaxRotations/shared/enemy_cd_tracker_sylvanas.lua (deleted)
