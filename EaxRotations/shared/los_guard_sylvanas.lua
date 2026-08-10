@@ -97,8 +97,12 @@ function M.check(target)
     end
     if not caster then return true end
 
-    -- Self-cast is always in LOS.
-    if NS.same_unit(caster, target) then return true end
+    -- Self-cast is always in LOS. NS.same_unit is optional — this repo never
+    -- assigns it, and every other call site guards it (balance_sylvanas:276,
+    -- bear_sylvanas:261). When absent, skip the shortcut and let the LOS APIs
+    -- decide: both report true for the player itself, and the try_cast caller
+    -- already excludes self-casts upstream (core_sylvanas:2303).
+    if NS.same_unit and NS.same_unit(caster, target) then return true end
 
     local now = _time()
     local key = _cache_key(caster, target)

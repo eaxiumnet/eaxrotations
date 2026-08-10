@@ -511,6 +511,7 @@ local tests = {
     "test_player_helpers_regression.lua",
     "test_combat_stats_regression.lua",
     "test_incoming_heal_predictor_regression.lua",
+    "test_los_guard_regression.lua",
     "test_pvp_combo_lane_regression.lua",
     "test_opt_in_lane_regression.lua",
     "test_hitcap_dagger_regression.lua",
