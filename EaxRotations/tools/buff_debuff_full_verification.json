@@ -1,13 +1,13 @@
 {
   "summary": {
     "tables": 2710,
-    "unique_ids": 2226,
-    "ok": 2226,
+    "unique_ids": 2231,
+    "ok": 2231,
     "fail": 0,
     "ok_pct": 100.0,
-    "online_classic": 1934,
-    "online_tbc": 1947,
-    "online_wotlk": 1073,
+    "online_classic": 1935,
+    "online_tbc": 1950,
+    "online_wotlk": 1075,
     "local_tbc_family": 31249,
     "local_vanilla": 28602,
     "fail_ids": [],
@@ -13690,15 +13690,15 @@
         "FORM_BUFFS",
         "FORM_BUFF_BEAR",
         "bear_buffs",
-        "bear_form_buff_ids",
         "define:BearForm",
-        "define:DireBearForm"
+        "define:DireBearForm",
+        "form_buffs"
       ],
       "files": [
         "EaxRotations/classes/druid/bear_sylvanas.lua",
-        "EaxRotations/classes/druid/cat_sylvanas.lua",
         "EaxRotations/classes/druid/class_sylvanas.lua",
-        "EaxRotations/classes/druid/leveling_wotlk.lua"
+        "EaxRotations/classes/druid/leveling_wotlk.lua",
+        "EaxRotations/classes/druid/middleware_sylvanas.lua"
       ],
       "local": {
         "tbc_index": {
@@ -23518,15 +23518,15 @@
         "FORM_BUFFS",
         "FORM_BUFF_BEAR",
         "bear_buffs",
-        "bear_form_buff_ids",
         "define:BearForm",
-        "define:DireBearForm"
+        "define:DireBearForm",
+        "form_buffs"
       ],
       "files": [
         "EaxRotations/classes/druid/bear_sylvanas.lua",
-        "EaxRotations/classes/druid/cat_sylvanas.lua",
         "EaxRotations/classes/druid/class_sylvanas.lua",
-        "EaxRotations/classes/druid/leveling_wotlk.lua"
+        "EaxRotations/classes/druid/leveling_wotlk.lua",
+        "EaxRotations/classes/druid/middleware_sylvanas.lua"
       ],
       "local": {
         "tbc_index": {
@@ -62832,14 +62832,12 @@
       ],
       "tables": [
         "IMP_FIREBOLT",
-        "IMP_FIREBOLT_IDS",
-        "ids"
+        "IMP_FIREBOLT_IDS"
       ],
       "files": [
         "EaxRotations/classes/warlock/affliction_sylvanas.lua",
         "EaxRotations/classes/warlock/demonology_sylvanas.lua",
-        "EaxRotations/shared/pet_manager_sylvanas.lua",
-        "EaxRotations/shared/talent_inference_sylvanas.lua"
+        "EaxRotations/shared/pet_manager_sylvanas.lua"
       ],
       "local": {
         "tbc_index": {
@@ -65897,6 +65895,7 @@
       ],
       "tables": [
         "define:Conflagrate",
+        "ids",
         "spell_action"
       ],
       "files": [
@@ -68176,6 +68175,7 @@
       "tables": [
         "ICE_BARRIER_BUFF",
         "define:IceBarrier",
+        "ids",
         "spell_action"
       ],
       "files": [
@@ -70911,6 +70911,38 @@
       },
       "ok": true
     },
+    "39023": {
+      "id": 39023,
+      "name": "Firebolt",
+      "kind": [
+        "cast"
+      ],
+      "tables": [
+        "IMP_FIREBOLT"
+      ],
+      "files": [
+        "EaxRotations/shared/pet_manager_sylvanas.lua"
+      ],
+      "local": {
+        "tbc_index": {
+          "name": "Firebolt",
+          "class": "Warlock",
+          "level": 70
+        },
+        "vanilla_index": {
+          "name": "Firebolt",
+          "class": "Warlock",
+          "level": 70
+        },
+        "dbc_name": null
+      },
+      "present": {
+        "classic": true,
+        "tbc": true,
+        "wotlk": false
+      },
+      "ok": true
+    },
     "39029": {
       "id": 39029,
       "name": "Virulent Poison",
@@ -71594,11 +71626,13 @@
         "cast"
       ],
       "tables": [
-        "define:Pyroblast"
+        "define:Pyroblast",
+        "ids"
       ],
       "files": [
         "EaxRotations/classes/mage/fire_wotlk.lua",
-        "EaxRotations/classes/mage/leveling_wotlk.lua"
+        "EaxRotations/classes/mage/leveling_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -72156,15 +72190,12 @@
       "id": 44614,
       "name": "Frostfire Bolt",
       "kind": [
-        "cast",
-        "debuff"
+        "cast"
       ],
       "tables": [
-        "FROSTFIRE_BOLT_DEBUFF",
         "define:FrostfireBolt"
       ],
       "files": [
-        "EaxRotations/classes/mage/frost_wotlk.lua",
         "EaxRotations/classes/mage/leveling_wotlk.lua"
       ],
       "local": {
@@ -72873,10 +72904,38 @@
         "cast"
       ],
       "tables": [
-        "define:MortalStrike"
+        "define:MortalStrike",
+        "ids"
       ],
       "files": [
-        "EaxRotations/classes/warrior/arms_wotlk.lua"
+        "EaxRotations/classes/warrior/arms_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
+      ],
+      "local": {
+        "tbc_index": null,
+        "vanilla_index": null,
+        "dbc_name": null
+      },
+      "present": {
+        "classic": false,
+        "tbc": false,
+        "wotlk": true
+      },
+      "ok": true
+    },
+    "47488": {
+      "id": 47488,
+      "name": null,
+      "kind": [
+        "cast"
+      ],
+      "tables": [
+        "define:ShieldSlam",
+        "ids"
+      ],
+      "files": [
+        "EaxRotations/classes/warrior/protection_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -73037,6 +73096,32 @@
         "EaxRotations/classes/deathknight/frost_wotlk.lua",
         "EaxRotations/classes/deathknight/leveling_wotlk.lua",
         "EaxRotations/classes/deathknight/unholy_wotlk.lua"
+      ],
+      "local": {
+        "tbc_index": null,
+        "vanilla_index": null,
+        "dbc_name": null
+      },
+      "present": {
+        "classic": false,
+        "tbc": false,
+        "wotlk": true
+      },
+      "ok": true
+    },
+    "47610": {
+      "id": 47610,
+      "name": null,
+      "kind": [
+        "cast",
+        "debuff"
+      ],
+      "tables": [
+        "FROSTFIRE_BOLT_DEBUFF",
+        "define:FrostfireBolt"
+      ],
+      "files": [
+        "EaxRotations/classes/mage/frost_wotlk.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -73631,6 +73716,30 @@
       },
       "ok": true
     },
+    "48089": {
+      "id": 48089,
+      "name": null,
+      "kind": [
+        "cast"
+      ],
+      "tables": [
+        "ids"
+      ],
+      "files": [
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
+      ],
+      "local": {
+        "tbc_index": null,
+        "vanilla_index": null,
+        "dbc_name": null
+      },
+      "present": {
+        "classic": false,
+        "tbc": true,
+        "wotlk": false
+      },
+      "ok": true
+    },
     "48123": {
       "id": 48123,
       "name": null,
@@ -73739,10 +73848,12 @@
         "cast"
       ],
       "tables": [
-        "define:VampiricTouch"
+        "define:VampiricTouch",
+        "ids"
       ],
       "files": [
-        "EaxRotations/classes/priest/shadow_wotlk.lua"
+        "EaxRotations/classes/priest/shadow_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -74330,11 +74441,13 @@
         "cast"
       ],
       "tables": [
-        "define:MangleBear"
+        "define:MangleBear",
+        "ids"
       ],
       "files": [
         "EaxRotations/classes/druid/bear_wotlk.lua",
-        "EaxRotations/classes/druid/leveling_wotlk.lua"
+        "EaxRotations/classes/druid/leveling_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -74352,14 +74465,18 @@
       "id": 48566,
       "name": null,
       "kind": [
-        "cast"
+        "cast",
+        "debuff"
       ],
       "tables": [
-        "define:MangleCat"
+        "MANGLE_DEBUFF",
+        "define:MangleCat",
+        "ids"
       ],
       "files": [
         "EaxRotations/classes/druid/cat_wotlk.lua",
-        "EaxRotations/classes/druid/leveling_wotlk.lua"
+        "EaxRotations/classes/druid/leveling_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -74570,6 +74687,30 @@
       },
       "ok": true
     },
+    "48660": {
+      "id": 48660,
+      "name": null,
+      "kind": [
+        "cast"
+      ],
+      "tables": [
+        "ids"
+      ],
+      "files": [
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
+      ],
+      "local": {
+        "tbc_index": null,
+        "vanilla_index": null,
+        "dbc_name": null
+      },
+      "present": {
+        "classic": false,
+        "tbc": true,
+        "wotlk": false
+      },
+      "ok": true
+    },
     "48666": {
       "id": 48666,
       "name": null,
@@ -74577,10 +74718,12 @@
         "cast"
       ],
       "tables": [
-        "define:Mutilate"
+        "define:Mutilate",
+        "ids"
       ],
       "files": [
-        "EaxRotations/classes/rogue/assassination_wotlk.lua"
+        "EaxRotations/classes/rogue/assassination_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -74880,10 +75023,12 @@
         "cast"
       ],
       "tables": [
-        "define:HolyShock"
+        "define:HolyShock",
+        "ids"
       ],
       "files": [
-        "EaxRotations/classes/paladin/holy_wotlk.lua"
+        "EaxRotations/classes/paladin/holy_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -74928,10 +75073,12 @@
         "cast"
       ],
       "tables": [
-        "define:AvengersShield"
+        "define:AvengersShield",
+        "ids"
       ],
       "files": [
-        "EaxRotations/classes/paladin/protection_wotlk.lua"
+        "EaxRotations/classes/paladin/protection_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,
@@ -75266,12 +75413,14 @@
         "cast"
       ],
       "tables": [
-        "define:AimedShot"
+        "define:AimedShot",
+        "ids"
       ],
       "files": [
         "EaxRotations/classes/hunter/beast_mastery_wotlk.lua",
         "EaxRotations/classes/hunter/marksmanship_wotlk.lua",
-        "EaxRotations/classes/hunter/survival_wotlk.lua"
+        "EaxRotations/classes/hunter/survival_wotlk.lua",
+        "EaxRotations/shared/talent_inference_sylvanas.lua"
       ],
       "local": {
         "tbc_index": null,

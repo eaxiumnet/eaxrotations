@@ -11,6 +11,16 @@ lexxer.org (currently offline). Uses only local data sources:
 
 Usage:
   python EaxRotations/tools/generate_buff_debuff_verification.py
+
+REGENERATION IS A LOCAL-ONLY, MANUAL STEP: wowsims.db is GITIGNORED (a
+fresh checkout has no DB), and the committed JSON embeds DB-derived fields
+(local_tbc_family, dbc_name, present.tbc) plus index-bridge-derived IDs.
+Run this script on a machine that HAS the DB, verify the new output with
+  lua EaxRotations/tests/test_id_audit_report.lua
+and COMMIT the regenerated EaxRotations/tools/buff_debuff_full_verification.json
+manually. CI does not regenerate it; tools/run_all_checks.sh drift-checks it
+only when the DB is present, and the pre-commit gate / rotation suite simply
+consume the committed artifact.
 """
 from __future__ import annotations
 
