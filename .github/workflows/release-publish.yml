@@ -1,0 +1,195 @@
+name: Publish release
+
+# Deliberate publish path — NEVER automatic. Releases are cut by running this
+# workflow by hand (or `gh workflow run release-publish.yml -f version=2.23.0`)
+# after a `release: vX.Y.Z` commit lands on master. This closes the root cause
+# of the 2.18.0→2.22.0 staleness: nothing in ci.yml ever created a tag or a
+# GitHub Release, so publishing silently stalled for four releases while the
+# changelog/badges advanced.
+#
+# Flow:
+#   1. Verify version consistency with the existing audit
+#      (run_version_consistency_audit_tests.lua: header.lua plugin version ==
+#      CHANGELOG top entry). An explicit `version` input must ALSO equal the
+#      changelog top — publishing is only allowed for the current top release.
+#   2. Build the release zip as `eaxrotations_vX.Y.Z.zip` (the v2.17.0
+#      convention) with the tracked builder + exact-set entry-count pin.
+#   3. Create the annotated tag `vX.Y.Z` if missing, push it, and create the
+#      GitHub Release with the artifact attached.
+#   4. Idempotent: if the release (or tag) already exists, report it and do
+#      nothing — re-running for an already-published version is a no-op.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 2.23.0). Empty = derive from the CHANGELOG top entry.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish GitHub Release + tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        # Full clone (no depth limit) so `git archive HEAD` and tag push work
+        # without history surprises; the token is persisted for the tag push.
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Lua 5.1
+        # The game runtime is LuaJIT (~Lua 5.1); the version-consistency audit
+        # must run under the same interpreter CI uses everywhere else.
+        uses: leafo/gh-actions-lua@v13.0.0
+        with:
+          luaVersion: "5.1"
+
+      - name: Verify version consistency + resolve version
+        id: resolve
+        # Gate 1: the existing version-consistency audit (header.lua plugin
+        # version == CHANGELOG top). Gate 2: an explicit input version must
+        # equal the changelog top — you cannot publish a non-top version.
+        run: |
+          set -euo pipefail
+          lua EaxRotations/tests/run_version_consistency_audit_tests.lua
+          TOP=$(python3 - <<'PY'
+          import re
+          text = open("EaxRotations/CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^##\s+([0-9]+\.[0-9]+\.[0-9]+)", text, re.M)
+          print(m.group(1) if m else "")
+          PY
+          )
+          [ -n "$TOP" ] || { echo "ERROR: cannot derive a version from the CHANGELOG top entry"; exit 1; }
+          IN="${{ github.event.inputs.version }}"
+          if [ -n "$IN" ] && [ "$IN" != "$TOP" ]; then
+            echo "ERROR: requested version $IN does not match the CHANGELOG top release $TOP"
+            echo "  (publishing is only allowed for the current top release)"
+            exit 1
+          fi
+          echo "version=$TOP" >> "$GITHUB_OUTPUT"
+          echo "Resolved version to publish: v$TOP"
+
+      - name: Build release zip (tracked lua+md only)
+        # Build with the final asset name directly (eaxrotations_vX.Y.Z.zip,
+        # the v2.17.0 convention) so no rename is needed at upload time.
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          python3 tools/create_release_zip.py "eaxrotations_v${VERSION}.zip"
+
+      - name: Verify artifact is non-empty
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          test -s "eaxrotations_v${VERSION}.zip"
+          SZ=$(stat -c %s "eaxrotations_v${VERSION}.zip")
+          echo "eaxrotations_v${VERSION}.zip is $SZ bytes"
+          [ "$SZ" -gt 1048576 ] || { echo "ERROR: artifact suspiciously small"; exit 1; }
+
+      - name: Verify artifact matches the tracked tree (entry-count pin)
+        # Same exact-set pin as the release-artifact job: the zip must contain
+        # EXACTLY the tracked lua+md files — no extras, no missing, no dupes.
+        run: |
+          python3 - <<'PY'
+          import subprocess, sys, zipfile
+
+          art = zipfile.ZipFile("eaxrotations_v%s.zip" % "${{ steps.resolve.outputs.version }}").namelist()
+          art_set = set(art)
+          if len(art_set) != len(art):
+              print("ERROR: duplicate entries in artifact"); sys.exit(1)
+
+          tracked = set()
+          out = subprocess.run(["git", "ls-files", "EaxRotations/"],
+                               capture_output=True, text=True, check=True)
+          for line in out.stdout.splitlines():
+              p = line.strip()
+              if p.startswith("EaxRotations/"):
+                  p = p[len("EaxRotations/"):]
+              if p.endswith(".lua") or p.endswith(".md"):
+                  tracked.add(p)
+
+          extra = sorted(art_set - tracked)
+          missing = sorted(tracked - art_set)
+          print("artifact entries: %d (lua+md only)" % len(art_set))
+          print("tracked lua+md:   %d" % len(tracked))
+          if extra or missing:
+              if extra:
+                  print("ERROR: %d untracked/extra files in artifact:" % len(extra))
+                  for n in extra[:20]:
+                      print("  +", n)
+              if missing:
+                  print("ERROR: %d tracked files missing from artifact:" % len(missing))
+                  for n in missing[:20]:
+                      print("  -", n)
+              sys.exit(1)
+          print("OK: artifact == tracked tree")
+          PY
+
+      - name: Extract release title + body from the CHANGELOG top entry
+        # Title convention (v2.17.0+): "vX.Y.Z — <first Customer Changelog
+        # bullet>". Body: the full top changelog entry (from "## X.Y.Z" to the
+        # next "## "), so the release notes always mirror the changelog.
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          python3 - <<'PY'
+          import re
+          version = "${{ steps.resolve.outputs.version }}"
+          text = open("EaxRotations/CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^##\s+" + re.escape(version) + r"\b(.*?)(?=^##\s|\Z)", text, re.M | re.S)
+          if not m:
+              print("ERROR: cannot find top changelog entry for " + version); raise SystemExit(1)
+          entry = m.group(0).strip()
+          bullet = re.search(r"-\s+\*\*(.+?)\*\*", entry)
+          title_suffix = bullet.group(1).strip() if bullet else "see changelog"
+          title = "v" + version + " \u2014 " + title_suffix
+          with open("release-title.txt", "w", encoding="utf-8") as f:
+              f.write(title)
+          with open("release-notes.md", "w", encoding="utf-8") as f:
+              f.write(entry + "\n")
+          print("title:", title)
+          PY
+
+      - name: Check for existing tag + release (idempotency)
+        id: check
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "  GitHub Release v${VERSION} already exists."
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q .; then
+            echo "  tag v${VERSION} already exists on origin."
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create annotated tag (if missing)
+        if: steps.check.outputs.tag_exists == 'false'
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          TITLE="$(cat release-title.txt)"
+          # Tag message convention (v2.18.1): "vX.Y.Z — <subject>" — the full
+          # release title, matching the GitHub Release title exactly.
+          git tag -a "v${VERSION}" -m "${TITLE}"
+          git push origin "v${VERSION}"
+          echo "Created and pushed annotated tag v${VERSION}"
+
+      - name: Create GitHub Release (if missing)
+        if: steps.check.outputs.release_exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.resolve.outputs.version }}"
+          TITLE="$(cat release-title.txt)"
+          gh release create "v${VERSION}" \
+            "eaxrotations_v${VERSION}.zip" \
+            --title "${TITLE}" \
+            --notes-file release-notes.md
+          echo "Created GitHub Release v${VERSION} with eaxrotations_v${VERSION}.zip"
