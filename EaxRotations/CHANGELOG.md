@@ -1,5 +1,88 @@
 # Changelog
 
+## 2.21.0 — 2026-08-10
+
+### Customer Changelog
+- **TBC battery campaign complete (91 → 13 never-firing strategies)**: five
+  close-out batches cleared every modelable lane with battery fixtures only
+  — zero matcher-logic or order edits to any spec file. Healer category-(c)
+  91 → 78, (c) batch-2 78 → 60, (a) opt-in settings 60 → 46, (b) bucket
+  46 → 19, threat-family + race 19 → 13. The remaining 13 are
+  correctly-silent by design: 9 out-of-combat/disabled lanes +
+  EncounterReactions (declined) + 3 module-local-unpinnable (RakeSnapshot,
+  RipSnapshot, FireNovaReplacement). WotLK battery stays at 0 never-firing.
+- **Live-game bug fixes** (found by the battery campaign + static audit):
+  - **BM Trinket dead lane**: `beast_mastery_sylvanas.lua:78`'s `local
+    is_item_ready` forward declaration was shadowed by the `local function
+    is_item_ready` at :458, so `trinket_1_ready` was never set and the
+    trinket lane could never fire in live play.
+  - **bear/cat cache-hit nil-guard bypass**: `bear_sylvanas.lua` /
+    `cat_sylvanas.lua` returned the raw state table on frame-cache hits,
+    bypassing `spec_kit.safe_state` defaults — nil fields leaked as nil
+    instead of schema defaults.
+  - **Warlock leveling cache-hit bypass**: `leveling_sylvanas.lua:327`
+    returned raw `leveling_state` on its cache hit — caught by the new
+    static audit on its first run.
+- **New static audit**: `run_cache_hit_audit_tests.lua` enforces the
+  frame-cache safe_state invariant across every class file
+  (sylvanas/vanilla/wotlk/leveling); 16/16 cache-bearing files clean;
+  injection-proofed and dual-interpreter (Lua 5.1 + 5.4) self-tested;
+  wired into `verify_all` and the pre-commit gate.
+- **Scorecard pipeline**: `tools/spec_scorecard.lua` + `docs/scorecard.md`
+  compute per-spec S+ metrics (never-firing split, APL status, suite count)
+  live from the battery and pinned wowsims fixtures
+  (`tools/apl_status.lua`); drift-checked in CI + pre-commit.
+- **WotLK battery triage (149 → 0)**: the first WotLK-era inventory (41
+  files incl. DK) is fully cleared with battery-fixture upgrades — dead DK
+  stubs (rune/presence/interrupt managers), missing resource accessors, and
+  17 scenario banks — pinned in `test_wotlk_battery_regression.lua`.
+- **Pre-commit gate extended 6 → 10 steps**: added leveling suite, WotLK
+  test suite, WotLK spell-ID audit, and the cache-hit audit — closing the
+  last local-vs-CI coverage gap.
+- **CI hardening**: GitHub Actions `verify_all` workflow on push/PR,
+  actionlint syntax gate, checkout v5 + lua actions v13 (Node 20
+  deprecation cleared), badge-drift + scorecard-drift gates.
+- Version **2.21.0**.
+- Tests: 475 rotation + 31 leveling suites registered (506 total; all
+  green at runtime).
+
+### Developer Notes
+- **Battery campaign fixtures** (`behavioral_audit.lua`): new scenarios +
+  stub surface per batch — heal-scan threat_status + friendly_target_threat
+  bank, `_friend` opts (role/threat_status), party/group member banks,
+  `now`/combat-time keys, PvP mega-scenario (is_pvp/melee_on_you/
+  enemy_healer/cc_target), race fixtures, snare-debuff player maps,
+  is_auto_attacking bank, trinket/GetEnemiesInRange/find_dead stubs,
+  map-aware buff/debuff/cooldown bindings with normalize_ids().
+- **NEW RACE_VARIANTS mechanism**: `M.RACE_VARIANTS = { smite = { 5 } }`
+  loads a spec a second time as a different player race (smite binds
+  `_player_race` at require time) and merges the never lists so race-bound
+  lanes like smite DevouringPlague become observable; era-gated so a future
+  WotLK smite can't pick it up; variant load failure stays conservative.
+- **WotLK triage**: dead DK stubs — rune_manager/presence_manager/
+  interrupt_manager closures captured a nil `ns` (installed before
+  build_ns); rewired after `ns` exists. Missing player-mock accessors
+  (get_rage/get_energy/get_combo_points/get_runic_power) +
+  spell_action:cooldown_remaining(). 17 scenario banks
+  (dk_runic/dk_boss/dk_disease/dk_runes_depleted/...).
+- **APL conformance**: TBC era extended to all sylvanas DPS/tank specs from
+  pinned wowsims/tbc Go dispatches (pure order moves only, no matcher-logic
+  changes); compute()-after-battery ordering fixed; vacuity guards hardened
+  (every pinned name must resolve).
+- **NS-caching pollution guard**: five shared modules that write back into
+  `_G.EaxRotations` at require time (auto_tremor, dot_refresh,
+  execute_phase, melee_combat_math, combat_forecast_gate) now defer the
+  write until a real NS is present; a loud load-order guard fails any tool
+  that requires shared modules while a mock NS is installed.
+- **Badge reconciliation**: `update_badges.lua` pattern fixed (was
+  `-passing`-only match, missed the URL-encoded badge); registry count now
+  excludes `check_*` audit entries so the badge matches executed suites;
+  README/PvP badge unstuck to the true 475/475.
+- **Clean-checkout probe**: directory-vs-file POSIX fix + self-test
+  regression; tracked non-EaxRotations paths accepted.
+- **build_tools consolidation**: dead duplicate `build_tools/` trees
+  removed; `_dbc_spell_ids.lua` header repointed; .gitignore pruned.
+
 ## 2.20.0 — 2026-08-08
 
 ### Customer Changelog
