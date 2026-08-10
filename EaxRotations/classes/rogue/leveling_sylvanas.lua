@@ -372,24 +372,6 @@ end
 
 --- Sap OOC CC
 
-local sap_matches = function(context, state)
-
-    if not state then return false end
-
-    if state.in_combat then return false end
-
-    if not state.stealthed then return false end
-
-    if not state.sap_ready then return false end
-
-    if not context.target then return false end
-
-    -- Don't sap the current kill target
-
-    return false  -- Disabled by default — manual Sap is better
-
-end
-
 
 
 --- Gouge - CC to bandage/eat or interrupt

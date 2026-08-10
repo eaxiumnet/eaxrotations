@@ -520,30 +520,6 @@ local BEAR_FORM_RESHIFT_INTERVAL = 3.0
 local BEAR_FORM_POST_CAST_LOCKOUT = 1.5
 local _bear_form_cast_at = 0
 
-local function bear_form_matches(context, action)
-    local s = build_state(context)
-    if s.is_bear then return false end
-    if not s.auto_bear_form then return false end   -- gated on Auto Bear Form OOC setting
-    local now = s.now or (NS.time_now and NS.time_now()) or 0
-    if now - _last_bear_form_attempt < BEAR_FORM_RESHIFT_INTERVAL then return false end
-    if now - _bear_form_cast_at < BEAR_FORM_POST_CAST_LOCKOUT then return false end
-    if action_ready(context, action) then
-        _last_bear_form_attempt = now
-        return true
-    end
-    return false
-end
-
-local function bear_form_execute(context, action)
-    local ok = execute_action(context, action)
-    if ok then
-        _bear_form_cast_at = (context and context.now)
-            or (NS.time_now and NS.time_now())
-            or 0
-    end
-    return ok
-end
-
 -- PRE-PULL RAGE GEN ----------------------------------------------------------
 
 local function pre_pull_enrage_matches(context, action)
@@ -574,25 +550,6 @@ local function faerie_fire_pull_matches(context, action)
 end
 
 -- DEFENSIVES -----------------------------------------------------------------
-
-local function frenzied_regen_matches(context, action)
-    local s = build_state(context)
-    if not s.use_cooldowns then return false end   -- gated on Cooldowns setting
-    if s.has_frenzied_regen then return false end
-    if (s.rage or 0) < RAGE_FRENZIED_REGEN then return false end
-    local hp = s.hp or 100
-    local threshold = s.frenzied_regen_hp or 35
-    if hp > threshold then
-        local me = s.me or (NS.GetPlayer and NS.GetPlayer())
-        local pred_hp = hp
-        if me and HealthPred and HealthPred.predicted_hp_pct then
-            local ok, pct = pcall(HealthPred.predicted_hp_pct, me, 2.0)
-            if ok and type(pct) == "number" then pred_hp = pct end
-        end
-        if pred_hp > threshold then return false end
-    end
-    return action_ready(context, action)
-end
 
 local function barkskin_matches(context, action)
     local s = build_state(context)
@@ -678,42 +635,7 @@ local function target_is_demo_immune(s)
     return false
 end
 
-local function demo_roar_matches(context, action)
-    local s = build_state(context)
-    if not s.demo_roar_enabled then return false end
-    if (s.target_range or 40) > DEMO_ROAR_RANGE then return false end
-    if (s.enemy_count or 0) <= 0 then return false end
-    if (s.demo_remains or 0) > DEMO_ROAR_REFRESH then return false end
-    if target_is_demo_immune(s) then return false end
-    if (s.enemy_count or 0) < 2 and not s.is_target_boss then
-        if (s.target_ttd or 999) < 10 then return false end
-        if (s.target_hp or 100) <= 20 then return false end
-    end
-    return action_ready(context, action)
-end
-
-local function faerie_fire_matches(context, action)
-    local s = build_state(context)
-    if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
-    if (s.target_range or 40) > 30 then return false end
-    if (s.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
-    return action_ready(context, action)
-end
-
 -- CORE ROTATION  (wowsims APL) ----------------------------------------------
-
-local function mangle_matches(context, action)
-    return action_ready(context, action)
-end
-
-local function lacerate_matches(context, action)
-    local s = build_state(context)
-    -- AoE with loose adds: don't tunnel Lacerate on current target
-    if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.lacerate_stacks or 0) >= 3 then return false end
-    if (s.lacerate_stacks or 0) < LACERATE_MAX_STACKS then return action_ready(context, action) end
-    if (s.lacerate_remains or 0) <= LACERATE_REFRESH_WINDOW then return action_ready(context, action) end
-    return false
-end
 
 local function swipe_aoe_matches(context, action)
     local s = build_state(context)
@@ -773,24 +695,6 @@ end
 -- GCD chain). With Mangle learned: menu threshold only. Without Mangle: primary
 -- spender — level-scaled threshold, never raised above the menu setting.
 -- SAFETY: never re-queue while already current (spam loop in spell queue log).
-local function maul_matches(context, action)
-    local s = build_state(context)
-    if maul_is_queued() then return false end
-    if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.rage or 0) < HIGH_RAGE then return false end
-    local maul_threshold = s.maul_rage or 50
-    if not spell_exists(ACTION.MangleBear) then
-        local scaled = math.max(15, math.min(40, 15 + math.floor((s.level or 70) / 2)))
-        if scaled < maul_threshold then maul_threshold = scaled end
-    end
-    if (s.rage or 0) < maul_threshold then return false end
-    if not s.target and NS.spell_ready == nil then return action_ready(context, action) end
-    if would_starve_mangle(s, RAGE_MAUL) then return false end
-    -- on-next-swing: skip if target dies before the swing lands (unless boss)
-    if not s.is_target_boss and (s.target_ttd or 999) < 3 then return false end
-    if not swing_timer_gate(context, s) then return false end
-    return action_ready(context, action)
-end
-
 local function maul_execute(context, action)
     -- min_interval: belt-and-suspenders when is_current_spell is stubbed/broken
     -- so we do not re-queue Maul every dispatcher tick (live spam log).
@@ -964,16 +868,6 @@ local DSL_DEFS = {
 local function taunt_execute(context, action)
     local ok = execute_action(context, action)
     if ok then bear_state.recent_taunt = bear_state.now end
-    return ok
-end
-
-local function demo_roar_execute(context, action)
-    local s = build_state(context)
-    local ok = execute_action(context, action)
-    local key = target_key(s.target)
-    if key then
-        _demo_roar_attempts[key] = s.now
-    end
     return ok
 end
 

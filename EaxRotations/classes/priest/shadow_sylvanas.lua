@@ -966,17 +966,6 @@ local function mind_flay_matches(context, s)
     return true
 end
 
-local function silence_matches(context, s)
-    if not can_break_mind_flay(s) then return false end
-    if not context.in_combat then return false end
-    if not s.silence_ready then return false end
-    if not context.target or not NS.unit_interruptible then
-        -- Fallback: check target casting state without native interruptible API
-        if not context.target_is_casting then return false end
-    end
-    return true
-end
-
 local function psychic_scream_matches(context, s)
     if not context.in_combat then return false end
     if (s.enemy_count or 0) < 3 then return false end

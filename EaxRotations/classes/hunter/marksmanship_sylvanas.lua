@@ -354,39 +354,10 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
-local function mend_pet_matches(context, s)
-    if not s.pet_alive then return false end
-    if (s.pet_hp_pct or 100) > 45 then return false end
-    if not s.mend_pet_ready then return false end
-    return true
-end
-
-local function hunters_mark_matches(context, s)
-    if s.has_hunters_mark then return false end
-    if not s.hunters_mark_ready then return false end
-    return true
-end
-
-local function rapid_fire_matches(context, s)
-    if not cooldowns_enabled(context) then return false end
-    if not s.in_combat then return false end
-    if not s.rapid_fire_ready then return false end
-    -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd_known and (context.ttd or 0) < 15 then return false end
-    return true
-end
-
 local function aimed_shot_prepull_matches(context, s)
     if not s.is_ooc then return false end
     if not s.aimed_shot_prepull_ready then return false end
     if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
-    return true
-end
-
-local function kill_command_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
     return true
 end
 
@@ -446,18 +417,6 @@ local function revive_pet_matches(context, s)
     if s.in_combat then return false end
     if s.call_pet_ready and not s.pet_dead then return false end
     if not s.revive_pet_ready then return false end
-    return true
-end
-
-local function feign_death_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.feign_death_ready then return false end
-    return true
-end
-
-local function freezing_trap_matches(context, s)
-    if s.in_combat then return false end
-    if not s.freezing_trap_ready then return false end
     return true
 end
 

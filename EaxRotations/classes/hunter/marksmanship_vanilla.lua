@@ -256,15 +256,6 @@ local function viper_sting_matches(context, s)
     return true
 end
 
-local function bestial_wrath_matches(context, s)
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    if not s.in_combat then return false end
-    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if not s.pet_alive then return false end
-    if not s.bestial_wrath_ready then return false end
-    return true
-end
-
 local function leveling_arcane_shot_matches(context, s)
     if not s.pre_steady_leveling then return false end
     if not s.arcane_shot_ready then return false end

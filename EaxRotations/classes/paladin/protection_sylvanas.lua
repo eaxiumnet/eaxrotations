@@ -1047,20 +1047,6 @@ local function lay_on_hands_matches(context, state)
 end
 
 
-local function hammer_of_justice_matches(context, state)
-
- if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
-
- if not spec_kit.setting_bool(context, "prot_hammer_of_justice", true) then return false end
-
- if not state.target_casting then return false end
-
- if not state.hammer_of_justice_ready then return false end
-
- return true
-
-end
-
 
 local function flash_of_light_matches(context, state)
 

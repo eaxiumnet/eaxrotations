@@ -240,6 +240,22 @@ local components = {
         end,
     },
     {
+        label = "dead-matcher audit",
+        cmd = "lua " .. R .. "/run_dead_matcher_audit_tests.lua",
+        check = function(c)
+            local invalid = num(c, "Invalid:%s*(%d+)")
+            return { { "invalid " .. tostring(invalid), invalid == 0 } }
+        end,
+    },
+    {
+        label = "dead-matcher audit self-test",
+        cmd = "lua " .. R .. "/run_dead_matcher_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (dead matchers fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "behavioral battery",
         cmd = "lua " .. R .. "/behavioral_audit.lua",
         check = function(c)

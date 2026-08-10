@@ -334,19 +334,6 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
-local function mend_pet_matches(context, s)
-    if not s.pet_alive then return false end
-    if (s.pet_hp_pct or 100) > 45 then return false end
-    if not s.mend_pet_ready then return false end
-    return true
-end
-
-local function hunters_mark_matches(context, s)
-    if s.has_hunters_mark then return false end
-    if not s.hunters_mark_ready then return false end
-    return true
-end
-
 local function rapid_fire_matches(context, s)
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
@@ -369,13 +356,6 @@ local function immolation_trap_matches(context, s)
     if not s.immolation_trap_ready then return false end
     -- TTD gate: don't waste trap CD on a dying target
     if context.ttd_known and (context.ttd or 0) < 8 then return false end
-    return true
-end
-
-local function kill_command_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
     return true
 end
 
@@ -428,13 +408,6 @@ local function aspect_hawk_matches(context, s)
     return true
 end
 
-local function aspect_viper_matches(context, s)
-    if s.has_aspect_viper then return false end
-    -- Wowsims-aligned: enter Viper at 5%
-    if (s.mana_pct or 100) > 5 then return false end
-    return true
-end
-
 local function call_pet_matches(context, s)
     if s.has_pet then return false end
     if s.in_combat then return false end
@@ -447,18 +420,6 @@ local function revive_pet_matches(context, s)
     if s.in_combat then return false end
     if s.call_pet_ready and not s.pet_dead then return false end
     if not s.revive_pet_ready then return false end
-    return true
-end
-
-local function feign_death_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.feign_death_ready then return false end
-    return true
-end
-
-local function freezing_trap_matches(context, s)
-    if s.in_combat then return false end
-    if not s.freezing_trap_ready then return false end
     return true
 end
 

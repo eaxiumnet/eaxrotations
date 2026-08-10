@@ -866,51 +866,6 @@ end
 -- ============================================================================
 -- Spell match functions
 -- ============================================================================
-local function shamanistic_rage_matches(ctx)
-    if not enh_state.in_combat then return false end
-    if enh_state.has_shamanistic_rage then return false end
-    if not enh_state.shamanistic_rage_ready then return false end
-    -- v1.2.1: per-CD toggle
-    if not spec_kit.setting_bool(ctx, "enhancement_cd_shamanistic_rage", true) then return false end
-    if not NS.gate_cooldown_boss_only(ctx) then return false end
-    -- TTD gate: don't waste 2min CD on a dying target
-    if ctx.ttd_known and ctx.ttd < 8 then return false end
-    -- Offensive use: SR converts AP to mana, so fire it during major power windows
-    -- (Bloodlust/Heroism, Drums, other major offensive CDs) for sustained output.
-    local offensive_use = enh_state.major_cd_window or false
-    -- Defensive use: also allow when mana is low or HP is low, but avoid wasting
-    -- the cooldown when both are comfortable.
-    local defensive_use = (enh_state.mana_pct or 100) <= 40 or (enh_state.hp_pct or 100) <= 40
-    if not offensive_use and not defensive_use then return false end
-    -- v1.2.4: SR melee range check — only fire if target within 8 yd
-    if enh_state.sr_melee_only then
-        local target = ctx.target
-        if not target then return false end
-        local dist = target.get_distance and target:get_distance(NS.PLAYER_UNIT or ctx.me)
-        if dist and dist > 8 then return false end
-    end
-    return true
-end
-
-local function bloodlust_matches(ctx)
-    if not cooldowns_enabled(ctx) then return false end
-    if not spec_kit.setting_bool(ctx, "enhancement_cd_bloodlust", true) then return false end
-    if not enh_state.in_combat then return false end
-    if enh_state.has_bloodlust then return false end
-    if not enh_state.bloodlust_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 600) then return false end
-    if not NS.gate_cooldown_boss_only(ctx) then return false end
-    return true
-end
-
-local function mana_tide_totem_matches(ctx)
-    if not cooldowns_enabled(ctx) then return false end
-    if not spec_kit.setting_bool(ctx, "enhancement_cd_mana_tide", true) then return false end
-    if not enh_state.mana_tide_totem_ready then return false end
-    if (enh_state.mana_pct or 100) > 60 then return false end
-    return true
-end
-
 local function natures_swiftness_matches(ctx)
     if not cooldowns_enabled(ctx) then return false end
     if not enh_state.in_combat then return false end
@@ -919,32 +874,6 @@ local function natures_swiftness_matches(ctx)
 end
 
 --- Primary offensive matches
-local function stormstrike_matches(ctx)
-    if not enh_state.stormstrike_ready then return false end
-    -- Research: Mana < 10%: all spells forbidden (auto-attack only)
-    if enh_state.mana_emergency then return false end
-    -- Research: Mana < 20%: Stormstrike still allowed, shocks gated separately
-    return true
-end
-
-local function flame_shock_matches(ctx)
-    if not enh_state.flame_shock_ready then return false end
-    -- Hold shocks OOC when Shamanistic Focus proc is desired (mana efficiency)
-    if enh_state.hold_shocks_focus and not enh_state.in_combat then return false end
-    -- Skip shock spending at mana floor — auto-attack conservation (Research: Mana < 20%)
-    if enh_state.mana_low then return false end
-    -- TTD gate: prefer instant Earth Shock when target is dying (< 6s), skip Flame Shock DoT
-    if ctx.ttd_known and ctx.ttd < 6 then return false end
-    -- Multi-target FS in AoE: when enabled, apply to any enemy without the DoT
-    if enh_state.fs_multi_target and enh_state.effective_mode == "aoe" and enh_state.target_has_flame_shock then
-        -- Current target already has FS — skip if there are other targets available (they'll get dotted on tab)
-        return false
-    end
-    -- Refresh when <3s remaining or not active
-    if enh_state.target_has_flame_shock and (enh_state.flame_shock_remains or 0) > 3 then return false end
-    return true
-end
-
 local function earth_shock_matches(ctx)
     -- Interrupt mode
     if enh_state.earth_shock_mode == "interrupts" then
@@ -973,14 +902,6 @@ local function earth_shock_matches(ctx)
         return true
     end
     return false
-end
-
-local function frost_shock_matches(ctx)
-    if not enh_state.frost_shock_ready then return false end
-    -- Hold shocks OOC when Shamanistic Focus proc is desired
-    if enh_state.hold_shocks_focus and not enh_state.in_combat then return false end
-    if enh_state.mana_low then return false end
-    return true
 end
 
 local function chain_lightning_matches(ctx)

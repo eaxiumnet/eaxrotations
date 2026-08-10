@@ -508,29 +508,6 @@ local function expose_armor_matches(context, s)
     return true
 end
 
-	local function evasion_matches(context, s)
-	    if not s.in_combat then return false end
-	    -- Any rank (5277 R1 @8, 26669 R2 @50) — do not hardcode max rank
-	    if not (NS.is_spell_learned and NS.is_spell_learned(ACTION.Evasion)) then return false end
-	    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Evasion) or 0
-	    if cd > 0 then return false end
-	    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_defensives", true)
-	    local default_hp = (group_aware and s.is_group) and 45 or 30
-	    local evasion_hp = spec_kit.setting_number(context, "combat_evasion_hp", default_hp)
-	    return (s.hp_pct or 100) <= evasion_hp
-	end
-
-local function cloak_of_shadows_matches(context, s)
-    if not s.in_combat then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(31224)) then return false end
-    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.CloakOfShadows) or 0
-    if cd > 0 then return false end
-    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_defensives", true)
-    local default_hp = (group_aware and s.is_group) and 35 or 20
-    local cloak_hp = spec_kit.setting_number(context, "combat_cloak_hp", default_hp)
-    return (s.hp_pct or 100) <= cloak_hp
-end
-
 local function cheap_shot_matches(context, s)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     if not s.is_stealthed then return false end
@@ -548,17 +525,6 @@ local function garrote_matches(context, s)
     local is_caster = context.target.is_casting and context.target:is_casting()
     if not is_caster then return false end
     return true
-end
-
-local function deadly_throw_matches(context, s)
-    if not s.in_combat then return false end
-    if not context.target then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(26679)) then return false end
-    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.DeadlyThrow) or 0
-    if cd > 0 then return false end
-    local in_melee = context.in_melee_range or false
-    local dist = context.target_distance or 30
-    return not in_melee and dist <= 30 and (s.combo_points or 0) >= 1
 end
 
 local function blind_matches(context, s)

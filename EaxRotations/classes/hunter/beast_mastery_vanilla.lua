@@ -317,21 +317,6 @@ local function hunters_mark_matches(context, s)
 end
 
 -- ThreatRedirect (TBC-only, pull window)
-local function misdirection_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not s.use_misdirection then return false end
-    if not s.in_combat then return false end
-    local combat_time = context.combat_time or 0
-    if combat_time > 6 then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(MISDIRECTION_ID)) then return false end
-    if not (NS.spell_ready and NS.spell_ready(MISDIRECTION_ID)) then return false end
-    -- Check if already active
-    if NS.has_buff and context.me then
-        if NS.has_buff(context.me, MISDIRECTION_ID) then return false end
-    end
-    return true
-end
-
 -- Mend Pet (in combat)
 local function mend_pet_matches(context, s)
     if not mounted_bail(context, s) then return false end
@@ -545,26 +530,6 @@ local function execute_spell(context, name, id, target, prefix)
     local t = target or context.target or context.me
     if not t then return false end
     return NS.try_cast and NS.try_cast(id, t, prefix .. " " .. name) or false
-end
-
-local function execute_misdirection(context)
-    local prefix = "[BEAST_MASTERY]"
-    local target = nil
-    -- Try focus target first
-    if NS.GetFocus then
-        target = NS.GetFocus()
-    end
-    -- Fallback to pet
-    if not target then
-        target = hunter_core.get_pet()
-    end
-    if not target then
-        target = context.me
-    end
-    if target then
-        return NS.try_cast(MISDIRECTION_ID, target, prefix .. " ThreatRedirect", { skip_range = true })
-    end
-    return false
 end
 
 -- ============================================================================

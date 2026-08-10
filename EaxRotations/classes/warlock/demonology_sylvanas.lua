@@ -429,38 +429,12 @@ local function curse_of_doom_matches(context, s)
     return true
 end
 
-local function corruption_matches(context, s)
-    if not context.target then return false end
-    if not s.corruption_ready then return false end
-    if NS.debuff_remains(context.target, CORRUPTION_DEBUFF) > DOT_REFRESH_WINDOW then return false end
-    -- TTD gate: skip long DoT if target will die before it pays off (18s base)
-    if context.ttd_known and context.ttd > 0 and context.ttd < 4 then return false end
-    return true
-end
-
 local function immolate_matches(context, s)
     if not context.target then return false end
     if not s.immolate_ready then return false end
     if NS.debuff_remains(context.target, IMMOLATE_DEBUFF) > DOT_REFRESH_WINDOW then return false end
     -- TTD gate: skip casted DoT if target will die before it pays off (15s base + 2s cast)
     if context.ttd_known and context.ttd > 0 and context.ttd < 5 then return false end
-    return true
-end
-
-local function life_tap_matches(context, s)
-    if context.is_casting or context.is_channeling then return false end
-    if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
-    if not s then return false end
-    if (s.hp_pct or 100) <= 55 then return false end
-    if (s.mana_pct or 100) >= 65 then return false end
-    if not s.life_tap_ready then return false end
-    return true
-end
-
-local function shadow_bolt_matches(context, s)
-    if not context.target then return false end
-    if context.is_moving then return false end
-    if not s.shadow_bolt_ready then return false end
     return true
 end
 
@@ -500,12 +474,6 @@ local function incinerate_matches(context, s)
     if context.is_moving then return false end
     if not s.incinerate_ready then return false end
     return true
-end
-
-local function fel_armor_matches(context, s)
-    if not s then return false end
-    if s.has_fel_armor then return false end
-    return s.fel_armor_ready == true
 end
 
 local function soul_fire_matches(context, s)
@@ -629,16 +597,6 @@ local function drain_soul_matches(context, s)
     -- Drain Soul is low value vs filler; rely on perfect API ttd reporting.
     if not (context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD) then return false end
     if not s.drain_soul_ready then return false end
-    return true
-end
-
-local function soul_link_matches(context, s)
-    if not s then return false end
-    -- Only maintain Soul Link when a pet is present
-    if not s.has_pet then return false end
-    -- Don't recast if already active
-    if s.has_soul_link then return false end
-    if not s.soul_link_ready then return false end
     return true
 end
 
