@@ -142,7 +142,7 @@ local strategies = {
 
     -- Defensive dispel via shared DispelManager (Cleanse poison/disease/magic)
     (dispel_manager and dispel_manager.create_dispel_strategy
-        and dispel_manager.create_dispel_strategy({ name = "AutoDispel" }))
+        and dispel_manager.create_dispel_strategy({ name = "AutoDispel", mid_cast_safe = true }))
         or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
@@ -237,6 +237,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "Paladin_Cleanse",
+        mid_cast_safe = true,
         priority = 200,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_cleanse", true) then return false end
@@ -314,6 +315,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "PaladinCCBreak",
+        mid_cast_safe = true,
         priority = 160,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_cc_break", true) then return false end

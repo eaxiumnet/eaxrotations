@@ -505,6 +505,7 @@ local tests = {
     "test_opener_elite_regression.lua",
     "test_low_level_lane_regression.lua",
     "test_defensive_casting_regression.lua",
+    "test_middleware_mid_cast_skip.lua",
     "test_pvp_combo_lane_regression.lua",
     "test_opt_in_lane_regression.lua",
     "test_hitcap_dagger_regression.lua",

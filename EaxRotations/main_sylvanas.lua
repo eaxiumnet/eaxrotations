@@ -1608,6 +1608,16 @@ local function strategy_allowed(strategy, list_name, active, context)
     return true, "allowed", category
 end
 
+-- Exported for regression testing (test_middleware_mid_cast_skip.lua): true when
+-- the middleware strategy must be skipped on this frame — i.e. the player is
+-- casting/channeling and the strategy is not mid-cast-safe. Playstyle lists are
+-- already skipped upstream by the dispatcher, so this only gates middleware.
+function M.middleware_mid_cast_skipped(name, strategy, context)
+    return name == "middleware" and context ~= nil
+        and (context.is_casting or context.is_channeling)
+        and not (type(strategy) == "table" and strategy.mid_cast_safe == true)
+end
+
 local function run_list(name, list, options, context)
     if type(list) ~= "table" then
         return false
@@ -1622,6 +1632,18 @@ local function run_list(name, list, options, context)
     for i = 1, #list do
         local strategy = list[i]
         if type(strategy) == "table" then
+            -- Perf (2026-08-10): skip non-urgent middleware while the player is
+            -- casting/channeling, mirroring the dispatcher's playstyle skip. The
+            -- dispatcher early-returns before the playstyle loop during casts, but
+            -- middleware runs BEFORE that guard and would otherwise evaluate every
+            -- strategy (e.g. paladin 259 NS.* calls x 22 strategies) on every cast
+            -- frame. Strategies marked mid_cast_safe = true (dispels, CC breaks,
+            -- spellsteal/remove-curse) must still run mid-cast to break the thing
+            -- blocking the cast, so they opt out of the skip. Only applies to the
+            -- middleware list; playstyle lists are already skipped upstream.
+            if M.middleware_mid_cast_skipped(name, strategy, context) then
+                -- fall through to next strategy (no matches/execute evaluation)
+            else
             local allowed = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
             elseif type(strategy.execute) ~= "function" then
@@ -1675,6 +1697,7 @@ local function run_list(name, list, options, context)
                     end
                 end
             end
+            end -- else (mid-cast middleware skip)
         end
     end
     return false

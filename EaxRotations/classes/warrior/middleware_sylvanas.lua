@@ -449,6 +449,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "ShieldSlamPurge",
+        mid_cast_safe = true,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_shield_slam_purge", true) then return false end
             if not context.in_combat then return false end

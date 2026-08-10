@@ -87,6 +87,7 @@ local strategies = {
         or { name = "SpellLockSkip", matches = function() return false end, execute = function() return false end },
     {
         name = "WarlockCCBreak",
+        mid_cast_safe = true,
         matches = function(context)
             _cached_cc_break_fresh = false  -- invalidate per-tick cache
             if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
@@ -149,6 +150,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "DevourMagic",
+        mid_cast_safe = true,
         matches = function(context)
             _cached_devour_fresh = false  -- invalidate per-tick cache
             if spec_kit.setting_bool(context, "use_devour_magic", true) == false then return false end

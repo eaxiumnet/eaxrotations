@@ -74,7 +74,7 @@ local strategies = {
 
     -- Defensive dispel via shared DispelManager (Cure Poison / Cure Disease)
     (dispel_manager and dispel_manager.create_dispel_strategy
-        and dispel_manager.create_dispel_strategy({ name = "AutoDispel" }))
+        and dispel_manager.create_dispel_strategy({ name = "AutoDispel", mid_cast_safe = true }))
         or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
@@ -97,6 +97,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "Purge",
+        mid_cast_safe = true,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_purge", true) then return false end
             if not context.target then return false end

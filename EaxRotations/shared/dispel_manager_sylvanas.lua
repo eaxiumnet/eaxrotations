@@ -342,6 +342,7 @@ function M.create_dispel_strategy(opts)
     local pending_target, pending_spell
     return {
         name = opts.name or "AutoDispel",
+        mid_cast_safe = opts.mid_cast_safe == true,
         matches = function(context, state)
             local should, target, spell_id = M.should_dispel(context, state or {})
             if not should then

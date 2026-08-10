@@ -164,7 +164,7 @@ local strategies = {
 
     -- Defensive dispel via shared DispelManager (Dispel Magic / Abolish Disease)
     (dispel_manager and dispel_manager.create_dispel_strategy
-        and dispel_manager.create_dispel_strategy({ name = "AutoDispel" }))
+        and dispel_manager.create_dispel_strategy({ name = "AutoDispel", mid_cast_safe = true }))
         or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
@@ -172,6 +172,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "MassDispel",
+        mid_cast_safe = true,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_mass_dispel", true) then return false end
             if not context.in_combat then return false end
@@ -205,6 +206,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "OffensiveDispel",
+        mid_cast_safe = true,
         matches = function(context)
             _cached_dispel_fresh = false  -- invalidate cache each tick
             if not spec_kit.setting_bool(context, "use_offensive_dispel", true) then return false end

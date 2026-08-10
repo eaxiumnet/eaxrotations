@@ -88,6 +88,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "RogueShivPurge",
+        mid_cast_safe = true,
         matches = function(context)
             if spec_kit.setting_bool(context, "use_shiv_purge", true) == false then return false end
             -- Skip entirely if Shiv not learned (level < 28)
@@ -120,6 +121,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "RogueCCBreak",
+        mid_cast_safe = true,
         matches = function(context)
             if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
             if not context.in_combat then return false end

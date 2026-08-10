@@ -170,6 +170,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "DruidCCBreak",
+        mid_cast_safe = true,
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_cc_break", true) then return false end
             if not context.in_combat then return false end
@@ -285,6 +286,7 @@ local strategies = {
         local base_execute = base.execute
         return {
             name = "PartyDispel",
+            mid_cast_safe = true,
             matches = function(context, state)
                 if not spec_kit.setting_bool(context, "auto_dispel", true) then return false end
                 local playstyle = spec_kit.setting(context, "playstyle", nil)

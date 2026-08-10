@@ -134,6 +134,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "MageCCBreak",
+        mid_cast_safe = true,
         matches = function(context)
             if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
             if not context.in_combat then return false end
@@ -206,6 +207,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "Spellsteal",
+        mid_cast_safe = true,
         matches = function(context)
             _cached_steal_fresh = false  -- invalidate per-tick cache
             if spec_kit.setting_bool(context, "use_spellsteal", true) == false then return false end
@@ -392,6 +394,7 @@ local strategies = {
     -- ============================================================================
     {
         name = "RemoveCurse",
+        mid_cast_safe = true,
         matches = function(context)
             if spec_kit.setting_bool(context, "auto_remove_curse", true) == false then return false end
             if not context.in_combat then return false end
