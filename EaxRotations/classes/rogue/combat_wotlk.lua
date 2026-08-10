@@ -19,6 +19,9 @@ local ACTION = {
     Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     BladeFlurry = define("BladeFlurry", 13877, "BladeFlurry"),
     KillingSpree = define("KillingSpree", 51690, "KillingSpree"),
+    -- Baseline rogue interrupt (3.3.5): not in the wowsims combat APL, so it
+    -- sits outside the pinned order (first, like arcane Counterspell).
+    Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
 }
 
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
@@ -33,6 +36,7 @@ local combat_state = {
     snd_remains = 0,
     blade_flurry_ready = false,
     killing_spree_ready = false,
+    target_is_casting = false,
 }
 
 local function build_state(context)
@@ -45,6 +49,7 @@ local function build_state(context)
     state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0
     state.blade_flurry_ready = (ACTION.BladeFlurry and ACTION.BladeFlurry.cooldown_remaining and ACTION.BladeFlurry:cooldown_remaining() <= 0) or false
     state.killing_spree_ready = (ACTION.KillingSpree and ACTION.KillingSpree.cooldown_remaining and ACTION.KillingSpree:cooldown_remaining() <= 0) or false
@@ -52,6 +57,14 @@ local function build_state(context)
 end
 
 local DSL_DEFS = {
+    {
+        name = "Kick",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Kick, target = "target" },
+    },
     {
         name = "SliceAndDice",
         conditions = {
@@ -102,8 +115,10 @@ local DSL_DEFS = {
 }
 
 -- Priority order mirrors wowsims combat APL (ui/rogue/apls/combat.apl.json):
--- SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike.
+-- SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike. Kick is a
+-- baseline interrupt NOT in the fixture — first, outside the pinned order.
 local strategies = {
+    { name = "Kick" },
     { name = "SliceAndDice" },
     { name = "Eviscerate" },
     { name = "BladeFlurry" },

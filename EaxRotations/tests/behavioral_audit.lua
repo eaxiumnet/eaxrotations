@@ -1548,6 +1548,12 @@ M.SCENARIOS = {
     { name = "mana_critical",     overrides = { mana_pct = 4, player_mana = 120, player_mana_pct = 4 } },
     { name = "moving",           overrides = { is_moving = true } },
     { name = "target_casting",   overrides = { target_is_casting = true } },
+    -- WotLK rogue Kick interrupt (2026-08-10): the three *_wotlk.lua rogue
+    -- rotations gained a baseline Kick strategy (combat/subtlety/assassination
+    -- had zero interrupt handling). It gates on in_combat + target_is_casting
+    -- like arcane Counterspell; this scenario keeps it observable so the
+    -- WotLK never=0 pin stays non-vacuous.
+    { name = "wotlk_rogue_kick", overrides = { target_is_casting = true, target_cast_pct = 60 } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
     -- Rogue stealth openers (ranked #7): combat Garrote needs stealth + a
     -- casting target; subtlety CheapShot needs stealth + the explicit

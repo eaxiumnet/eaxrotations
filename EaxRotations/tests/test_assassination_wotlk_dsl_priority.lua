@@ -82,7 +82,7 @@ print("=== test_assassination_wotlk_dsl_priority ===")
 local sin = dofile("EaxRotations/classes/rogue/assassination_wotlk.lua")
 assert_true(type(sin) == "table", "assassination_wotlk should return a table")
 assert_true(type(sin.strategies) == "table", "assassination_wotlk should expose strategies")
-assert_true(#sin.strategies == 6, "assassination_wotlk should have 6 strategies")
+assert_true(#sin.strategies == 7, "assassination_wotlk should have 7 strategies")
 
 local registered = _G.EaxRotations._registered_assassination
 assert_true(registered ~= nil, "assassination_wotlk should register under 'assassination'")
@@ -90,8 +90,10 @@ assert_true(registered ~= nil, "assassination_wotlk should register under 'assas
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
--- wowsims mutilate APL order (ui/rogue/apls/mutilate.apl.json): SnD > HfB > Tricks > Envenom > Mutilate
+-- wowsims mutilate APL order (ui/rogue/apls/mutilate.apl.json): SnD > HfB > Tricks > Envenom > Mutilate.
+-- Kick is a baseline interrupt NOT in the fixture — first, outside the pinned order.
 local expected_order = {
+    "Kick",
     "SliceAndDice",
     "Rupture",
     "HungerForBlood",
@@ -100,7 +102,7 @@ local expected_order = {
     "Mutilate",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 7 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(sin.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], sin.strategies[i].name))
@@ -113,25 +115,37 @@ end)
 local ctx = { in_combat = true, target = {}, settings = {} }
 
 -- SliceAndDice (1): snd_remains < 3 and combo_points >= 1
+test("Kick: matches when target is casting", function()
+    local state = sin.build_state(ctx)
+    state.target_is_casting = true
+    assert_true(sin.strategies[1].matches(ctx, state), "Kick should match when target casts")
+end)
+
+test("Kick: does not match when target not casting", function()
+    local state = sin.build_state(ctx)
+    state.target_is_casting = false
+    assert_false(sin.strategies[1].matches(ctx, state), "Kick should not match when idle")
+end)
+
 test("SliceAndDice: matches when buff < 3 and combo >= 1", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 1
     state.combo_points = 1
-    assert_true(sin.strategies[1].matches(ctx, state), "SliceAndDice should match with combo >= 1 and buff < 3")
+    assert_true(sin.strategies[2].matches(ctx, state), "SliceAndDice should match with combo >= 1 and buff < 3")
 end)
 
 test("SliceAndDice: does not match with 0 combo points", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 1
     state.combo_points = 0
-    assert_false(sin.strategies[1].matches(ctx, state), "SliceAndDice should not match with 0 combo")
+    assert_false(sin.strategies[2].matches(ctx, state), "SliceAndDice should not match with 0 combo")
 end)
 
 test("SliceAndDice: does not match when buff fresh (>= 3)", function()
     local state = sin.build_state(ctx)
     state.snd_remains = 10
     state.combo_points = 3
-    assert_false(sin.strategies[1].matches(ctx, state), "SliceAndDice should not match when buff fresh")
+    assert_false(sin.strategies[2].matches(ctx, state), "SliceAndDice should not match when buff fresh")
 end)
 
 -- Rupture (2): rupture_remains < 3 and combo_points >= 1
@@ -139,52 +153,52 @@ test("Rupture: matches when debuff < 3 and combo >= 1", function()
     local state = sin.build_state(ctx)
     state.rupture_remains = 0
     state.combo_points = 2
-    assert_true(sin.strategies[2].matches(ctx, state), "Rupture should match with combo >= 1 and debuff < 3")
+    assert_true(sin.strategies[3].matches(ctx, state), "Rupture should match with combo >= 1 and debuff < 3")
 end)
 
 test("Rupture: does not match with 0 combo points", function()
     local state = sin.build_state(ctx)
     state.rupture_remains = 0
     state.combo_points = 0
-    assert_false(sin.strategies[2].matches(ctx, state), "Rupture should not match with 0 combo")
+    assert_false(sin.strategies[3].matches(ctx, state), "Rupture should not match with 0 combo")
 end)
 
 -- HungerForBlood (3): always matches (no conditions)
 test("HungerForBlood: always matches", function()
     local state = sin.build_state(ctx)
-    assert_true(sin.strategies[3].matches(ctx, state), "HungerForBlood should always match")
+    assert_true(sin.strategies[4].matches(ctx, state), "HungerForBlood should always match")
 end)
 
 -- TricksOfTheTrade (4): always matches (no conditions)
 test("TricksOfTheTrade: always matches", function()
     local state = sin.build_state(ctx)
-    assert_true(sin.strategies[4].matches(ctx, state), "TricksOfTheTrade should always match")
+    assert_true(sin.strategies[5].matches(ctx, state), "TricksOfTheTrade should always match")
 end)
 
 -- Envenom (5): combo_points >= 4
 test("Envenom: matches when combo >= 4", function()
     local state = sin.build_state(ctx)
     state.combo_points = 4
-    assert_true(sin.strategies[5].matches(ctx, state), "Envenom should match with combo >= 4")
+    assert_true(sin.strategies[6].matches(ctx, state), "Envenom should match with combo >= 4")
 end)
 
 test("Envenom: does not match with combo < 4", function()
     local state = sin.build_state(ctx)
     state.combo_points = 3
-    assert_false(sin.strategies[5].matches(ctx, state), "Envenom should not match with combo < 4")
+    assert_false(sin.strategies[6].matches(ctx, state), "Envenom should not match with combo < 4")
 end)
 
 -- Mutilate (6): energy >= 60
 test("Mutilate: matches when energy >= 60", function()
     local state = sin.build_state(ctx)
     state.energy = 60
-    assert_true(sin.strategies[6].matches(ctx, state), "Mutilate should match when energy >= 60")
+    assert_true(sin.strategies[7].matches(ctx, state), "Mutilate should match when energy >= 60")
 end)
 
 test("Mutilate: does not match when energy < 60", function()
     local state = sin.build_state(ctx)
     state.energy = 45
-    assert_false(sin.strategies[6].matches(ctx, state), "Mutilate should not match when energy < 60")
+    assert_false(sin.strategies[7].matches(ctx, state), "Mutilate should not match when energy < 60")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

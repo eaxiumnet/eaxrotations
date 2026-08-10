@@ -19,6 +19,8 @@ local ACTION = {
     Ambush = define("Ambush", { 48691, 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
     Backstab = define("Backstab", { 48657, 26863, 25300, 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
     Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    -- Baseline rogue interrupt (3.3.5); not in any wowsims APL fixture.
+    Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
 }
 
 local SHADOW_DANCE_BUFF = { 51713 }
@@ -31,6 +33,7 @@ local subtlety_state = {
     enemy_count = 1,
     in_combat = false,
     shadow_dance_up = false,
+    target_is_casting = false,
 }
 
 local function build_state(context)
@@ -43,11 +46,20 @@ local function build_state(context)
     state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.shadow_dance_up = (me and NS.buff_up and NS.buff_up(me, SHADOW_DANCE_BUFF)) or false
     return state
 end
 
 local DSL_DEFS = {
+    {
+        name = "Kick",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Kick, target = "target" },
+    },
     {
         name = "Premeditation",
         conditions = {},
@@ -84,7 +96,10 @@ local DSL_DEFS = {
     },
 }
 
+-- Kick is a baseline interrupt, not in the wowsims APL fixtures — first,
+-- outside any pinned order.
 local strategies = {
+    { name = "Kick" },
     { name = "Premeditation" },
     { name = "ShadowDance" },
     { name = "Ambush" },

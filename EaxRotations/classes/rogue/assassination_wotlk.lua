@@ -21,6 +21,8 @@ local ACTION = {
     Rupture = define("Rupture", { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
     TricksOfTheTrade = define("TricksOfTheTrade", 57934, "TricksOfTheTrade"),
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
+    -- Baseline rogue interrupt (3.3.5); not in the mutilate APL fixture.
+    Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
 }
 
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
@@ -35,6 +37,7 @@ local assassination_state = {
     in_combat = false,
     rupture_remains = 0,
     snd_remains = 0,
+    target_is_casting = false,
 }
 
 local function build_state(context)
@@ -47,6 +50,7 @@ local function build_state(context)
     state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.rupture_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF)) or 0
     state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0
     return state
@@ -56,6 +60,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Kick",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Kick, target = "target" },
+    },
     {
         name = "TricksOfTheTrade",
         conditions = {},
@@ -104,7 +116,10 @@ local DSL_DEFS = {
 -- Priority order mirrors wowsims mutilate APL (ui/rogue/apls/mutilate.apl.json):
 -- SnD > HfB > Tricks > Envenom > Mutilate (Rupture unconstrained by fixture,
 -- kept after SnD maintenance).
+-- Kick is a baseline interrupt, not in the mutilate APL fixture — first,
+-- outside the pinned order.
 local strategies = {
+    { name = "Kick" },
     { name = "SliceAndDice" },
     { name = "Rupture" },
     { name = "HungerForBlood" },

@@ -6,7 +6,7 @@
 --        produce the same behavior as the original imperative match functions.
 -- SAFETY: Uses synthetic context/state; no live game data required.
 
--- Validates the 5 strategies in the DSL_DEFS table.
+-- Validates the 6 strategies in the DSL_DEFS table (incl. baseline Kick).
 
 local mock_ns = {
     GetPlayer = function() return nil end,
@@ -98,8 +98,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    -- wowsims combat APL order (ui/rogue/apls/combat.apl.json): SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike
-    local expected = { "SliceAndDice", "Eviscerate", "BladeFlurry", "KillingSpree", "SinisterStrike" }
+    -- wowsims combat APL order (ui/rogue/apls/combat.apl.json): SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike.
+    -- Kick is a baseline interrupt NOT in the fixture — first, outside the pinned order.
+    local expected = { "Kick", "SliceAndDice", "Eviscerate", "BladeFlurry", "KillingSpree", "SinisterStrike" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -159,6 +160,11 @@ tests.test_Eviscerate_does_not_match_low_cp = test_match("Eviscerate", { combo_p
 -- SinisterStrike: matches when energy >= 45
 tests.test_SinisterStrike_matches_when_enough_energy = test_match("SinisterStrike", { energy = 45 }, true)
 tests.test_SinisterStrike_does_not_match_low_energy = test_match("SinisterStrike", { energy = 30 }, false)
+
+-- Kick (baseline interrupt): matches when in_combat AND target is casting
+tests.test_Kick_matches_when_casting = test_match("Kick", { in_combat = true, target_is_casting = true }, true)
+tests.test_Kick_no_cast = test_match("Kick", { in_combat = true, target_is_casting = false }, false)
+tests.test_Kick_no_combat = test_match("Kick", { in_combat = false, target_is_casting = true }, false)
 
 for name, fn in pairs(tests) do
     local ok, err = pcall(fn)

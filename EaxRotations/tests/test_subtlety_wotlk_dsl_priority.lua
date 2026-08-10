@@ -81,7 +81,7 @@ print("=== test_subtlety_wotlk_dsl_priority ===")
 local sub = dofile("EaxRotations/classes/rogue/subtlety_wotlk.lua")
 assert_true(type(sub) == "table", "subtlety_wotlk should return a table")
 assert_true(type(sub.strategies) == "table", "subtlety_wotlk should expose strategies")
-assert_true(#sub.strategies == 5, "subtlety_wotlk should have 5 strategies")
+assert_true(#sub.strategies == 6, "subtlety_wotlk should have 6 strategies")
 
 local registered = _G.EaxRotations._registered_subtlety
 assert_true(registered ~= nil, "subtlety_wotlk should register under 'subtlety'")
@@ -89,7 +89,9 @@ assert_true(registered ~= nil, "subtlety_wotlk should register under 'subtlety'"
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- Kick is a baseline interrupt, not in any wowsims APL fixture — first.
 local expected_order = {
+    "Kick",
     "Premeditation",
     "ShadowDance",
     "Ambush",
@@ -97,7 +99,7 @@ local expected_order = {
     "Backstab",
 }
 
-test("priority order: 5 strategies match expected order", function()
+test("priority order: 6 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(sub.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], sub.strategies[i].name))
@@ -109,23 +111,36 @@ end)
 -- ============================================================================
 local ctx = { in_combat = true, target = {}, settings = {} }
 
--- Premeditation (1): always matches (no conditions)
+-- Kick (1): baseline interrupt — in_combat AND target_is_casting
+test("Kick: matches when target is casting", function()
+    local state = sub.build_state(ctx)
+    state.target_is_casting = true
+    assert_true(sub.strategies[1].matches(ctx, state), "Kick should match when target casts")
+end)
+
+test("Kick: does not match when target not casting", function()
+    local state = sub.build_state(ctx)
+    state.target_is_casting = false
+    assert_false(sub.strategies[1].matches(ctx, state), "Kick should not match when idle")
+end)
+
+-- Premeditation (2): always matches (no conditions)
 test("Premeditation: always matches", function()
     local state = sub.build_state(ctx)
-    assert_true(sub.strategies[1].matches(ctx, state), "Premeditation should always match")
+    assert_true(sub.strategies[2].matches(ctx, state), "Premeditation should always match")
 end)
 
 -- ShadowDance (2): matches when shadow_dance_up is falsy
 test("ShadowDance: matches when buff down", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = false
-    assert_true(sub.strategies[2].matches(ctx, state), "ShadowDance should match when buff down")
+    assert_true(sub.strategies[3].matches(ctx, state), "ShadowDance should match when buff down")
 end)
 
 test("ShadowDance: does not match when buff up", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = true
-    assert_false(sub.strategies[2].matches(ctx, state), "ShadowDance should not match when buff up")
+    assert_false(sub.strategies[3].matches(ctx, state), "ShadowDance should not match when buff up")
 end)
 
 -- Ambush (3): shadow_dance_up truthy AND energy >= 60
@@ -133,47 +148,47 @@ test("Ambush: matches when dance up and energy >= 60", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = true
     state.energy = 60
-    assert_true(sub.strategies[3].matches(ctx, state), "Ambush should match with dance up and energy >= 60")
+    assert_true(sub.strategies[4].matches(ctx, state), "Ambush should match with dance up and energy >= 60")
 end)
 
 test("Ambush: does not match when dance down", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = false
     state.energy = 100
-    assert_false(sub.strategies[3].matches(ctx, state), "Ambush should not match when dance down")
+    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when dance down")
 end)
 
 test("Ambush: does not match when energy < 60", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = true
     state.energy = 45
-    assert_false(sub.strategies[3].matches(ctx, state), "Ambush should not match when energy < 60")
+    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when energy < 60")
 end)
 
 -- Eviscerate (4): combo_points >= 4
 test("Eviscerate: matches when combo >= 4", function()
     local state = sub.build_state(ctx)
     state.combo_points = 4
-    assert_true(sub.strategies[4].matches(ctx, state), "Eviscerate should match with combo >= 4")
+    assert_true(sub.strategies[5].matches(ctx, state), "Eviscerate should match with combo >= 4")
 end)
 
 test("Eviscerate: does not match with combo < 4", function()
     local state = sub.build_state(ctx)
     state.combo_points = 3
-    assert_false(sub.strategies[4].matches(ctx, state), "Eviscerate should not match with combo < 4")
+    assert_false(sub.strategies[5].matches(ctx, state), "Eviscerate should not match with combo < 4")
 end)
 
 -- Backstab (5): energy >= 60
 test("Backstab: matches when energy >= 60", function()
     local state = sub.build_state(ctx)
     state.energy = 60
-    assert_true(sub.strategies[5].matches(ctx, state), "Backstab should match when energy >= 60")
+    assert_true(sub.strategies[6].matches(ctx, state), "Backstab should match when energy >= 60")
 end)
 
 test("Backstab: does not match when energy < 60", function()
     local state = sub.build_state(ctx)
     state.energy = 45
-    assert_false(sub.strategies[5].matches(ctx, state), "Backstab should not match when energy < 60")
+    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match when energy < 60")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))
