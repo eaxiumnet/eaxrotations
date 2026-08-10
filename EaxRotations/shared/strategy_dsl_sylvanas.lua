@@ -224,11 +224,6 @@ condition_evaluators["custom"] = function(context, state, node)
     return result == true
 end
 
--- Register a custom condition evaluator.
-function M.register_condition(name, func)
-    condition_evaluators[name] = func
-end
-
 -- Evaluate a single condition node.
 function M.evaluate_node(context, state, node)
     if not node then return true end
@@ -285,11 +280,6 @@ action_handlers["custom"] = function(context, state, action)
     if type(action.fn) ~= "function" then return false end
     local ok, result = pcall(action.fn, context, state)
     return ok and result == true
-end
-
--- Register a custom action handler.
-function M.register_action(name, func)
-    action_handlers[name] = func
 end
 
 -- Execute an action definition.
