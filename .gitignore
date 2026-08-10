@@ -12,4 +12,5 @@
 !/tools/pre-commit
 !/tools/evidence/
 !/tools/evidence/**
+!/tools/create_release_zip.py
 EaxRotations/.omo/

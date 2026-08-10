@@ -98,6 +98,32 @@ lua EaxRotations/tests/run_rotation_tests.lua
 lua EaxRotations/tests/run_leveling_tests.lua
 ```
 
+## Release Builds
+
+Release artifacts are zips containing **.lua and .md only**, built from the
+tracked tree at `HEAD` (never working-tree debris) by the tracked script:
+
+```bash
+# build ./eaxrotations.zip in the repo root (default output)
+python tools/create_release_zip.py
+
+# or write elsewhere, from any working directory
+python tools/create_release_zip.py /tmp/eaxrotations.zip
+```
+
+What it does (verified by the script itself on every run):
+
+- `git archive HEAD -- EaxRotations/` → stage zip (tracked files only; no
+  `.git`, no build debris)
+- Strips the `EaxRotations/` prefix and filters to `.lua` / `.md`
+- Verifies the result: fails if any non-lua/md file (e.g. a stray `.txt`)
+  made it in
+- Pins entry timestamps so the zip is **byte-reproducible** (same HEAD ⇒
+  identical md5)
+
+Zips are **gitignored artifacts** (root `/*` ignore covers `*.zip`) — never
+commit one. Rebuild on demand for releases; there is no Makefile target.
+
 ## Project Structure
 
 - `classes/<class>/` - Per-class rotation modules
