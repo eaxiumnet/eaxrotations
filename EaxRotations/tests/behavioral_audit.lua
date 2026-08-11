@@ -660,6 +660,11 @@ function M.build_ns(class_key, era)
     ns.get_aoe_cast_position = function() return nil end
     ns.cast_ground_aoe = function() return true end
     ns.try_cast_position = function() return true end
+    -- try_interrupt stays a constant-true permissive stub (legacy posture):
+    -- making it bank-aware on target_is_casting was trialed during the vanilla
+    -- sweep but rippled across TBC interrupt/cyclone lanes (bear, cat, priest,
+    -- shadow, subtlety, enhancement) — the subtlety Ambush lane it would fix is
+    -- pinned as expected-absence instead (see the vanilla pin comment).
     ns.try_interrupt = function() return true end
     ns.is_interruptible = ns.is_interruptible
     ns.unit_alive = function() return true end
@@ -1173,6 +1178,50 @@ function M.build_ns(class_key, era)
         Rake = ns.spell_action({ 27003, 9904, 1824, 1823, 1822 }, "Rake"),
         Claw = ns.spell_action({ 27000, 9850, 9849, 5201, 3029, 1082 }, "Claw"),
     }
+    -- Vanilla battery sweep (2026-08): plain-style vanilla spec files read
+    -- SPELLS.X directly (no define_action_for_class fallback), so an empty
+    -- class table silently suppressed spell-gated lanes (the cat-block
+    -- precedent: resto totems/cures via _totem_ready's `spell and ...`
+    -- short-circuit, frost ArcaneExplosion's nil-failing guard, ColdSnap's
+    -- `not spell_ready(IceBlock)` inversion, arcane low_level's sentinel
+    -- spell_exists inversion, hunter ArcaneShot's `aimed_shot_ready`
+    -- inversion, holy AuraManagement's nil aura_spell). Ladders mirror
+    -- classes/<class>/class_sylvanas.lua (max rank first). Shared with the
+    -- TBC battery, which resolves the SAME ids through define_action_for_class
+    -- — TBC behavior is byte-identical.
+    ns.ShamanSpells = {
+        StrengthOfEarthTotem = ns.spell_action({ 25528, 25361, 10442, 8161, 8160, 8075 }, "StrengthOfEarthTotem"),
+        ManaSpringTotem = ns.spell_action({ 25570, 10497, 10496, 10495, 5675 }, "ManaSpringTotem"),
+        GraceOfAirTotem = ns.spell_action({ 25359, 10627, 8835 }, "GraceOfAirTotem"),
+        WindfuryTotem = ns.spell_action({ 25587, 25585, 10614, 10613, 8512 }, "WindfuryTotem"),
+        CurePoison = ns.spell_action({ 526 }, "CurePoison"),
+        CureDisease = ns.spell_action({ 2870 }, "CureDisease"),
+        PoisonCleansingTotem = ns.spell_action({ 8166 }, "PoisonCleansingTotem"),
+        DiseaseCleansingTotem = ns.spell_action({ 8170 }, "DiseaseCleansingTotem"),
+    }
+    ns.MageSpells = {
+        ArcaneExplosion = ns.spell_action({ 27082, 27080, 10202, 10201, 8439, 8438, 8437, 1449 }, "ArcaneExplosion"),
+        IceBlock = ns.spell_action({ 45438 }, "IceBlock"),
+        -- UnavailableClassicMageArcane is nil in the class file; arcane_vanilla
+        -- gates low_level_bolt on spell_exists(SPELLS.UnavailableClassicMageArcane).
+        -- spell_exists(nil) is nil-lenient TRUE in the mock, inverting the
+        -- sentinel's "unavailable in classic" semantics — give it a sentinel
+        -- id (0) so the low_level scenario's not_learned {[0]=true} drives it.
+        UnavailableClassicMageArcane = ns.spell_action({ 0 }, "UnavailableClassicMageArcane"),
+    }
+    ns.HunterSpells = {
+        AimedShot = ns.spell_action({ 27065, 20904, 20903, 20902, 20901, 20900, 19434 }, "AimedShot"),
+        ArcaneShot = ns.spell_action({ 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044 }, "ArcaneShot"),
+        SerpentSting = ns.spell_action({ 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
+    }
+    ns.PaladinSpells = {
+        DevotionAura = ns.spell_action({ 27149, 10293, 10292, 1032, 10291, 643, 10290, 465 }, "DevotionAura"),
+    }
+    ns.PriestSpells = {
+        -- ids[1] resolves the friends_afflicted on_cd entry (CureDisease on
+        -- CD → holy AbolishDisease's `not cure_disease_ready` gate passes).
+        CureDisease = ns.spell_action({ 528, 11554 }, "CureDisease"),
+    }
     -- Scenario-aware equipped-item mock: the mutilate_daggers scenario sets
     -- equipped_daggers = true and get_equipped_item_id returns a real dagger
     -- item id (776, from shared/dagger_set_sylvanas DAGGER_IDS) for the
@@ -1194,6 +1243,10 @@ function M.build_ns(class_key, era)
     ns.is_interruptible = function() return true end
     ns.target_casting = function() return ns._bstate("target_is_casting", false) end
     ns.is_in_melee_range = function() return true end
+    -- (resto RebirthBattleRez group gate: group_ok = (not group_aware) or
+    -- is_in_party() or is_in_raid(); absent these the lane could never fire.)
+    ns.is_in_party = function() return true end
+    ns.is_in_raid = function() return false end
     ns.cp_debug = function() end
     ns.time_until_swing = function() return ns._bstate("swing_until", 0.5) end
     ns.has_health_potion = false
@@ -1397,6 +1450,14 @@ function M.build_ns(class_key, era)
             end
         end
         return false
+    end
+    -- Vanilla battery sweep (2026-08): discipline DispelMagic reads
+    -- NS.has_debuff(me, id) (DISPEL_MAGIC_DEBUFF_IDS) — the constant-false
+    -- stub made it structurally dead. Mirror has_player_debuff over the same
+    -- player_debuff_remains_map bank (ret_cleanse_self carries a magic DoT
+    -- id 589).
+    ns.has_debuff = function(unit, ids)
+        return ns.has_player_debuff(ids)
     end
     ns.has_target_debuff = function(unit, ids)
         -- Cleanse_Ally's unit_has_debuff(me, ...) passes the PLAYER; reuse the
@@ -1688,7 +1749,7 @@ M.SCENARIOS = {
     -- This is the only is_pvp + range combo. Already-firing lanes that read
     -- dist >= 15 (subtlety sprint_gap, warrior Intercept) legitimately gain a
     -- fires-in here — never-list unchanged.
-    { name = "pvp_gap_close",     overrides = { is_pvp = true, target_distance = 15 } },
+    { name = "pvp_gap_close",     overrides = { is_pvp = true, target_distance = 15, in_melee_range = false } },
     -- Rogue Preparation reset (ranked #8): subtlety's matcher needs
     -- state.hp <= 40 (subtlety_prep_hp default) AND a major CD burned
     -- (vanish_cd/sprint_cd/evasion_cd from state). vanish_cd derives from
@@ -1704,7 +1765,12 @@ M.SCENARIOS = {
     -- (SummonFelguard 30146 not learned + Imp 688 learned, OOC, no pet).
     -- Every lane fires ONLY here (no other scenario sets is_leveling together
     -- with a not-learned entry; OOC no-pet lanes already exist).
-    { name = "low_level",    overrides = { level = 20, player_level = 20, is_leveling = true, in_combat = false, not_learned = { [30451] = true, [27125] = true, [6117] = true, [30146] = true } }, no_pet = true },
+    { name = "low_level",    overrides = { level = 20, player_level = 20, is_leveling = true, in_combat = false, not_learned = { [30451] = true, [27125] = true, [6117] = true, [30146] = true, [0] = true } }, no_pet = true },
+    -- Vanilla battery sweep (2026-08): arcane_vanilla's low_level_bolt gates
+    -- on spell_exists(SPELLS.UnavailableClassicMageArcane) (a nil sentinel in
+    -- the class file) instead of ArcaneBlast — the mock seeds the sentinel
+    -- with id 0, so [0] in not_learned makes the vanilla Fireball/Frostbolt
+    -- leveling lanes observable exactly like the TBC ArcaneBlast path.
     -- Phase 3 (2026-08-09): first batch of ranked (c) fixtures from the
     -- non-DPS triage — hunter Readiness x3, SerpentStingRefresh x2, holy
     -- ClearcastingGreaterHeal/SurgeOfLightSmite, elem moving shocks x2.
@@ -1721,7 +1787,13 @@ M.SCENARIOS = {
     -- Serpent Sting id in SERPENT_STING_DEBUFF {27016,...} (BM:44, MM:79,
     -- survival:87). The map is primary-target-scoped (debuff_up/remains check
     -- unit == primary_target), and the primary is ctx.target (line ~2059).
-    { name = "serpent_refresh", overrides = { debuff_remains_map = { [27016] = 2 }, ttd = 30, target_ttd = 30 } },
+    { name = "serpent_refresh", overrides = { debuff_remains_map = { [27016] = 2, [13555] = 2 }, on_cd = { [27065] = 6 }, ttd = 30, target_ttd = 30 } },
+    -- Vanilla battery sweep (2026-08): BM/survival ArcaneShot gates on
+    -- `if s.aimed_shot_ready then return false end` — the nil-lenient mock
+    -- made AimedShot "always ready" so Arcane Shot could never fire. Seeding
+    -- HunterSpells.AimedShot (ids[1]=27065) + putting it on CD here makes the
+    -- lane observable; the debuff map gains the VANILLA Serpent Sting max rank
+    -- (13555; 27016 is TBC-only) so the vanilla SerpentStingRefresh fires.
     -- clearcast_surge: holy ClearcastingGreaterHeal + SurgeOfLightSmite read
     -- per-buff state via has_player_buff (HOLY_CONCENTRATION_BUFF {34753,...}
     -- / SURGE_OF_LIGHT_BUFF {33151,...}) — the all-or-nothing buffs_up can't
@@ -1745,7 +1817,10 @@ M.SCENARIOS = {
     { name = "pvp_interrupt",    overrides = { is_pvp = true, target_is_casting = true, combo_points = 3 } },
     { name = "berserker_interrupt", overrides = { stance = 3, target_is_casting = true } },
     { name = "potions_ready",    overrides = { has_potions = true } },
-    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 80, 90, 95 }, afflicted = { poison = true, disease = true, curse = true, magic = true } } },
+    -- Vanilla battery sweep (2026-08): holy AbolishDisease fires pre-emptively
+    -- only while CureDisease is NOT ready (`not state.cure_disease_ready`) —
+    -- the on_cd entry (CureDisease 528) makes that observable.
+    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 80, 90, 95 }, afflicted = { poison = true, disease = true, curse = true, magic = true }, on_cd = { [528] = 6 } } },
     -- Healer group-damage scenarios (healer triage upgrade): friends_hp bands
     -- are tuned per lane family — group_light (62/72/85: GH + PreHeal + RenewTank),
     -- group_critical (30/45/60 + low self: BindingHeal + Emergency PWS),
@@ -1812,6 +1887,18 @@ M.SCENARIOS = {
     -- shaman) become observable. Group stays healthy so the spot-heal lanes
     -- don't steal the frame; hp must stay < 90 and > 0.
     { name = "friendly_target", overrides = { friendly_target_hp = 60, friends_hp = { 100, 100, 100 }, lowest_hp = 100 } },
+    -- Vanilla battery sweep (2026-08): vanilla paladin/priest FriendlyTarget
+    -- additionally gates on `can_help(s.lowest)` (priest versions also on
+    -- _check_pushback — an enemy casting on the player) — with friends at
+    -- 100hp the lane is dead. Present the friendly target (60%) alongside a
+    -- lowest ally who needs help and a casting enemy so the vanilla gates
+    -- pass; additive for TBC (never-shrink).
+    { name = "friendly_target_low", overrides = { friendly_target_hp = 60, friends_hp = { 60, 100, 100 }, lowest_hp = 60, enemies_casting = true, target_is_casting = true } },
+    -- Vanilla battery sweep (2026-08): priest holy/discipline Fade scans
+    -- GetEnemiesInRange for an enemy whose get_target() is the player (the
+    -- TBC sibling added a threat_pct/threat_status gate the vanilla files
+    -- don't have). enemies_target_me makes the scan return one such enemy.
+    { name = "enemies_target_me", overrides = { enemies_target_me = true, hp = 40, player_hp = 40 } },
     -- Healer (c) close-out (2026-08-09): the 13 TBC healer category-(c)
     -- never-lanes, mirroring the WotLK fixture campaign (battery fixtures
     -- only, no spec-file matcher changes). is_solo defaults true in the
@@ -1865,6 +1952,31 @@ M.SCENARIOS = {
     { name = "cat_gap",             overrides = { form = 3, target_distance = 15, energy = 70 } },
     { name = "cat_2target",         overrides = { form = 3, enemy_count = 2, enemies_count = 2, energy = 70, combo_points = 3 } },
     { name = "cat_target_casting",  overrides = { form = 3, target_is_casting = true, energy = 60, combo_points = 3 } },
+    -- Vanilla battery sweep (2026-08): bear BashInterrupt is a DSL strategy
+    -- with required_form="bear" + target_is_casting + target_interruptible;
+    -- no scenario combined form=1 with a casting target (cat_target_casting
+    -- uses form 3), so the lane was structurally dead.
+    { name = "bear_target_casting", overrides = { form = 1, target_is_casting = true, rage = 50 } },
+    -- Vanilla battery sweep (2026-08): subtlety Ambush needs stealth_up
+    -- (buff_remains_map 1784) AND the opener auto-resolving to "ambush" — the
+    -- constant-true try_interrupt stub makes is_caster_target always true in
+    -- the battery, so the auto-resolve always picks garrote and Ambush stays
+    -- unreachable (pinned as expected-absence; see the vanilla pin comment).
+    { name = "stealth_ambush", overrides = { buff_remains_map = { [1784] = 10 }, target_class = 1 } },
+    -- Vanilla sweep (2026-08): fury Overpower fires only inside a dodge window
+    -- (fury_vanilla:302 reads state.overpower_window, derived from
+    -- target:get_dodge_chance() at :181-185). The mock target had no
+    -- get_dodge_chance, so the window was structurally false. The dodge_proc
+    -- scenario drives it via target_dodge_chance; only fury_vanilla reads it.
+    { name = "dodge_proc", overrides = { in_combat = true, target_dodge_chance = 5, rage = 40 } },
+    -- Vanilla sweep (2026-08): holy AbolishDisease is the pre-emptive branch
+    -- of the cure pair — it fires only when CureDisease is NOT ready
+    -- (holy_vanilla:616). Both spells are always "ready" in the mock, so the
+    -- asymmetric state was inexpressible. on_cd { [528] = 5 } (CureDisease)
+    -- models the real live state (Cure just cast, on CD) while AbolishDisease
+    -- (552) stays ready; only priest CureDisease reads id 528, so no other
+    -- spec's lanes are affected.
+    { name = "holy_cure_on_cd", overrides = { in_combat = true, on_cd = { [528] = 5 }, mana_pct = 80 } },
     { name = "cat_pvp_interrupt",   overrides = { form = 3, is_pvp = true, target_is_casting = true, energy = 60, combo_points = 3 } },
     { name = "pvp_ooc",             overrides = { in_combat = false, is_pvp = true } },
     { name = "bear_form",           overrides = { form = 1, rage = 50 } },
@@ -1898,9 +2010,15 @@ M.SCENARIOS = {
     -- the potion lane was invisible in every spec (9 DamagePotion never-lanes).
     { name = "burst",               overrides = { should_burst = true, buffs_up = true, has_potions = true } },
     -- Gap close: warrior Charge / Intercept / sprint lanes need range.
-    { name = "gap_close",           overrides = { target_distance = 15 } },
-    { name = "berserker_gap",       overrides = { stance = 3, target_distance = 15 } },
-    { name = "pull_gap",            overrides = { in_combat = false, target_distance = 15 } },
+    -- Vanilla battery sweep (2026-08): fury_vanilla Intercept gates on
+    -- `not s.in_melee_range` but the gap scenarios set target_distance=15
+    -- without flipping in_melee_range (base ctx true) — the lanes were
+    -- contradictory-dead. prot_vanilla Intercept additionally needs is_pvp +
+    -- berserker stance, so berserker_gap gains is_pvp (no other scenario had
+    -- the combo).
+    { name = "gap_close",           overrides = { target_distance = 15, in_melee_range = false } },
+    { name = "berserker_gap",       overrides = { stance = 3, target_distance = 15, in_melee_range = false, is_pvp = true } },
+    { name = "pull_gap",            overrides = { in_combat = false, target_distance = 15, in_melee_range = false } },
     -- Triage battery upgrades (2026-08-07): scenario COMBINATIONS the battery
     -- could not previously express — stance+execute (Recklessness), defensive+
     -- low-HP (ShieldWall), rage-capped (RageDumpSafetyNet), poison-stack
@@ -2109,7 +2227,11 @@ M.SCENARIOS = {
     { name = "seal_command_apply", overrides = { setting_overrides = { seal_preference = "command" }, buff_remains_map = { [27158] = 5 }, combat_time = 3 } },
     -- Command seal ACTIVE + a second melee enemy (context.enemies fixture):
     -- Ret_JudgeSecondary_CommandCleave (swing in the judge band, mana >= 30).
-    { name = "seal_command_active", overrides = { setting_overrides = { seal_preference = "command" }, buff_remains_map = { [27170] = 5 }, swing_until = 0.9, enemy_count = 2, enemies_count = 2, mana_pct = 40 } },
+    -- Vanilla battery sweep (2026-08): ret CommandCleave reads has_command
+    -- from SEAL_COMMAND_BUFF = {20920,...20375} — 27170 (Judgement of Command
+    -- TBC id) alone never matched, so the vanilla lane was dead; 20375 is the
+    -- vanilla top Command rank.
+    { name = "seal_command_active", overrides = { setting_overrides = { seal_preference = "command" }, buff_remains_map = { [27170] = 5, [20375] = 5 }, swing_until = 0.9, enemy_count = 2, enemies_count = 2, mana_pct = 40 } },
     -- Hunter toggles: AdaptiveRotation x3 (use_adaptive_rotation + the
     -- NS.HunterAdaptive stub), Volley + ExplosiveTrap (use_volley /
     -- use_explosive_trap; 4 enemies for the AoE gates).
@@ -2202,7 +2324,11 @@ M.SCENARIOS = {
     -- (number) AND state.ttd <= cast_time. scorch_cast_time is a new bank key;
     -- ttd 2 <= cast_time 3 makes the lane fire (base ttd 60 > 3 blocks it
     -- everywhere else). FireBlast is a real weaving lane, not a dead one.
-    { name = "fire_scorch",     overrides = { scorch_cast_time = 3, ttd = 2, target_ttd = 2 } },
+    -- Vanilla battery sweep (2026-08): fire_vanilla Fireball gates on 5 Scorch
+    -- stacks (scorch_stacks = get_debuff_stacks(target, SCORCH_DEBUFF {22959}))
+    -- and has no clearcasting early-consume like the TBC sibling — debuff_stacks
+    -- + the vanilla scorch id make the lane observable.
+    { name = "fire_scorch",     overrides = { scorch_cast_time = 3, ttd = 2, target_ttd = 2, debuff_stacks = 5, debuff_aura_ids = { 22959 } } },
     -- Mage leveling ConjureManaGem: in_combat falsy + mana_pct < 80. The
     -- existing out_of_combat scenario has mana_pct 100 (never < 80); this is
     -- the OOC + low-mana combo (like low_mana but OOC — low_mana keeps
@@ -2252,7 +2378,10 @@ M.SCENARIOS = {
     { name = "prot_cd_window",  overrides = { in_combat = true, ttd = 60, setting_overrides = { use_cooldowns = true } } },
     { name = "prot_low_self",   overrides = { in_combat = true, hp = 5, player_hp = 5 } },
     -- paladin/retribution: cleanse/purify self + ally (player-debuff map).
-    { name = "ret_cleanse_self", overrides = { player_debuff_remains_map = { [1330] = 5 } } },
+    -- (589 is a magic DoT in discipline_vanilla's DISPEL_MAGIC_DEBUFF_IDS,
+    -- so this scenario also drives the vanilla discipline DispelMagic lane via
+    -- the map-aware ns.has_debuff).
+    { name = "ret_cleanse_self", overrides = { player_debuff_remains_map = { [1330] = 5, [589] = 5 } } },
     -- shaman/elemental: ChainHeal (group injured); ElementalMastery (burst
     -- window + enabled); TotemicCall (moving + totems up).
     { name = "elem_group_injured", overrides = { in_combat = true, group_injured = true } },
@@ -2486,6 +2615,11 @@ local function build_scenario_target(ctx)
     -- with target_is_casting=true. Scenario-overridable via target_cast_pct;
     -- default 60 sits inside the kick window when the target is casting.
     target.get_cast_pct = function(self) return ctx.target_cast_pct or 60 end
+    -- Vanilla sweep (2026-08): fury_vanilla build_state reads
+    -- target:get_dodge_chance() via pcall (fury_vanilla:181-185) to derive
+    -- state.overpower_window. Default 0 preserves the pre-fixture behavior
+    -- (window false); the dodge_proc scenario flips it to fire Overpower.
+    target.get_dodge_chance = function(self) return ctx.target_dodge_chance or 0 end
     -- Defensive-casting (warrior/rogue triage 2026-08-08): prot build_state
     -- derives state.target_is_casting from target:is_casting_spell()
     -- (protection_sylvanas.lua:310) while arms reads ctx.target_is_casting —
@@ -2639,6 +2773,17 @@ function M.build_context_for(class_key, scenario)
         target_fleeing=true, target_is_fleeing=true, self_rooted_snared=true,
         fear_nearby=true, enemies_in_range=true, is_auto_attacking=true,
         pet_spells=true, has_pet=true, snared_friend=true,
+        -- Vanilla battery sweep (2026-08): in_melee_range feeds fury Intercept's
+        -- `not in_melee_range` gate (gap scenarios set target_distance 15 but
+        -- never flipped it); enemies_target_me drives the GetEnemiesInRange
+        -- stub so the vanilla priest Fade lane (enemy get_target() == me) is
+        -- observable.
+        in_melee_range=true, enemies_target_me=true,
+        -- Vanilla sweep (2026-08): target_dodge_chance feeds the mock
+        -- target's get_dodge_chance so fury_vanilla's Overpower window
+        -- (fury_vanilla:181-185 pcall path) is drivable; only fury_vanilla
+        -- reads it.
+        target_dodge_chance=true,
     }
     for k, v in pairs(overrides) do
         if k == "friends_hp" then
@@ -2942,6 +3087,16 @@ function M.apply_battery_state(ns, ctx, class_key)
     -- their current battery behavior.
     ns.GetEnemiesInRange = function(range)
         if ctx.enemies_casting == true then return { ctx.target } end
+        -- Vanilla battery sweep (2026-08): priest holy/discipline Fade scans
+        -- GetEnemiesInRange for an enemy whose get_target() is the player
+        -- (the TBC siblings added a threat_pct gate the vanilla files don't
+        -- have). _battery_enemy.get_target() is nil everywhere else, so this
+        -- dedicated scenario is the only path that fires the vanilla Fade lane.
+        if ctx.enemies_target_me == true then
+            local e = _battery_enemy("melee")
+            e.get_target = function() return ctx.me end
+            return { e }
+        end
         -- (b) close-out (2026-08-10): the pvp_pressure_resto scenario sets
         -- enemies_in_range = { melee = N, healer = N } so resto's
         -- scan_pvp_pressure fills melee_pressure_count / enemy_healer /
@@ -3181,6 +3336,14 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
     if not build_state and ns and ns._registry and ns._registry.options
         and type(ns._registry.options.get_state) == "function" then
         build_state = ns._registry.options.get_state
+    end
+    -- Vanilla battery sweep (2026-08): kebab_vanilla registers
+    -- `context_builder` (not get_state) — the engine dispatches it the same
+    -- way (main_sylvanas.lua:1629-1630), so recover it here too or every
+    -- kebab state read (target_below_20, sunder stacks) sees the raw ctx.
+    if not build_state and ns and ns._registry and ns._registry.options
+        and type(ns._registry.options.context_builder) == "function" then
+        build_state = ns._registry.options.context_builder
     end
 
     local fired = {}

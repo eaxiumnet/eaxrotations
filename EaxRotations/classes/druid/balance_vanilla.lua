@@ -40,8 +40,9 @@ local _LOCAL_SPELLS = {
     MarkOfTheWild= NS.spell_action({ 9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
-local _INSECT_MIN_SP = 800
-local _MOONFIRE_MIN_SP = 800
+-- (balance_vanilla) spell_damage min-SP gates removed 2026-08: the engine
+-- never populates ctx.spell_damage, so InsectSwarm/Moonfire could never fire
+-- in live play; the TBC sibling dropped the same gates (mirror-drift fix).
 
 local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, hit_radius=8, hit_origin="target", not_moving=true, min_mana=35, cooldown=60 }
 local _ACT_SF  = { name="Starfire", spell=SPELLS.Starfire, not_moving=true, min_mana=15 }
@@ -242,8 +243,6 @@ local _strategies = {
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
             if settings.balance_use_insect_swarm == false then return false end
-            local min_sp = settings.balance_insect_swarm_min_sp or _INSECT_MIN_SP
-            if (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_IS)
         end,
@@ -256,8 +255,6 @@ local _strategies = {
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
-            local min_sp = settings.balance_moonfire_min_sp or _MOONFIRE_MIN_SP
-            if (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_MF)
         end,

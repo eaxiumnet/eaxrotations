@@ -406,49 +406,53 @@ local components = {
     -- campaigns clear them per the (a)/(b)/(c) discipline. The fury Pummel
     -- interrupt (previous unit) FIRES in 11 scenarios incl. wotlk_interrupts.
     --
-    -- Classification of the 79 pins:
-    --  * race-gated (3): smite DevouringPlague (undead) / Starshards (night elf),
-    --    warlock RacialArcaneTorrent (blood elf) — RACE_OVERRIDES is era-gated
-    --    to sylvanas; vanilla needs the same mechanism to observe.
-    --  * CLEARED 2026-08-11 (2): smite Starshards + DevouringPlague — the race
-    --    override/variant mechanism was extended to the vanilla era
-    --    (RACE_OVERRIDES_VANILLA / RACE_VARIANTS_VANILLA); smite_vanilla:28-29
-    --    gates on the same era-correct race ids as TBC (NE 4 / undead 5 —
-    --    verified: Classic Forsaken priests learn DP at 20, NE learn
-    --    Starshards at 10; no 2.0.1 racial swap — the Cataclysm change made DP
-    --    baseline). Both lanes now fire under the vanilla race variants.
-    --  * DOCUMENTED-EXPECTED (1): warlock RacialArcaneTorrent — Arcane Torrent
-    --    is a Blood Elf racial and blood elves do not exist in vanilla;
-    --    affliction_vanilla.lua:83 pins ArcaneTorrent = nil with the
-    --    'TBC-only (Blood Elf racial)' comment, so the strategy can never fire
-    --    in-game. Kept pinned (impossible-by-design), not 'fixed'.
-    --  * OOC/pre-combat/movement (10): FaerieFirePull, PrePullEnrage, TravelForm,
-    --    Dash, Prowl, ManaGemConjure x2, AuraManagement, DemonArmorBuff,
-    --    MountedProtection.
-    --  * cat form/stealth block (19) — CLEARED 2026-08-11 to 0: root cause
-    --    was a harness gap (the mock DruidSpells table lacked the cat spells,
-    --    and cat_vanilla is plain-style reading SPELLS.X directly, so every
-    --    spell-gated lane died on nil) + ONE genuine defect (should_powershift
-    --    was hardcoded false — Powershift unreachable in live play, ported
-    --    from cat_sylvanas:717-719) + the pounce/FF-stealth lanes needing a
-    --    map-aware stealth scenario (buffs_up marks every debuff up, which
-    --    self-blocks their 'debuff down' gates; cat_stealth_clean adds the
-    --    PROWL buff map). RakeSnapshot fires via the fresh-dot path. All 19
-    --    lanes now fire; pinned by test_cat_vanilla_battery_regression.lua.
-    --  * interrupt/CC (2): bear BashInterrupt (Pummel-shaped, needs target
-    --    casting), assassination KidneyShotCC.
-    --  * DoT/filler maintenance (~26): balance DoTs x2, hunter ArcaneShot x2 +
-    --    SerpentStingRefresh, mage Fireball/ArcaneExplosion/ColdSnap/leveling x2,
-    --    assassination finishers x5, subtlety Ambush, shaman FlameShock x2 +
-    --    totems x2 + GraceOfAirTotemTwist, kebab Execute/MortalStrikeGeneralUse,
-    --    fury Intercept/Overpower, protection Intercept (battery defaults
-    --    in_melee_range=true and has no dodge fixture).
-    --  * heal/dispel/totem (14): resto cures/totems x8 + RebirthBattleRez, holy
-    --    pal FriendlyTarget, priest DispelMagic x2/Fade x2/FriendlyTarget x2 +
-    --    AbolishDisease.
-    --  * pinned families (3): FireNovaReplacement (module-local unpinnable),
-    --    EncounterReactions (declined), Ret_JudgeSecondary_CommandCleave
-    --    (seal-twist scenario-shaped).
+    -- Classification of the CURRENT 13 pins (post sweep, 2026-08-11):
+    --  * OOC/pre-pull/conjure/mounted (6): bear FaerieFirePull + PrePullEnrage
+    --    (requires_not_in_combat pre-pull family — TBC pins the same lanes),
+    --    mage ManaGemConjure x2 (OOC conjure — TBC-pinned family), priest holy
+    --    MountedProtection (mounted OOC — TBC-pinned family).
+    --  * expected-absence / impossible-by-design (3): warlock RacialArcaneTorrent
+    --    (Blood Elf racial, no blood elves in vanilla — affliction_vanilla:83
+    --    pins ArcaneTorrent = nil), shaman elemental WrathOfAirTotem (TBC-only
+    --    spell — elemental_vanilla:452 inert marker) + MagmaTotem
+    --    (intentionally-inert by file design — elemental_vanilla:461-462
+    --    'Magma Totem max rank is TBC-only in Classic').
+    --  * module-local / state-machine-bound (3): FireNovaReplacement
+    --    (module-local unpinnable, TBC-pinned family), enhancement
+    --    GraceOfAirTotemTwist (internal twist state machine — totem_state.
+    --    next_air flips only inside the twist executes, enhancement_vanilla:
+    --    732/740; the battery evaluates matches statelessly per scenario and
+    --    cannot run the windfury→grace cycle; the strategy IS live in-game),
+    --    priest holy EncounterReactions (declined — vacuous without boss data).
+    --  * battery-shape-bound (2): subtlety Ambush (opener auto-resolve always
+    --    picks garrote because the constant-true try_interrupt stub makes
+    --    is_caster_target always true — behavioral_audit.lua:668; a bank-aware
+    --    try_interrupt was trialed but rippled across TBC interrupt/cyclone
+    --    lanes and was reverted), priest holy AbolishDisease (pre-emptive
+    --    branch of the cure pair — fires only when CureDisease is NOT ready;
+    --    the import_helpers stub returns constant-true spell_ready
+    --    (behavioral_audit.lua:399), so the asymmetric state is inexpressible
+    --    without weakening the mock's global lenient posture).
+    --
+    -- Vanilla sweep close-out (2026-08-11): 58 → 13. Harness gaps closed
+    --    (ShamanSpells/HunterSpells/MageSpells seeds, is_in_party/is_in_raid,
+    --    debuff stacks, enemies_casting, target_get_target, in_melee_range,
+    --    friends_hp heal-scan) + 6 genuine live-game defects fixed (see the
+    --    sweep commit): restoration_vanilla idle-DPS strategies were exposed
+    --    only as numeric indices (dead in the live rotation — merged into
+    --    healing_strategies like restoration_sylvanas:789-791), assassination
+    --    combo read context.combo (engine exposes combo_points — finishers dead
+    --    live), demonology demon_armor_ready never computed (DemonArmorBuff
+    --    dead live), warlock ShadowWard x2 read context.enemy_shadow_caster
+    --    which the engine never sets (get_class fallback, mirrors
+    --    shared/warlock_shadow_ward), balance InsectSwarm/Moonfire + elemental
+    --    FlameShock min-SP gates gated on ctx.spell_damage the engine never
+    --    populates (dropped, mirroring the TBC siblings). + the dodge_proc
+    --    scenario (target_dodge_chance) making fury Overpower's real
+    --    get_dodge_chance pcall path observable. Regression-pinned by
+    --    test_vanilla_sweep_regression.lua; era-pair seed unchanged (no
+    --    strategy names added — restoration's idle-DPS names were already in
+    --    the file statically).
     {
         label = "behavioral battery (vanilla)",
         cmd = "lua " .. R .. "/behavioral_audit.lua vanilla",
@@ -460,7 +464,7 @@ local components = {
             return {
                 { "vanilla specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 58 baseline, classified)", never == 58 },
+                { "never-firing " .. never .. " (expected 13 baseline, classified)", never == 13 },
             }
         end,
     },

@@ -89,6 +89,12 @@ local MANA_POTION_IDS = {
     13444,  -- Major Mana Potion
     13443,  -- Superior Mana Potion
 }
+-- Priest (5) / Warlock (9) — shadow-caster detection for ShadowWard. The
+-- engine never sets context.enemy_shadow_caster (verified: no writer in
+-- main/core/shared), so the matcher must fall back to target:get_class()
+-- exactly like shared/warlock_shadow_ward_sylvanas.lua:36-44 (which the TBC
+-- sibling uses).
+local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true }
 local HEALTHSTONE_IDS = { 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
 local SOULSTONE_BUFF_IDS = { 20765, 20764, 20763, 20762, 20707 }
 local SOULSTONE_ITEMS = { 16896, 16895, 16893, 16892, 5232 }
@@ -760,7 +766,17 @@ local strategies = {
         name = "ShadowWard",
         matches = function(context)
             if not context.is_pvp then return false end
-            if not context.enemy_shadow_caster then return false end
+            if not context.enemy_shadow_caster then
+                -- Engine never sets enemy_shadow_caster; fall back to the
+                -- target class check (mirrors shared/warlock_shadow_ward).
+                if context.target then
+                    local class_id
+                    pcall(function() class_id = context.target:get_class() end)
+                    if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
+                else
+                    return false
+                end
+            end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()

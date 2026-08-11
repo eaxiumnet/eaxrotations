@@ -434,6 +434,7 @@ local tests = {
   "test_fury_vanilla_pummel.lua",
   "test_race_override_regression.lua",
   "test_cat_vanilla_battery_regression.lua",
+  "test_vanilla_sweep_regression.lua",
   "test_warrior_leveling_vanilla_spells.lua",
  "test_druid_vanilla_nil_guards.lua",
  "test_rogue_vanilla_nil_guards.lua",

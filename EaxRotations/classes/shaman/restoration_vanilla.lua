@@ -480,6 +480,13 @@ local idle_dps_strategies = {
     { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[RESTO] LightningBolt", { expected_cooldown = 2.5 }) end },
 }
 
+-- Merge idle DPS strategies into healing_strategies so they fire in the live
+-- rotation (mirrors restoration_sylvanas.lua). Earth Shock doubles as an
+-- interrupt (target casting check in earth_shock_matches).
+for _, strategy in ipairs(idle_dps_strategies) do
+    healing_strategies[#healing_strategies + 1] = strategy
+end
+
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
 end

@@ -145,21 +145,32 @@ print("PASS: druid/cat Dash regression (is_pvp + range band)")
 -- ============================================================================
 -- Exclusivity: all three fire ONLY in their respective scenario.
 -- ============================================================================
-local function assert_exclusive(class_key, spec, lane, only_in)
+-- Vanilla sweep (2026-08): berserker_gap gained is_pvp = true (for the
+-- prot_vanilla Intercept lane — no other scenario combined stance 3 + is_pvp
+-- + range), so SprintGapClose (is_pvp + dist >= 15) and cat Dash (is_pvp +
+-- range in (5, 25]) now legitimately fire there TOO. The pins below assert
+-- the exact current set; a future scenario addition still fails loudly.
+local function assert_exclusive(class_key, spec, lane, allowed)
     local report = aud.run_spec(class_key, spec)
     assert_true(report ~= nil, "battery run for " .. class_key .. "/" .. spec .. " failed")
     local fi = report.fires_in[lane]
     assert_true(fi ~= nil, class_key .. "/" .. spec .. " " .. lane .. " missing from fires_in")
-    local n = 0
-    for k in pairs(fi) do n = n + 1 end
-    assert_true(n == 1 and fi[only_in] == true,
-        class_key .. "/" .. spec .. " " .. lane .. " must fire ONLY in " .. only_in
-        .. ", fired in " .. tostring(n) .. " scenarios")
+    local count = 0
+    for k in pairs(fi) do
+        assert_true(allowed[k] == true,
+            class_key .. "/" .. spec .. " " .. lane .. " leaked into scenario " .. k)
+        count = count + 1
+    end
+    local expected = 0
+    for _ in pairs(allowed) do expected = expected + 1 end
+    assert_true(count == expected,
+        class_key .. "/" .. spec .. " " .. lane .. " fired in " .. count
+        .. " scenarios, expected exactly " .. expected)
 end
-assert_exclusive("rogue", "assassination", "PvP_CheapShotOpen", "pvp_stealth_opener")
-assert_exclusive("rogue", "assassination", "PvP_SprintGapClose", "pvp_gap_close")
-assert_exclusive("druid", "cat", "Dash", "pvp_gap_close")
-print("PASS: exclusivity — PvP_CheapShotOpen / PvP_SprintGapClose / Dash fire only in their scenario")
+assert_exclusive("rogue", "assassination", "PvP_CheapShotOpen", { pvp_stealth_opener = true })
+assert_exclusive("rogue", "assassination", "PvP_SprintGapClose", { berserker_gap = true, pvp_gap_close = true })
+assert_exclusive("druid", "cat", "Dash", { berserker_gap = true, pvp_gap_close = true })
+print("PASS: exclusivity — PvP_CheapShotOpen / PvP_SprintGapClose / Dash fire exactly in their pinned scenario set")
 
 -- ============================================================================
 -- End-to-end: the battery must report none of the 3 lanes as never-firing.

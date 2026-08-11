@@ -55,10 +55,21 @@ for _, spec in ipairs(SPECS) do
     local fi = report.fires_in["FriendlyTarget"]
     assert_true(type(fi) == "table" and fi["friendly_target"] == true,
         spec[1] .. "/" .. spec[2] .. " FriendlyTarget must fire in the friendly_target scenario")
+    -- Vanilla sweep (2026-08): the friendly_target_low scenario (added for the
+    -- vanilla paladin/priest FriendlyTarget gates: can_help(lowest) +
+    -- pushback) also satisfies the TBC matchers' friendly_target_hp < 90 gate,
+    -- so 4 of the 5 specs legitimately fire in BOTH scenarios; discipline's
+    -- matcher keeps it exclusive. The pins assert the exact current set.
     local count = 0
-    for _ in pairs(fi) do count = count + 1 end
-    assert_true(count == 1,
-        spec[1] .. "/" .. spec[2] .. " FriendlyTarget must fire ONLY in friendly_target, got " .. count .. " scenarios")
+    for k in pairs(fi) do
+        assert_true(k == "friendly_target" or k == "friendly_target_low",
+            spec[1] .. "/" .. spec[2] .. " FriendlyTarget leaked into scenario " .. k)
+        count = count + 1
+    end
+    local expected = (spec[1] == "priest" and spec[2] == "discipline") and 1 or 2
+    assert_true(count == expected,
+        spec[1] .. "/" .. spec[2] .. " FriendlyTarget fired in " .. count
+        .. " scenarios, expected exactly " .. expected)
     print("PASS: end-to-end battery check (" .. spec[1] .. " FriendlyTarget exclusive to friendly_target)")
 end
 

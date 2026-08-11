@@ -85,7 +85,11 @@ local function build_state(context)
         assassin_state.rupture_remains = 0
     end
     -- Resources
-    assassin_state.combo = context.combo or 0
+    -- Engine ctx exposes combo_points (main_sylvanas.lua:856), not `combo`;
+    -- mirrors subtlety_vanilla:149 / the TBC sibling (assassination_sylvanas
+    -- reads context.combo_points or context.combo). Without the combo_points
+    -- read every finisher read state.combo = 0 and never fired in live play.
+    assassin_state.combo = context.combo_points or context.combo or 0
     assassin_state.energy = context.energy or 0
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100

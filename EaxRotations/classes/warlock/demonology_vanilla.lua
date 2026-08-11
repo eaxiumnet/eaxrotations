@@ -65,6 +65,10 @@ local LOCAL_SPELLS = {
 
 local HEALTHSTONE_IDS = { 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
 local MANA_POTION_IDS = { 13444, 13443 }
+-- Priest (5) / Warlock (9) — shadow-caster detection for ShadowWard; the
+-- engine never sets context.enemy_shadow_caster (no writer in main/core/
+-- shared), so fall back to target:get_class() like the TBC shared helper.
+local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true }
 local SOULSTONE_BUFF_IDS = { 20765, 20764, 20763, 20762, 20707 }
 local SOULSTONE_ITEMS = { 16896, 16895, 16893, 16892, 5232 }
 local PET_LOW_HP = 30
@@ -233,6 +237,10 @@ local function build_state(context)
     demo_state.fear_ready = target and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.Fear, target) or false
     demo_state.howl_ready = me and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.HowlOfTerror, me, { skip_range = true, expected_cooldown = 40 }) or false
     demo_state.shadow_ward_ready = me and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.ShadowWard, me, { skip_range = true, expected_cooldown = 30 }) or false
+    -- DemonArmorBuff matcher reads demo_state.demon_armor_ready but it was
+    -- never computed (the only write was the matcher read at :638) — the
+    -- strategy could never fire in live play. Mirrors shadow_ward_ready.
+    demo_state.demon_armor_ready = me and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.DemonArmor, me, { skip_range = true }) or false
     demo_state.fel_domination_ready = me and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.FelDomination, me, { skip_range = true, expected_cooldown = 300 }) or false
     demo_state.health_funnel_ready = me and NS.spell_ready and NS.spell_ready(LOCAL_SPELLS.HealthFunnel, me, { skip_range = true }) or false
     demo_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
@@ -675,7 +683,17 @@ local strategies = {
         name = "ShadowWard",
         matches = function(context)
             if not context.is_pvp then return false end
-            if not context.enemy_shadow_caster then return false end
+            if not context.enemy_shadow_caster then
+                -- Engine never sets enemy_shadow_caster; fall back to the
+                -- target class check (mirrors shared/warlock_shadow_ward).
+                if context.target then
+                    local class_id
+                    pcall(function() class_id = context.target:get_class() end)
+                    if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
+                else
+                    return false
+                end
+            end
             return demo_state.shadow_ward_ready
         end,
         execute = function(context)
