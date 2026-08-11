@@ -79,17 +79,18 @@ local ALLOWLIST = {
     -- Second batch (2026-08-10, after the production-only census fix exposed
     -- them): battery-mock members (engine-provided runtime surface the addon
     -- never assigns; verified in behavioral_audit.lua build_ns).
-    buff_stacks           = "mock: battery ns.buff_stacks",
-    combo_points          = "mock: battery ns.combo_points",
-    energy                = "mock: battery ns.energy",
-    get_combo_points      = "mock: battery ns.get_combo_points",
-    is_interruptible      = "mock: battery ns.is_interruptible",
-    is_tank_unit          = "mock: battery ns.is_tank_unit",
-    is_threat_safe        = "mock: battery ns.is_threat_safe",
-    is_valid_target       = "mock: battery ns.is_valid_target",
-    unit_creature_type    = "mock: battery ns.unit_creature_type",
-    unit_is_boss          = "mock: battery ns.unit_is_boss",
-    unit_mana_pct         = "mock: battery ns.unit_mana_pct",
+    -- 2026-08-11 undefined-NS-member sweep: buff_stacks, unit_mana_pct,
+    -- is_interruptible, unit_is_boss, is_tank_unit, is_threat_safe and
+    -- is_valid_target were found to be GENUINELY undefined in live play
+    -- (not engine-provided) and are now DEFINED in core_sylvanas — removed
+    -- from the allowlist, resolved by the assignment census. The remaining
+    -- members below stay pinned: every real call site is guarded with a
+    -- working fallback (context/unit-method chain), so absent they are a
+    -- silent optional path, not a live break.
+    combo_points          = "mock: battery ns.combo_points (guarded chain, cat_sylvanas:365 context fallback)",
+    energy                = "mock: battery ns.energy (guarded chain, cat_sylvanas:423 unit/context fallback)",
+    get_combo_points      = "mock: battery ns.get_combo_points (guarded chain, cat_sylvanas:371)",
+    unit_creature_type    = "mock: battery ns.unit_creature_type (guarded by type() checks, discipline_sylvanas:81 with unit:get_creature_type fallback)",
     -- Third batch (2026-08-10, CI parity fix): these four names resolve on
     -- the maintainer's machine ONLY via the gitignored engine-doc dirs
     -- (.api/, apidocs/pages/, scraped_docs_md/dev/api/ — absent in CI's

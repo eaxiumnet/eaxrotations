@@ -3477,6 +3477,16 @@ function NS.mana_pct(unit)
 
 end
 
+-- unit_mana_pct: alias of mana_pct, named per the unit-query family. The
+-- hunter/priest/shaman/warlock specs read `NS.unit_mana_pct(me)` (9 sites
+-- unguarded) but the member was never assigned — silently nil live, a
+-- crash the moment a context lacks context.mana_pct. Defined 2026-08-11.
+function NS.unit_mana_pct(unit)
+
+    return NS.mana_pct(unit)
+
+end
+
 local function _build_aura_lookup(unit, getter_name)
     local getter = safe_field(unit, getter_name)
     if not getter then return nil end
@@ -3807,6 +3817,31 @@ function NS.get_debuff_stacks(unit, ids)
     return NS.debuff_stacks(unit, ids)
 end
 
+-- buff_stacks: mirror of debuff_stacks (same _aura_query machinery, buff
+-- side). Called by shaman resto/enhancement, mage arcane, druid healing
+-- (6 guarded sites) but never assigned — every caller silently read 0 in
+-- live play (Maelstrom spenders, Earth/Water Shield charges, Healing Way,
+-- Arcane Blast stacks, Lifebloom stack checks all degraded). Defined 2026-08-11.
+function NS.buff_stacks(unit, ids)
+    return _aura_query(unit, ids, "buff", 0, true,
+        function(data)
+            return data.count or data.stacks or 0
+        end,
+        function(aura)
+            local s = aura.count or aura.stacks or 0
+            return s > 0 and s or nil
+        end,
+        function(unit, id)
+            local v = safe(safe_field(unit, "get_buff_stacks"), unit, id)
+            if type(v) == "number" and v > 0 then return v end
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false then
+                return fd.count or fd.stacks or 0
+            end
+            return nil
+        end)
+end
+
 function NS.has_player_buff(ids) return NS.buff_up(NS.GetPlayer(), ids) end
 
 function NS.has_debuff(unit, ids) return NS.debuff_up(unit, ids) end
@@ -3814,6 +3849,82 @@ function NS.has_debuff(unit, ids) return NS.debuff_up(unit, ids) end
 function NS.has_player_debuff(ids) return NS.debuff_up(NS.GetPlayer(), ids) end
 
 function NS.has_target_debuff(target, ids) return NS.debuff_up(target, ids) end
+
+-- ---------------------------------------------------------------------------
+-- Unit-query helpers that callers and the ENGINE both reference but were
+-- never assigned (the 2026-08-11 undefined-NS-member sweep). Each mirrors
+-- the machinery the rest of the file uses; docs below cite the engine site.
+-- ---------------------------------------------------------------------------
+
+-- is_interruptible: is the unit's active cast/channel interruptible. The
+-- dispatcher reads it for context.target_casting_interruptible
+-- (main_sylvanas.lua:832-837) — with the member nil the field was ALWAYS
+-- false live, so every spec's interruptible-gating silently never applied.
+-- Fails open for an active cast with no interruptibility data (matches
+-- shared/leveling_helpers_sylvanas.lua should_interrupt); a unit that is
+-- not casting is never interruptible (so rage_manager's Pummel reserve
+-- does not fire mid-cast-free rotation).
+function NS.is_interruptible(unit)
+    if not unit then return false end
+    local fn = safe_field(unit, "is_active_spell_interruptable")
+    if type(fn) == "function" then
+        local ok, v = pcall(safe, fn, unit)
+        if ok and v ~= nil then return v == true end
+    end
+    local casting = safe_field(unit, "is_casting")
+    if type(casting) == "function" and safe(casting, unit) == true then return true end
+    local channelling = safe_field(unit, "is_channeling")
+    return type(channelling) == "function" and safe(channelling, unit) == true
+end
+
+-- unit_is_boss: boss-tier classification (>= 3, mirroring the dispatcher's
+-- own is_raid_boss fallback at main_sylvanas.lua:1308). The dispatcher
+-- reads it for context.target_is_boss (main_sylvanas.lua:711) — with the
+-- member nil, target_is_boss was ALWAYS false live (boss gating, TTD, and
+-- boss-immunity checks degraded).
+function NS.unit_is_boss(unit)
+    if not unit then return false end
+    local v = safe(safe_field(unit, "get_classification"), unit)
+    return type(v) == "number" and v >= 3
+end
+
+-- is_tank_unit: party-role tank detection used by the dispatcher's party
+-- scan (main_sylvanas.lua:1013/1023/1062 — tank_alive, feared_tank,
+-- party_tanks were never populated live) and auto_tremor's
+-- detect_fear_on_tank (auto_tremor_sylvanas.lua:148). Delegates to the
+-- canonical health_prediction tank detection; false when unavailable.
+function NS.is_tank_unit(unit)
+    if not unit then return false end
+    local ok, hph = pcall(require, "shared/health_pred_helper_sylvanas")
+    if ok and type(hph) == "table" and type(hph.is_tank_role) == "function" then
+        local ok2, result = pcall(hph.is_tank_role, hph, unit)
+        if ok2 then return result == true end
+    end
+    return false
+end
+
+-- is_threat_safe: true when the player does NOT hold aggro (safe to burst).
+-- Shadow priest reads it for the default-on shadow_threat_safe gate
+-- (shadow_sylvanas.lua:563) — with the member nil the gate was inert live
+-- and always degraded to "assume safe". Unknown threat degrades to safe.
+function NS.is_threat_safe(context)
+    if type(context) == "table" and context.has_aggro ~= nil then
+        return context.has_aggro ~= true
+    end
+    return true
+end
+
+-- is_valid_target: target validity, mirroring the protection/retribution
+-- fallback chain (`t:is_valid()`). Absent-method targets are presumed
+-- valid (fail-open: the game_object contract always provides is_valid).
+function NS.is_valid_target(target)
+    if not target then return false end
+    local fn = safe_field(target, "is_valid")
+    if type(fn) ~= "function" then return true end
+    local ok, v = pcall(safe, fn, target)
+    if ok then return v == true end
+    return false
+end
 
 -- Alias: NS.has_buff is used by middleware and shared helpers but was never defined
 NS.has_buff = NS.buff_up

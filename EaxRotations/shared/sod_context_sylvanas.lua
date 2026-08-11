@@ -78,17 +78,6 @@ local function call(fn, ...)
     return nil
 end
 
--- Mirror NS.debuff_stacks: max over the id list of unit:get_buff_stacks.
-local function buff_stacks(unit, ids)
-    if not unit or type(unit.get_buff_stacks) ~= "function" then return 0 end
-    local best = 0
-    for _, id in ipairs(ids) do
-        local ok, v = pcall(unit.get_buff_stacks, unit, id)
-        if ok and type(v) == "number" and v > best then best = v end
-    end
-    return best
-end
-
 --- Extend an engine context with the SoD rotation state fields.
 ---@param ctx table the engine _context (me/target/pet/pet_dead/is_moving/
 ---        lowest_unit already populated by main_sylvanas).
@@ -181,7 +170,11 @@ function M_enrich(ctx)
     if me and NS then
         if type(NS.buff_points) == "function" then
             local pts = call(NS.buff_points, me, MAELSTROM_WEAPON)
-            ctx.maelstrom_stacks = (pts and pts[1]) or buff_stacks(me, MAELSTROM_WEAPON)
+            -- Fall back to NS.buff_stacks (defined in core_sylvanas 2026-08-11;
+            -- buff_points returns aura POINTS, stacks need the stacks reader).
+            ctx.maelstrom_stacks = (pts and pts[1])
+                or (NS.buff_stacks and NS.buff_stacks(me, MAELSTROM_WEAPON))
+                or 0
         end
         if type(NS.buff_up) == "function" then
             ctx.lightning_shield_up = call(NS.buff_up, me, LIGHTNING_SHIELD) == true
