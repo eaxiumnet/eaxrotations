@@ -8,7 +8,7 @@
 --        reached, so every finisher (Rip/Ferocious Bite/Maim) saw 0 CP forever.
 -- SAFETY: fully mocked player object; no engine, no real API calls.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;.api/?.lua;"
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;"
     .. package.path
 
 local all_ok = true

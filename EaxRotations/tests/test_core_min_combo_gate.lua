@@ -8,7 +8,7 @@
 --        This was the first test to ever exercise NS.action_matches.
 -- SAFETY: fully mocked NS/context; no engine, no real API calls.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;.api/?.lua;"
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;"
     .. package.path
 
 local all_ok = true

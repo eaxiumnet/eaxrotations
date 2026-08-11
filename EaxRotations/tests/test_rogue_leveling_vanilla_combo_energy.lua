@@ -20,7 +20,7 @@
 -- SAFETY: full mock _G.EaxRotations before require (runner snapshots/restores
 --         _G per suite); no game data, no fs writes.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;.api/?.lua;.api/?/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label)
     if not v then error("FAIL: " .. (label or "assert_true"), 2) end

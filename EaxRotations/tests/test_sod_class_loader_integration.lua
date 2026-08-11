@@ -4,7 +4,7 @@
 -- WHY: proves class wiring reaches real modules instead of synthetic require results.
 -- SAFETY: only the Sylvanas engine boundary is stubbed; duplicate/missing probes are isolated.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;.api/?.lua;.api/?/?.lua;api/?.lua;api/?/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_eq(actual, expected, label)
     if actual ~= expected then

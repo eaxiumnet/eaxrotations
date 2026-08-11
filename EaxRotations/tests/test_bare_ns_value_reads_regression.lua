@@ -22,7 +22,7 @@
 --        audit rule now catches the class, these tests pin the two fixes.
 -- SAFETY: mock NS before dofile (runner snapshots/restores _G per suite).
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;.api/?.lua;.api/?/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_eq(a, b, label)
     if a ~= b then error("FAIL: " .. (label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end

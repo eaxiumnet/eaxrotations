@@ -5,7 +5,7 @@
 -- WHY:  AoE multi gates must use spell hit volume, not 40yd enemy_count alone.
 -- SAFETY: fully mocked units; no engine.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;.api/?.lua;"
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/shared/?.lua;./?.lua;api/?.lua;"
     .. package.path
 
 -- Preload executable vec2/vec3 on the real API require path (engine stubs are type-only).
