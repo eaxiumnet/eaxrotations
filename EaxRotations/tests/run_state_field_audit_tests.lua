@@ -350,6 +350,55 @@ local function allowlisted(res_file, field)
 end
 
 -- ---------------------------------------------------------------------------
+-- Duplicate allowlist-key detection. A table constructor silently keeps the
+-- LAST occurrence of a duplicated key, so a second entry for a file silently
+-- drops the first one's fields (the 2026-08-11 mana_low footgun: adding
+-- shaman/restoration mana_low overrode the pre-existing entries/count entry
+-- and the audit stopped protecting them without any signal). This scans the
+-- constructor source for `["key"] =` string keys and reports repeats.
+-- ---------------------------------------------------------------------------
+local function dup_allowlist_keys(src)
+    -- Strip -- line comments so prose mentioning bracket keys can't false-hit.
+    local stripped = src:gsub('%-%-[^\n]*', '')
+    local dups, seen = {}, {}
+    for k in stripped:gmatch('%["([^"]+)"%]%s*=') do
+        if seen[k] then dups[#dups + 1] = k else seen[k] = true end
+    end
+    return dups
+end
+
+-- Extract just the real CROSS_FILE_READS constructor (first occurrence, so
+-- self-test fixture strings that mention the same keys can never false-hit).
+local function extract_allowlist_block(src)
+    local start = src:find('local CROSS_FILE_READS = {', 1, true)
+    if not start then return "" end
+    start = src:find('{', start, true)
+    local depth, i = 1, start
+    while depth > 0 do
+        i = src:find('[{}]', i + 1)
+        if not i then return "" end
+        if src:sub(i, i) == "{" then depth = depth + 1 else depth = depth - 1 end
+    end
+    return src:sub(start, i)
+end
+
+local function check_own_allowlist(path)
+    local f = io.open(path, "rb")
+    if not f then
+        print("  Cannot read own source for allowlist dup check: " .. tostring(path))
+        os.exit(1)
+    end
+    local src = f:read("*a")
+    f:close()
+    local dups = dup_allowlist_keys(extract_allowlist_block(src))
+    if #dups > 0 then
+        print("  DUPLICATE CROSS_FILE_READS keys (later entry silently overrides")
+        print("  the earlier one — the mana_low footgun): " .. table.concat(dups, ", "))
+        os.exit(1)
+    end
+end
+
+-- ---------------------------------------------------------------------------
 -- Self-tests (non-vacuity): every resolver rule behaves correctly on
 -- synthetic in-memory fixtures, plus real-file probes.
 -- ---------------------------------------------------------------------------
@@ -485,6 +534,26 @@ local function run_self_tests()
     for _, w in ipairs(arms.writes) do arms_writes[w.field] = true end
     expect(arms_writes["ms_ready"], nil, "arms ms_ready was removed")
 
+    -- Fixture 13: duplicate CROSS_FILE_READS keys are detected loudly (the
+    -- mana_low footgun — a duplicated file key silently drops the earlier
+    -- entry's fields, weakening the allowlist with no signal).
+    local dup_src = "local CROSS_FILE_READS = {\n"
+        .. '  ["EaxRotations/classes/a.lua"] = { x = true },\n'
+        .. '  ["EaxRotations/classes/b.lua"] = { y = true },\n'
+        .. '  ["EaxRotations/classes/a.lua"] = { z = true },\n'
+        .. "}\n"
+    local dups = dup_allowlist_keys(dup_src)
+    expect(#dups, 1, "one duplicate allowlist key detected")
+    expect(dups[1], "EaxRotations/classes/a.lua", "duplicate key name")
+    local clean_src = dup_src:gsub('%[%"EaxRotations/classes/a.lua%"%] = %{ z = true %},',
+        '["EaxRotations/classes/c.lua"] = { z = true },')
+    expect(#dup_allowlist_keys(clean_src), 0, "no duplicates in clean constructor")
+
+    -- The real committed allowlist must itself be duplicate-free (non-vacuity:
+    -- the fixture above proves the detector fires; this proves the tree is
+    -- clean today).
+    check_own_allowlist(arg[0])
+
     -- Real-file probes: fields kept alive by CROSS_FILE_READS consumers must
     -- STAY written (pins the restore so a future cleanup pass can't re-remove
     -- them — the shared helpers read them through the real state).
@@ -567,6 +636,8 @@ if #failures > 0 then
     print("  (file:line of the reader) rather than suppressing the finding.")
     os.exit(1)
 end
+
+check_own_allowlist(arg[0])
 
 print("  Every written state field is read somewhere.")
 os.exit(0)
