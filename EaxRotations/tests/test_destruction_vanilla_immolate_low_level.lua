@@ -1,7 +1,11 @@
--- test_destruction_vanilla_immolate_low_level.lua -- Destruction Vanilla Immolate low-level regression.
--- WHAT:  Verifies Immolate is not silently gated by spell-damage threshold at low level.
+-- test_destruction_vanilla_immolate_low_level.lua -- Vanilla Destruction
+-- Immolate SP-gate regression.
+-- WHAT:  Pins the 2026-08 removal of the Immolate min-SP gate (read-side
+--        audit): the engine never populates spell damage, so the old gate
+--        blocked Immolite (and Conflagrate) for every level-40+ warlock in
+--        live play. Immolate must now match at ANY level regardless of the
+--        (always-zero) spell_damage state.
 -- WHEN:  During rotation test suite execution.
--- WHY:   Low-level warlocks have <400 spell damage, so the SP gate would block Immolate entirely.
 -- SAFETY: Pure unit tests with mocked API context.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -79,7 +83,11 @@ local ctx_low = {
 local state_low = { spell_damage = 50, immolate_remains = 0, level = 20 }
 assert_true(immolate.matches(ctx_low, state_low), "Immolate should match at low level with low spell damage")
 
--- High level, low spell damage: Immolate should be gated by SP threshold
+-- High level, LOW spell damage: Immolate must still match — the SP gate was
+-- removed 2026-08 because state.spell_damage is always 0 in live play (the
+-- engine never writes context.spell_damage), which blocked Immolate +
+-- Conflagrate for every level-40+ warlock. This assertion is the non-vacuity
+-- proof of the fix (it failed before the gate removal).
 local ctx_high = {
     target = {},
     settings = {},
@@ -88,10 +96,10 @@ local ctx_high = {
     player_level = 70,
 }
 local state_high = { spell_damage = 50, immolate_remains = 0, level = 70 }
-assert_false(immolate.matches(ctx_high, state_high), "Immolate should be gated by spell damage at high level")
+assert_true(immolate.matches(ctx_high, state_high), "Immolate must match at high level with low spell damage (SP gate removed)")
 
--- High level, sufficient spell damage: Immolate should match
-local state_high_sp = { spell_damage = 500, immolate_remains = 0, level = 70 }
-assert_true(immolate.matches(ctx_high, state_high_sp), "Immolate should match at high level with sufficient spell damage")
+-- High level, zero spell damage: Immolate should still match
+local state_high_sp = { spell_damage = 0, immolate_remains = 0, level = 70 }
+assert_true(immolate.matches(ctx_high, state_high_sp), "Immolate must match at high level with zero spell damage")
 
 print("PASS test_destruction_vanilla_immolate_low_level")

@@ -183,7 +183,9 @@ end
 
 local function group_is_stable(context)
     if not context then return false end
-    local lowest = (context.lowest_ally_hp or context.lowest_group_hp or 100)
+    -- Engine provides context.lowest_hp (party scan); lowest_ally_hp /
+    -- lowest_group_hp were never written (read-side audit 2026-08).
+    local lowest = (context.lowest_hp or 100)
     return lowest >= spec_kit.setting_number(context, "smite_group_safe_hp", 80)
 end
 

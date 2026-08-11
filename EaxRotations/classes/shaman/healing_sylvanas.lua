@@ -181,7 +181,11 @@ local function select_heal(context, state, target, options)
 
     -- Emergency: HP < 30% -- Nature's Swiftness + Healing Wave
     if hp < 30 then
-        local ns_active = state and state.natures_swiftness_active
+        -- Field-name drift fix (read-side audit 2026-08): build_state writes
+        -- state.ns_active (healing_sylvanas.lua:351); the read used
+        -- natures_swiftness_active, so the NS + HealingWave emergency path
+        -- could never fire. Now reads the real field.
+        local ns_active = state and state.ns_active
         if ns_active then
             -- NS is already active, cast Healing Wave
             heal_result.spell = SHAMAN_SPELLS.HealingWave or nil

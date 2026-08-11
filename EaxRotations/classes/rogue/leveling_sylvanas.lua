@@ -175,6 +175,11 @@ function rogue_leveling.build_state(context)
 	    -- Common state
 	    leveling.build_common_state(context, state)
 	    state.level = leveling_helpers.level_from_context(context, 70)
+
+    -- Elite/boss awareness: target_is_elite was read but never written
+    -- (read-side audit 2026-08); computed from the engine's
+    -- target_classification (>= 1 = elite) with the boss flag folded in.
+    state.target_is_elite = ((context.target_classification or 0) >= 1) or (context.target_is_boss == true)
 	
 	    -- Rogue-specific spell readiness
     state.sinister_strike_ready = spell_ready(SPELLS.SinisterStrike)

@@ -320,6 +320,9 @@ local function build_state(context)
     sv_state.enemy_count = context.enemy_count or context.enemies_count
     sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)
     sv_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance)
+    -- Deterrence-active guard: was read-but-never-written (read-side audit
+    -- 2026-08) — added here from the Deterrence buff (19263).
+    sv_state.has_deterrence = me and safe_buff_up(me, { 19263 }) or false
     sv_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
     sv_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
     sv_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0

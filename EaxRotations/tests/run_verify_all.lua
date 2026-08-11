@@ -293,6 +293,22 @@ local components = {
         end,
     },
     {
+        label = "read-side audit",
+        cmd = "lua " .. R .. "/run_read_side_audit_tests.lua",
+        check = function(c)
+            local invalid = num(c, "Invalid:%s*(%d+)")
+            return { { "invalid " .. tostring(invalid), invalid == 0 } }
+        end,
+    },
+    {
+        label = "read-side audit self-test",
+        cmd = "lua " .. R .. "/run_read_side_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (unproduced reads fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "version-consistency audit",
         cmd = "lua " .. R .. "/run_version_consistency_audit_tests.lua",
         check = function(c)

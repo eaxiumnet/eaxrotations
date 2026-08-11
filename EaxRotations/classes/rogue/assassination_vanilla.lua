@@ -361,7 +361,7 @@ local strategies = {
         name = "PvP_SprintGapClose",
         matches = function(context)
             if not context.is_pvp then return false end
-            if context.dist_to_target and context.dist_to_target < 15 then return false end
+            if (context.target_distance or 999) < 15 then return false end
             return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()

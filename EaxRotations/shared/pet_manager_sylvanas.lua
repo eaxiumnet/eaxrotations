@@ -418,12 +418,17 @@ function M.on_update(me, target, spec, context)
         return
     end
 
-    -- Scan spells once per spec (with autocast enable)
-    local class_key = context.player_class_name or ""
-    local class_lower = class_key:lower()
-    if class_lower == "warlock" then
+    -- Scan spells once per spec (with autocast enable). The engine never
+    -- provided context.player_class_name (read-side audit 2026-08 — the
+    -- warlock/mage branches could never fire live and everything fell to the
+    -- hunter scan); compare the class ID the engine DOES write
+    -- (context.player_class = NS.player_class_id, main_sylvanas.lua:888).
+    local class_id = context.player_class or NS.player_class_id
+    local WARLOCK_ID = (NS.CLASS_ID and NS.CLASS_ID.WARLOCK) or 9
+    local MAGE_ID = (NS.CLASS_ID and NS.CLASS_ID.MAGE) or 8
+    if class_id == WARLOCK_ID then
         _scan_warlock_spells(st)
-    elseif class_lower == "mage" then
+    elseif class_id == MAGE_ID then
         _scan_mage_spells(st)
     else
         _scan_hunter_spells(st)

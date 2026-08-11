@@ -322,6 +322,9 @@ local function build_state(context)
     mm_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
     mm_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
     mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance)
+    -- Deterrence-active guard: was read-but-never-written (read-side audit
+    -- 2026-08) — added here from the Deterrence buff (19263).
+    mm_state.has_deterrence = me and safe_buff_up(me, { 19263 }) or false
     mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return spec_kit.safe_state(mm_state, MM_SCHEMA)

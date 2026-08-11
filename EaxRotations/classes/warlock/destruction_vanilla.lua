@@ -68,7 +68,11 @@ local FelDomination = NS.spell_action({ 18708 }, "FelDomination")
 
 -- Constants
 local IMMOLATE_PANDEMIC_WINDOW = 3.5
-local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (conservative GCD-positive threshold)
+-- (destruction_vanilla) Immolate min-SP gate removed 2026-08 (read-side
+-- audit): the engine never populates context.spell_damage, so state.spell_damage
+-- was always 0 and the gate blocked Immolate (and therefore Conflagrate) for
+-- every level-40+ warlock in live play — same family as the balance/elemental
+-- min-SP gates dropped in the 2026-08 vanilla sweep.
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
@@ -179,11 +183,7 @@ local ACTIONS = {
 local function immolate_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    -- SP-aware gating: skip Immolate when spell damage is below the threshold.
-    -- Low-level warlocks won't reach the threshold, so ignore it until level 40.
-    local s = context.settings or {}
-    local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
-    if (state.level or 60) >= 40 and (state.spell_damage or 0) < min_sp then return false end
+    -- (SP-gate removed 2026-08 — see the IMMOLATE_MIN_SP_DEFAULT comment.)
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
     return true

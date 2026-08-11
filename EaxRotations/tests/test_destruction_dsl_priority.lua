@@ -231,8 +231,13 @@ assert_true(strategies[idx_imm].matches(make_ctx({ is_moving = true }), make_sta
     "Immolate matches while moving (original behavior preserved)")
 assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ immolate_remains = 10 })),
     "Immolate skips when debuff has plenty of time")
-assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ spell_damage = 200, level = 70 })),
-    "Immolate skips when spell damage below threshold at high level")
+-- 2026-08 read-side audit: the spell-damage min-SP gate was REMOVED (the
+-- engine never writes context.spell_damage, so state.spell_damage was always
+-- 0 and the old gate blocked Immolate + Conflagrate at level 40+ live).
+-- Immolate now matches regardless of the always-zero spell damage — this
+-- assertion is the non-vacuity proof (it failed before the gate removal).
+assert_true(strategies[idx_imm].matches(make_ctx(), make_state({ spell_damage = 200, level = 70 })),
+    "Immolate matches with low spell damage at high level (SP gate removed)")
 -- New: Immolate toggle — disable destro_use_immolate to skip entirely (speed kills)
 assert_false(strategies[idx_imm].matches(make_ctx({ settings = { destro_use_immolate = false } }), make_state()),
     "Immolate skips when destro_use_immolate is false (speed kill mode)")

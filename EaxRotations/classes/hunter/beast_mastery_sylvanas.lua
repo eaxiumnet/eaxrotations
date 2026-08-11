@@ -75,6 +75,9 @@ local RAPTOR_STRIKE_IDS  = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14
 local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS          = { 27022, 14295, 14294, 1510 }
 local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
+-- Deterrence (rank 1, TBC) — the emergency-dodge buff checked by the
+-- Deterrence strategy; was read-but-never-written (read-side audit 2026-08).
+local DETERRENCE_BUFF = { 19263 }
 local is_item_ready
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
@@ -393,6 +396,11 @@ local function build_state(context)
     state.viper_mana_threshold = spec_kit.setting_number(context, "hunter_viper_mana_threshold", 5)
     state.viper_exit_threshold = spec_kit.setting_number(context, "hunter_viper_exit_threshold", 25)
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance)
+    -- Dead zone: target inside melee range (< 5yd) where ranged attacks fail.
+    -- Computed from the squared distance (5yd = 25) so Multishot/Steady are
+    -- gated correctly; was read-but-never-written (read-side audit 2026-08).
+    state.in_dead_zone = state.distance_sq ~= nil and state.distance_sq < 25
+    state.has_deterrence = me and safe_buff_up(me, DETERRENCE_BUFF) or false
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     -- Major power-window awareness for cooldown alignment

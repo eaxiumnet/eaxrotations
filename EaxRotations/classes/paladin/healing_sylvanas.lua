@@ -125,6 +125,10 @@ local function build_state(context)
     heal_state.is_leveling = context.is_leveling == true
     heal_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
     heal_state.hp_pct = context.hp or context.hp_pct or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
+    -- Divine Favor active: heal_helper.select_heal reads state.divine_favor_active
+    -- to prioritize Holy Light (read-side audit 2026-08 — was read but never
+    -- written, so the fast-path never engaged). Buff 20216 mirrors holy_sylvanas.
+    heal_state.divine_favor_active = me and NS.has_player_buff and NS.has_player_buff({ 20216 }) or false
 
     if type(Healing.scan_healing_targets) == "function" then
         Healing.scan_healing_targets()

@@ -94,6 +94,11 @@ local CROSS_FILE_READS = {
     -- strategies which receive the spec state.
     ["EaxRotations/classes/paladin/healing_sylvanas.lua"] = {
         tank = true, lowest_hp = true,
+        -- divine_favor_active: read by heal_helper_sylvanas.lua:229/253
+        -- (select_heal — the Holy Light fast-path when Divine Favor is
+        -- active); written by this file's build_state (2026-08 read-side
+        -- audit fix, buff 20216). Cross-file consumer.
+        divine_favor_active = true,
     },
     ["EaxRotations/classes/priest/healing_sylvanas.lua"] = {
         tank = true, lowest_hp = true,

@@ -133,7 +133,8 @@ return {
                 header = "Rotation & Mana",
                 settings = {
                     { key = "destro_use_immolate", type = "checkbox", label = "Use Immolate", default = true, tooltip = "Apply and refresh Immolate. Disable for speed kills where Immolate is a DPS loss (pure Shadow Bolt spam)." },
-                    { key = "destro_immolate_min_sp", type = "slider", label = "Immolate Min SP", min = 0, max = 2000, default = 400 },
+                    -- destro_immolate_min_sp removed 2026-08: the engine never populates
+                    -- spell damage, so the gate always blocked Immolate at level 40+.
                     { key = "destro_shadowburn_hp", type = "slider", label = "Shadowburn HP %", min = 0, max = 100, default = 20 },
                     { key = "destro_mana_gem_threshold", type = "slider", label = "Mana Gem at %", min = 0, max = 100, default = 35 },
                     { key = "destro_life_tap_mana", type = "slider", label = "Life Tap Mana %", min = 0, max = 50, default = 20, tooltip = "Life Tap when mana drops below this percentage." },

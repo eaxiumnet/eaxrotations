@@ -37,6 +37,12 @@
 #      somewhere — the fury_vanilla pummel_ready / silence_ready /
 #      counterspell_ready computed-but-unread class; cross-file consumers
 #      pinned with evidence in CROSS_FILE_READS) + self-test
+#  19. Read-side audit (static: no ctx/state field may be READ if NO producer
+#      anywhere writes it — the assassination_vanilla context.combo /
+#      balance/elemental spell_damage / warlock enemy_shadow_caster class;
+#      write-side complement that catches reads of never-produced fields;
+#      legacy-fallback chains and module records pinned in
+#      NO_WRITER_ALLOWLIST with evidence) + self-test
 #
 # INSTALL:
 #   cp tools/pre-commit .git/hooks/pre-commit
@@ -63,7 +69,7 @@ if [ -x "$_LUA51/lua.exe" ]; then LUA="$_LUA51/lua.exe"; else LUA=lua; fi
 # ---------------------------------------------------------------------------
 # 1. luac -p syntax check
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [1/18] Parsing all .lua files with luac -p..."
+echo "[pre-commit] [1/19] Parsing all .lua files with luac -p..."
 
 FAILED=0
 TOTAL=0
@@ -93,7 +99,7 @@ echo "[pre-commit] All Lua files pass syntax check."
 # ---------------------------------------------------------------------------
 # 2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [2/18] Running vanilla TBC spell ID audit..."
+echo "[pre-commit] [2/19] Running vanilla TBC spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_vanilla_audit_tests.lua 2>&1; then
     echo "[pre-commit] Vanilla TBC spell ID audit FAILED. Commit aborted."
@@ -106,7 +112,7 @@ echo "[pre-commit] Vanilla TBC spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 3. Sylvanas spell ID audit (positive: ensures every ID exists in DBC)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [3/18] Running sylvanas spell ID audit..."
+echo "[pre-commit] [3/19] Running sylvanas spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_sylvanas_audit_tests.lua 2>&1; then
     echo "[pre-commit] Sylvanas spell ID audit FAILED. Commit aborted."
@@ -120,7 +126,7 @@ echo "[pre-commit] Sylvanas spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 4. Badge drift check (README.md + AGENTS.md test counts match runners)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [4/18] Checking badge counts are in sync..."
+echo "[pre-commit] [4/19] Checking badge counts are in sync..."
 
 if ! "$LUA" tools/update_badges.lua --check 2>&1; then
     echo "[pre-commit] Badge count drift detected. Commit aborted."
@@ -135,7 +141,7 @@ echo "[pre-commit] Badge counts are in sync."
 # 5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #    Phase 0 gate: unclassified lanes, stale pins, or a stale doc abort.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [5/18] Checking spec scorecard is in sync..."
+echo "[pre-commit] [5/19] Checking spec scorecard is in sync..."
 
 if ! "$LUA" tools/spec_scorecard.lua --check 2>&1; then
     echo "[pre-commit] Spec scorecard drift detected. Commit aborted."
@@ -150,7 +156,7 @@ echo "[pre-commit] Spec scorecard is in sync."
 #    full run_rotation_tests.lua matrix is the only gate that catches rotation
 #    regressions before push; quiet mode suppresses per-suite chatter).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [6/18] Running rotation test suite..."
+echo "[pre-commit] [6/19] Running rotation test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_rotation_tests.lua --quiet 2>&1; then
     echo "[pre-commit] Rotation test suite FAILED. Commit aborted."
@@ -166,7 +172,7 @@ echo "[pre-commit] Rotation test suite passed."
 #    that CI's verify_all runs — a leveling regression must not pass the local
 #    gate and fail only after push.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [7/18] Running leveling test suite..."
+echo "[pre-commit] [7/19] Running leveling test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_leveling_tests.lua --quiet 2>&1; then
     echo "[pre-commit] Leveling test suite FAILED. Commit aborted."
@@ -179,7 +185,7 @@ echo "[pre-commit] Leveling test suite passed."
 # ---------------------------------------------------------------------------
 # 8. WotLK rotation + leveling test suites (45 suites; quiet mode).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [8/18] Running WotLK test suite..."
+echo "[pre-commit] [8/19] Running WotLK test suite..."
 
 if ! "$LUA" EaxRotations/tests/run_wotlk_tests.lua --quiet 2>&1; then
     echo "[pre-commit] WotLK test suite FAILED. Commit aborted."
@@ -192,7 +198,7 @@ echo "[pre-commit] WotLK test suite passed."
 # ---------------------------------------------------------------------------
 # 9. WotLK spell ID audit (positive: every ID exists in the WotLK bridge).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [9/18] Running WotLK spell ID audit..."
+echo "[pre-commit] [9/19] Running WotLK spell ID audit..."
 
 if ! "$LUA" EaxRotations/tests/run_wotlk_audit_tests.lua 2>&1; then
     echo "[pre-commit] WotLK spell ID audit FAILED. Commit aborted."
@@ -210,7 +216,7 @@ echo "[pre-commit] WotLK spell ID audit passed."
 #     warlock/leveling_sylvanas.lua on its first run. --self-test proves the
 #     detector fires on synthetic raw returns.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [10/18] Running cache-hit safe_state audit..."
+echo "[pre-commit] [10/19] Running cache-hit safe_state audit..."
 
 if ! "$LUA" EaxRotations/tests/run_cache_hit_audit_tests.lua 2>&1; then
     echo "[pre-commit] Cache-hit safe_state audit FAILED. Commit aborted."
@@ -235,7 +241,7 @@ echo "[pre-commit] Cache-hit safe_state audit passed."
 #     substitution (strategies compiled from DSL_DEFS, old matcher funcs
 #     unreachable). --self-test proves every style resolves correctly.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [11/18] Running dead-matcher audit..."
+echo "[pre-commit] [11/19] Running dead-matcher audit..."
 
 if ! "$LUA" EaxRotations/tests/run_dead_matcher_audit_tests.lua 2>&1; then
     echo "[pre-commit] Dead-matcher audit FAILED. Commit aborted."
@@ -259,7 +265,7 @@ echo "[pre-commit] Dead-matcher audit passed."
 #     still fire (a dropped pin silently passes the full-run audits). All
 #     four are sub-second.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [12/18] Running vanilla existence audit..."
+echo "[pre-commit] [12/19] Running vanilla existence audit..."
 
 if ! "$LUA" EaxRotations/tests/run_vanilla_existence_audit.lua 2>&1; then
     echo "[pre-commit] Vanilla existence audit FAILED. Commit aborted."
@@ -286,7 +292,7 @@ echo "[pre-commit] Spell-audit self-tests passed."
 #     on a clean checkout (the 5-suite env-gap class). The self-test pins
 #     the POSIX directory-vs-file guard.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [13/18] Running clean-checkout dependency probe..."
+echo "[pre-commit] [13/19] Running clean-checkout dependency probe..."
 
 if ! "$LUA" EaxRotations/tests/run_clean_checkout_probe.lua 2>&1; then
     echo "[pre-commit] Clean-checkout dependency probe FAILED. Commit aborted."
@@ -308,7 +314,7 @@ echo "[pre-commit] Clean-checkout dependency probe passed."
 #     README badge + PvP footer but never header.lua — the audit closes that
 #     gap so a release can no longer ship a stale runtime version.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [14/18] Running version-consistency audit..."
+echo "[pre-commit] [14/19] Running version-consistency audit..."
 
 if ! "$LUA" EaxRotations/tests/run_version_consistency_audit_tests.lua 2>&1; then
     echo "[pre-commit] Version-consistency audit FAILED. Commit aborted."
@@ -332,7 +338,7 @@ echo "[pre-commit] Version-consistency audit passed."
 #     longer defines fails. Guards the two live-game crashes fixed this
 #     session (incoming_heal_predictor cleanup_caches; los_guard same_unit).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [15/18] Running NS-member audit..."
+echo "[pre-commit] [15/19] Running NS-member audit..."
 
 if ! "$LUA" EaxRotations/tests/run_ns_member_audit_tests.lua 2>&1; then
     echo "[pre-commit] NS-member audit FAILED. Commit aborted."
@@ -357,7 +363,7 @@ echo "[pre-commit] NS-member audit passed."
 #     regenerated deliberately via EaxRotations/tools/generate_era_pair_seed.py
 #     and committed with the rotation change that re-baselines it.
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [16/18] Running era-pair coverage audit..."
+echo "[pre-commit] [16/19] Running era-pair coverage audit..."
 
 if ! "$LUA" EaxRotations/tests/run_era_pair_audit_tests.lua 2>&1; then
     echo "[pre-commit] Era-pair coverage audit FAILED. Commit aborted."
@@ -383,7 +389,7 @@ echo "[pre-commit] Era-pair coverage audit passed."
 #     must byte-match a fresh in-memory regeneration from
 #     EaxRotations/tools/generate_era_pair_seed.py --check (no writes).
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [17/18] Checking era-pair seed freshness..."
+echo "[pre-commit] [17/19] Checking era-pair seed freshness..."
 
 if ! "$LUA" EaxRotations/tests/run_era_pair_seed_freshness.lua 2>&1; then
     echo "[pre-commit] Era-pair seed DRIFT detected. Commit aborted."
@@ -403,7 +409,7 @@ echo "[pre-commit] Era-pair seed freshness check passed."
 # ---------------------------------------------------------------------------
 # 18. State-field audit (static: computed-but-unread build_state fields)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [18/18] Running state-field audit..."
+echo "[pre-commit] [18/19] Running state-field audit..."
 
 if ! "$LUA" EaxRotations/tests/run_state_field_audit_tests.lua 2>&1; then
     echo "[pre-commit] State-field audit FAILED. Commit aborted."
@@ -415,9 +421,29 @@ fi
 
 if ! "$LUA" EaxRotations/tests/run_state_field_audit_tests.lua --self-test 2>&1; then
     echo "[pre-commit] State-field audit self-test FAILED. Commit aborted."
+    echo "[pre-commit] The audit's own fixtures must stay green (injection proof)."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
     exit 1
 fi
 
-echo "[pre-commit] State-field audit passed."
-echo "[pre-commit] All 18 checks passed."
+echo "[pre-commit] [19/19] Running read-side audit..."
+
+if ! "$LUA" EaxRotations/tests/run_read_side_audit_tests.lua 2>&1; then
+    echo "[pre-commit] Read-side audit FAILED. Commit aborted."
+    echo "[pre-commit] A ctx/state field is READ but produced by nothing in the tracked tree."
+    echo "[pre-commit] Provide the field at its source or change the read to the real field/helper;"
+    echo "[pre-commit] verified dynamic reads go in NO_WRITER_ALLOWLIST with evidence."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+if ! "$LUA" EaxRotations/tests/run_read_side_audit_tests.lua --self-test 2>&1; then
+    echo "[pre-commit] Read-side audit self-test FAILED. Commit aborted."
+    echo "[pre-commit] The audit's own fixtures must stay green (injection proof)."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Read-side audit passed."
+echo "[pre-commit] All 19 checks passed."
 exit 0
