@@ -81,6 +81,29 @@ local function run_test()
     assert_true(DM.can_dispel("curse"), "MAGE should dispel curse")
     assert_false(DM.can_dispel("magic"), "MAGE should not dispel magic")
 
+    -- Dungeon aggression carve-out: the never-completed stub block in
+    -- should_dispel ("if control_risk or fear_nearby then <empty> end") was
+    -- removed and its documented intent folded into skip_critical. Pin the
+    -- fixed computation: with fear_nearby OR control_risk set in a dungeon,
+    -- the critical-tank-HP gate must NOT block dispelling; without either,
+    -- it must.
+    DM = load_dm(5)
+    local tank = {
+        get_debuffs = function() return { { type = "magic" } } end,
+    }
+    local function dungeon_ctx(extra)
+        local c = { settings = { auto_dispel = true }, is_group = true, me = nil }
+        if extra then for k, v in pairs(extra) do c[k] = v end end
+        return c
+    end
+    local dungeon_state = { tank = { unit = tank }, tank_hp = 40, lowest_hp = 100 }
+    assert_true(DM.should_dispel(dungeon_ctx({ fear_nearby = true }), dungeon_state),
+        "fear_nearby in dungeon: critical-HP gate must not block dispel")
+    assert_true(DM.should_dispel(dungeon_ctx({ control_risk = true }), dungeon_state),
+        "control_risk in dungeon: critical-HP gate must not block dispel")
+    assert_false(DM.should_dispel(dungeon_ctx({}), dungeon_state),
+        "no risk in dungeon: critical-HP gate must block dispel")
+
     DM = load_dm(2)
     assert_true(DM.can_dispel("poison"), "PALADIN should dispel poison")
     assert_true(DM.can_dispel("disease"), "PALADIN should dispel disease")

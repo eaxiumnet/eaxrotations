@@ -246,7 +246,6 @@ local BALANCE_SCHEMA = {
 
 local function build_state(ctx)
     local t = ctx.target
-    local _BARKSKIN_ID = type(SPELLS.Barkskin) == "table" and SPELLS.Barkskin[1] or 22812
     if t then
         _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
         _state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(t, _MOONFIRE_DEBUFF) or 0

@@ -442,9 +442,6 @@ local function build_state(context)
         if hit_info then
             fury_state.hit_cap_rating_needed = hit_info.rating_needed
         end
-        local exp_info = HitCap.get_expertise_cap()
-        if exp_info then
-        end
     end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(fury_state, FURY_SCHEMA)

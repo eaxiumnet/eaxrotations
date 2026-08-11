@@ -1,5 +1,6 @@
 -- run_state_field_audit_tests.lua -- Static audit: no state-table field may be
--- WRITTEN in a class/shared file but READ by nothing.
+-- WRITTEN in a class/shared file but READ by nothing; no never-completed stub
+-- (empty if-body / dead local) may exist either.
 -- WHAT:  Scans every class file (sylvanas / vanilla / wotlk / sod / leveling)
 --        plus shared/ for per-frame state tables (the table build_state fills
 --        and returns — or a shared module's equivalent) and fails if any
@@ -10,6 +11,16 @@
 --        counterspell_ready are the same shape. The era-pair and dead-matcher
 --        audits cannot see state fields (they are not strategy names / matcher
 --        names), which is why this class shipped repeatedly.
+-- NEW (2026-08-11): the never-completed-stub family. Two rules, both
+--        invisible to the field rules (no state write, no read, no matcher):
+--        S1 empty if-body (`if X then` + `end`, or inline `if X then end`) —
+--        the shape that hid 4x `local exp_info = HitCap.get_expertise_cap()`
+--        dead calls, the ViperSting/ScorpidSting stub pairs, and a bare
+--        `if me then end`; S2 dead local (`local NAME = expr` where NAME is
+--        never referenced again, word-boundary) — catches a discarded per-tick
+--        call even without an empty-if. One live find: dispel_manager:301's
+--        half-finished block was fixed (fear_nearby folded into skip_critical)
+--        rather than removed, per the site's documented intent.
 -- Resolver rules (all validated against the real tree):
 --   State-table names per file:
 --     A. every ident passed as the first argument to spec_kit.safe_state(...)
@@ -283,7 +294,62 @@ local function scan_content(content)
         else read("lowest_hp") end
     end
 
-    return { names = names, writes = writes, counts = counts }
+    -- -------------------------------------------------------------------------
+    -- Stub rules (2026-08-11): the never-completed-block family the field
+    -- audits cannot see. Two shapes, both invisible to write-side (no state
+    -- field), read-side (no read), and dead-matcher (no matcher) rules:
+    --   S1. empty if-body: `if X then` immediately followed by `end` (blank
+    --       lines allowed between), or the inline `if X then end`. This is
+    --       what let 4x `local exp_info = HitCap.get_expertise_cap() ...
+    --       if exp_info then end` and the ViperSting/ScorpidSting stub pairs
+    --       ship: a per-tick call whose result is discarded + an empty body.
+    --   S2. dead local: an INDENTED `local NAME = expr` (function scope = the
+    --       per-tick / per-call body) where NAME is never referenced again
+    --       anywhere in the file (word-boundary match, so `x1` does not count
+    --       as a use of `x`). A per-tick call whose result is discarded
+    --       without even an empty-if (plain `local x = f()`) is caught here.
+    --       Column-0 (module-level) constants are deliberately OUT of scope —
+    --       the tree carries ~237 never-referenced module constants that are a
+    --       separate dead-constant campaign, not the per-tick stub family.
+    local stubs = {}
+    for i = 1, #lines do
+        local line = lines[i]
+        if line:match("^%s*if .+ then%s*$") then
+            local j = i + 1
+            while j <= #lines and lines[j]:match("^%s*$") do j = j + 1 end
+            if j <= #lines and lines[j]:match("^%s*end%s*$") then
+                stubs[#stubs + 1] = { kind = "empty_if", line = i,
+                                      name = line:match("^%s*if (.+) then") }
+            end
+        elseif line:match("^%s*if .+ then%s*end%s*$") then
+            stubs[#stubs + 1] = { kind = "empty_if", line = i,
+                                  name = line:match("^%s*if (.+) then") }
+        end
+    end
+    for i = 1, #lines do
+        -- NOTE: `([%a_][%w_]*)` is the identifier form — `(%a_%w*)` would be
+        -- the SEQUENCE letter+underscore+word and never match (the 2026-08-11
+        -- first cut silently matched nothing; fixtures caught it).
+        -- Only INDENTED declarations are function-scope (per-tick/per-call);
+        -- column-0 declarations are module-level constants, out of scope here.
+        local lead, name = lines[i]:match("^(%s*)local%s+([%a_][%w_]*)%s*=")
+        if name and lead and lead ~= "" then
+            local used = false
+            for j = 1, #lines do
+                if j ~= i then
+                    for token in lines[j]:gmatch("%f[%a_][%a_][%w_]*") do
+                        if token == name then used = true break end
+                    end
+                end
+                if used then break end
+            end
+            if not used then
+                stubs[#stubs + 1] = { kind = "dead_local", line = i, name = name }
+            end
+        end
+    end
+
+    return { names = names, writes = writes, counts = counts, stubs = stubs }
 end
 
 -- ---------------------------------------------------------------------------
@@ -554,6 +620,65 @@ local function run_self_tests()
         '["EaxRotations/classes/c.lua"] = { z = true },')
     expect(#dup_allowlist_keys(clean_src), 0, "no duplicates in clean constructor")
 
+    -- Fixture 14: stub rules — empty if-body (S1) and dead local (S2). These
+    -- pin the never-completed-block family the field audits cannot see: the
+    -- 2026-08-11 sweep removed 4x `local exp_info = HitCap.get_expertise_cap()
+    -- ... if exp_info then end`, the ViperSting/ScorpidSting stub pairs, and
+    -- the bare `if me then end`. The fixtures prove the rules fire on the
+    -- exact shapes; the real-file probe below proves the tree is clean today.
+    local function stub_kinds(content)
+        local out = {}
+        for _, s in ipairs(scan_content(content).stubs or {}) do
+            out[#out + 1] = s.kind .. ":" .. tostring(s.name or "")
+        end
+        table.sort(out)
+        return out
+    end
+    -- S1 multi-line empty body (the exp_info shape): the empty-if fires; the
+    -- local is referenced by the empty-if's condition, so the dead-local rule
+    -- (which catches the plain discarded call with NO empty-if) does not
+    -- double-fire — the empty-if is the violation that names the shape.
+    local s1 = scan_content(
+        "    local exp_info = HitCap.get_expertise_cap()\n"
+        .. "    if exp_info then\n"
+        .. "    end\n")
+    expect(#(s1.stubs or {}), 1, "exp_info shape flags the empty-if")
+    expect(s1.stubs[1].kind, "empty_if", "multi-line empty if-body flagged")
+    expect(s1.stubs[1].name, "exp_info", "empty-if condition named")
+    -- S1 inline form: `if x then end` on one line is also an empty body.
+    local s1b = scan_content("if x then end\n")
+    expect(#(s1b.stubs or {}), 1, "inline empty if-body flagged")
+    expect(s1b.stubs[1].kind, "empty_if", "inline empty if-body kind")
+    -- S1 negative: a real if with a body is NOT an empty body.
+    local s1c = scan_content(
+        "if x then\n"
+        .. "  return y\n"
+        .. "end\n")
+    expect(#(s1c.stubs or {}), 0, "real if-body not flagged")
+    -- S2 dead local: discarded per-tick call without an empty-if is still
+    -- caught; `x1` elsewhere does NOT count as a use of `x` (word boundary).
+    local s2 = scan_content(
+        "    local wasted = NS.spell_ready(ACTION.X, target)\n"
+        .. "    state.x1 = wasted_x or 0\n")
+    expect(#(s2.stubs or {}), 1, "discarded local flagged without empty-if")
+    expect(s2.stubs[1].kind, "dead_local", "dead-local kind without empty-if")
+    expect(s2.stubs[1].name, "wasted", "dead-local name")
+    -- S2 negative: a local read later is live.
+    local s2b = scan_content(
+        "    local me = NS.GetPlayer()\n"
+        .. "    state.hp = me and NS.unit_health_pct(me) or 100\n")
+    expect(#(s2b.stubs or {}), 0, "live local not flagged")
+    -- S2 negative: a column-0 module constant is out of scope (the ~237
+    -- module-constant population is a separate campaign, not the stub family).
+    local s2c = scan_content("local MODULE_CONST = 75\n")
+    expect(#(s2c.stubs or {}), 0, "module-level constant not flagged")
+    -- Real-file probes: the stub family is gone from the tree (the 2026-08-11
+    -- sweep removed all 10 sites + the dispel_manager half-finished block).
+    local arms = scan_file("EaxRotations/classes/warrior/arms_sylvanas.lua")
+    expect(#(arms.stubs or {}), 0, "arms_sylvanas has zero stubs")
+    local dm = scan_file("EaxRotations/shared/dispel_manager_sylvanas.lua")
+    expect(#(dm.stubs or {}), 0, "dispel_manager has zero stubs")
+
     -- The real committed allowlist must itself be duplicate-free (non-vacuity:
     -- the fixture above proves the detector fires; this proves the tree is
     -- clean today).
@@ -586,7 +711,10 @@ local function run_self_tests()
         .. "dot reads, `==` non-write, comment + schema-bare-key exclusion, "
         .. "declarative (state/in_combat/hp_threshold) reads, double-write, "
         .. "compound write+read, leading-underscore + module-export scope, "
-        .. "s-named state, real-file probes (shadow/frost dead, fury live)")
+        .. "s-named state, stub rules (empty if-body multi-line + inline, "
+        .. "dead local with word-boundary, live-if/live-local negatives, "
+        .. "real-file probes arms/dispel_manager zero stubs), real-file "
+        .. "probes (shadow/frost dead, fury live)")
     os.exit(0)
 end
 
@@ -600,7 +728,7 @@ end
 local scan = run_scan()
 
 print("=============================================================================")
-print("  STATE-FIELD AUDIT (computed-but-unread state fields)")
+print("  STATE-FIELD AUDIT (computed-but-unread fields + never-completed stubs)")
 print("=============================================================================")
 local failures = {}
 local clean = 0
@@ -622,10 +750,23 @@ for _, entry in ipairs(scan.results) do
         end
     end
 end
+-- Stub violations are collected across EVERY scanned file (a stub can exist
+-- in a file with no state writes at all), independent of the field rules.
+local stub_failures = {}
+for _, entry in ipairs(scan.results) do
+    local res = entry.res
+    if not res.skipped and res.stubs and #res.stubs > 0 then
+        for _, s in ipairs(res.stubs) do
+            stub_failures[#stub_failures + 1] = { file = res.file, line = s.line,
+                                                  kind = s.kind, name = s.name }
+        end
+    end
+end
 print(string.format("  Total:     %d state-bearing files (%d field writes)",
     scan.total_files, scan.total_fields))
 print(string.format("  Clean:     %d files with zero dead fields", clean))
-print(string.format("  Invalid:   %d dead fields", #failures))
+print(string.format("  Invalid:   %d dead fields, %d stub violations",
+    #failures, #stub_failures))
 print("=============================================================================")
 
 if #failures > 0 then
@@ -642,7 +783,20 @@ if #failures > 0 then
     os.exit(1)
 end
 
+if #stub_failures > 0 then
+    print("  Never-completed stubs (empty if-body / dead local):")
+    for _, s in ipairs(stub_failures) do
+        print(string.format("    %s  line %d: %s %s", s.file, s.line, s.kind, s.name or ""))
+    end
+    print("")
+    print("  Fix: remove the dead stub (and its discarded local). If the block")
+    print("  documents an intent, implement it or delete the comment — an empty")
+    print("  body is never the intended computation.")
+    os.exit(1)
+end
+
 check_own_allowlist(arg[0])
 
-print("  Every written state field is read somewhere.")
+print("  Every written state field is read somewhere; no empty if-bodies or")
+print("  dead locals in the stub family.")
 os.exit(0)

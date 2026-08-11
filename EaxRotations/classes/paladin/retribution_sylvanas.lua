@@ -410,9 +410,6 @@ local function build_state(context)
         if hit_info then
             ret_state.hit_cap_rating_needed = hit_info.rating_needed
         end
-        local exp_info = HitCap.get_expertise_cap()
-        if exp_info then
-        end
     end
     -- Centralized target validity gate used by base_matches guards
     local t = context.target

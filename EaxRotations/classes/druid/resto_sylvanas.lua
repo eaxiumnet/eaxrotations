@@ -489,7 +489,6 @@ local function build_state(context)
  resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
  local mana_conserve_pct = spec_kit.setting_number(context, "resto_mana_conserve_pct", MANA_CONSERVE_PCT)
  local mana_emergency_pct = spec_kit.setting_number(context, "resto_mana_emergency_pct", MANA_EMERGENCY_PCT)
- local mana_critical_pct = spec_kit.setting_number(context, "resto_mana_critical_pct", MANA_CRITICAL_PCT)
  resto_state.mana_conserve = resto_state.mana_pct <= mana_conserve_pct
  resto_state.mana_emergency = resto_state.mana_pct <= mana_emergency_pct
 

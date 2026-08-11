@@ -8,7 +8,10 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
-local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+-- Load-for-side-effect: offensive_dispel_sylvanas installs NS.OffensiveDispelDB
+-- (consumed nil-guarded at core_sylvanas:4376). The returned table was never
+-- used by this file (CCGateDB was dead) — keep the install, drop the local.
+require("shared/offensive_dispel_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================

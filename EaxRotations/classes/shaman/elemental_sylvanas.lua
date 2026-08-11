@@ -239,7 +239,6 @@ local function flame_shock_matches_fn(context, state)
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
     if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
     -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
-    local min_sp = spec_kit.setting_number(context, "elemental_flame_shock_min_sp", FLAME_SHOCK_MIN_SP_DEFAULT)
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlameShock, context.target) or false
 end

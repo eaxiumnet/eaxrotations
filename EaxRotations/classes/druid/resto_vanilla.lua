@@ -261,7 +261,6 @@ local function build_state(context)
     resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
     local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT
     local mana_emergency_pct = (settings.resto_mana_emergency_pct ~= nil and settings.resto_mana_emergency_pct) or MANA_EMERGENCY_PCT
-    local mana_critical_pct = (settings.resto_mana_critical_pct ~= nil and settings.resto_mana_critical_pct) or MANA_CRITICAL_PCT
     resto_state.mana_conserve = resto_state.mana_pct <= mana_conserve_pct
     resto_state.mana_emergency = resto_state.mana_pct <= mana_emergency_pct
 

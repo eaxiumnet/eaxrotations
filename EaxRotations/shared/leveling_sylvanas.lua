@@ -79,7 +79,6 @@ end
 --- @return function matches(context, state) -> boolean
 function leveling.create_wand_matches(threshold_key, default_threshold)
     local threshold = default_threshold or 30
-    local key = threshold_key or "leveling_wand_threshold"
 
     return function(context, state)
         if not context then return false end

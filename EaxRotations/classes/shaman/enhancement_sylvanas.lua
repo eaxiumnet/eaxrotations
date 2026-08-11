@@ -390,7 +390,6 @@ local function build_state(context)
     end
 
     -- -- Buff detection
-    local LIGHTNING_SHIELD_ID = (type(LIGHTNING_SHIELD_BUFF) == "table" and LIGHTNING_SHIELD_BUFF[1]) or 25472
     enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
     enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
     enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false

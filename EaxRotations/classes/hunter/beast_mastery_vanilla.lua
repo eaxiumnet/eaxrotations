@@ -10,7 +10,10 @@ if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 local hunter_core = require("shared/hunter_core_sylvanas")
-local targeting = require("shared/targeting_sylvanas")
+-- Load-for-side-effect: targeting_sylvanas installs NS.Targeting (consumed
+-- nil-guarded by restoration_sylvanas:271 and multidot_engagement_filter:227).
+-- The returned table is not used by this file — keep the require, drop the local.
+require("shared/targeting_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -106,7 +109,7 @@ local BM_VANILLA_SCHEMA = {
     rapid_fire_ready = false,  feign_death_ready = false,
     mend_pet_ready = false,  call_pet_ready = false,
     revive_pet_ready = false,  hunters_mark_ready = false,
-    serpent_sting_ready = false,  scorpid_sting_ready = false,
+    serpent_sting_ready = false,
     sting_mode = "serpent",  fd_mode = "high_threat",
     multishot_mode = 2,  pull_mode = "combat_only",
     use_cooldowns = true,  use_misdirection = false,
@@ -160,11 +163,6 @@ local function build_state(context)
     state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
     state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
-    -- Viper Sting ready from SPELLS or fallback
-    if SPELLS.ViperSting then
-    end
-    if SPELLS.ScorpidSting then
-    end
     -- Raptor Strike ready (melee weaving)
     state.raptor_strike_ready = target and NS.spell_ready and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
     -- Concussive Shot ready

@@ -170,8 +170,6 @@ local function build_state(context)
     fury_state.in_melee_range = context.in_melee_range or false
     fury_state.target_count = context.enemies_count or 1
     fury_state.target_ttd = (context.ttd or 15)
-    if me then
-    end
     if target then
         fury_state.target_casting = target.is_casting and target:is_casting() or false
         fury_state.has_demo_shout = NS.debuff_up(target, DEMO_SHOUT_DEBUFF) or false

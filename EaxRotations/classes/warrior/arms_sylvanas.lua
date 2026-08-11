@@ -396,9 +396,6 @@ local function build_state(context)
         if hit_info then
             arms_state.hit_cap_rating_needed = hit_info.rating_needed
         end
-        local exp_info = HitCap.get_expertise_cap()
-        if exp_info then
-        end
     end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     -- Once wrapped, all match() functions can read state.X without nil-guards.

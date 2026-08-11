@@ -47,7 +47,10 @@ local ACTION = {
 }
 local hunter_core = require("shared/hunter_core_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
-local targeting = require("shared/targeting_sylvanas")
+-- Load-for-side-effect: targeting_sylvanas installs NS.Targeting (consumed
+-- nil-guarded by restoration_sylvanas:271 and multidot_engagement_filter:227).
+-- The returned table is not used by this file — keep the require, drop the local.
+require("shared/targeting_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
@@ -349,11 +352,6 @@ local function build_state(context)
     state.call_pet_ready = me and spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
     state.revive_pet_ready = me and spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
     state.readiness_ready = me and spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
-    -- Viper Sting ready from SPELLS or fallback
-    if ACTION.ViperSting then
-    end
-    if ACTION.ScorpidSting then
-    end
     -- Raptor Strike ready (melee weaving)
     state.raptor_strike_ready = target and spell_ready(RAPTOR_STRIKE_IDS, target) or false
     -- Concussive Shot ready

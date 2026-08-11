@@ -8,7 +8,6 @@
 
 local _G = _G
 local NS = _G.EaxRotations
-local spec_kit = require("shared/spec_kit_sylvanas")
 if not NS then return end
 
 local M = {}
@@ -296,14 +295,15 @@ function M.should_dispel(context, state)
     if not setting(context, "auto_dispel", true) then return false, nil, nil end
     if M.is_throttled() then return false, nil, nil end
 
-    -- Dungeon optimization: if control_risk or fear_nearby (from previous mechanics), be more aggressive on dispels to avoid deaths
+    -- Dungeon optimization: if control_risk or fear_nearby (from previous mechanics), be more aggressive on dispels to avoid deaths.
+    -- The empty-body block that previously stood here never implemented this;
+    -- the real carve-out below (skip_critical) is where the intent lives.
+    -- fear_nearby is folded in with control_risk per the block's documented
+    -- condition and discipline_sylvanas.lua:582's identical treatment.
     local is_dungeon = context and context.is_group
-    if is_dungeon and (context.control_risk or context.fear_nearby) then
-        -- force check even if low hp sometimes, but still respect throttle
-    end
 
     -- Skip dispelling during critical healing moments (but allow in high risk)
-    local skip_critical = not (is_dungeon and context.control_risk)
+    local skip_critical = not (is_dungeon and (context.control_risk or context.fear_nearby))
     if skip_critical and state and state.tank and state.tank_hp then
         if (state.tank_hp or 100) < TANK_CRITICAL_HP then return false, nil, nil end
     end

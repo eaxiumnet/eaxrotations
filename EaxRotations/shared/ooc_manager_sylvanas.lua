@@ -382,7 +382,6 @@ local function try_self_buffs(context, settings, me, class_id)
                         local rage = NS.power_current and NS.power_current(NS.POWER_RAGE) or 0
                         if rage < 10 then return false end
                     end
-                    local should_cast = true
                     -- Long lockout after a successful cast: aura APIs often return
                     -- remains=0 on PS, which would otherwise re-queue every GCD.
                     -- Use try_cast's min_interval so we throttle only when we actually

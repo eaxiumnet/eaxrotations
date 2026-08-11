@@ -262,8 +262,6 @@ local function build_state(context)
     -- Wowsims APL-aligned phase decision
     -- Conserve Start = 20%, Conserve End = 30%, Delay Major CDs = 10s
     local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
-    local min_mtte = spec_kit.setting_number(context, "arcane_mtte_min", 12)
-
     -- Emergency: mana critically low
     if (s.mana_pct or 100) < 10 then
         s.phase = PHASE_EMERGENCY

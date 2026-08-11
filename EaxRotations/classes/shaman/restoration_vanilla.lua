@@ -118,7 +118,6 @@ local function build_state(context)
     resto_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     resto_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     -- Mana conservation tiers (configurable via schema)
-    local mana_low_pct = s.restoration_mana_low_pct or MANA_LOW_DEFAULT
     local mana_conserve_pct = s.restoration_mana_conserve_pct or MANA_CONSERVE_DEFAULT
     local mana_emergency_pct = s.restoration_mana_emergency_pct or MANA_EMERGENCY_DEFAULT
     resto_state.mana_conserve = resto_state.mana_pct < mana_conserve_pct

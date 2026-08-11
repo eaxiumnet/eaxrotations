@@ -184,7 +184,7 @@ local function earth_shock_interrupt_matches_fn(context, state)
     if not target then return false end
     if state.mana_emergency then return false end
     local is_casting = false
-    local ok = pcall(function()
+    pcall(function()
         if target.is_casting and target:is_casting() then is_casting = true end
         if target.is_casting_spell and target:is_casting_spell() then is_casting = true end
     end)

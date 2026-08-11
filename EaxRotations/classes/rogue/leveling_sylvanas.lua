@@ -28,7 +28,6 @@ if not NS then return nil end
 	if not leveling then return nil end
 	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 	
-	local _format = string.format
 
 
 -- ============================================================================

@@ -137,11 +137,6 @@ local function build_state(context)
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    -- Classic Era: enable Arcane/Sting ladder when Aimed unlearned or unavailable (default level 60).
-    local player_level = context.level or context.player_level or 60
-        or (not sv_state.aimed_shot_ready)
-        or (context.is_leveling == true)
-
     return spec_kit.safe_state(sv_state, SV_VANILLA_SCHEMA)
 end
 
