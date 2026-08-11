@@ -90,8 +90,9 @@ M.RACE_VARIANTS_VANILLA = { smite = { 5 } }
 -- extra race so exclusive-race lanes are observable under every race that can
 -- gate them; run_all merges the never lists (a lane stays never only if it
 -- never fires under ANY variant race). Era-scoped so a WotLK-era smite load
--- can't silently pick up a TBC or vanilla binding.
-local function race_maps_for(era)
+-- can't silently pick up a TBC or vanilla binding. Exposed on M so
+-- test_race_override_regression.lua can pin the era-scoping.
+function M.race_maps_for(era)
     if era == "vanilla" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
     if era == "sylvanas" then return M.RACE_OVERRIDES, M.RACE_VARIANTS end
     return nil, nil
@@ -3104,7 +3105,7 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- Era-gated: the TBC and vanilla batteries each bind their own race
     -- override (smite loads as night elf 4 so Starshards is observable); a
     -- future WotLK-era smite load can't silently pick up a binding.
-    local overrides = race_maps_for(era)
+    local overrides = M.race_maps_for(era)
     M._race_override = race_override or (overrides and overrides[spec_key])
     local ok, result = pcall(dofile, path)
     M._race_override = nil
@@ -3324,7 +3325,7 @@ function M.run_all(era)
                 -- can't silently pick up the undead variant. If a variant load
                 -- fails, never_set is left untouched (conservative: lanes stay
                 -- never) and the failure surfaces via the load-failures pin.
-                local _, variant_map = race_maps_for(era)
+                local _, variant_map = M.race_maps_for(era)
                 local variants = variant_map and variant_map[spec_key]
                 local never_set = {}
                 for _, n in ipairs(report.never) do never_set[n] = true end
