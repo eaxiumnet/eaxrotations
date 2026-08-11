@@ -13,14 +13,21 @@
 --        assigned anywhere; the survey's bare-call scanner missed exactly
 --        this member form).
 -- WHEN:  Run manually, in CI (verify_all), and in the pre-commit gate.
--- CI-PARITY: the engine census reads GITIGNORED local dirs (.api/,
---        apidocs/pages/, scraped_docs_md/dev/api/) that a clean CI
---        checkout does NOT contain — so in CI the engine surface is empty
---        and a name that resolves locally via those docs is flagged unless
---        it is also on the ALLOWLIST. Keep the allowlist as the portable
---        guarantee: any engine member the docs enumerate locally must ALSO
---        have an allowlist entry (mock= / guarded=, live-verified), or CI
---        diverges from the local run. See the third allowlist batch.
+-- CI-PARITY (2026-08-11, divergence eliminated): the engine census NO
+--        LONGER reads gitignored dirs. It previously read .api/,
+--        apidocs/pages/, scraped_docs_md/dev/api/ — all gitignored, absent
+--        in CI's clean checkout — so a name resolving locally via those
+--        docs (e.g. NS.me via izi's `---@field me`, NS.get_item_count via
+--        menu widgets' @field) was flagged in CI but not locally. The
+--        census proved FULLY REDUNDANT: every called member resolves via
+--        the tracked assignment census + battery mock + ALLOWLIST (live
+--        probe 2026-08-11: zero members needed the doc mirrors). ENGINE_DIRS
+--        is now EMPTY by construction; the allowlist is the portable
+--        engine surface. `--ci-parity` enforces this mechanically: it runs
+--        the full pipeline twice (configured dirs vs. forced-empty CI
+--        view) and fails if the verdicts differ — so a future re-addition
+--        of a gitignored-dir dependence fails LOUDLY on the dev box
+--        instead of passing locally and reddening CI.
 -- WHY:   A future spec copying an optional-engine-method call could drop the
 --        guard (the los_guard shape) or reference a member that never
 --        exists; this audit mechanically covers every file so it is caught
@@ -35,13 +42,20 @@
 --        (the crash direction, not a guard) — the `not` early-return idiom
 --        is still covered via the ` then` pattern.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;.api/?.lua;.api/?/?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;" .. package.path
 
 local CLASS_ROOT = "EaxRotations/classes"
 local SHARED_ROOT = "EaxRotations/shared"
 local REPO_ROOT = "EaxRotations"
 local MOCK_FILE = "EaxRotations/tests/behavioral_audit.lua"
-local ENGINE_DIRS = { ".api", "apidocs/pages", "scraped_docs_md/dev/api" }
+-- 2026-08-11: EMPTY by construction. The engine census previously read
+-- gitignored doc mirrors (.api/, apidocs/pages/, scraped_docs_md/dev/api/)
+-- which CI lacks — the local-vs-CI divergence that red CI on 15469820.
+-- Every called NS member resolves via the tracked assignment census +
+-- battery mock + ALLOWLIST (live probe: zero members needed the docs),
+-- so no gitignored path belongs here. A future re-addition must ALSO pass
+-- `--ci-parity` (configured vs. empty verdicts must be byte-identical).
+local ENGINE_DIRS = {}
 
 -- ============================================================================
 -- ALLOWLIST — engine-provided NS members that api/ does not enumerate.
@@ -455,20 +469,24 @@ end
 
 -- ============================================================================
 -- Engine API surface census: function names + `---@field <name> fun` type
--- annotations from .api/ stubs, apidocs/, and scraped docs.
+-- annotations from the configured doc dirs.
 -- NOTE: @field annotations are COMMENTS — read them from the RAW content
 -- before comment/string stripping, or the census misses them (is_casting /
 -- start_attack are @field-enumerated engine members). The find command uses
 -- the simple `-name a -o -name b` form (the parenthesized form breaks on
--- Windows bash with "The system cannot find the path specified").
+-- Windows bash with "The system cannot find the path specified"). The
+-- `sh -c 'test -d ... && find ...'` gate skips missing dirs quietly — a
+-- forced-CI parity view must not leak a find error.
+-- 2026-08-11: ENGINE_DIRS is empty by construction (CI parity), so this
+-- returns {} in every real run — kept as a parameterized seam so
+-- `--ci-parity` can exercise the configured-vs-empty comparison and a
+-- future re-addition of a gitignored dir fails loudly.
 -- ============================================================================
-local function collect_engine()
+local function collect_engine(dirs)
     local engine = {}
-    for _, dir in ipairs(ENGINE_DIRS) do
-        -- NOTE: no `2>/dev/null` — Windows cmd's io.popen mangles the redirect
-        -- ("The system cannot find the path specified") and the census comes
-        -- back EMPTY, silently flagging every @field member as unresolved.
-        local pipe = io.popen("find " .. dir .. " -name '*.lua' -o -name '*.md'")
+    for _, dir in ipairs(dirs or ENGINE_DIRS) do
+        local pipe = io.popen("sh -c 'test -d \"" .. dir .. "\" && find \"" .. dir
+            .. "\" -name \"*.lua\" -o -name \"*.md\"'")
         for line in pipe:lines() do
             local f = io.open(line, "rb")
             if f then
@@ -541,9 +559,9 @@ end
 -- ============================================================================
 -- Full scan: every .lua under classes/ + shared/
 -- ============================================================================
-local function run_scan()
+local function run_scan(engine_dirs)
     local assigned, mock = collect_assignments()
-    local engine = collect_engine()
+    local engine = collect_engine(engine_dirs)
 
     local files = {}
     for _, root in ipairs({ CLASS_ROOT, SHARED_ROOT }) do
@@ -917,10 +935,47 @@ local function run_self_tests()
 end
 
 -- ============================================================================
+-- CI parity check: the configured engine census (ENGINE_DIRS, now EMPTY)
+-- must never change the verdict vs. the forced-CI view (engine dirs
+-- nonexistent — what a clean checkout sees). If the two violation sets
+-- differ, a gitignored-dir dependence has crept back in and would pass
+-- locally but fail in CI; the check fails loudly here instead.
+-- ============================================================================
+local function run_ci_parity()
+    local function verdicts(dirs)
+        local scan = run_scan(dirs)
+        local bad = violations(scan)
+        local lines = {}
+        for _, v in ipairs(bad) do
+            lines[#lines + 1] = string.format("%s|%d|%s|%s", v.file, v.line, v.name, v.why)
+        end
+        return #bad, table.concat(lines, "\n")
+    end
+    local n_configured, v_configured = verdicts(ENGINE_DIRS)
+    local n_ci, v_ci = verdicts({ "__ci_nonexistent_dir__" })
+    if n_configured == n_ci and v_configured == v_ci then
+        print("[PASS] NS-member audit CI-parity: configured-engine verdict (" .. n_configured
+            .. " invalid) byte-identical to forced-CI view; no gitignored-dir dependence")
+        os.exit(0)
+    end
+    print("[FAIL] NS-member audit CI-parity: configured vs. forced-CI verdicts DIVERGE")
+    print("  configured (" .. n_configured .. " invalid):")
+    print("    " .. v_configured:gsub("\n", "\n    "))
+    print("  forced-CI (" .. n_ci .. " invalid):")
+    print("    " .. v_ci:gsub("\n", "\n    "))
+    print("  A gitignored-dir dependence has been re-added to the engine census")
+    print("  (it resolves names locally that CI cannot see). Remove it.")
+    os.exit(1)
+end
+
+-- ============================================================================
 -- CLI
 -- ============================================================================
 if arg and arg[1] == "--self-test" then
     run_self_tests()
+end
+if arg and arg[1] == "--ci-parity" then
+    run_ci_parity()
 end
 
 local scan = run_scan()

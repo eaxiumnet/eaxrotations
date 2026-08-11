@@ -352,6 +352,13 @@ if ! "$LUA" EaxRotations/tests/run_ns_member_audit_tests.lua --self-test 2>&1; t
     exit 1
 fi
 
+if ! "$LUA" EaxRotations/tests/run_ns_member_audit_tests.lua --ci-parity 2>&1; then
+    echo "[pre-commit] NS-member audit CI-parity FAILED. Commit aborted."
+    echo "[pre-commit] A gitignored-dir dependence has crept into the engine census"
+    echo "[pre-commit] (configured vs. forced-CI verdicts diverge). Remove it."
+    exit 1
+fi
+
 echo "[pre-commit] NS-member audit passed."
 
 # ---------------------------------------------------------------------------

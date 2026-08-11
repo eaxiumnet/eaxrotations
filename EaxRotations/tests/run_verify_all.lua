@@ -341,6 +341,14 @@ local components = {
         end,
     },
     {
+        label = "ns-member audit CI-parity",
+        cmd = "lua " .. R .. "/run_ns_member_audit_tests.lua --ci-parity",
+        check = function(c)
+            return { { "CI-parity [PASS] marker present (configured == forced-CI verdict)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "era-pair audit",
         cmd = "lua " .. R .. "/run_era_pair_audit_tests.lua",
         check = function(c)
