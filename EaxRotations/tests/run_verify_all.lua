@@ -410,6 +410,18 @@ local components = {
     --  * race-gated (3): smite DevouringPlague (undead) / Starshards (night elf),
     --    warlock RacialArcaneTorrent (blood elf) — RACE_OVERRIDES is era-gated
     --    to sylvanas; vanilla needs the same mechanism to observe.
+    --  * CLEARED 2026-08-11 (2): smite Starshards + DevouringPlague — the race
+    --    override/variant mechanism was extended to the vanilla era
+    --    (RACE_OVERRIDES_VANILLA / RACE_VARIANTS_VANILLA); smite_vanilla:28-29
+    --    gates on the same era-correct race ids as TBC (NE 4 / undead 5 —
+    --    verified: Classic Forsaken priests learn DP at 20, NE learn
+    --    Starshards at 10; no 2.0.1 racial swap — the Cataclysm change made DP
+    --    baseline). Both lanes now fire under the vanilla race variants.
+    --  * DOCUMENTED-EXPECTED (1): warlock RacialArcaneTorrent — Arcane Torrent
+    --    is a Blood Elf racial and blood elves do not exist in vanilla;
+    --    affliction_vanilla.lua:83 pins ArcaneTorrent = nil with the
+    --    'TBC-only (Blood Elf racial)' comment, so the strategy can never fire
+    --    in-game. Kept pinned (impossible-by-design), not 'fixed'.
     --  * OOC/pre-combat/movement (10): FaerieFirePull, PrePullEnrage, TravelForm,
     --    Dash, Prowl, ManaGemConjure x2, AuraManagement, DemonArmorBuff,
     --    MountedProtection.
@@ -443,7 +455,7 @@ local components = {
             return {
                 { "vanilla specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 79 baseline, classified)", never == 79 },
+                { "never-firing " .. never .. " (expected 77 baseline, classified)", never == 77 },
             }
         end,
     },

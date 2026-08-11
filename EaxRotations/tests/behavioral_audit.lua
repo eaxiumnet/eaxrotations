@@ -68,6 +68,35 @@ M.SPEC_FILES = {
 M.RACE_OVERRIDES = { smite = 4 }
 M.RACE_VARIANTS = { smite = { 5 } }
 
+-- Race-gated vanilla lanes (2026-08-11): the vanilla battery loaded smite as
+-- race 1 (human) because RACE_OVERRIDES/RACE_VARIANTS were era-gated to
+-- sylvanas, leaving Starshards + DevouringPlague structurally dead. Vanilla
+-- smite gates on the SAME race ids as TBC (smite_vanilla:28-29: night elf 4
+-- for Starshards, undead 5 for DevouringPlague) — verified era-correct:
+-- Classic Forsaken priests learn Devouring Plague at level 20 (Blizzard
+-- Watch priest-racials guide), Night Elves learn Starshards at 10; TBC-era
+-- sources (2.4.3 notes listing Shadowguard as the Troll racial, Apr-2008
+-- GameFAQs calling Devouring Plague the Undead priest racial) confirm the
+-- races did NOT swap between eras — the 2.0.1 'shuffle' is a myth; the real
+-- change was Cataclysm, when DP became baseline for all priests. So the
+-- vanilla lanes are a HARNESS gap, not a rotation defect: mirror the TBC
+-- mechanism for the vanilla era. (warlock RacialArcaneTorrent is NOT here —
+-- blood elves are TBC-only, so that lane is impossible-by-design and stays
+-- pinned with evidence at affliction_vanilla.lua:83.)
+M.RACE_OVERRIDES_VANILLA = { smite = 4 }
+M.RACE_VARIANTS_VANILLA = { smite = { 5 } }
+
+-- Per-era race override/variant lookup. RACE_VARIANTS loads a spec again per
+-- extra race so exclusive-race lanes are observable under every race that can
+-- gate them; run_all merges the never lists (a lane stays never only if it
+-- never fires under ANY variant race). Era-scoped so a WotLK-era smite load
+-- can't silently pick up a TBC or vanilla binding.
+local function race_maps_for(era)
+    if era == "vanilla" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
+    if era == "sylvanas" then return M.RACE_OVERRIDES, M.RACE_VARIANTS end
+    return nil, nil
+end
+
 M.SPEC_FILES_WOTLK = {
     deathknight = { "blood", "frost", "leveling", "unholy" },
     druid = { "balance", "bear", "cat", "leveling", "resto" },
@@ -3072,9 +3101,11 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- run_spec passes an explicit race_override for RACE_VARIANTS (undead 5)
     -- so DevouringPlague is observable too. Other specs get nil → race 1
     -- (human), unchanged.
-    -- Era-gated: only the TBC battery binds the race override, so a future
-    -- WotLK-era smite load can't silently pick up the night-elf binding.
-    M._race_override = race_override or ((era == "sylvanas") and M.RACE_OVERRIDES and M.RACE_OVERRIDES[spec_key])
+    -- Era-gated: the TBC and vanilla batteries each bind their own race
+    -- override (smite loads as night elf 4 so Starshards is observable); a
+    -- future WotLK-era smite load can't silently pick up a binding.
+    local overrides = race_maps_for(era)
+    M._race_override = race_override or (overrides and overrides[spec_key])
     local ok, result = pcall(dofile, path)
     M._race_override = nil
     -- Keep the stub installed when there was no pre-existing core: runtime
@@ -3293,7 +3324,8 @@ function M.run_all(era)
                 -- can't silently pick up the undead variant. If a variant load
                 -- fails, never_set is left untouched (conservative: lanes stay
                 -- never) and the failure surfaces via the load-failures pin.
-                local variants = (era == "sylvanas") and M.RACE_VARIANTS and M.RACE_VARIANTS[spec_key]
+                local _, variant_map = race_maps_for(era)
+                local variants = variant_map and variant_map[spec_key]
                 local never_set = {}
                 for _, n in ipairs(report.never) do never_set[n] = true end
                 local errs = {}
