@@ -46,9 +46,7 @@ local ACTION = {
 -- ============================================================================
 local STEALTH_BUFF     = { 1787, 1786, 1785, 1784 }
 local SLICE_DICE_BUFF  = { 6774, 5171 }
-local FIND_WEAKNESS_BUFF = { 31235, 31234, 31233 }  -- debuff on target after finisher
 local RUPTURE_DEBUFF   = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
-local GARROTE_DEBUFF   = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
 local COLD_BLOOD_BUFF = { 14177 }
 local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
 local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
@@ -57,7 +55,6 @@ local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
 local ENERGY_TICK = 20           -- Energy gained per tick (2s)
 local ENERGY_MUTILATE_COST = 60  -- Mutilate base cost
-local ENERGY_FINISHER_COST = 35  -- Envenom/Eviscerate cost
 local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
 

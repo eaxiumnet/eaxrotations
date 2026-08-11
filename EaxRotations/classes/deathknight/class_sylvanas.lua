@@ -10,7 +10,6 @@ if not NS then return nil end
 local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("deathknight", "DeathKnight")
 local load_spec = cl.create_expansion_loader("deathknight", "DeathKnight")
-local enums = cl.get_enums()
 local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 

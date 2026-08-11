@@ -39,7 +39,6 @@ local SPELLS = NS.PriestSpells or {}
 local leveling = require("shared/leveling_sylvanas")
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 
 
 

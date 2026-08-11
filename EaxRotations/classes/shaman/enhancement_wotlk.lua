@@ -11,7 +11,6 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.ShamanSpells or {}
 
 local define = spec_kit.define_action
 
@@ -31,7 +30,6 @@ local ACTION = {
 
 local MAELSTROM_WEAPON_BUFF = { 53817, 53816, 53815, 53814, 53813 }
 local FLAME_SHOCK_DEBUFF = { 49233, 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
-local STORMSTRIKE_DEBUFF = { 17364 }
 local LIGHTNING_SHIELD_BUFF = { 49281, 49280, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 
 local enhancement_state = {

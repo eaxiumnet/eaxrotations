@@ -61,9 +61,7 @@ local SPELLS = NS.RogueSpells or NS.SPELLS or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 
-local HAS_STEALTH = NS.spell_exists and NS.spell_exists(SPELLS.Stealth and SPELLS.Stealth[1] or 1784)
 
 local HAS_SAP = NS.spell_exists and NS.spell_exists(SPELLS.Sap and SPELLS.Sap[1] or 6770)
 

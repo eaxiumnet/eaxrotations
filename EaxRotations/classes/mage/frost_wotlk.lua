@@ -25,7 +25,6 @@ local ACTION = {
     Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
 }
 
-local FROSTBOLT_DEBUFF = { 27072, 27071, 25304, 10181, 10180, 10179, 10177, 10176, 10175, 116, 205 }
 local FROSTFIRE_BOLT_DEBUFF = { 47610 }
 local FROST_NOVA_DEBUFF = { 122, 865, 6131, 10230 }
 

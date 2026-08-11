@@ -13,7 +13,6 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
 -- ============================================================================
 -- What: Classic Vanilla Warlock Demonology rotation with DoTs, pet management, execute
@@ -33,9 +32,6 @@ local SIPHON_LIFE_DEBUFF     = { 18881, 18880, 18879, 18265 }
 local IMMOLATE_DEBUFF        = { 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
 local DEMON_ARMOR_BUFF       = { 11735, 11734, 11733, 1086, 706 }
-local FEL_ARMOR_BUFF         = {}  -- TBC-only
-local SOUL_LINK_BUFF         = {}  -- TBC-only
-local DARK_PACT_BUFF         = {}  -- TBC-only
 
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
@@ -70,7 +66,6 @@ local MANA_POTION_IDS = { 13444, 13443 }
 -- shared), so fall back to target:get_class() like the TBC shared helper.
 local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true }
 local SOULSTONE_BUFF_IDS = { 20765, 20764, 20763, 20762, 20707 }
-local SOULSTONE_ITEMS = { 16896, 16895, 16893, 16892, 5232 }
 local PET_LOW_HP = 30
 
 local DOT_REFRESH_WINDOW = 1.5

@@ -10,7 +10,6 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.HunterSpells or {}
 
 local define = spec_kit.define_action
 

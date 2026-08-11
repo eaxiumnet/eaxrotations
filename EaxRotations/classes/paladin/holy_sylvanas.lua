@@ -68,7 +68,6 @@ local FsrManager = require("shared/fsr_manager_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(item_ids)
     if not NS.is_item_ready then return 0 end
@@ -130,7 +129,6 @@ local BUFF_BLESSING_KINGS = { 25898, 20217 }
 local BUFF_BLESSING_FREEDOM = { 1044 }
 local BUFF_BLESSING_PROTECTION = { 10278, 5599, 1022 }
 local BUFF_BLESSING_SACRIFICE = { 27148, 27147, 20729, 6940 }
-local BUFF_DIVINE_SHIELD = { 642, 1020 }
 local BUFF_LIGHTS_GRACE = { 31834 }
 local BUFF_CONCENTRATION_AURA = { 19746 }
 local BUFF_DEVOTION_AURA = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
@@ -140,7 +138,6 @@ local BUFF_SHADOW_RESIST_AURA = { 27151, 19896, 19895, 19876 }
 local DEBUFF_JUDGEMENT_LIGHT = { 27163, 20343, 20342, 20341, 20185 }
 local DEBUFF_JUDGEMENT_WISDOM = { 27164, 20355, 20354, 20186 }
 
-local MAGIC_DAMAGE_DEBUFFS = { 29928, 36805, 33051, 28410, 27243, 25368 }
 local FIRE_DAMAGE_DEBUFFS = { 22959, 10161, 16536, 29953, 31340 }
 local FROST_DAMAGE_DEBUFFS = { 12494, 116, 7321, 33395, 27087 }
 local SHADOW_DAMAGE_DEBUFFS = { 27216, 27243, 30910, 30414, 33676 }

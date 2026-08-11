@@ -43,15 +43,12 @@ local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 
 -- Form IDs for native form-restriction checks
-local FORM_ID_HUMANOID = 0
 local FORM_ID_BEAR = 1
 local FORM_ID_CAT = 2
 
 -- Form buff IDs for form detection (used by can_cast_in_form checks)
 local FORM_BUFF_BEAR = { 9634, 5487 }
 local FORM_BUFF_CAT = { 768 }
-local FORM_BUFF_MOONKIN = { 24858 }
-local FORM_BUFF_TREE = { 33891 }
 
 -- Consumables are caster-form-only (see FORM-SAFE CONSUMABLES above): a shifted
 -- druid never drinks, so the old stance-allow table and can_use_items() /

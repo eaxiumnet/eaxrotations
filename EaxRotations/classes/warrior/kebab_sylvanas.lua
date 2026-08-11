@@ -32,7 +32,6 @@ if load_player and ok_cls and cls_id ~= enums.class_id.WARRIOR then return end
 
 local SPELLS = NS.WarriorSpells or {}
 local Constants = NS.WarriorConstants or {}
-local define = spec_kit.define_action_for_class(SPELLS)
 local format = string.format
 local EMPTY_SETTINGS = {}
 

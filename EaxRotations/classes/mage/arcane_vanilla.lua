@@ -21,7 +21,6 @@ local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 -- Slow (31589) is TBC-only; not available in Classic Vanilla
-local FROST_NOVA_ROOTS = { 10230, 6131, 865, 122 }
 
 -- ============================================================================
 -- Constants
@@ -30,13 +29,11 @@ local AB_BASE_MANA_COST = 195              -- AB rank 1 (~20% of ~975 base mana)
 local AB_MANA_MULT_PER_STACK = 0.75         -- Each stack: +75% mana cost
 local AB_BASE_CAST_TIME = 2.5               -- Base cast time (seconds)
 local AB_CAST_REDUCTION_PER_STACK = 0.1     -- Each stack: -0.1s cast time
-local AB_STACK_DURATION = 8                 -- Stacks last 8 seconds
 
 -- MTTE constants (conservative estimates including Fire Blast / AM filler)
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
 local MTTE_CONSERVE_MPS = 100               -- ~100 mana/sec during conserve (AM filler + regen)
 
-local MANA_GEM_CONJURE = { 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
 
 -- Phases

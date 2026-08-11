@@ -136,7 +136,6 @@ for i = 1, #(TBC_ITEMS.healthstones or {}) do
 end
 
 local TWIST_WINDOW = 0.45
-local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
 
 -- ============================================================================

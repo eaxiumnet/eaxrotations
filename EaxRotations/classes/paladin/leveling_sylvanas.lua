@@ -14,7 +14,6 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")
@@ -23,11 +22,6 @@ local leveling = require("shared/leveling_sylvanas")
 -- Constants
 -- ============================================================================
 
-local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
-local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
-local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
-local SEAL_BLOOD_BUFF = { 31892 }
-local SEAL_MARTYR_BUFF = { 348700 }
 local ANY_SEAL_BUFF = { 27166, 20357, 20356, 20166, 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154, 27170, 20920, 20919, 20918, 20915, 20375, 31892, 348700 }
 local BLESSING_MIGHT_BUFF = { 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
 local BLESSING_WISDOM_BUFF = { 27142, 25290, 19854, 19853, 19852, 19850 }
@@ -35,9 +29,6 @@ local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
 -- Retribution Aura ranks high→low (TBC). Removed invalid ID 466 (not a spell on lexxer/DBC).
 local RETRIBUTION_AURA_BUFF = { 27150, 10301, 10300, 10299, 10298, 7294 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
-local SEAL_OF_WISDOM = 20170
-local SEAL_OF_RIGHTEOUSNESS = 20154
-local SEAL_OF_COMMAND = 20375
 local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 
 local context_allowed = leveling.create_context_guard()

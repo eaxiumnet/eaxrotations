@@ -33,7 +33,6 @@ local function _totem_ready(spell)
 end
 
 -- Mana conservation tier defaults (configurable via schema)
-local MANA_LOW_DEFAULT = 30
 local MANA_CONSERVE_DEFAULT = 15
 local MANA_EMERGENCY_DEFAULT = 5
 

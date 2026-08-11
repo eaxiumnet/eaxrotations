@@ -66,15 +66,11 @@ local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 27127, 23028, 27126, 10157, 10156, 1461, 1460, 1459 }
 local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
 -- Frost Armor + Ice Armor share one ladder (Ice Armor replaces Frost Armor at lvl 30).
-local FROST_ARMOR_BUFF = { 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }
 -- Any active mage armor — used to suppress the armor fallback when one is already up.
 local ANY_MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
-local ICE_BLOCK_BUFF = { 45438 }  -- 11958=ColdSnap not IceBlock; 27619 unverified
 local PRESENCE_OF_MIND_BUFF = { 12043 }
-local COMBUSTION_BUFF = { 11129 }
 local WINTERS_CHILL_DEBUFF = { 28595, 28594, 28593, 28592, 11180 }
 local FROSTBITE_DEBUFF = { 12494 }
-local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 

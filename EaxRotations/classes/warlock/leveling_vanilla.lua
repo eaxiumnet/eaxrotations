@@ -12,12 +12,10 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 local DEMON_ARMOR_BUFF = { 11735, 11734, 11733, 1086, 706, 696, 687 }
-local DEATH_COIL_IDS = { 17926, 17925, 6789 }
 local FEAR_IDS = { 6215, 6213, 5782 }
 local CORRUPTION_IDS = { 11672, 11671, 7648, 6223, 6222, 172 }
 local IMMOLATE_IDS = { 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CURSE_OF_AGONY_IDS = { 11713, 11712, 11711, 6217, 1014, 980 }
-local DRAIN_LIFE_IDS = { 11700, 11699, 7651, 709, 699, 689 }
 
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 local EMPTY_SETTINGS = {}

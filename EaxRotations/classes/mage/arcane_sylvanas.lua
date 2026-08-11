@@ -42,10 +42,6 @@ local ACTION = {
 }
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
-local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
-local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
-
 -- ============================================================================
 -- Buff / Debuff IDs
 -- ============================================================================
@@ -55,8 +51,6 @@ local PRESENCE_OF_MIND_BUFF = { 12043 }
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
-local SLOW_DEBUFF = { 31589 }
-local FROST_NOVA_ROOTS = TBC_MAGE.frost_nova or { 27088, 10230, 6131, 865, 122 }
 
 -- ============================================================================
 -- Constants
@@ -65,7 +59,6 @@ local AB_BASE_MANA_COST = 195              -- AB rank 1 (~20% of ~975 base mana)
 local AB_MANA_MULT_PER_STACK = 0.75         -- Each stack: +75% mana cost
 local AB_BASE_CAST_TIME = 2.5               -- Base cast time (seconds)
 local AB_CAST_REDUCTION_PER_STACK = 0.1     -- Each stack: -0.1s cast time
-local AB_STACK_DURATION = 8                 -- Stacks last 8 seconds
 
 -- MTTE constants (conservative estimates including Fire Blast / Frostbolt filler)
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
@@ -74,7 +67,6 @@ local MTTE_CONSERVE_MPS = 80                -- ~80 mana/sec during conserve (Fro
 -- Wowsims APL-aligned thresholds
 local CONSERVE_START_PCT = 20               -- Enter conserve at 20% mana
 local CONSERVE_END_PCT = 30                 -- Exit conserve at 30% mana
-local DELAY_MAJOR_CDS_S = 10                -- Delay major CDs 10s into combat
 
 -- Bloodlust / Heroism buff IDs
 local BLOODLUST_BUFFS = { 2825, 32182 }

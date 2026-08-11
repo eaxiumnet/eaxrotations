@@ -36,7 +36,6 @@ local is_leveling_context = leveling.create_context_guard()
 -- Constants
 -- ============================================================================
 local SPELLS = NS.DruidSpells or {}
-local define = spec_kit.define_action_for_class(SPELLS)
 local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
 local MARK_OF_THE_WILD_BUFF = (_rbf_ok and RBF and RBF.detect("mark_of_the_wild")) or { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }

@@ -27,12 +27,6 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 
--- Optional TBC item data for healthstone / potion IDs (nil-safe fallback)
-local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
-if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
-local TBC_ITEMS   = TBC.ITEMS or {}
-local TBC_POTIONS = TBC_ITEMS.potions or {}
-
 -- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
 local _opts = {}
 
@@ -103,7 +97,6 @@ local RAGE_BASH            = 10
 -- Rage management thresholds
 local RAGE_LOW             = 15   -- below this = rage starved
 local RAGE_MANGLE_RESERVE  = 20   -- keep this much banked for the next Mangle
-local HIGH_RAGE            = 75   -- Maul allowed in AoE only at/above this
 local RAGE_POOL_PULL       = 20   -- pre-pull Enrage stops once we have this much
 local OOC_ENRAGE_MAX       = 20   -- don't Enrage OOC if already above this
 
@@ -128,7 +121,6 @@ local TAUNT_COOLDOWN_WINDOW = 8
 -------------------------------------------------------------------------------
 local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
 local LACERATE_DEBUFF = { 33745 }
-local MANGLE_DEBUFF = { 33987, 33986, 33878, 33983, 33982, 33876 }
 local DEMO_ROAR_DEBUFF = { 26998, 9898, 9747, 9490, 1735, 99, 25203, 11556, 6190, 1160 }
 local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
 -- GotW first (better than MotW), then MotW high→low + alternate aura IDs (Vanilla∪TBC∪WotLK).

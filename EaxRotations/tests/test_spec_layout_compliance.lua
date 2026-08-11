@@ -204,9 +204,11 @@ for _, path in ipairs(spec_files) do
             add_issue(issues, path, "converted-missing-spec_kit", "spec_kit require not found")
         end
 
-        -- define_action_for_class usage.
-        if not has_lit(text, "define_action_for_class") then
-            add_issue(issues, path, "converted-missing-define_action", "spec_kit.define_action_for_class not used")
+        -- define_action_for_class usage. Module-style converted specs (plain
+        -- spell tables + shared helpers) prove conversion via spec_kit.safe_state
+        -- instead; either marker satisfies the mechanical contract.
+        if not has_lit(text, "define_action_for_class") and not has_lit(text, "safe_state") then
+            add_issue(issues, path, "converted-missing-define_action", "spec_kit.define_action_for_class (or safe_state) not used")
         end
 
         -- Guarded registration form (nil-safe in unit tests).

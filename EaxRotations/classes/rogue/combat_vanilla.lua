@@ -16,9 +16,6 @@ local RUPTURE_DEBUFF = { 11275, 11274, 11273, 8640, 8639, 1943 }
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local BLADE_FLURRY_BUFF = { 13877 }
 local ADRENALINE_RUSH_BUFF = { 13750 }
-local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
-local EVISCERATE_SPELL = SPELLS.Eviscerate
-local RUPTURE_SPELL = SPELLS.Rupture
 
 -- Energy tick constants
 local ENERGY_TICK = 2.0

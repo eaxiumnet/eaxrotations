@@ -62,22 +62,15 @@ local ACTION = {
 }
 
 -- Buff/debuff ID tables (Classic rank sets)
-local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 11551, 11550, 11549, 6192, 5242, 6673 }
-local BERSERKER_RAGE_BUFF = { 18499 }
-local SWEEPING_STRIKES_BUFF = { 12292 }  -- Vanilla ID (TBC=12328; different ID per expansion)
 local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
 local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
 local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
-local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
 local HAMSTRING_DEBUFF = { 7373, 7372, 1715 }
 
 -- Constants
 local EXECUTE_DEFAULT_RAGE = 25
 local WHIRLWIND_RESERVE = 25
-local CORE_POOL_WINDOW = 2.0
 local SLAM_RAGE_COST = 15
-local SLAM_CAST_TIME = 1.5  -- Classic Slam cast time
-local SLAM_SAFETY = 0.2
 
 -- State table (pre-allocated for hot-path reuse)
 local fury_state = {

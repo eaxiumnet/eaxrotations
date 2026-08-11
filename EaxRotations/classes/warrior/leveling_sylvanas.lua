@@ -36,7 +36,6 @@ local is_leveling_context = leveling.create_context_guard()
 -- Constants
 -- ============================================================================
 local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
-local define = spec_kit.define_action_for_class(SPELLS)
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")

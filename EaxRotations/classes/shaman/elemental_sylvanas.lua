@@ -76,11 +76,9 @@ local WATER_SHIELD_MANA_DEFAULT = 50
 
 -- SP-aware DoT gating: skip Flame Shock below this spell damage threshold
 -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient; breakpoint ~400 SP pre-raid
-local FLAME_SHOCK_MIN_SP_DEFAULT = 400
 
 -- Chain Lightning defaults (DB2: EffectChainTargets=3, EffectChainAmplitude=0.70)
 local CL_MIN_TARGETS = 3
-local CL_CLUSTER_RADIUS = 10  -- yards, configurable
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)

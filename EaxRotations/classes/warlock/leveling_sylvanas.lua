@@ -31,7 +31,6 @@ if not leveling then return nil end
 local SPELLS = NS.WarlockSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 
 
 
@@ -45,11 +44,9 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 
-local DEATH_COIL_IDS = { 27223, 17926, 17925, 6789 }
 
 local FEAR_IDS = { 6215, 6213, 5782 }
 
-local DRAIN_SOUL_IDS = { 27217, 11675, 8289, 8288, 1120 }
 
 local CORRUPTION_IDS = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 
@@ -57,9 +54,7 @@ local IMMOLATE_IDS = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 
 local CURSE_OF_AGONY_IDS = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 
-local HEALTH_FUNNEL_IDS = { 27259, 11695, 11694, 11693, 755, 3699, 3700 }
 
-local DRAIN_LIFE_IDS = { 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }
 
 
 
@@ -69,7 +64,6 @@ local DEMONIC_SACRIFICE_AURA_ALL = { 18789, 18790, 18791, 18792, 35701 }
 
 
 
-local EMPTY_SETTINGS = {}
 
 
 

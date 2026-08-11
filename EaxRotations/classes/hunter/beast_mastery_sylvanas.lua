@@ -60,20 +60,16 @@ local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helpe
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local AUTO_SHOT_ID = 75
 local ARCANE_SHOT_MANA_FLOOR = 50   -- BM optimal (70): save mana below 50% for Kill Command & pet abilities
 local ARCANE_SHOT_MANA_FLOOR_PRE_STEADY = 20  -- Pre-62: Steady Shot unavailable; Arcane is the filler
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
 local STEADY_SHOT_LEVEL = 62
 local SERPENT_STING_IDS  = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
-local SCORPID_STING_IDS  = { 3043 }
-local VIPER_STING_IDS    = { 27018, 14280, 14279, 3034 }
 local HUNTER_MARK_IDS    = { 14325, 14324, 14323, 1130 }
 local ASPECT_HAWK_IDS    = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_IDS   = { 34074 }
 local ASPECT_CHEETAH_IDS = { 5118 }
 local MISDIRECTION_ID    = 34477
-local WING_CLIP_DEBUFF   = { 2974 }
 local RAPTOR_STRIKE_IDS  = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
 local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS          = { 27022, 14295, 14294, 1510 }

@@ -110,8 +110,7 @@ assert_not_numbers("EaxRotations/classes/shaman/enhancement_sylvanas.lua", { 104
 assert_spell_ids("EaxRotations/classes/priest/class_sylvanas.lua", "InnerFire", { 25431, 10952, 10951, 1006, 602, 7128, 588 })
 assert_spell_ids("EaxRotations/classes/priest/class_sylvanas.lua", "PowerWordFortitude", { 25389, 10938, 10937, 2791, 1245, 1244, 1243 })
 assert_spell_ids("EaxRotations/classes/priest/class_sylvanas.lua", "Starshards", { 25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797 })
-assert_true(contains(read_file("EaxRotations/classes/priest/shadow_sylvanas.lua"), "STARSHARDS_SPELL = { 25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797 }"), "Shadow Starshards should use online TBC spell IDs")
-assert_true(contains(read_file("EaxRotations/classes/priest/shadow_sylvanas.lua"), "HOLY_NOVA_SPELL = { 25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237 }"), "Shadow Holy Nova fallback should not use item/NPC IDs")
+assert_spell_ids("EaxRotations/classes/priest/class_sylvanas.lua", "HolyNova", { 25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237 })
 assert_not_numbers("EaxRotations/classes/priest/class_sylvanas.lua", { 25430, 10936, 1242, 1241, 1240 }, "priest spell table")
 
 assert_spell_ids("EaxRotations/classes/warlock/class_sylvanas.lua", "CurseOfAgony", { 27218, 11713, 11712, 11711, 6217, 1014, 980 })

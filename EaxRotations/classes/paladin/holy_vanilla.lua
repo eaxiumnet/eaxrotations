@@ -13,7 +13,6 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
 local format = string.format
 local EMPTY_OPTS = {}
@@ -61,7 +60,6 @@ local BUFF_BLESSING_KINGS = { 20217 }
 local BUFF_BLESSING_FREEDOM = { 1044 }
 local BUFF_BLESSING_PROTECTION = { 10278, 5599, 1022 }
 local BUFF_BLESSING_SACRIFICE = { 20729, 6940 }
-local BUFF_DIVINE_SHIELD = { 642, 1020 }
 local BUFF_LIGHTS_GRACE = { }
 local BUFF_CONCENTRATION_AURA = { 19746 }
 local BUFF_DEVOTION_AURA = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
@@ -71,7 +69,6 @@ local BUFF_SHADOW_RESIST_AURA = { 19896, 19895, 19876 }
 local DEBUFF_JUDGEMENT_LIGHT = { 20343, 20342, 20341, 20185 }
 local DEBUFF_JUDGEMENT_WISDOM = { 20355, 20354, 20186 }
 
-local MAGIC_DAMAGE_DEBUFFS = { 10894 }  -- Vanilla SW:P rank 8
 local FIRE_DAMAGE_DEBUFFS = { 22959, 10161, 16536 }
 local FROST_DAMAGE_DEBUFFS = { 12494, 116, 7321 }
 local SHADOW_DAMAGE_DEBUFFS = { }

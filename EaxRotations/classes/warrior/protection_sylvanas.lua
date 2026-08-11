@@ -60,11 +60,6 @@ local SHIELD_WALL_CD = 1800
 local FINAL_STAND_CD = 480
 
 -- Test assertion strings required by test_spell_id_table_regressions.lua
-local TEST_ASSERTIONS = {
- { name = "DemoralizingShout", cooldown = DEMO_SHOUT_CD },
- { name = "ShieldSlam", cooldown = SHIELD_SLAM_CD },
- { name = "ThunderClap", cooldown = THUNDERCLAP_CD },
-}
 
 local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, 11597, 11596, 8380, 7405, 7386 }
 local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }

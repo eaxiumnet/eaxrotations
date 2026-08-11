@@ -73,7 +73,6 @@ local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076,
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 
 local SKIP_RANGE = { skip_range = true }
-local PSYCHIC_SCREAM_OPTS = { skip_range = true, expected_cooldown = 30 }
 local SHADOWFIEND_OPTS = { expected_cooldown = 300 }
 
 local function target_creature_type(unit)

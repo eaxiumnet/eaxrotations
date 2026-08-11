@@ -21,7 +21,6 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local AUTO_SHOT_ID = 75
 local AUTO_SHOT_BUFFER_MS = 100
 local AIMED_SHOT_CAST_MS = 3000     -- Classic Aimed Shot cast; weave in auto gaps (wowsims p1)
 local ARCANE_SHOT_MANA_FLOOR = 20   -- Suppress Arcane when mana critical
@@ -44,14 +43,8 @@ local function record_manual_shot()
     end
 end
 local SERPENT_STING_IDS  = { 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
-local SCORPID_STING_IDS  = { 3043 }
-local VIPER_STING_IDS    = { 14280, 14279, 3034 }
 local HUNTER_MARK_IDS    = { 14325, 14324, 14323, 1130 }
 local ASPECT_HAWK_IDS    = { 14322, 14321, 14320, 14319, 14318, 13165 }
-local ASPECT_VIPER_IDS   = { }
-local ASPECT_CHEETAH_IDS = { 5118 }
-local MISDIRECTION_ID    = nil
-local WING_CLIP_DEBUFF   = { 2974 }
 local RAPTOR_STRIKE_IDS  = { 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
 local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS          = { 14295, 14294, 1510 }

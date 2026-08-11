@@ -274,11 +274,8 @@ local UNSTABLE_AFFL_DEBUFF   = { 30405, 30404, 30108 }
 local SIPHON_LIFE_DEBUFF     = { 30911, 27264, 18881, 18880, 18879, 18265 }
 local IMMOLATE_DEBUFF        = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local SHADOW_EMBRACE_DEBUFF  = { 32386, 32388, 32389, 32390, 32391 }
-local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
-local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
-local SOULSHATTER_BUFF       = { 29858 }
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
 -- Imp Firebolt spell IDs (all ranks). Only the Imp has Firebolt, so these also
 -- identify the active pet as an Imp.
@@ -321,7 +318,6 @@ local LOCAL_SPELLS = {
     RainOfFire      = NS.spell_action({ 27212, 17954, 17953, 5740 }, "RainOfFire"),
 }
 
-local SHADOW_WARD_IDS = { 28610, 11740, 11739, 6229 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
 local BLOODLUST_BUFFS = { 2825, 32182 }  -- Bloodlust (Horde) / Heroism (Alliance)

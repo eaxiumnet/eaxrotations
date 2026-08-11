@@ -23,7 +23,6 @@ local RIP_DEBUFF = { 1079, 9492, 9493, 9752, 9894, 9896 }
 local FAERIE_FIRE_FERAL = { 16857, 9907, 9749, 778, 770 }
 local PROWL_BUFF = { 9913, 6783, 5215 }
 
-local ENERGY_CAP = 100
 local RAGE_LOW = 15
 local RIP_CP_MIN = 4
 local BITE_CP_MIN = 4

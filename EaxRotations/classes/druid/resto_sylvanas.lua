@@ -17,10 +17,8 @@ if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 local FsrManager = require("shared/fsr_manager_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
 local PLAYER_UNIT = NS.PLAYER_UNIT
-local STANCE_CASTER = 0
 local STANCE_BEAR = 1
 local STANCE_CAT = 3
 local STANCE_TRAVEL = 4
@@ -50,7 +48,6 @@ local TREE_AURA_RANGE = 45
 local MANA_LOW_FOR_BLOOM = 22
 local MANA_CONSERVE_PCT = 30
 local MANA_EMERGENCY_PCT = 15
-local MANA_CRITICAL_PCT = 5
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(item_ids)
     if not NS.is_item_ready then return 0 end
@@ -66,12 +63,10 @@ local RAID_REJUV_HP = 88
 local REGROWTH_SPOT_HP = 62
 local HEALING_TOUCH_HP = 42
 local DOWNRANK_HT_HP = 72
-local DOWNRANK_REGROWTH_HP = 75
 
 local HEALING_TOUCH_MAX = 26979
 local HEALING_TOUCH_CONSERVE = 26978
 local HEALING_TOUCH_EFFICIENT = 25297
-local REGROWTH_MAX = 26980
 local REGROWTH_CONSERVE = 9858
 local REGROWTH_EFFICIENT = 9857
 local CLEARCASTING_BUFF = 16870

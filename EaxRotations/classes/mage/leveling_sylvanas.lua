@@ -35,7 +35,6 @@ if not leveling then return nil end
 local SPELLS = NS.MageSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 
 
 
@@ -85,7 +84,6 @@ local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 
 
-local EMPTY_SETTINGS = {}
 
 
 

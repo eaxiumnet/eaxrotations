@@ -22,7 +22,6 @@ local SCORCH_DEBUFF = { 22959 }
 
 -- Mana Gem item IDs (highest to lowest rank)
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }  -- Ruby, Citrine, Jade, Agate
-local MANA_GEM_CONJURE = { 10054, 10053, 3552, 759 }  -- Conjure Mana Ruby..Agate
 
 -- Test assertion strings (preserved for regression tests)
 

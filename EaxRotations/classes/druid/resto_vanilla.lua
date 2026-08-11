@@ -12,10 +12,8 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
 local PLAYER_UNIT = NS.PLAYER_UNIT
-local STANCE_CASTER = 0
 local STANCE_BEAR = 1
 local STANCE_CAT = 3
 local STANCE_TRAVEL = 4
@@ -36,17 +34,14 @@ local BARKSKIN_EXPECTED_CD = 60
 local REBIRTH_EXPECTED_CD = 1200
 local REJUVENATION_REFRESH = 3.0
 local REGROWTH_REFRESH = 4.0
-local MANA_LOW_FOR_BLOOM = 22
 local MANA_CONSERVE_PCT = 30
 local MANA_EMERGENCY_PCT = 15
-local MANA_CRITICAL_PCT = 5
 local TANK_REJUV_HP = 92
 local RAID_REJUV_HP = 88
 local REGROWTH_SPOT_HP = 62
 local HEALING_TOUCH_HP = 42
 local DOWNRANK_HT_HP = 72
 local CLEARCASTING_BUFF = 16870
-local MOVING_HOT_HP = 90
 local PVP_MELEE_RANGE = 8
 local REPOSITION_RANGE = 28
 

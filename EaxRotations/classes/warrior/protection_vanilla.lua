@@ -35,10 +35,6 @@ local INTIMIDATING_SHOUT_CD = 180
 local SHIELD_WALL_CD = 1800
 local LAST_STAND_CD = 480
 
-local TEST_ASSERTIONS = {
-    { name = "DemoralizingShout", cooldown = DEMO_SHOUT_CD },
-    { name = "ThunderClap", cooldown = THUNDERCLAP_CD },
-}
 
 local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 11597, 11596, 8380, 7405, 7386 }
 local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 11556, 11555, 11554, 6190, 1160 }

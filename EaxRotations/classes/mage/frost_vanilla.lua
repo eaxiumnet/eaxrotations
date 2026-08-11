@@ -25,12 +25,9 @@ local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local FROST_NOVA_ROOTS = { 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 23028, 10157, 10156, 1461, 1460, 1459 }
-local ICE_BLOCK_BUFF = { }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
-local COMBUSTION_BUFF = { 11129 }
 local WINTERS_CHILL_DEBUFF = { 11180 }
 local FROSTBITE_DEBUFF = { 12494 }
-local MANA_GEM_CONJURE = { 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
 
 -- ============================================================================

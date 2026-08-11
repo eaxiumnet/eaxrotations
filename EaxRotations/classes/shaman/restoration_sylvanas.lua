@@ -93,7 +93,6 @@ end
 -- Mana conservation tier defaults (configurable via schema)
 local MANA_LOW_DEFAULT = 30
 
-local CHAIN_HEAL_MAX = 25423
 local CHAIN_HEAL_CONSERVE = 25422
 local CHAIN_HEAL_EFFICIENT = 10623
 local MANA_CONSERVE_DEFAULT = 15
@@ -107,8 +106,6 @@ local HEALING_WAVE_CONSERVE = 25391 -- Rank 11 (conserve)
 local HEALING_WAVE_EFFICIENT = 25357 -- Rank 10 (efficient)
 
 -- Lesser Healing Wave rank tiers
-local LESSER_HEALING_WAVE_MAX = 25420     -- Rank 7 (max)
-local LESSER_HEALING_WAVE_CONSERVE = 10468 -- Rank 6 (conserve)
 
 -- Small helper to keep rank selection consistent and reduce duplication
 -- across FriendlyTarget, HealingWay, and their execute paths.

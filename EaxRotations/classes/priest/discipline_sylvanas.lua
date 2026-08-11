@@ -66,7 +66,6 @@ local ACTION = {
 -- Buff & Debuff ID tables
 -- ============================================================================
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
-local WEAKENED_SOUL_DEBUFF = { 6788 }
 
 local DIVINE_SPIRIT_BUFF = { 25312, 27841, 14819, 14818, 14752 }
 -- Mana conservation floors (Research.md Angle 4 Part B)
@@ -115,7 +114,6 @@ local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
 local FEAR_WARD_BUFF = { 6346 }
 local POWER_WORD_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
 local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231 }
-local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
 local PRAYER_OF_MENDING_BUFF = { 33076 } -- PoM buff on target (TBC rank 1)
 -- Caster DPS class IDs for Power Infusion targeting (TBC)

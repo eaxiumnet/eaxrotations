@@ -67,7 +67,6 @@ local is_leveling_context = leveling.create_context_guard()
 -- ============================================================================
 
 local SPELLS = NS.ShamanSpells or NS.SPELLS or {}
-local define = spec_kit.define_action_for_class(SPELLS)
 
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 
@@ -95,7 +94,6 @@ local TOTEM_SLOT = {
 
 
 
-local runtime = {}
 
 
 

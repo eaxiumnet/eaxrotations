@@ -51,7 +51,6 @@ local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
 
 -- Mana Gem item IDs (highest to lowest rank)
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
-local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald..Agate
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(item_ids)
@@ -117,7 +116,6 @@ local function use_mana_gem()
     return ok and used == true
 end
 
-local PRESENCE_OF_MIND_BUFF = { 12043 }
 
 local function build_state(context)
     local me = context.me or NS.GetPlayer()

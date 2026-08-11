@@ -52,7 +52,6 @@ local DemonArmorSpell = NS.spell_action({ 11735, 11734, 11733, 1086, 706, 687 },
 local ShadowWardSpell = NS.spell_action({ 11740, 11739, 6229 }, "ShadowWard")
 local DrainLife = NS.spell_action({ 11700, 11699, 7651, 709, 699, 689 }, "DrainLife")
 local HealthFunnel = NS.spell_action({ 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel")
-local DarkPact = nil  -- Dark Pact is TBC-only
 local SoulFire = NS.spell_action({ 17924, 6353 }, "SoulFire")
 local SearingPain = NS.spell_action({ 17923, 17922, 17921, 17920, 17919, 5676 }, "SearingPain")
 local Fear = NS.spell_action({ 5782, 6213, 6215 }, "Fear")
@@ -63,7 +62,6 @@ local SummonImp = NS.spell_action({ 688 }, "SummonImp")
 local SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker")
 local SummonSuccubus = NS.spell_action({ 712 }, "SummonSuccubus")
 local SummonFelhunter = NS.spell_action({ 691 }, "SummonFelhunter")
-local SummonFelguard = nil  -- Felguard is TBC-only
 local FelDomination = NS.spell_action({ 18708 }, "FelDomination")
 
 -- Constants

@@ -15,7 +15,6 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")

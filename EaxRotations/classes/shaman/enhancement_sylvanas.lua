@@ -87,9 +87,7 @@ local _totem_scan_result = false
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local TOTEMIC_CALL_SPELL = { 36936 }
 local TOTEM_CALL_DISTANCE = 20           -- yards
-local TOTEM_CALL_MAGMA_DISTANCE = 8     -- yards (tighter for Magma)
 
 -- Air totem spell IDs (as returned by core.spell_book.get_totem_info slot 4).
 local WF_TOTEM_SPELLS = { 8512, 10607, 10611, 25585, 25587 }
@@ -103,9 +101,6 @@ local WINDFURY_WEAPON_SPELLS = { 25505, 16362, 10486, 8235, 8232 }
 local FLAMETONGUE_WEAPON_SPELLS = { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }
 local ROCKBITER_WEAPON_SPELLS = { 25485, 25479, 16316, 16315, 16314, 10399, 8019, 8018, 8017 }
 local FROSTBRAND_WEAPON_SPELLS = { 25500, 16356, 16355, 10456, 8038, 8033 }
-local FIRE_RESIST_TOTEM = { 25563, 10538, 10537, 10534, 8181 }
-local FROST_RESIST_TOTEM = { 25560, 10542, 8185, 8184, 8182 }
-local NATURE_RESIST_TOTEM = { 25574, 10548 }
 local GHOST_WOLF_SPELL = { 2645 }
 local TREMOR_TOTEM_SPELL = { 8143 }
 local SHAMANISTIC_RAGE_BUFF = { 30823 }

@@ -17,7 +17,6 @@ local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_disp
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
 local SPELLS = NS.WarlockSpells or {}
-local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true } -- Priest, Warlock
 
 -- Devour Magic spell object (Felhunter pet ability, TBC: 19505)
 local DEVOUR_MAGIC_SPELL = SPELLS.DevourMagic or { id = { 19505 }, name = "DevourMagic" }
