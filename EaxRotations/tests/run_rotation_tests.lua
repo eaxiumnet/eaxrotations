@@ -36,6 +36,7 @@ local tests = {
  "test_sod_registry_manifest.lua",
  "test_sod_class_loader_integration.lua",
  "test_sod_rotation_matrix.lua",
+ "test_sod_context_wiring_regression.lua",
  "test_sod_source_audit.lua",
      "test_core_min_combo_gate.lua",
     "test_combo_points_reader.lua",

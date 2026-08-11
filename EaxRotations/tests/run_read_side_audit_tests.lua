@@ -174,39 +174,24 @@ local NO_WRITER_ALLOWLIST = {
         lightning_shield_up = "optional context enrichment with buff fallback (enhancement_wotlk)",
         in_melee = "optional context enrichment with distance fallback (protection_sylvanas:671-678)",
 
-        -- SOD context contract (druid/rogue/shaman/warlock/paladin _sod files,
-        -- ~35 reads): the SOD files read their per-frame state through
-        -- `value(context, "X", default)` with explicit defaults; the engine's
-        -- SoD surface (main_sylvanas:1233 is_sod) does not write these fields
-        -- (it writes is_moving/pet_dead, not moving/pet_alive, etc.), so they
-        -- degrade to defaults. This is an era-level context-contract gap, not
-        -- a per-file defect — wiring the SOD context is a separate unit.
-        -- 2026-08 read-side audit flagged it as the largest single family.
-        in_bear_form = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        pet_alive = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        moving = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        metamorphosis_active = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        heal_target_hp_pct = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        has_lifebloom = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        has_rejuvenation = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        holy_shield_charges = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        poison_stacks = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        deadly_poison_stacks = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        target_poisoned = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        snd_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        crimson_tempest_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        blade_dance_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        dual_daggers = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        flame_shock_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        auto_swing_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        melee_swing_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        offhand_imbue = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        mainhand_imbue = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        has_rockbiter_imbue = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        water_shield_up = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        water_totem_active = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        riptide_remains = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
-        fire_totem_active = "SOD context contract un-wired (era-level gap, flagged 2026-08)",
+        -- SOD context contract: the _sod files' rotation-state fields. The
+        -- 2026-08 read-side audit flagged ~25 as read-but-unproduced (every
+        -- _sod rotation degraded to defaults, several to a fully-dead
+        -- rotation); the SOD-context wiring unit (2026-08-11) closed it by
+        -- adding shared/sod_context_sylvanas.lua (enrich() wired into
+        -- main_sylvanas:1239 is_sod block) which now produces form, pet hp,
+        -- poison stacks, shield/imbue/HoT/refresh-remains, Maelstrom stacks,
+        -- and swing-timer fields. The audit's string-key resolver was also
+        -- extended to see value(context,"X")/number(context,"X") reads
+        -- (feral/tank/warlock/hunter/warrior refresh-state family). Remaining
+        -- pins below are fields with a WORKING fallback or no API source.
+        pet_alive = "SOD: working fallback (ctx.pet ~= nil and not ctx.pet_dead) in dps_hunter/warlock files",
+        heal_target_hp_pct = "SOD: working fallback (ctx.lowest.hp) in druid resto build_state",
+        holy_shield_charges = "SOD: working fallback (NS.buff_points) in protection_sod build_state",
+        dual_daggers = "SOD: no weapon-type API; fail-open gate (nil ~= false allows Mutilate)",
+        offhand_imbue = "SOD: needs per-weapon imbue inspection; NS.buff_up cannot distinguish weapons",
+        water_totem_active = "SOD: totem-slot index ambiguous (repo comment slot 4=air vs standard 3=fire/4=water); mis-wire risks under-cast",
+        fire_totem_active = "SOD: totem-slot index ambiguous; mis-wire risks under-cast",
     },
     -- Per-file allowlist: module-internal records / settings aliases that the
     -- state/context receiver name collision surfaces (the `state`/`s`/`c`
@@ -602,6 +587,21 @@ local function collect_reads(content)
         if unit == "self" then read("hp") elseif unit == "target" then read("target_hp") else read("lowest_hp") end
     end
 
+    -- SOD string-key state reads: feral_sod `value(context, "X", default)`
+    -- and the tank/warlock/hunter files' `number(context, "X", default)`
+    -- helpers read rotation-context fields through a string key, not a
+    -- recv.field token. Without this the whole feral/tank refresh-state
+    -- family was invisible to the audit (2026-08 SOD context wiring unit).
+    -- A non-identifier char must precede `number(`/`value(` so that
+    -- spec_kit.setting_number(...) / setting_bool(...) (settings reads, not
+    -- rotation-context reads) are NOT captured.
+    for pre, f in stripped:gmatch('([^%w_])value%s*%(%s*context%s*,%s*"([%a_][%w_]*)"') do
+        if pre ~= "_" then add("context", f, 0) end
+    end
+    for pre, f in stripped:gmatch('([^%w_])number%s*%(%s*context%s*,%s*"([%a_][%w_]*)"') do
+        if pre ~= "_" then add("context", f, 0) end
+    end
+
     return { reads = reads, by_line = by_line, implicit = implicit, lines = lines }
 end
 
@@ -965,6 +965,32 @@ local function run_self_tests()
     local dups = dup_allowlist_keys(dup_src)
     expect(#dups, 1, "one duplicate allowlist key detected")
     expect(dups[1], "context", "duplicate key name")
+
+    -- Fixture 13: SOD string-key state reads (value(context,"X") / number(
+    -- context,"X")) are flagged when unproduced and resolved when produced;
+    -- spec_kit.setting_number is a SETTINGS read and is never captured.
+    local sk = scan_content(
+        "local function value(context, key, fb)\n"
+        .. "    return type(context[key]) == type(fb) and context[key] or fb\n"
+        .. "end\n"
+        .. "local function build_state(context)\n"
+        .. "    context = type(context) == 'table' and context or {}\n"
+        .. "    return { in_cat_form = value(context, \"in_cat_form\", false),\n"
+        .. "             sunder_stacks = number(context, \"sunder_stacks\", 0) }\n"
+        .. "end\n")
+    local f13 = unproduced_reads(sk, empty_writers)
+    local cat_flags, sunder_flags = 0, 0
+    for _, f in ipairs(f13) do
+        if f.field == "in_cat_form" then cat_flags = cat_flags + 1 end
+        if f.field == "sunder_stacks" then sunder_flags = sunder_flags + 1 end
+    end
+    expect(cat_flags, 1, "value(context,\"X\") string-key read is a context read")
+    expect(sunder_flags, 1, "number(context,\"X\") string-key read is a context read")
+    local sk_writers = { context = { in_cat_form = true, sunder_stacks = true }, state = {} }
+    expect(#unproduced_reads(sk, sk_writers), 0, "produced string-key fields do not flag")
+    local sk2 = scan_content(
+        "local t = spec_kit.setting_number(context, \"fsr_mana_threshold\", 35)\n")
+    expect(#unproduced_reads(sk2, empty_writers), 0, "spec_kit.setting_number is a settings read, never a context read")
 
     -- Real-file probes: the THREE pre-fix defect shapes must each flag under
     -- the writer set of the CURRENT tree (the fields are still unproduced —

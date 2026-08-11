@@ -64,14 +64,20 @@ context.mana_pct = 100
 assert_eq(strategy(modules.mage.rotation, "FrozenOrb").matches(context, modules.mage.rotation.build_state(context)), true,
     "Mage equipped Frozen Orb")
 
+-- The dispatcher now produces context.hp_pct (SoD context wiring unit
+-- 2026-08-11, shared/sod_context_sylvanas.lua aliases hp_pct <- hp), so
+-- hand-mutated hp must keep hp_pct in sync (same as mana_pct below).
 context.hp = 8
+context.hp_pct = 8
 assert_eq(modules.protection.rotation.strategies[1].name, "LayOnHands", "tank emergency is first")
 assert_eq(strategy(modules.protection.rotation, "LayOnHands").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank Lay on Hands gate")
 context.hp = 35
+context.hp_pct = 35
 assert_eq(strategy(modules.protection.rotation, "DivineProtection").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank mitigation gate")
 context.hp = 100
+context.hp_pct = 100
 assert_eq(strategy(modules.protection.rotation, "HolyShield").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank Holy Shield refresh")
 local original_buff_points = NS.buff_points

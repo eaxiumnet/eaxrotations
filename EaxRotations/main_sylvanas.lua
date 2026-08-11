@@ -25,6 +25,8 @@ local _manual_target_lockout_until = 0 -- Timestamp when 3s manual target grace 
 local _pet_cache_data = nil
 local _pet_cache_timestamp = 0
 local _cached_inventory_time = 0
+local _sod_ctx_ok, sod_context = pcall(require, "shared/sod_context_sylvanas")
+if not _sod_ctx_ok or type(sod_context) ~= "table" or type(sod_context.enrich) ~= "function" then sod_context = nil end
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
 if not _ooc_ok then ooc_manager = nil end
 local _hyst_ok, EnemyCountHysteresis = pcall(require, "shared/enemy_count_hysteresis_sylvanas")
@@ -1236,6 +1238,13 @@ local function build_context()
     if _context.is_sod and type(_get_sod_runes) == "function" then
         local ok, runes = pcall(_get_sod_runes, _context.settings)
         if ok and type(runes) == "table" then _context.sod_runes = runes end
+    end
+    -- SoD rotation state fields (form, pet hp, poison stacks, shields, imbue,
+    -- HoT flags, Maelstrom stacks, swing timers) the _sod spec files read but
+    -- the base context does not produce. Gated on is_sod: other eras never
+    -- execute this (see shared/sod_context_sylvanas.lua for the field map).
+    if _context.is_sod and sod_context then
+        pcall(sod_context.enrich, _context)
     end
     -- ttd, ttd_source, ttd_known are now lazy (registered above)
     _context.has_breakable_cc_nearby = _api.has_breakable_cc_nearby and _api.has_breakable_cc_nearby() or false
