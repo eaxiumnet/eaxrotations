@@ -121,6 +121,36 @@ local ALLOWLIST = {
     power_pct             = "mock: battery ns.power_pct",
     is_casting            = "guarded: arena_priority_sylvanas:85-86 + pvp_burst_window_sylvanas:78-79 (`if NS and NS.is_casting then`)",
     get_spell_name        = "guarded: combat_stats_sylvanas:115 (NS.get_spell_name and NS.get_spell_name(...))",
+    -- Fourth batch (2026-08-11, CI parity after the bare-value-read rule
+    -- landed): the new rule surfaces VALUE reads (not calls) of members that
+    -- resolve on the maintainer's machine ONLY via gitignored engine-doc
+    -- dirs — but there by COLLISION, not by membership: the flat engine
+    -- census picks up `---@field me` on the IZI module (.api/common/
+    -- izi_sdk.lua:549 — izi.me(), NOT NS.me) and `---@field get_item_count`
+    -- on menu widgets (.api/common/menu/menu_api.lua:247/275), neither of
+    -- which is an NS member. CI's clean checkout has no engine dirs, so the
+    -- census is empty there and the value-read rule flags them. Both are
+    -- legitimate optional members verified live:
+    --   me              = documented NS wrapper (AGENTS.md:212 "NS wrappers:
+    --                     NS.me, NS.gcd, NS.GetPlayer()"); the battery mock
+    --                     publishes ns.me (behavioral_audit.lua:2956
+    --                     `if ctx.me then ns.me = ctx.me end`); every one of
+    --                     the 46 real sites is a nil-safe chain — 39x
+    --                     `NS.me or (NS.GetPlayer and NS.GetPlayer())` with
+    --                     NS.GetPlayer DEFINED (core/units.lua:147), and the
+    --                     deathknight/druid sites are `NS.me and NS.<method>`
+    --                     guarded or pass NS.me into the nil-safe NS.buff_up
+    --                     (_aura_query returns default on nil unit).
+    --   get_item_count  = guarded: the ONE real site is cat_sylvanas:134-135
+    --                     (`if NS.get_item_count then` immediately above the
+    --                     pcall) — a previous-line guard the bare-value rule
+    --                     does not see (it collects per-line, no cross-line
+    --                     guard context). core/items.lua owns the item API
+    --                     and exposes no count query; the guard makes the
+    --                     read nil-safe by construction. Verified: the only
+    --                     repo reference is that one guarded site.
+    me                    = "mock: battery ns.me (behavioral_audit.lua:2956) — documented engine wrapper (AGENTS.md:212); all 46 real sites nil-safe (NS.me or (NS.GetPlayer...) with GetPlayer defined core/units.lua:147, or NS.me and ... guards)",
+    get_item_count        = "guarded: cat_sylvanas:134-135 (`if NS.get_item_count then` previous-line guard over the pcall); core/items.lua exposes no count query — the guard is the nil-safety (fail-open fix 2026-08-11)",
 }
 
 -- ============================================================================
@@ -591,9 +621,27 @@ local function violations(scan)
         -- `state.x = NS.combo_points or 0` class (and pcall(NS.undef, ...),
         -- which ERRORS on a nil reference). Guard-position presence checks
         -- are excluded at collection time (nil-safe by construction);
-        -- allowlisted optional paths resolve above.
+        -- allowlisted optional paths resolve above. 2026-08-11 CI-parity
+        -- extension: a `guarded=` allowlisted member's value-read sites are
+        -- verified with is_guarded_site (mirroring the call rule) — the
+        -- previous-line guard shape (cat_sylvanas:134-135) is the only
+        -- reason get_item_count is on the allowlist, so an unguarded read of
+        -- it elsewhere must FAIL.
         for name, sites in pairs(res.value_reads or {}) do
-            if not (scan.assigned[name] or scan.engine[name] or ALLOWLIST[name]) then
+            local why = ALLOWLIST[name]
+            if scan.assigned[name] or scan.engine[name] then
+                -- resolved (repo-assigned or engine surface)
+            elseif why then
+                if why:find("^guarded") then
+                    for _, s in ipairs(sites) do
+                        if not is_guarded_site(res.lines, s.line, esc, name) then
+                            v[#v + 1] = { file = fname, line = s.line, name = name,
+                                text = s.text,
+                                why = "allowlist[guarded]: value-read site is UNGUARDED (los_guard crash shape)" }
+                        end
+                    end
+                end
+            else
                 for _, s in ipairs(sites) do
                     v[#v + 1] = { file = fname, line = s.line, name = name, text = s.text,
                         why = "bare value read of never-assigned member (leveling_vanilla shape)" }
@@ -822,12 +870,49 @@ local function run_self_tests()
         1, "NS", "unit_creature_type")
     expect(type_guard_neq, true, "type(NS.x) ~= function guard recognized")
 
+    -- Style 13: an allowlisted[guarded] member's VALUE read is verified too
+    -- (2026-08-11 CI-parity extension) — the previous-line guard shape that
+    -- keeps get_item_count on the allowlist. Unguarded read fails; a
+    -- previous-line `if NS.x then` guard passes.
+    local unguarded_guard_read = {
+        assigned = {}, engine = {}, mock = {},
+        results = {
+            { rel = "e.lua", binding = "NS", skipped = nil, lines = {
+                "local ok, count = pcall(NS.get_item_count, id)",
+            }, calls = {}, value_reads = {
+                get_item_count = {
+                    { line = 1, text = "local ok, count = pcall(NS.get_item_count, id)" },
+                },
+            } },
+        },
+    }
+    local vg = violations(unguarded_guard_read)
+    expect(#vg, 1, "unguarded value read of guarded= allowlisted member fails")
+    expect(vg[1].why:find("UNGUARDED") ~= nil, true, "reason names the unguarded shape")
+
+    local guarded_guard_read = {
+        assigned = {}, engine = {}, mock = {},
+        results = {
+            { rel = "f.lua", binding = "NS", skipped = nil, lines = {
+                "if NS.get_item_count then",
+                "    local ok, count = pcall(NS.get_item_count, id)",
+            }, calls = {}, value_reads = {
+                get_item_count = {
+                    { line = 2, text = "    local ok, count = pcall(NS.get_item_count, id)" },
+                },
+            } },
+        },
+    }
+    local vg2 = violations(guarded_guard_read)
+    expect(#vg2, 0, "previous-line-guarded value read of guarded= member passes")
+
     print("[PASS] NS-member audit self-tests: binding detection (NS vs param "
         .. "ns), string/line/block-comment exclusion, whitespace parens, "
         .. "inline + block guard detection, bare-call flagging, allowlist "
         .. "gating incl. unguarded-allowlisted and stale-mock failure, bare "
         .. "value-read rule (leveling_vanilla shape / guard exclusion / pcall "
-        .. "reference), type()-guard recognition pin")
+        .. "reference), type()-guard recognition pin, guarded= value-read "
+        .. "verification (previous-line guard shape)")
     os.exit(0)
 end
 
