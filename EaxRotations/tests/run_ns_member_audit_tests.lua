@@ -77,20 +77,24 @@ local ALLOWLIST = {
     unit_energy_pct       = "guarded: combat_vanilla:185",
     unit_is_tank          = "guarded: health_pred_helper_sylvanas:73",
     -- Second batch (2026-08-10, after the production-only census fix exposed
-    -- them): battery-mock members (engine-provided runtime surface the addon
-    -- never assigns; verified in behavioral_audit.lua build_ns).
+    -- them): battery-mock members — verified in behavioral_audit.lua build_ns.
     -- 2026-08-11 undefined-NS-member sweep: buff_stacks, unit_mana_pct,
     -- is_interruptible, unit_is_boss, is_tank_unit, is_threat_safe and
     -- is_valid_target were found to be GENUINELY undefined in live play
-    -- (not engine-provided) and are now DEFINED in core_sylvanas — removed
-    -- from the allowlist, resolved by the assignment census. The remaining
-    -- members below stay pinned: every real call site is guarded with a
-    -- working fallback (context/unit-method chain), so absent they are a
-    -- silent optional path, not a live break.
-    combo_points          = "mock: battery ns.combo_points (guarded chain, cat_sylvanas:365 context fallback)",
-    energy                = "mock: battery ns.energy (guarded chain, cat_sylvanas:423 unit/context fallback)",
-    get_combo_points      = "mock: battery ns.get_combo_points (guarded chain, cat_sylvanas:371)",
-    unit_creature_type    = "mock: battery ns.unit_creature_type (guarded by type() checks, discipline_sylvanas:81 with unit:get_creature_type fallback)",
+    -- (the "engine-provided" label was unsupported) and are now DEFINED in
+    -- core_sylvanas — removed from the allowlist, resolved by the census.
+    -- The four members below were probed the same way and KEPT pinned: every
+    -- real call site resolves through a working context/unit-method chain
+    -- checked BEFORE the member (engine writes context.combo_points at
+    -- main_sylvanas.lua:858 and context.energy at :811), so the member is an
+    -- unreached optional path, not a live break. rogue/leveling_vanilla.lua
+    -- had the one bare-read variant (NS.combo_points or 0 — never audited
+    -- because it is not a call) and was fixed 2026-08-11 to the context +
+    -- unit-method chain.
+    combo_points          = "optional: guarded chains (cat_sylvanas:365, cat_vanilla:169, leveling:107) all read context.combo_points (engine :858) first; leveling_vanilla bare read fixed 2026-08-11",
+    energy                = "optional: guarded chains (cat_sylvanas:423, cat_vanilla:180, leveling:268) read context.energy (engine :811) + me:get_power(3) first; leveling_vanilla bare read fixed 2026-08-11",
+    get_combo_points      = "optional: guarded chains (cat_sylvanas:371, cat_vanilla:170, leveling:111) read context.combo_points / me:get_power(4) first",
+    unit_creature_type    = "optional: guarded by type() checks, discipline_sylvanas:81 with unit:get_creature_type() fallback right after (all 6 priest files)",
     -- Third batch (2026-08-10, CI parity fix): these four names resolve on
     -- the maintainer's machine ONLY via the gitignored engine-doc dirs
     -- (.api/, apidocs/pages/, scraped_docs_md/dev/api/ — absent in CI's
@@ -435,7 +439,15 @@ local function is_guarded_site(lines, call_line, esc, name)
         -- `NS.x then`), which is correct for the repo's early-return idiom
         -- (`if not NS.can_cast_in_form then return true end`).
         if l:find(pat .. "%s+and", 1)                        -- NS.x and NS.x(  /  if NS.x and
-            or l:find(pat .. "%s+then", 1) then              -- if NS.x then  /  if X and NS.x then
+            or l:find(pat .. "%s+then", 1)                   -- if NS.x then  /  if X and NS.x then
+            or l:find("type%s*%(%s*" .. pat .. "%s*%)%s*[~=]%s*=", 1) then
+            -- type(NS.x) == / ~= — the optional-method guard the six priest
+            -- creature-type readers use (discipline_sylvanas:81): the member
+            -- is only called inside the type==function branch. Works on the
+            -- comment/string-stripped lines (the "function" literal is
+            -- blanked, so only the type(...)== comparison shape survives);
+            -- the type( wrapper is required so a bare value comparison is
+            -- not misread as a guard (2026-08-11 refinement).
             return true
         end
     end
@@ -730,17 +742,19 @@ for _, res in ipairs(scan.results) do
         end
     end
 end
-local mock_n, guarded_n = 0, 0
+local mock_n, guarded_n, optional_n = 0, 0, 0
 for _, why in pairs(ALLOWLIST) do
-    if why:find("^mock") then mock_n = mock_n + 1 else guarded_n = guarded_n + 1 end
+    if why:find("^mock") then mock_n = mock_n + 1
+    elseif why:find("^optional") then optional_n = optional_n + 1
+    else guarded_n = guarded_n + 1 end
 end
 print("=============================================================================")
 print(string.format("  Total:     %d call-bearing files (%d NS member calls)",
     scan.total_files, scan.total_calls))
 print(string.format("  Clean:     %d", clean))
 print(string.format("  Invalid:   %d", #bad))
-print(string.format("  Allowlist: %d engine-provided members (%d mock, %d guarded)",
-    mock_n + guarded_n, mock_n, guarded_n))
+print(string.format("  Allowlist: %d members (%d mock, %d guarded, %d optional)",
+    mock_n + guarded_n + optional_n, mock_n, guarded_n, optional_n))
 print("=============================================================================")
 
 if #bad > 0 then

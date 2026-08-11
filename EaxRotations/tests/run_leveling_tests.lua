@@ -29,6 +29,7 @@ local tests = {
     "test_leveling_shared.lua",
     "test_leveling_compliance.lua",
     "test_warrior_leveling_vanilla_spells.lua",
+    "test_rogue_leveling_vanilla_combo_energy.lua",
     "test_leveling_dispatcher_prepass.lua",
     "test_leveling_dispatcher_registration.lua",
     "test_leveling_edge_cases.lua",

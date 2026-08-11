@@ -111,9 +111,38 @@ function rogue_leveling.build_state(context)
     state.is_pvp = context.is_pvp or false
     state.in_melee_range = context.in_melee_range or false
 
-    state.combo_points = NS.combo_points or 0
+    -- Combo points live on the PLAYER (bound to whatever target they're on),
+    -- NOT on the target. context.combo_points is wired by the dispatcher
+    -- (main_sylvanas.lua:858 via combo_points_reader) — the bare
+    -- `NS.combo_points or 0` read here was NEVER assigned, so combo was
+    -- always 0 live and every finisher gate (SliceAndDice >= 1, Rupture /
+    -- ExposeArmor / KidneyShot >= 3, Eviscerate >= 5) was dead. Fixed
+    -- 2026-08-11: the engine context is authoritative; unit methods are
+    -- consulted only when the context lacks the field, mirroring
+    -- cat_sylvanas.get_combo_points.
+    local combo_context = context.combo_points or context.combo or nil
+    state.combo_points = combo_context or 0
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if not combo_context and me then
+        if type(me.combo_points_current) == "function" then
+            local ok_cp, cp = pcall(me.combo_points_current, me)
+            if ok_cp and type(cp) == "number" then state.combo_points = cp end
+        end
+        if type(me.get_power) == "function" then
+            local ok2, cp2 = pcall(me.get_power, me, 4)
+            if ok2 and type(cp2) == "number" then state.combo_points = cp2 end
+        end
+    end
     state.max_combo_points = 5
-    state.energy = NS.energy or 100
+    -- Same class: NS.energy was never assigned either, so energy read 100
+    -- live (Thistle Tea's <= 40 gate and Sinister Strike's pool never saw a
+    -- real energy pool). context.energy is wired at main_sylvanas.lua:811
+    -- and is authoritative; me:get_power(3) is the no-context fallback.
+    state.energy = (type(context.energy) == "number" and context.energy) or 100
+    if type(context.energy) ~= "number" and me and type(me.get_power) == "function" then
+        local ok3, e = pcall(me.get_power, me, 3)
+        if ok3 and type(e) == "number" then state.energy = e end
+    end
 
     state.has_slice_and_dice = has_buff(SLICE_AND_DICE_BUFF)
     state.stealthed = has_buff(STEALTH_BUFF)
