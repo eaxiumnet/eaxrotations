@@ -1,9 +1,11 @@
--- test_ns_mock_pollution_guard.lua — negative test for the require-time
--- NS-caching fragility (survey item #2, 2026-08-09).
+-- test_ns_mock_pollution_guard.lua — negative test for the require-time--        NS-caching fragility (survey item #2, 2026-08-09).
 -- WHAT:  79 shared/*_sylvanas.lua modules capture `local NS = _G.EaxRotations`
---        at require() time, and 8 write back into whatever NS is loaded
---        (auto_tremor, dot_refresh, execute_phase, melee_combat_math,
---        combat_forecast_gate, mf_tick_compute, purge_manager, ttd_tracker).
+--        at require() time, and a small set write back into whatever NS is
+--        loaded (auto_tremor, dot_refresh [should_refresh_dot, is_dot_active],
+--        execute_phase [is_execute_phase], melee_combat_math, combat_forecast_gate,
+--        snapshot via the alias form). The dead NS write-backs (PurgeManager,
+--        TTDTracker, mf_tick_compute, and the dot_refresh/execute_phase extras)
+--        were removed by the never-called NS-member sweep (2026-08-11).
 --        If a tool requires those modules while a MOCK NS is installed (the
 --        battery's build_ns / apl_status's base_ns), the mock silently captures
 --        module instances — the compute()-vs-battery pollution signature that

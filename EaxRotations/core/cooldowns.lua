@@ -10,7 +10,7 @@
 -- Cooldown suggestion registry — extracted from EaxRotations/core_sylvanas.lua.
 -- Owns NS.cooldown_registry + register_cooldown / unregister_cooldown /
 -- get_cooldown_suggestions / get_best_offensive_cooldown /
--- get_best_defensive_cooldown / clear_cooldown_registry.
+-- clear_cooldown_registry.
 --
 -- WHY THIS EXTRACT
 --   The cooldown registry is a small but distinct domain (~120 lines).
@@ -87,11 +87,6 @@ function M.install(NS)
 
     function NS.get_best_offensive_cooldown(context)
         local suggestions = NS.get_cooldown_suggestions(context, "offensive")
-        return suggestions.n > 0 and suggestions[1] or nil
-    end
-
-    function NS.get_best_defensive_cooldown(context)
-        local suggestions = NS.get_cooldown_suggestions(context, "defensive")
         return suggestions.n > 0 and suggestions[1] or nil
     end
 

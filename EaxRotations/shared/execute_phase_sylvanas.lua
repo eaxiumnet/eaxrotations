@@ -51,7 +51,6 @@ local _G = _G
 _G.ExecutePhase = M
 if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.is_execute_phase = M.is_execute_phase
-    _G.EaxRotations.is_target_above_hp = M.is_target_above_hp
 end
 
 return M

@@ -71,23 +71,4 @@ function NS.import_helpers(...)
     return unpack(results, 1, n)
 end
 
--- ============================================================================
--- import_helpers_safe(...)
--- Same as import_helpers but returns nil instead of erroring on missing keys.
--- Useful for optional helpers that only some specs use (e.g. cooldown_remains).
--- ============================================================================
-function NS.import_helpers_safe(...)
-    local n = select('#', ...)
-    if n == 0 then return end
-
-    local results = {}
-    for i = 1, n do
-        local key = select(i, ...)
-        local ns_key = ALIASES[key] or key
-        results[i] = NS[ns_key]
-    end
-
-    return unpack(results, 1, n)
-end
-
 -- helper module initialized

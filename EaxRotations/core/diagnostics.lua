@@ -64,8 +64,6 @@ function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
 
 function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg) end
 
-function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
-
 -- Backward-compatible stubs: PS build API health tracking was removed
 -- in v2.1.x (live TBC Classic only). These no-ops prevent crashes in
 -- callers (paladin class init, warlock vanilla specs, test files).

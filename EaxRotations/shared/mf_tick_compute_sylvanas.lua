@@ -102,9 +102,5 @@ end
 -- capture module instances via require-time write-back.
 local _G = _G
 _G.MfTickCompute = M
-if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
-    _G.EaxRotations.compute_channel_state = M.compute_channel_state
-    _G.EaxRotations.should_clip_mf = M.should_clip_mf
-end
 
 return M

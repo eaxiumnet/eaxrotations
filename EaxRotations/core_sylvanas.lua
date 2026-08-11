@@ -90,13 +90,7 @@ local function _resolve_expansion_key()
     return _expansion_key
 end
 
-function NS.get_game_version()
-    return _cached_game_version or (core.get_game_version and core.get_game_version())
-end
 
-function NS.get_exact_game_version()
-    return _cached_exact_version or (core.get_exact_game_version and core.get_exact_game_version())
-end
 
 function NS.is_tbc()
     local key = _resolve_expansion_key()
@@ -547,7 +541,6 @@ do
         end
         function NS.log(msg) _emit("log", "[EaxRotations] ", msg) end
         function NS.log_warning(msg) _emit("log_warning", "[EaxRotations WARNING] ", msg) end
-        function NS.log_error(msg) _emit("log_error", "[EaxRotations ERROR] ", msg) end
         function NS.is_api_health_broken() return false end
         function NS.reset_api_health() end
         if core and type(core.log_error) == "function" then
@@ -1018,7 +1011,7 @@ end
 -- Install cooldowns domain (extracted to EaxRotations/core/cooldowns.lua).
 -- Wires cooldown_registry + register_cooldown / unregister_cooldown /
 -- get_cooldown_suggestions / get_best_offensive_cooldown /
--- get_best_defensive_cooldown / clear_cooldown_registry onto NS.
+-- clear_cooldown_registry onto NS.
 pcall(function()
     local ok, cooldowns_domain = pcall(require, "core/cooldowns")
     if not ok then ok, cooldowns_domain = pcall(require, "EaxRotations/core/cooldowns") end
@@ -1199,25 +1192,6 @@ function NS.register_on_combat_start(callback)
 
 end
 
-function NS.unregister_on_combat_start(callback)
-
-    if type(callback) ~= "function" then return false end
-
-    for i = #combat_start_callbacks, 1, -1 do
-
-        if combat_start_callbacks[i] == callback then
-
-            table.remove(combat_start_callbacks, i)
-
-            return true
-
-        end
-
-    end
-
-    return false
-
-end
 
 function NS.register_on_combat_end(callback)
 
@@ -1229,25 +1203,6 @@ function NS.register_on_combat_end(callback)
 
 end
 
-function NS.unregister_on_combat_end(callback)
-
-    if type(callback) ~= "function" then return false end
-
-    for i = #combat_end_callbacks, 1, -1 do
-
-        if combat_end_callbacks[i] == callback then
-
-            table.remove(combat_end_callbacks, i)
-
-            return true
-
-        end
-
-    end
-
-    return false
-
-end
 
 -- Internal: fire combat start callbacks
 
@@ -1371,22 +1326,6 @@ function NS.register_on_game_event(event_name, callback)
     return true
 end
 
---- Unregister a callback for a specific game event.
--- @param event_name string  The WoW event name
--- @param callback   function The exact callback function to remove
--- @return boolean   true if removed, false if not found
-function NS.unregister_on_game_event(event_name, callback)
-    if type(event_name) ~= "string" or type(callback) ~= "function" then return false end
-    local list = _game_event_callbacks[event_name]
-    if not list then return false end
-    for i = #list, 1, -1 do
-        if list[i] == callback then
-            table.remove(list, i)
-            return true
-        end
-    end
-    return false
-end
 
 --- Create a spell action object.
 
@@ -1726,72 +1665,6 @@ function NS.refresh_spell_cache()
 
 end
 
--- Batch resolve multiple spell rank arrays at once.
-
--- `specs` = { { field="bt_id", ranks=spells.BLOODTHIRST }, ... }
-
--- Writes resolved IDs into `out` table (or new table) using spec.field as keys.
-
--- Returns `out` for chaining. Unresolved spells are left nil.
-
-function NS._resolve_spell_batch(specs, out)
-
-    out = out or {}
-
-    if type(specs) ~= "table" then return out end
-
-    for i = 1, #specs do
-
-        local spec = specs[i]
-
-        if type(spec) == "table" then
-
-            local field = spec.field
-
-            local ranks = spec.ranks
-
-            if field and type(ranks) == "table" then
-
-                out[field] = NS.get_spell_id(ranks)
-
-            end
-
-        end
-
-    end
-
-    return out
-
-end
-
--- Batch load a class spell table from a spells.lua module.
-
--- `class_spells` is the spells table (e.g. `require("libraries/spells")`).
-
--- `runtime` is the destination table; `keys` is an array of spell keys to resolve.
-
--- Example: NS._load_class_spells_batch(spells, runtime, {"BLOODTHIRST","WHIRLWIND"})
-
-function NS._load_class_spells_batch(class_spells, runtime, keys)
-
-    if type(class_spells) ~= "table" or type(runtime) ~= "table" or type(keys) ~= "table" then return end
-
-    for i = 1, #keys do
-
-        local key = keys[i]
-
-        local ranks = class_spells[key]
-
-        if type(ranks) == "table" then
-
-            runtime[key:lower() .. "_id"] = NS.get_spell_id(ranks)
-
-        end
-
-    end
-
-end
-
 -- Invalidate spell cache on any spell cast (new spells may have been learned)
 
     if core and core.register_on_spell_cast_callback then
@@ -1907,7 +1780,6 @@ function NS.cooldown_remains(spell, expected_cooldown)
 end
 
 
-NS.get_spell_cooldown_remaining = NS.cooldown_remains
 
 local function power(unit, power_type)
 
@@ -2003,29 +1875,6 @@ function NS.is_out_of_range(spell, target)
     return dist > (max_r + RANGE_TOLERANCE)
 end
 
---- Retrieve min/max range data for a spell. Returns {min=number, max=number}
---- or nil if the API is unavailable, the spell has no range data, or spell_id is nil.
---- Handles both `min/max` and `min_range/max_range` field names (api stub vs apidocs).
----@param spell_id integer|nil
----@return table|nil
-function NS.get_spell_range(spell_id)
-    if not spell_id then return nil end
-    -- Prefer the direct scalar APIs (no field-name ambiguity).
-    if _get_spell_min_range and _get_spell_max_range then
-        local ok_min, mn = pcall(_get_spell_min_range, spell_id)
-        local ok_max, mx = pcall(_get_spell_max_range, spell_id)
-        if ok_min and ok_max and type(mn) == "number" and type(mx) == "number" then
-            return { min = mn, max = mx }
-        end
-    end
-    if not _get_spell_range_data then return nil end
-    local ok, result = pcall(_get_spell_range_data, spell_id)
-    if not ok or type(result) ~= "table" then return nil end
-    local mn = result.min or result.min_range
-    local mx = result.max or result.max_range
-    if mn == nil or mx == nil then return nil end
-    return { min = mn, max = mx }
-end
 
 local function spell_helper_castable(id, target, opts)
     local caster = NS.GetPlayer()
@@ -2421,7 +2270,6 @@ function NS.try_cast_position(spell, position, range_target, reason, opts)
 
 end
 
-NS.cast_position = NS.try_cast_position
 
 -- ============================================================================
 -- AoE Cast Position Optimization (spell_prediction bridge)
@@ -2489,169 +2337,6 @@ function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits,
     if get_position then
         local pos = target:get_position()
         if pos then return pos, 1 end
-    end
-    return nil, 0
-end
-
---- Advanced helper for best healing AoE position using spell_prediction is_heal.
---- E.g., for Wild Growth, Chain Heal, Prayer of Healing ground targets.
-function NS.get_best_heal_aoe_position(spell_id, target, radius, max_range, min_hits)
-    return NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits, true)
-end
-
---- Most advanced: cast a heal position spell using izi with full prediction options.
---- Passes use_prediction, health_percentage_threshold_incoming etc for smart predicted heal.
-function NS.cast_predicted_heal_position(izi_spell, position, opts)
-    if not izi_spell or not position then return false end
-    opts = opts or {}
-    -- Even harder defaults for "no one dies": lower incoming threshold to preempt more aggressively when flagged
-    local inc_thresh = opts.health_percentage_threshold_incoming or 35
-    if opts.death_save or opts.will_die then inc_thresh = math.min(inc_thresh, 25) end
-    local cast_opts = {
-        use_prediction = opts.use_prediction ~= false,
-        prediction_type = opts.prediction_type or "MOST_HITS",
-        is_heal = true,
-        health_percentage_threshold_incoming = inc_thresh,
-        health_percentage_threshold_raw = opts.health_percentage_threshold_raw or 45,
-        skip_range = opts.skip_range,
-        check_los = opts.check_los,
-        message = opts.message or "predicted heal position"
-    }
-    if type(izi_spell.use_at_position_safe) == "function" then
-        return izi_spell:use_at_position_safe(position, cast_opts)
-    end
-    -- fallback
-    return NS.try_cast_position(izi_spell.id and izi_spell:id() or izi_spell, position, cast_opts.message)
-end
-
---- Top-level advanced multi-heal position finder for the engine.
---- Uses target_selector heal targets + party frames + spell prediction is_heal.
---- Returns best position and hit count for group heals.
-function NS.find_best_heal_position(spell_id, radius, max_range, min_hits)
-    local targets = NS.get_targets_heal(3)
-    if #targets == 0 then targets = NS.GetPartyMembers and NS.GetPartyMembers() or {} end
-    if #targets == 0 then return nil, 0 end
-    -- Use first as center for prediction; prefer explicit most_hits heal for is_heal
-    local center = targets[1]
-    local pos, hits = NS.get_most_hits_heal_position(spell_id, (center and center.get_position and center:get_position()) or nil, radius, max_range)
-    if pos and hits >= (min_hits or 1) then return pos, hits end
-    return NS.get_best_heal_aoe_position(spell_id, center, radius, max_range, min_hits)
-end
-
---- "No one dies" advanced: find best AoE heal position that covers the most at-risk (high death_risk or low TTD) party members.
---- Uses get_heal_hit_list (circle with is_heal) + per-hit will_die / future / burst to weight urgency.
---- Even harder: also tries get_most_hits_position with exception_is_heal for optimal platform cluster.
-function NS.find_death_save_heal_position(spell_id, radius, max_range)
-    local party = NS.GetPartyMembers and NS.GetPartyMembers() or {}
-    if #party == 0 then return nil, 0 end
-    local best_pos = nil
-    local best_urgency = -1
-    local best_hits = 0
-    -- Precompute a lightweight risk map from current known data (or on the fly)
-    local risk_map = {}
-    for _, p in ipairs(party) do
-        if p then
-            local key = p  -- use object ref
-            risk_map[key] = {
-                will = NS.will_die_soon and NS.will_die_soon(p, 3.0, 18) or false,
-                ttd = 999,
-                fut = 100,
-                dr = 0,
-            }
-            if type(p.time_to_die) == "function" then local ok,t=pcall(p.time_to_die,p); if ok and t then risk_map[key].ttd = t end end
-            if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
-                local ok,f=pcall(_unit_helper.get_health_percentage_inc, _unit_helper, p, 3); if ok and f then risk_map[key].fut = f * 100 end
-            end
-            if type(NS.predict_effective_deficit) == "function" then
-                local def = NS.predict_effective_deficit(p) or 0
-                local mhp = safe(safe_field(p,"get_max_health"),p) or 1
-                risk_map[key].dr = (def / mhp) * 100
-            end
-        end
-    end
-    for _, center in ipairs(party) do
-        if center then
-            local pos = safe_field(center, "get_position") and center:get_position() or nil
-            if pos then
-                -- Use predict_position + also spell_prediction future pos where possible
-                local pred_pos = pos
-                if type(center.predict_position) == "function" then
-                    local okp, pp = pcall(center.predict_position, center, 0.8)
-                    if okp and pp then pred_pos = pp end
-                end
-                local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction")
-                if sp and type(sp.get_future_position) == "function" then
-                    local okf, fp = pcall(sp.get_future_position, sp, center, 0.8)
-                    if okf and fp then pred_pos = fp end
-                end
-                local hits = NS.get_heal_hit_list(pred_pos, spell_id, radius, true) or {}
-                local urgency = 0
-                local hit_count = 0
-                for _, h in ipairs(hits) do
-                    if h and h.obj then
-                        hit_count = hit_count + 1
-                        local r = risk_map[h.obj] or {}
-                        local hu = 8
-                        if r.will then hu = hu + 250 end
-                        if (r.ttd or 999) < 4 then hu = hu + (250 / math.max(r.ttd or 1, 0.5)) end
-                        if (r.fut or 100) < 25 then hu = hu + (40 - (r.fut or 25)) * 3 end
-                        if (r.dr or 0) > 15 then hu = hu + (r.dr * 1.2) end
-                        urgency = urgency + hu
-                    end
-                end
-                -- Also try platform MOST_HITS for heal
-                if sp then
-                    local okm, mres = pcall(function()
-                        local sd = sp:new_spell_data(spell_id, max_range or 40, radius or 10, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE)
-                        sd.exception_is_heal = true
-                        sd.exception_player_included = true
-                        local getpos = safe_field(center, "get_position")
-                        local cpos = (getpos and getpos(center)) or pred_pos
-                        return sp:get_most_hits_position(cpos, sd, center)
-                    end)
-                    if okm and mres and mres.amount_of_hits and mres.amount_of_hits > hit_count then
-                        hit_count = mres.amount_of_hits
-                        pred_pos = mres.cast_position or pred_pos
-                        urgency = urgency + (hit_count * 5)  -- bonus for platform optimized
-                    end
-                end
-                if urgency > best_urgency and hit_count >= 2 then
-                    best_urgency = urgency
-                    best_pos = pred_pos
-                    best_hits = hit_count
-                end
-            end
-        end
-    end
-    return best_pos, best_hits
-end
-
---- Most advanced heal AoE hit list using platform get_circle_list with is_heal.
---- Returns list of hit units for precise multi-heal decisions (better than most_hits alone for some spells).
-function NS.get_heal_hit_list(position, spell_id, radius, is_heal)
-    local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
-    if not sp or not position or not spell_id then return {} end
-    local ok, list = pcall(function()
-        local sd = sp:new_spell_data(spell_id, nil, radius or 8, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE)
-        if is_heal then sd.exception_is_heal = true end
-        sd.exception_player_included = true
-        return sp:get_circle_list(position, sd, is_heal or true)
-    end)
-    return (ok and type(list) == "table") and list or {}
-end
-
---- Dedicated wrapper: use platform get_most_hits_position explicitly for heal AoE (PoH, WG, CH).
-function NS.get_most_hits_heal_position(spell_id, main_pos, radius, max_range)
-    local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
-    if not sp or not main_pos or not spell_id then return nil, 0 end
-    local ok, res = pcall(function()
-        local sd = sp:new_spell_data(spell_id, max_range or 40, radius or 10, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE, main_pos)
-        sd.exception_is_heal = true
-        sd.exception_player_included = true
-        return sp:get_most_hits_position(main_pos, sd)
-    end)
-    if ok and res then
-        return res.cast_position, (res.amount_of_hits or 0)
     end
     return nil, 0
 end
@@ -2741,7 +2426,6 @@ end
 
 -- Attack type constants for start_auto_attack / stop_auto_attack.
 NS.AUTO_ATTACK_MELEE = 6603
-NS.AUTO_ATTACK_RANGED = 75
 NS.AUTO_ATTACK_WAND = 5019
 
 -- Swing timer debug: set NS._DEBUG_SWING_TIMER = true at runtime to see path decisions.
@@ -2854,32 +2538,7 @@ function NS.swing_time_until(unit, weapon)
     return 999
 end
 
-function NS.swing_time_since(unit)
-    if not _auto_attack or not unit then return 0 end
-    local last = nil
-    local ok_l, lv = pcall(function() return _auto_attack:get_last_attack_core_time(unit) end)
-    if ok_l then last = lv end
-    if type(last) ~= "number" then return 0 end
-    local elapsed = _core_now() - last
-    if elapsed < 0 or elapsed > _SWING_REMAINS_MAX then return 0 end
-    return elapsed
-end
 
-function NS.swing_progress(unit, weapon)
-    if not _auto_attack or not unit then return 0 end
-    local next_time, last_time = nil, nil
-    local ok_n, nv = pcall(function() return _auto_attack:get_next_attack_core_time(unit, weapon) end)
-    if ok_n then next_time = nv end
-    local ok_l, lv = pcall(function() return _auto_attack:get_last_attack_core_time(unit) end)
-    if ok_l then last_time = lv end
-    local now = _core_now()
-    if type(last_time) ~= "number" or type(next_time) ~= "number" or next_time <= last_time then return 0 end
-    local elapsed = now - last_time
-    local total = next_time - last_time
-    if total <= 0 or total > _SWING_REMAINS_MAX then return 0 end
-    if elapsed < 0 then return 0 end
-    return math.min(1, math.max(0, elapsed / total))
-end
 
 function NS.is_auto_attacking(unit)
     if not _auto_attack or not unit then return false end
@@ -2891,45 +2550,8 @@ function NS.start_auto_attack(target, attack_type)
     return _auto_attack:start_attack(target, attack_type or NS.AUTO_ATTACK_MELEE) == true
 end
 
-function NS.stop_auto_attack(target, attack_type)
-    if not _auto_attack or not target then return false end
-    return _auto_attack:stop_attack(target, attack_type or NS.AUTO_ATTACK_MELEE) == true
-end
 
---- Returns the current main-hand swing speed (seconds per swing), including haste.
--- Uses Swing Timer addon when available; falls back to nil.
--- @return number|nil
-function NS.swing_speed()
-    local ok, addon = pcall(function() return core.addons.swing_timer end)
-    if ok and addon and addon.is_loaded and addon:is_loaded() then
-        local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
-        if info_ok and info and info.swing_speed and info.swing_speed > 0 then
-            _swing_debug("swing_speed=" .. string.format("%.3f", info.swing_speed) ..
-                         " haste=" .. string.format("%.1f%%", (info.base_swing_speed/info.swing_speed - 1) * 100))
-            return info.swing_speed
-        else
-            _swing_debug("swing_speed: addon loaded but no swing_speed data")
-        end
-    else
-        _swing_debug("swing_speed: addon not loaded")
-    end
-    return nil
-end
 
---- Returns the base main-hand swing speed (seconds per swing), without haste.
--- Uses Swing Timer addon when available; falls back to nil.
--- @return number|nil
-function NS.swing_speed_base()
-    local ok, addon = pcall(function() return core.addons.swing_timer end)
-    if ok and addon and addon.is_loaded and addon:is_loaded() then
-        local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
-        if info_ok and info and info.base_swing_speed and info.base_swing_speed > 0 then
-            _swing_debug("swing_speed_base=" .. string.format("%.3f", info.base_swing_speed))
-            return info.base_swing_speed
-        end
-    end
-    return nil
-end
 
 --- Returns the current combat session duration from the damage meter (seconds).
 -- Queries core.damage_meter for the current session duration.
@@ -2949,22 +2571,9 @@ end
 -- PvP Utility Wrappers (pvp_helper bridge)
 -- ============================================================================
 
--- PvP helper version info for compatibility checks.
-NS.PVP_IS_TBC = _pvp_helper and _pvp_helper.is_tbc == true
 
--- Expose CC flag constants for use with pvp_is_cc_immune / pvp_get_dr_count.
-NS.PVP_CC_FLAGS = _pvp_helper and _pvp_helper.cc_flags or {}
 NS.PVP_DR_CATEGORIES = _pvp_helper and _pvp_helper.dr_categories or {}
 
---- Time (seconds) since the target last used their PvP trinket.
---- Returns 9999 if never used or module unavailable.
----@param unit game_object The target unit.
----@return number seconds Time since last trinket use.
-function NS.pvp_trinket_time_since(unit)
-    if not _pvp_helper or not unit then return 9999 end
-    local ok, v = pcall(_pvp_helper.time_since_last_trinket, _pvp_helper, unit)
-    return ok and type(v) == "number" and v or 9999
-end
 
 --- Returns true if the target used their PvP trinket within window seconds.
 ---@param unit game_object The target unit.
@@ -2977,39 +2586,8 @@ function NS.pvp_trinket_used_recently(unit, window)
     return ok and v == true
 end
 
---- Returns the core.time() timestamp of the targets last PvP trinket use, or 0.
----@param unit game_object The target unit.
----@return number timestamp Last trinket use time.
-function NS.pvp_trinket_last_time(unit)
-    if not _pvp_helper or not unit then return 0 end
-    local ok, v = pcall(_pvp_helper.get_last_trinket_time, _pvp_helper, unit)
-    return ok and type(v) == "number" and v or 0
-end
 
---- Returns true if the target has an offensive burst buff active.
----@param unit game_object The target unit.
----@param min_remaining_ms number|nil Minimum remaining duration in ms (default 0).
----@return boolean bursting True if burst buff is active.
-function NS.pvp_has_burst_active(unit, min_remaining_ms)
-    if not _pvp_helper or not unit then return false end
-    local ok, v = pcall(_pvp_helper.has_burst_active, _pvp_helper, unit, min_remaining_ms or nil)
-    return ok and v == true
-end
 
---- Returns whether the target is currently crowd controlled.
---- Returns is_ccd, cc_flag, remaining_ms
----@param unit game_object The target unit.
----@param type_flags number|nil CC type bitmask to filter (nil = any CC).
----@param min_remaining_ms number|nil Minimum remaining duration in ms.
----@return boolean is_ccd True if unit is crowd controlled.
----@return number|nil cc_flag The CC flag of the active CC.
----@return number|nil remaining_ms Remaining CC duration in ms.
-function NS.pvp_is_crowd_controlled(unit, type_flags, min_remaining_ms)
-    if not _pvp_helper or not unit then return false, nil, nil end
-    local ok, is_cc, cc_flag, remaining = pcall(_pvp_helper.is_crowd_controlled, _pvp_helper, unit, type_flags or nil, min_remaining_ms or nil, nil)
-    if ok then return is_cc == true, cc_flag, remaining end
-    return false, nil, nil
-end
 
 --- Returns the DR count (0-3) for a CC category on the target.
 ---@param unit game_object The target unit.
@@ -3029,16 +2607,6 @@ function NS.pvp_is_cc_immune(unit, cc_flag)
     return NS.pvp_get_dr_count(unit, cc_flag) >= 3
 end
 
---- Returns true if the target is in an immune CC state (Cyclone, Banish, etc.)
---- where heals will not land.
----@param unit game_object The target unit.
----@param min_remaining_ms number|nil Minimum remaining duration in ms.
----@return boolean immune True if target is immune to heals.
-function NS.pvp_is_heal_immune(unit, min_remaining_ms)
-    if not _pvp_helper or not unit then return false end
-    local ok, is_immune = pcall(_pvp_helper.is_immune_to_heal, _pvp_helper, unit, min_remaining_ms or nil)
-    return ok and is_immune == true
-end
 
 --- Returns true if the unit is an enemy player (not NPC).
 ---@param unit game_object The unit to check.
@@ -3122,30 +2690,7 @@ for check_name, method_name in pairs(UNIT_CHECKS) do
     end
 end
 
---- Returns the health percentage (0-100) minus predicted incoming damage.
---- health_pct_inc, incoming_damage, health_pct_raw, incoming_damage_pct
----@param unit game_object The target unit.
----@param time_limit number|nil Time window in seconds for incoming damage prediction (default 5).
----@return number health_pct_inc Health percentage after subtracting incoming damage (0-100).
----@return number incoming_damage Total incoming damage predicted.
----@return number health_pct_raw Raw health percentage (0-100).
----@return number incoming_damage_pct Incoming damage as percentage of max health.
-function NS.unit_health_inc(unit, time_limit)
-    if not _unit_helper or not unit then return 100, 0, 100, 0 end
-    local ok, hp_inc, inc_dmg, hp_raw, inc_pct = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, unit, time_limit or nil)
-    if ok then return (hp_inc or 0) * 100, inc_dmg or 0, (hp_raw or 0) * 100, (inc_pct or 0) * 100 end
-    return 100, 0, 100, 0
-end
 
---- Returns the resource percentage (0-100) for a given power type.
----@param unit game_object The target unit.
----@param power_type number Power type (0=Mana, 1=Rage, 2=Focus, 3=Energy).
----@return number pct Resource percentage 0-100.
-function NS.unit_resource_pct(unit, power_type)
-    if not _unit_helper or not unit then return 100 end
-    local ok, v = pcall(_unit_helper.get_resource_percentage, _unit_helper, unit, power_type or 0)
-    return ok and type(v) == "number" and v * 100 or 100
-end
 
 --- Returns a list of enemy units within range of a position.
 --- Uses engine-level caching for performance.
@@ -3162,20 +2707,6 @@ function NS.unit_get_enemies_around(position, range, incl_out_combat, players_on
     return {}
 end
 
---- Returns a list of ally units within range of a position.
---- Uses engine-level caching for performance.
----@param position vec3 The center position.
----@param range number Search radius in yards.
----@param players_only boolean|nil Only include player units (default false).
----@param party_only boolean|nil Only include party members (default false).
----@return table allies List of ally game_objects.
-function NS.unit_get_allies_around(position, range, players_only, party_only)
-    if not _unit_helper or not position or not range then return {} end
-    local ok, allies = pcall(_unit_helper.get_ally_list_around, _unit_helper, position, range,
-        players_only or false, party_only or false, false)
-    if ok and type(allies) == "table" then return allies end
-    return {}
-end
 
 --- Boss-only cooldown gate. When use_cooldowns_on_boss_only is true,
 --- returns false if the target is not a boss. Use at the top of cooldown
@@ -3187,205 +2718,6 @@ function NS.gate_cooldown_boss_only(context)
     local boss_only = (spec_kit and spec_kit.setting_bool(context, "use_cooldowns_on_boss_only", false)) or false
     if boss_only ~= true then return true end
     return NS.unit_is_boss(context.target)
-end
-
--- ============================================================================
--- Spell Sequence Wrappers (spell_sequence_helper bridge)
--- ============================================================================
-
--- Cast Policy constants exposed for advanced_sequence opts.cast_policy
-NS.SEQ_CAST_POLICY = _spell_sequence and _spell_sequence.CAST_POLICY or {
-    NO_RESTRICTIONS = "no_restrictions",
-    ONCE_EACH_CYCLE = "once_each_cycle",
-    ONCE_EACH_CYCLE_OR_FILL = "once_each_cycle_or_fill",
-    ONCE_EACH_COOLDOWN = "once_each_cooldown",
-    ONCE_EACH_SWITCH = "once_each_switch",
-    ONCE_EACH_SWITCH_OR_FILL = "once_each_switch_or_fill",
-}
-
---- Cast spell A then immediately spell B. Two-spell micro-sequence.
----@param spell_a izi_spell First spell
----@param target_a game_object Target for first spell
----@param spell_b izi_spell Second spell
----@param target_b game_object Target for second spell
----@param delay number|nil Seconds between casts (default 0)
----@param timeout number|nil Seconds before auto-cancel (default 10)
----@param debug_name string|nil Name for logging
----@param cooldown number|nil Cooldown after completion (default 0)
----@return boolean queued True if sequence was started
-function NS.seq_a_into_b(spell_a, target_a, spell_b, target_b, delay, timeout, debug_name, cooldown)
-    if not _spell_sequence or not spell_a or not target_a or not spell_b or not target_b then return false end
-    local ok, result = pcall(_spell_sequence.a_into_b, _spell_sequence, spell_a, target_a, spell_b, target_b, delay, timeout, debug_name, cooldown)
-    return ok and result == true
-end
-
---- Cast spells in strict order, one-shot. Each step advances on cast_safe success.
----@param spells izi_spell[] Array of spell objects
----@param targets (game_object|fun():game_object)[] Array of targets (one per spell)
----@param delay number|nil Seconds between steps (default 0)
----@param timeout number|nil Seconds before auto-cancel (default 10)
----@param debug_name string|nil Name for logging
----@param cooldown number|nil Cooldown after completion (default 0)
----@return boolean queued True if sequence was started
-function NS.seq_simple(spells, targets, delay, timeout, debug_name, cooldown)
-    if not _spell_sequence or type(spells) ~= "table" or #spells == 0 then return false end
-    local ok, result = pcall(_spell_sequence.simple_sequence, _spell_sequence, spells, targets, delay, timeout, debug_name, cooldown)
-    return ok and result == true
-end
-
---- Priority loop with conditions + fill spells. Scans all entries every frame.
---- Perfect for DoT rotations: conditions become true when debuffs fall off.
----@param entries advanced_spell_entry[] Array of {spell, target, condition, opts}
----@param opts advanced_sequence_opts|nil Options (timeout, fill_entries, cast_policy, etc.)
----@return boolean queued True if sequence was started
-function NS.seq_advanced(entries, opts)
-    if not _spell_sequence or type(entries) ~= "table" or #entries == 0 then return false end
-    local ok, result = pcall(_spell_sequence.advanced_sequence, _spell_sequence, entries, opts)
-    return ok and result == true
-end
-
---- Server-confirmed step-by-step sequence. Waits for on_spell_cast callback
---- to match spell_id before advancing. Requires wiring on_spell_cast callback.
----@param steps confirmed_step[] Array of {spell, target, spell_id, opts, use_cast}
----@param opts confirmed_sequence_opts|nil Options (timeout, step_timeout, retry_delay, etc.)
----@return boolean queued True if sequence was started
-function NS.seq_confirmed(steps, opts)
-    if not _spell_sequence or type(steps) ~= "table" or #steps == 0 then return false end
-    local ok, result = pcall(_spell_sequence.confirmed_sequence, _spell_sequence, steps, opts)
-    return ok and result == true
-end
-
---- Feed spell cast callback data for confirmed_sequence player filtering.
---- Wire once: core.register_on_spell_cast_callback(function(data) NS.seq_on_spell_cast(data) end)
----@param data table Spell cast callback data from engine
-function NS.seq_on_spell_cast(data)
-    if not _spell_sequence or not data then return end
-    pcall(_spell_sequence.on_spell_cast, _spell_sequence, data)
-end
-
---- Returns true if ANY sequence (native, simple, advanced, or confirmed) is active.
---- Use in rotation tick to gate normal strategies while a sequence is running.
----@return boolean active
-function NS.seq_is_active()
-    if not _spell_sequence then return false end
-    local ok, v = pcall(_spell_sequence.is_active, _spell_sequence)
-    return ok and v == true
-end
-
---- Returns true if a confirmed sequence is running.
----@return boolean active
-function NS.seq_is_confirmed_active()
-    if not _spell_sequence then return false end
-    local ok, v = pcall(_spell_sequence.is_confirmed_active, _spell_sequence)
-    return ok and v == true
-end
-
---- Advance all active sequences. Call once per frame from your rotation on_update handler.
-function NS.seq_on_update()
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.on_update, _spell_sequence)
-end
-
---- Cancel native + simple + advanced sequences (NOT confirmed; use seq_cancel_confirmed for that).
-function NS.seq_cancel()
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.cancel, _spell_sequence)
-end
-
---- Cancel the active confirmed sequence.
-function NS.seq_cancel_confirmed()
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.cancel_confirmed, _spell_sequence)
-end
-
---- Cancel ALL sequences (native + simple + advanced + confirmed).
-function NS.seq_cancel_all()
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.cancel_all, _spell_sequence)
-end
-
---- Returns true if any cooldown is active across all sequence sources.
----@return boolean on_cooldown
-function NS.seq_is_on_cooldown()
-    if not _spell_sequence then return false end
-    local ok, v = pcall(_spell_sequence.is_on_cooldown, _spell_sequence)
-    return ok and v == true
-end
-
---- Maximum remaining cooldown across all sequence sources.
----@return number seconds Cooldown remaining, or 0
-function NS.seq_cooldown_remaining()
-    if not _spell_sequence then return 0 end
-    local ok, v = pcall(_spell_sequence.get_cooldown_remaining, _spell_sequence)
-    return ok and type(v) == "number" and v or 0
-end
-
---- Type of the currently active sequence.
----@return string|nil type "confirmed" | "advanced" | "simple" | "a_into_b" | nil
-function NS.seq_get_type()
-    if not _spell_sequence then return nil end
-    local ok, v = pcall(_spell_sequence.get_sequence_type, _spell_sequence)
-    return ok and v or nil
-end
-
---- Progress of whichever sequence is active (confirmed > simple > advanced > a_into_b).
----@return integer|nil current Current step (1-based)
----@return integer|nil total Total steps
-function NS.seq_get_progress()
-    if not _spell_sequence then return nil, nil end
-    local ok, cur, total = pcall(_spell_sequence.get_progress, _spell_sequence)
-    return ok and cur or nil, ok and total or nil
-end
-
---- Progress of confirmed sequence only.
----@return integer|nil current Current step (1-based)
----@return integer|nil total Total steps
-function NS.seq_get_confirmed_progress()
-    if not _spell_sequence then return nil, nil end
-    local ok, cur, total = pcall(_spell_sequence.get_confirmed_progress, _spell_sequence)
-    return ok and cur or nil, ok and total or nil
-end
-
---- Enable/disable debug logging for native + simple + advanced sequences.
----@param enabled boolean
-function NS.seq_set_debug(enabled)
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.set_debug, _spell_sequence, enabled)
-end
-
----@return boolean debug_enabled
-function NS.seq_get_debug()
-    if not _spell_sequence then return false end
-    local ok, v = pcall(_spell_sequence.get_debug, _spell_sequence)
-    return ok and v == true
-end
-
---- Enable/disable debug logging for confirmed sequences.
----@param enabled boolean
-function NS.seq_set_confirmed_debug(enabled)
-    if not _spell_sequence then return end
-    pcall(_spell_sequence.set_confirmed_debug, _spell_sequence, enabled)
-end
-
----@return boolean debug_enabled
-function NS.seq_get_confirmed_debug()
-    if not _spell_sequence then return false end
-    local ok, v = pcall(_spell_sequence.get_confirmed_debug, _spell_sequence)
-    return ok and v == true
-end
-
---- Override the local player resolver for on_spell_cast filtering.
----@param fn fun():game_object Function that returns the local player
-function NS.seq_set_local_player_fn(fn)
-    if not _spell_sequence or type(fn) ~= "function" then return end
-    pcall(_spell_sequence.set_local_player_fn, _spell_sequence, fn)
-end
-
---- Bind the native C++ module manually (if loaded after require-time).
----@param native_module table Native module reference
-function NS.seq_bind_native(native_module)
-    if not _spell_sequence or not native_module then return end
-    pcall(_spell_sequence.bind_native, _spell_sequence, native_module)
 end
 
 local function unit_alive_inner(unit)
@@ -3751,24 +3083,6 @@ function NS.should_apply_ranked_buff(unit, family_ids, cast_spell, threshold)
     return remains <= threshold
 end
 
---- Returns the points array from debuff aura data.
----@param unit game_object The unit to check.
----@param ids table Array of spell IDs.
----@return number[]|nil points The points array from active debuff data, or nil.
-function NS.debuff_points(unit, ids)
-    return _aura_query(unit, ids, "debuff", nil, false,
-        function(data)
-            return type(data.points) == "table" and data.points or nil
-        end,
-        function(aura) return nil end,
-        function(unit, id)
-            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-            if fd and fd.is_active ~= false and type(fd.points) == "table" then
-                return fd.points
-            end
-            return nil
-        end)
-end
 
 function NS.debuff_remains(unit, ids)
     return _aura_query(unit, ids, "debuff", 0, true,
@@ -4035,74 +3349,6 @@ local function dump_aura_table(label, auras, watch_ids)
 
 end
 
---- Dumps local-player aura data and direct buff checks for debugging ID/API mismatches.
-
--- Call from the Diagnostics menu or from code: NS.dump_player_auras({324, 325})
-
-function NS.dump_player_auras(watch_ids)
-
-    local me = NS.GetPlayer and NS.GetPlayer() or nil
-
-    if not me then NS.log("[AURA] No local player found"); return false end
-
-    local ids = collect_ids(watch_ids or { 25472, 25469, 10432, 10431, 10430, 8134, 8133, 8132, 945, 905, 325, 324 }, {})
-
-    local watch = {}
-
-    for i = 1, #ids do watch[ids[i]] = true end
-
-    NS.log("=== PLAYER AURA DUMP ===")
-
-    NS.log("[AURA] watch_ids=" .. table.concat(ids, ","))
-
-    NS.log("[AURA] NS.buff_up(watch_ids)=" .. tostring(NS.buff_up(me, ids)))
-
-    for i = 1, #ids do
-
-        local id = ids[i]
-
-        local has_buff = safe(safe_field(me, "has_buff"), me, id)
-
-        local buff_up_value = safe(safe_field(me, "buff_up"), me, id)
-
-        local buff_data = safe(safe_field(me, "get_buff_data"), me, id)
-
-        local aura_data_value = safe(safe_field(me, "get_aura_data"), me, id)
-
-        NS.log(string.format("[AURA] check id=%d has_buff=%s buff_up=%s get_buff_data=%s get_aura_data=%s buff_name=%s aura_name=%s",
-
-            id,
-
-            tostring(has_buff),
-
-            tostring(buff_up_value),
-
-            tostring(buff_data ~= nil and buff_data.is_active ~= false),
-
-            tostring(aura_data_value ~= nil and aura_data_value.is_active ~= false),
-
-            tostring(type(buff_data) == "table" and aura_name(buff_data) or "?"),
-
-            tostring(type(aura_data_value) == "table" and aura_name(aura_data_value) or "?")))
-
-    end
-
-    local buffs = safe(safe_field(me, "get_buffs"), me)
-
-    local auras = safe(safe_field(me, "get_auras"), me)
-
-    local buff_match = dump_aura_table("get_buffs", buffs, watch)
-
-    local aura_match = dump_aura_table("get_auras", auras, watch)
-
-    NS.log("[AURA] get_buffs_match=" .. tostring(buff_match) .. " get_auras_match=" .. tostring(aura_match))
-
-    NS.log("=== END PLAYER AURA DUMP ===")
-
-    return true
-
-end
-
 local function unit_distance(a, b)
 
     if not a then return 999 end
@@ -4178,21 +3424,6 @@ function NS.is_melee_target(target, me)
 
     return is_melee_target(target, me)
 
-end
-
-function NS.is_target_bursting(target)
-    if not target then return false end
-    -- Use API burst detection when available (replaces hardcoded PVP_BURST_BUFFS)
-    local has_burst_fn = safe_field(target, "has_burst_active")
-    if has_burst_fn then
-        local has_burst = safe(has_burst_fn, target)
-        if has_burst then return true end
-    end
-    -- Fallback: iterate hardcoded burst buffs if API method unavailable
-    for i = 1, #PVP_BURST_BUFFS do
-        if NS.buff_up(target, PVP_BURST_BUFFS[i]) then return true end
-    end
-    return false
 end
 
 function NS.should_kite(context)
@@ -4293,82 +3524,6 @@ function NS.is_pvp_zone()
 
 end
 
--- Filter an enemy list to player targets only.
-
--- `enemies` is a table (array or {n=count}); `out` is optional reusable buffer.
-
--- Returns `out, count` so callers can avoid per-frame table allocation.
-
-function NS.filter_pvp_targets(enemies, out)
-
-    out = out or {}
-
-    for k in pairs(out) do out[k] = nil end
-
-    if type(enemies) ~= "table" then return out, 0 end
-
-    local n = 0
-
-    local max = enemies.n or #enemies
-
-    for i = 1, max do
-
-        local u = enemies[i]
-
-        if u then
-
-            local is_player = safe_field(u, "is_player")
-
-            if is_player and safe(is_player, u) == true then
-
-                n = n + 1
-
-                out[n] = u
-
-            end
-
-        end
-
-    end
-
-    out.n = n
-
-    return out, n
-
-end
-
-function NS.is_safe_to_cast(context, cast_time)
-    if type(context) ~= "table" then return true end
-    local target = context.target
-    local cast_seconds = type(cast_time) == "number" and cast_time or 0
-
-    -- Use API CC check when available; fallback to hardcoded NS.CC_DEBUFFS
-    if target then
-        local is_cc_fn = safe_field(target, "is_cc")
-        if is_cc_fn then
-            local is_cc = safe(is_cc_fn, target, cast_seconds * 1000)
-            if is_cc then return true end
-        elseif NS.debuff_up(target, NS.CC_DEBUFFS) and NS.debuff_remains(target, NS.CC_DEBUFFS) > cast_seconds then
-            return true
-        end
-    end
-
-    -- Use API damage immunity check when available; fallback to hardcoded PLAYER_DEFENSIVE_BUFFS
-    local me = NS.GetPlayer()
-    if me then
-        local is_immune_fn = safe_field(me, "is_damage_immune")
-        if is_immune_fn then
-            local is_immune = safe(is_immune_fn, me)
-            if is_immune then return true end
-        else
-            for i = 1, #PLAYER_DEFENSIVE_BUFFS do
-                if NS.has_player_buff(PLAYER_DEFENSIVE_BUFFS[i]) then return true end
-            end
-        end
-    end
-
-    return not NS.should_kite(context) and not NS.is_target_bursting(target)
-end
 
 -- Stub: extension point for future modules
 function NS.has_breakable_cc_nearby(context)
@@ -4454,11 +3609,6 @@ end
 -- Platform game_object shield / heal wrappers (native engine API).
 -- These are thin pcall-guarded accessors so specs do not inline raw pcalls.
 
-function NS.get_total_shield(unit)
-    if not unit then return 0 end
-    local ok, val = pcall(function() return unit.get_total_shield and unit:get_total_shield() end)
-    return (ok and type(val) == "number" and val) or 0
-end
 
 function NS.get_incoming_heals(unit)
     if not unit then return 0 end
@@ -4466,11 +3616,6 @@ function NS.get_incoming_heals(unit)
     return (ok and type(val) == "number" and val) or 0
 end
 
-function NS.get_incoming_heals_from(unit, source)
-    if not unit or not source then return 0 end
-    local ok, val = pcall(function() return unit.get_incoming_heals_from and unit:get_incoming_heals_from(source) end)
-    return (ok and type(val) == "number" and val) or 0
-end
 
 --- Exposes the platform target_selector:get_targets_heal for best healing targets
 --- according to user menu settings (advanced auto-healing target selection).
@@ -5297,20 +4442,6 @@ local BOSS_DEBUFF_CRITICAL = {
     [38995] = "Hammer of Justice",   -- Sunwell trash (stun + damage)
 }
 
---- Check if a unit has a critical boss debuff requiring immediate healing.
----@param unit game_object Target unit
----@return boolean has_critical True if unit has a critical boss debuff
----@return string|nil debuff_name Name of the critical debuff, or nil
-function NS.has_critical_boss_debuff(unit)
-    if not unit then return false, nil end
-    local has_debuff = unit.has_debuff
-    if not has_debuff then return false, nil end
-    for debuff_id, name in pairs(BOSS_DEBUFF_CRITICAL) do
-        local ok, result = pcall(has_debuff, unit, debuff_id)
-        if ok and result then return true, name end
-    end
-    return false, nil
-end
 
 local function is_tank_unit(unit)
     if not unit then return false end
@@ -5595,25 +4726,6 @@ end
 local healing_unit_buffer = {}
 
 local _collect_healing_units_buf = {}
-function NS.collect_healing_units()
-
-    local count = NS.build_healing_entries(healing_unit_buffer)
-
-    for i = 1, count do
-
-        _collect_healing_units_buf[i] = healing_unit_buffer[i] and healing_unit_buffer[i].unit or nil
-
-    end
-
-    for i = count + 1, #_collect_healing_units_buf do
-
-        _collect_healing_units_buf[i] = nil
-
-    end
-
-    return _collect_healing_units_buf
-
-end
 
 function NS.find_dead_party_ally()
 
@@ -5882,32 +4994,6 @@ local function strategy_category(strategy, list_name, active)
 
     if active then cat_cache[active] = cat end
     return cat
-end
-
--- Strategy gate: checks category toggles from settings and burst conditions.
-
--- Reused by both the legacy run_list dispatcher and the unified registry.
-
-function NS.strategy_allowed(strategy, list_name, active, context)
-
-    local settings = context and context.settings or EMPTY
-
-    local category = strategy_category(strategy, list_name, active)
-
-    local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
-
-    if is_healer and category == "damage" then return false end
-
-    if settings.utility_enabled == false and category == "utility" then return false end
-
-    if settings.healing_enabled == false and (category == "healing" or (is_healer and category == "cooldown")) then return false end
-
-    if settings.damage_enabled == false and (category == "damage" or (category == "cooldown" and not is_healer)) then return false end
-
-    if settings.use_cooldowns == false and category == "cooldown" and not (context and context.should_burst) then return false end
-
-    return true
-
 end
 
 --- Execute unified strategies for the active playstyle.
@@ -6593,9 +5679,7 @@ end
 
 NS.health_pct = NS.unit_health_pct
 
-NS.get_health_pct = NS.unit_health_pct
 
-NS.safe_call = safe
 
 -- One-shot API probe: log spell_book availability at load time
 -- Removed to reduce boot spam. If you need this, check core.spell_book directly.
@@ -6627,156 +5711,6 @@ end
 -- Removed Core runtime / GameVersion / ExactVersion boot logs.
 -- These were useful during development but add noise on every /reload.
 
---- Dump all available player information to the log.
-
--- Call from anywhere: NS.dump_player_info()
-
-function NS.dump_player_info()
-
-    local me = NS.GetPlayer and NS.GetPlayer() or nil
-
-    if not me then NS.log("[DUMP] No local player found"); return end
-
-    local function sf(obj, key)
-
-        local ok, v = pcall(function() return obj[key] end)
-
-        return ok and v or nil
-
-    end
-
-    NS.log("=== PLAYER DUMP ===")
-
-    NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
-    NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
-
-    NS.log("Name: " .. tostring(sf(me, "get_name") and me:get_name() or "?"))
-
-    NS.log("Level: " .. tostring(sf(me, "get_level") and me:get_level() or "?"))
-
-    NS.log("Race: " .. tostring(sf(me, "get_race") and me:get_race() or "?"))
-
-    NS.log("Class: " .. tostring(sf(me, "get_class") and me:get_class() or "?"))
-
-    NS.log("Gender: " .. tostring(sf(me, "get_gender") and me:get_gender() or "?"))
-
-    NS.log("HP: " .. tostring(sf(me, "get_health_percentage") and math.floor(me:get_health_percentage()) or "?") .. "%")
-
-    NS.log("Mana: " .. tostring(sf(me, "get_mana_percentage") and math.floor(me:get_mana_percentage()) or "?") .. "%")
-
-    NS.log("Power: " .. tostring(sf(me, "get_power") and me:get_power(0) or "?"))
-
-    NS.log("MaxPower: " .. tostring(sf(me, "get_max_power") and me:get_max_power(0) or "?"))
-
-    NS.log("XP: " .. tostring(sf(me, "get_xp") and me:get_xp() or "?"))
-
-    NS.log("MapID: " .. tostring(core.get_map_id and core.get_map_id() or "?"))
-
-    NS.log("MapName: " .. tostring(core.get_map_name and core.get_map_name() or "?"))
-
-    local ok_zone, zone_text = pcall(function() return core.get_zone_text() end)
-    NS.log("Zone: " .. tostring(ok_zone and zone_text or "?"))
-
-    local ok_subzone, subzone_text = pcall(function() return core.get_subzone_text() end)
-    NS.log("SubZone: " .. tostring(ok_subzone and subzone_text or "?"))
-
-    NS.log("InCombat: " .. tostring(sf(me, "is_in_combat") and me:is_in_combat() or "?"))
-
-    NS.log("IsAlive: " .. tostring(sf(me, "is_alive") and me:is_alive() or "?"))
-
-    NS.log("IsMounted: " .. tostring(sf(me, "is_mounted") and me:is_mounted() or "?"))
-
-    NS.log("IsFlying: " .. tostring(sf(me, "is_flying") and me:is_flying() or "?"))
-
-    NS.log("IsStealthed: " .. tostring(sf(me, "is_stealthed") and me:is_stealthed() or "?"))
-
-    NS.log("IsMainMenuOpen: " .. tostring(core.is_main_menu_open and core.is_main_menu_open() or "?"))
-
-    NS.log("GameVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or core.get_game_version and core.get_game_version() or "?"))
-
-    NS.log("Region: " .. tostring(core.get_game_region and core.get_game_region() or "?"))
-
-    NS.log("Ping: " .. tostring(core.get_ping and core.get_ping() or "?") .. "ms")
-
-    NS.log("Build: " .. tostring(core.get_build and core.get_build() or "?"))
-
-    -- Target info
-
-    local target = sf(me, "get_target") and me:get_target() or nil
-
-    if target then
-
-        NS.log("--- Target ---")
-
-        NS.log("TargetName: " .. tostring(sf(target, "get_name") and target:get_name() or "?"))
-
-        NS.log("TargetLevel: " .. tostring(sf(target, "get_level") and target:get_level() or "?"))
-
-        NS.log("TargetHP: " .. tostring(sf(target, "get_health_percentage") and math.floor(target:get_health_percentage()) or "?") .. "%")
-
-        NS.log("TargetDist: " .. tostring(sf(me, "get_distance") and me:get_distance(target) and math.floor(me:get_distance(target)) or "?") .. "yd")
-
-        NS.log("TargetCreatureType: " .. tostring(sf(target, "get_creature_type") and target:get_creature_type() or "?"))
-
-    end
-
-    -- Learned spells (sample first 50)
-
-    NS.log("--- Learned Spells (up to 50) ---")
-
-    local sb = core.spell_book
-
-    local count = 0
-
-    if sb and type(sb.iterate_spells) == "function" then
-
-        local ok, iter = pcall(sb.iterate_spells)
-
-        if ok and type(iter) == "table" then
-
-            for i = 1, #iter do
-
-                if count >= 50 then break end
-
-                count = count + 1
-
-                NS.log("  Spell " .. tostring(count) .. ": " .. tostring(iter[i]))
-
-            end
-
-        end
-
-    end
-
-    if count == 0 then
-
-        -- Try is_spell_learned on common spell IDs
-
-        local common = { 3044, 13163, 2643, 883, 5384, 1499, 1130, 3045, 982, 1978, 34120 }
-
-        for i = 1, #common do
-
-            if count >= 50 then break end
-
-            local ok_learned, learned = pcall(sb.is_spell_learned, common[i])
-            local known = ok_learned and learned or false
-
-            NS.log("  SpellID " .. tostring(common[i]) .. ": " .. tostring(known))
-
-            count = count + 1
-
-        end
-
-    end
-
-    -- Talents (now exposed via context.talent_build in main_sylvanas.lua build_context())
-
-    NS.log("--- Talents (see context.talent_build) ---")
-
-    NS.log("=== END DUMP ===")
-
-end
-
 -- ============================================================================
 -- Movement Assist (Phase 5) — Lazy-loaded shared movement/facing helper
 -- ============================================================================
@@ -6796,6 +5730,8 @@ do
 end
 
 return NS
+
+
 
 
 

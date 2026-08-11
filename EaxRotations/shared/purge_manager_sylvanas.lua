@@ -191,12 +191,5 @@ function M.try_purge(context)
 end
 
 
--- Register with EaxRotations namespace if available. Mock-NS guard (survey
--- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
--- capture module instances via require-time write-back.
-if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
-    _G.EaxRotations.PurgeManager = M
-end
-
 return M
 

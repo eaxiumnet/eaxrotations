@@ -557,6 +557,186 @@ local function is_guarded_site(lines, call_line, esc, name)
 end
 
 -- ============================================================================
+-- NEVER-CALLED rule (2026-08-11): every member DEFINED on the NS namespace
+-- must be referenced by at least one file in the pool (classes + shared +
+-- core/ + root runtime + tests). A defined member with zero references is
+-- the same defect class as the dead-export sweep — dead API surface a future
+-- spec may copy. The 64 dead core_sylvanas members + the dead write-back
+-- installs (PurgeManager, TTDTracker, mf_tick_compute, the get_dot_* and
+-- heal-position helpers, etc.) were removed by the 2026-08-11 sweep; this
+-- rule is the permanent guard so the class cannot silently return.
+-- Members legitimately kept with zero references are exempted below WITH
+-- evidence (the repo convention: pins carry the reason).
+-- ============================================================================
+local NEVER_CALLED_EXEMPT = {
+    -- melee_combat_math write-back: the REAL-NS write-back behavior itself is
+    -- pinned by test_ns_mock_pollution_guard.lua section (2) — `real_ns.X`
+    -- must still receive the bindings. No runtime caller exists, but removing
+    -- the write-back would break that mechanism test.
+    MeleeCombatMath = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    glancing_chance = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    glancing_damage_penalty = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    off_hand_multiplier = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    dual_wield_miss_chance = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    armor_mitigation = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    rage_normalization = "write-back pinned by test_ns_mock_pollution_guard.lua (real-NS binding assertion)",
+    -- def existence pinned by a contract test (source-text assertion).
+    should_apply_ranked_buff = "def pinned by test_ranked_buff_no_downgrade.lua:123 (source-text assertion)",
+    -- stubbed/restored via `_G.EaxRotations.setting_number` — the census's
+    -- NS-token matcher cannot see the EaxRotations.-prefixed form.
+    setting_number = "stub/restore pinned by test_bear_vanilla_nil_guards.lua via _G.EaxRotations.setting_number",
+}
+
+-- One merged walk over the full pool producing everything the never-called
+-- rule needs: def sites (name -> {file,line}), per-member reference counts
+-- (NS-token census minus def lines), and the import_helpers string-name set.
+-- Single walk = single read of each file (run_scan + ci-parity run this
+-- repeatedly, so keeping it to ONE pass matters).
+local function collect_never_called_census()
+    local def_sites = {}
+    local refs = {}
+    local imported = {}
+    local pipe = io.popen("find " .. REPO_ROOT .. " -name '*.lua'")
+    for line in pipe:lines() do
+        local p = line:gsub("\\", "/")
+        local f = io.open(p, "rb")
+        if f then
+            local content = f:read("*a")
+            f:close()
+            local stripped = strip_comments_and_strings(content)
+            local binding = detect_binding(content)
+            local esc = esc_token(binding)
+            local lines = split_lines(stripped)
+            local is_prod = not (p:find("/tests/") or p:find("/tools/"))
+            local is_ref_pool = not p:find("/tools/")
+
+            -- ---- def sites (production files only) ----
+            if is_prod then
+                for i = 1, #lines do
+                    local ln = lines[i]
+                    for name in ln:gmatch("function%s*" .. esc .. "%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*%(") do
+                        if not def_sites[name] then def_sites[name] = { file = p, line = i } end
+                    end
+                    for name in ln:gmatch(esc .. "%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*=") do
+                        if not def_sites[name] then def_sites[name] = { file = p, line = i } end
+                    end
+                    local eq = ln:find("%s+=[^=]")
+                    if eq and ln:sub(1, eq):find(esc .. "%s*%.%s*[A-Za-z_][A-Za-z0-9_]*%s*,") then
+                        local lhs = ln:sub(1, eq)
+                        for name in lhs:gmatch(esc .. "%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*,?%s*") do
+                            if not def_sites[name] then def_sites[name] = { file = p, line = i } end
+                        end
+                    end
+                    for name in ln:gmatch("_?G%.EaxRotations%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*=") do
+                        if not def_sites[name] then def_sites[name] = { file = p, line = i } end
+                    end
+                end
+                if stripped:find("ns%s*=%s*ns%s+or%s+NS", 1) then
+                    for i = 1, #lines do
+                        for name in lines[i]:gmatch("ns%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*=") do
+                            if not def_sites[name] then def_sites[name] = { file = p, line = i } end
+                        end
+                    end
+                end
+            end
+
+            -- ---- reference census (full pool incl. tests, excl. tools) ----
+            if is_ref_pool then
+                -- dot-chain-safe token census: advance past each `word.`
+                -- segment so NS.SpellCorpus.use_me() counts BOTH members.
+                local pos = 1
+                while true do
+                    local s, ee = stripped:find("%f[%a_]%a[%w_]*%.", pos)
+                    if not s then break end
+                    local prefix = stripped:match("([%a_][%w_]*)%.", s)
+                    if prefix == binding then
+                        local member = stripped:match("^[%a_][%w_]*", ee + 1)
+                        if member then refs[member] = (refs[member] or 0) + 1 end
+                    end
+                    pos = ee + 1
+                end
+                for member in stripped:gmatch(esc .. "%s*%[%s*[\"']([%a_][%w_]*)['\"]%s*%]") do
+                    refs[member] = (refs[member] or 0) + 1
+                end
+                for member in stripped:gmatch(esc .. "%s*:([%a_][%w_]*)") do
+                    refs[member] = (refs[member] or 0) + 1
+                end
+                -- subtract def lines in THIS file so a member defined only in
+                -- its own file is not self-referenced. `==`/`~=` comparisons
+                -- are excluded via the `(%s*$|[^=])` trailing guard. NOTE:
+                -- install-form def lines (`ns.<name> = ...` inside an
+                -- `M.install(ns)` block) are NOT subtracted — the token
+                -- census matches the file's BINDING token ("NS"), never the
+                -- lowercase `ns` parameter, so such lines contribute zero
+                -- references and subtracting them would spuriously cancel a
+                -- genuine external read (the CONE_HALF_ANGLE test-read case).
+                for ln in stripped:gmatch("[^\n]+") do
+                    local n = ln:match("function%s*" .. esc .. "%s*%.%s*([%a_][%w_]*)%s*%(")
+                    if n then refs[n] = (refs[n] or 0) - 1 end
+                    n = ln:match(esc .. "%s*%.%s*([%a_][%w_]*)%s*=(%s*$|[^=])")
+                    if n then refs[n] = (refs[n] or 0) - 1 end
+                end
+            end
+
+            -- ---- import_helpers string-name references (RAW content) ----
+            local pos = 1
+            while true do
+                local s = content:find("import_helpers%s*%(", pos)
+                if not s then break end
+                local j = s + #("import_helpers(")
+                local depth = 1
+                while j <= #content and depth > 0 do
+                    local ch = content:sub(j, j)
+                    if ch == '"' or ch == "'" then
+                        local q = ch
+                        local k = j + 1
+                        while k <= #content do
+                            if content:sub(k, k) == "\\" then k = k + 2
+                            elseif content:sub(k, k) == q then break
+                            else k = k + 1 end
+                        end
+                        local name = content:sub(j + 1, k - 1)
+                        if name:match("^[%a_][%w_]*$") then imported[name] = true end
+                        j = k + 1
+                    elseif ch == "(" then depth = depth + 1; j = j + 1
+                    elseif ch == ")" then depth = depth - 1; j = j + 1
+                    else j = j + 1 end
+                end
+                pos = j
+            end
+        end
+    end
+    pipe:close()
+    return def_sites, refs, imported
+end
+
+-- Pure decision (self-testable with synthetic tables): a defined member is
+-- never-called iff zero references, not import_helpers-covered, not exempt.
+local function never_called_list(assigned, refs, imported, def_sites)
+    local dead = {}
+    for name in pairs(assigned) do
+        if not NEVER_CALLED_EXEMPT[name] and not (imported and imported[name]) then
+            local n = (refs and refs[name]) or 0
+            if n <= 0 then
+                local site = def_sites and def_sites[name]
+                dead[#dead + 1] = {
+                    name = name,
+                    file = (site and site.file) or "?",
+                    line = (site and site.line) or 0,
+                    why = "defined but never called (NS member with zero references)",
+                }
+            end
+        end
+    end
+    table.sort(dead, function(a, b)
+        if a.file ~= b.file then return a.file < b.file end
+        if a.line ~= b.line then return a.line < b.line end
+        return a.name < b.name
+    end)
+    return dead
+end
+
+-- ============================================================================
 -- Full scan: every .lua under classes/ + shared/
 -- ============================================================================
 local function run_scan(engine_dirs)
@@ -588,9 +768,11 @@ local function run_scan(engine_dirs)
             total_calls = total_calls + n
         end
     end
+    local def_sites, refs, imported = collect_never_called_census()
+    local dead = never_called_list(assigned, refs, imported, def_sites)
     return {
         results = results, assigned = assigned, mock = mock, engine = engine,
-        total_files = total_files, total_calls = total_calls,
+        dead = dead, total_files = total_files, total_calls = total_calls,
     }
 end
 
@@ -667,6 +849,10 @@ local function violations(scan)
             end
         end
         end
+    end
+    -- Never-called rule: defined-but-unreferenced NS members (dead API surface).
+    for _, d in ipairs(scan.dead or {}) do
+        v[#v + 1] = { file = d.file, line = d.line, name = d.name, text = d.name, why = d.why }
     end
     table.sort(v, function(a, b)
         if a.file ~= b.file then return a.file < b.file end
@@ -924,13 +1110,36 @@ local function run_self_tests()
     local vg2 = violations(guarded_guard_read)
     expect(#vg2, 0, "previous-line-guarded value read of guarded= member passes")
 
+    -- ---- NEVER-CALLED rule (defined-but-unreferenced members) ----
+    -- Non-vacuity: a defined member with zero references is flagged; a
+    -- referenced member, an import_helpers-covered member, and a REAL
+    -- NEVER_CALLED_EXEMPT member are not; the def site is reported.
+    local dead1 = never_called_list(
+        { dead_fn = true, live_fn = true, imported_fn = true, setting_number = true },
+        { live_fn = 3 },                    -- refs (live_fn referenced)
+        { imported_fn = true },             -- import_helpers string names
+        { dead_fn = { file = "x.lua", line = 7 }, live_fn = { file = "x.lua", line = 2 } })
+    expect(#dead1, 1, "never-called: only the zero-ref non-exempt member is flagged")
+    expect(dead1[1].name, "dead_fn", "never-called: dead_fn flagged")
+    expect(dead1[1].file, "x.lua", "never-called: def site file reported")
+    expect(dead1[1].line, 7, "never-called: def site line reported")
+    -- setting_number is a real NEVER_CALLED_EXEMPT entry (test stub/restore
+    -- pin) with zero refs here — it must NOT be flagged, proving the exempt
+    -- path uses the real constant, not a synthetic allowance.
+    local dead2 = never_called_list(
+        { setting_number = true, can_attack_target = true },
+        { }, { can_attack_target = true }, { setting_number = { file = "x.lua", line = 1 } })
+    expect(#dead2, 0, "never-called: exempt member and import-covered member kept")
+
     print("[PASS] NS-member audit self-tests: binding detection (NS vs param "
         .. "ns), string/line/block-comment exclusion, whitespace parens, "
         .. "inline + block guard detection, bare-call flagging, allowlist "
         .. "gating incl. unguarded-allowlisted and stale-mock failure, bare "
         .. "value-read rule (leveling_vanilla shape / guard exclusion / pcall "
         .. "reference), type()-guard recognition pin, guarded= value-read "
-        .. "verification (previous-line guard shape)")
+        .. "verification (previous-line guard shape), never-called rule "
+        .. "(defined-but-unreferenced members flagged; referenced / "
+        .. "import-covered / exempt members kept)")
     os.exit(0)
 end
 
@@ -983,7 +1192,7 @@ local bad = violations(scan)
 
 print("=============================================================================")
 print("  NS-MEMBER AUDIT (called + bare-value-read members must be assigned,")
-print("  engine, or allowlisted)")
+print("  engine, or allowlisted; defined members must be referenced)")
 print("=============================================================================")
 local clean = 0
 for _, res in ipairs(scan.results) do
@@ -1014,6 +1223,7 @@ print("=========================================================================
 print(string.format("  Total:     %d call-bearing files (%d NS member calls)",
     scan.total_files, scan.total_calls))
 print(string.format("  Clean:     %d", clean))
+print(string.format("  Dead:      %d defined-but-never-called members", #(scan.dead or {})))
 print(string.format("  Invalid:   %d", #bad))
 print(string.format("  Allowlist: %d members (%d mock, %d guarded, %d optional)",
     mock_n + guarded_n + optional_n, mock_n, guarded_n, optional_n))
@@ -1021,17 +1231,25 @@ print("=========================================================================
 
 if #bad > 0 then
     print("  NS members called but not assigned / not engine / not allowlisted,")
-    print("  or allowlisted entries that failed live verification:")
+    print("  allowlisted entries that failed live verification, or defined")
+    print("  members with zero references:")
     for _, v in ipairs(bad) do
-        print(string.format("    %s  line %d: NS.%s(  -- %s", v.file, v.line, v.name, v.why))
+        if v.why:find("never called", 1, true) then
+            print(string.format("    %s  line %d: defined but never called: NS.%s  -- %s",
+                v.file, v.line, v.name, v.why))
+        else
+            print(string.format("    %s  line %d: NS.%s(  -- %s", v.file, v.line, v.name, v.why))
+        end
     end
     print("")
     print("  Fix: define NS.<member> in the repo, guard every call site (the")
     print("  optional-method pattern), or add the name to ALLOWLIST in this")
-    print("  file with the evidence it is engine-provided.")
+    print("  file with the evidence it is engine-provided. For a never-called")
+    print("  member: remove the dead definition, or add it to NEVER_CALLED_EXEMPT")
+    print("  with the evidence it must stay (e.g. a mechanism/contract pin).")
     os.exit(1)
 end
 
 print("  Every NS member call and bare value read targets an assigned, engine,")
-print("  or allowlisted member.")
+print("  or allowlisted member, and every defined member is referenced.")
 os.exit(0)

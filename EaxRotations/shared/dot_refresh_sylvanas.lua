@@ -192,10 +192,6 @@ _G.DotRefresh = M
 if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
     _G.EaxRotations.should_refresh_dot = M.should_refresh_dot
     _G.EaxRotations.is_dot_active = M.is_dot_active
-    _G.EaxRotations.get_dot_tick_data = M.get_dot_tick_data
-    _G.EaxRotations.get_dot_total_damage = M.get_dot_total_damage
-    _G.EaxRotations.get_dot_dps = M.get_dot_dps
-    _G.EaxRotations.should_refresh_dot_by_ticks = M.should_refresh_dot_by_ticks
 end
 
 return M

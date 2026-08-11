@@ -563,7 +563,6 @@ function M.install(ns)
         if ns.AOE_RADIUS[k] == nil then ns.AOE_RADIUS[k] = v end
     end
     ns.CONE_HALF_ANGLE = M.CONE_HALF_ANGLE
-    ns.GROUND_MAX_RANGE = M.GROUND_MAX_RANGE
     -- Force shared hit-volume implementations (vec2/vec3) over any core stubs.
     ns.count_enemies_around_me = M.count_enemies_around_me
     ns.count_enemies_around_unit = M.count_enemies_around_unit
@@ -575,10 +574,7 @@ function M.install(ns)
     ns.aoe_cone_meets = M.aoe_cone_meets
     ns.cast_ground_aoe = M.cast_ground_aoe
     ns.as_vec3 = M.as_vec3
-    ns.ensure_vec3_position = M.ensure_vec3_position
     ns.squared_dist_xy = M.squared_dist_xy
-    ns.point_in_facing_cone = M.point_in_facing_cone
-    ns.facing_forward_vec2 = M.facing_forward_vec2
     return M
 end
 
