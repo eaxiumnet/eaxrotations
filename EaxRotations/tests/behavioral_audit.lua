@@ -1143,6 +1143,13 @@ function M.build_ns(class_key, era)
     -- fire regardless, but the spreads return false on nil). Rank ids mirror
     -- classes/druid/class_sylvanas.lua (27013/26988 top ranks — the same ids
     -- the multidot scenario's debuff_remains_map uses).
+    -- Druid cat-form spells (2026-08-11): the vanilla 19-lane cat block was
+    -- root-caused to THIS table — cat_vanilla is plain-style and reads
+    -- SPELLS.CatForm/Shred/Rake/... directly (no define_action_for_class
+    -- fallback), so every spell-gated lane died on nil. Same precedent as the
+    -- Hurricane fix above; rank ladders mirror classes/druid/class_sylvanas.lua
+    -- (TBC max-rank first). Shared with the TBC battery: TBC cat resolves the
+    -- SAME ids through define_action_for_class, so its behavior is unchanged.
     ns.DruidSpells = {
         Moonfire = ns.spell_action({ 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
         InsectSwarm = ns.spell_action({ 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
@@ -1152,6 +1159,19 @@ function M.build_ns(class_key, era)
         -- with aoe+mana+barkskin in place. 27011 is the TBC max rank (matches
         -- the class_sylvanas ladder).
         Hurricane = ns.spell_action({ 27011, 27012, 27013 }, "Hurricane"),
+        CatForm = ns.spell_action({ 768 }, "CatForm"),
+        TravelForm = ns.spell_action({ 783 }, "TravelForm"),
+        Prowl = ns.spell_action({ 9913, 6783, 5215 }, "Prowl"),
+        Barkskin = ns.spell_action({ 22812 }, "Barkskin"),
+        Ravage = ns.spell_action({ 27005, 9867, 9866, 6787, 6785 }, "Ravage"),
+        Shred = ns.spell_action({ 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
+        Dash = ns.spell_action({ 33357, 9821, 1850 }, "Dash"),
+        FaerieFireFeral = ns.spell_action({ 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
+        Rip = ns.spell_action({ 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
+        FerociousBite = ns.spell_action({ 24248, 31018, 22829, 22828, 22827, 22568 }, "FerociousBite"),
+        TigersFury = ns.spell_action({ 9846, 9845, 6793, 5217 }, "TigersFury"),
+        Rake = ns.spell_action({ 27003, 9904, 1824, 1823, 1822 }, "Rake"),
+        Claw = ns.spell_action({ 27000, 9850, 9849, 5201, 3029, 1082 }, "Claw"),
     }
     -- Scenario-aware equipped-item mock: the mutilate_daggers scenario sets
     -- equipped_daggers = true and get_equipped_item_id returns a real dagger
@@ -1830,6 +1850,13 @@ M.SCENARIOS = {
     { name = "cat_form_low_energy_5cp", overrides = { form = 3, energy = 25, combo_points = 5 } },
     { name = "cat_mangle_up",       overrides = { form = 3, energy = 80, combo_points = 2, buffs_up = true } },
     { name = "cat_stealth",         overrides = { form = 3, is_stealthed = true, combo_points = 0, in_combat = false, buffs_up = true } },
+    -- (2026-08-11): map-aware stealth opener — buffs_up marks EVERY debuff up
+    -- (pounce/faerie-fire remains 20), which self-blocks PounceOpener and
+    -- FaerieFireStealthLock ('debuff already up' gates). This scenario puts
+    -- ONLY the PROWL buff in the map (9913, cat_vanilla PROWL_BUFF), so
+    -- buff_up(PROWL) is true (stealth) while pounce/ff remains read 0 and
+    -- the opener lanes can fire.
+    { name = "cat_stealth_clean",   overrides = { form = 3, buff_remains_map = { [9913] = 1 }, combo_points = 0, energy = 90, in_combat = false } },
     { name = "cat_stealth_pvp",     overrides = { form = 3, is_stealthed = true, combo_points = 0, in_combat = false, is_pvp = true } },
     { name = "cat_burst",           overrides = { form = 3, should_burst = true, combat_time = 3 } },
     { name = "cat_short_ttd",       overrides = { form = 3, target_ttd = 2, ttd = 2, target_hp = 20, combo_points = 5, energy = 60 } },

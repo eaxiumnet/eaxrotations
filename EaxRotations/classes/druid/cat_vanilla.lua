@@ -83,6 +83,7 @@ local cat_state = {
     has_dash = false,
     has_barkskin = false,
     has_track_humanoids = false,
+    has_wolfshead = false,
     rip_remains = 0,
     rake_remains = 0,
     faerie_fire_remains = 0,
@@ -107,6 +108,7 @@ local CAT_VANILLA_SCHEMA = {
     target_range = 0,  in_combat = false,  is_pvp = false,
     is_behind = false,  clearcasting = false,  has_tigers_fury = false,
     has_dash = false,  has_barkskin = false,  has_track_humanoids = false,
+    has_wolfshead = false,
     faerie_fire_remains = 0,  pounce_remains = 0,  rip_ap = 0,  rake_ap = 0,
     attack_power = 0,  next_tick_in = ENERGY_TICK_INTERVAL,
     last_energy = 0,  last_tick_time = 0,  last_shift_time = -100,
@@ -284,6 +286,7 @@ local function build_state(context)
     state.has_dash = NS.buff_up(state.me, DASH_BUFF) or false
     state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
     state.has_track_humanoids = NS.buff_up(state.me, TRACK_HUMANOIDS_BUFF) or false
+    state.has_wolfshead = NS.buff_up(state.me, WOLFSHEAD_BUFF) or false
 
     state.rip_remains = NS.debuff_remains(state.target, RIP_DEBUFF) or 0
     state.rake_remains = NS.debuff_remains(state.target, RAKE_DEBUFF) or 0
@@ -297,6 +300,21 @@ local function build_state(context)
     update_energy_tick(state)
 
     state.should_powershift = false
+    -- Powershift trigger (2026-08-11): the vanilla file hardcoded
+    -- should_powershift = false, so the Powershift strategy (and its
+    -- POWERSHIFT_* constants) was unreachable in LIVE play — a genuine
+    -- mirror-drift defect vs cat_sylvanas:717-719. Same computation: shift at
+    -- <=25 energy when combo points are low and the energy gain makes a
+    -- follow-up Shred useful; gated on the cat_powershift_enabled setting.
+    if spec_kit.setting_bool(context, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
+        local shift_energy = spec_kit.setting_number(context, "cat_powershift_energy", 25)
+        local shift_gain = state.has_wolfshead and POWERSHIFT_GAIN_WOLFSHEAD or POWERSHIFT_GAIN_FUROR
+        local useful_after = (state.energy or 0) + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
+        state.should_powershift = (state.energy or 0) <= shift_energy
+            and (state.combo_points or 0) <= POWERSHIFT_SAFE_CP
+            and (state.mana_pct or 100) >= POWERSHIFT_MIN_MANA
+            and useful_after
+    end
     state.should_execute = (state.target_hp or 100) <= EXECUTE_HP
 
     return spec_kit.safe_state(state, CAT_VANILLA_SCHEMA)

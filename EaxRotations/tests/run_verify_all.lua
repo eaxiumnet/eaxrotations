@@ -425,11 +425,16 @@ local components = {
     --  * OOC/pre-combat/movement (10): FaerieFirePull, PrePullEnrage, TravelForm,
     --    Dash, Prowl, ManaGemConjure x2, AuraManagement, DemonArmorBuff,
     --    MountedProtection.
-    --  * cat form/stealth block (19): form/energy/stealth-gated (CatForm,
-    --    ClawFallback, FaerieFireFeral/StealthLock, PounceOpener, Powershift,
-    --    StealthShred, TigersFury, Barkskin opt-in, Rake/Rip/Shred/ShredOmen/
-    --    FerociousBite/RavageOpener, RakeSnapshot pinned family) — the TBC cat
-    --    scenarios don't drive vanilla cat's state reads.
+    --  * cat form/stealth block (19) — CLEARED 2026-08-11 to 0: root cause
+    --    was a harness gap (the mock DruidSpells table lacked the cat spells,
+    --    and cat_vanilla is plain-style reading SPELLS.X directly, so every
+    --    spell-gated lane died on nil) + ONE genuine defect (should_powershift
+    --    was hardcoded false — Powershift unreachable in live play, ported
+    --    from cat_sylvanas:717-719) + the pounce/FF-stealth lanes needing a
+    --    map-aware stealth scenario (buffs_up marks every debuff up, which
+    --    self-blocks their 'debuff down' gates; cat_stealth_clean adds the
+    --    PROWL buff map). RakeSnapshot fires via the fresh-dot path. All 19
+    --    lanes now fire; pinned by test_cat_vanilla_battery_regression.lua.
     --  * interrupt/CC (2): bear BashInterrupt (Pummel-shaped, needs target
     --    casting), assassination KidneyShotCC.
     --  * DoT/filler maintenance (~26): balance DoTs x2, hunter ArcaneShot x2 +
@@ -455,7 +460,7 @@ local components = {
             return {
                 { "vanilla specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 77 baseline, classified)", never == 77 },
+                { "never-firing " .. never .. " (expected 58 baseline, classified)", never == 58 },
             }
         end,
     },
