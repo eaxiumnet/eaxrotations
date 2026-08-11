@@ -54,7 +54,10 @@ _G.EaxRotations = {
     GetPlayer = function() return {
         get_health_percentage = function() return 100 end,
     } end,
-    spell_action = function(ids, label) return { id = ids[1], name = label or tostring(ids[1]) } end,
+    spell_action = function(ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { id = id, name = label or tostring(id) }
+    end,
     spell_ready = function() return mock_spell_ready end,
     buff_up = function() return false end,
     debuff_up = function() return false end,

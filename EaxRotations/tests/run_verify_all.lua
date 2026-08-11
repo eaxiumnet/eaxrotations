@@ -3,7 +3,9 @@
 --        (sylvanas/vanilla-contamination/vanilla-existence/wotlk), the three
 --        audits' --self-test pinned-rank enforcement modes (vanilla TBC_IDS,
 --        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the
---        behavioral battery, the era-pair coverage audit (era-mirror strategy
+--        behavioral battery (all three eras: TBC sylvanas, wotlk, and the
+--        vanilla era wired 2026-08-11 with its 79-lane classified baseline), the
+--        era-pair coverage audit (era-mirror strategy
 --        divergence baseline, run_era_pair_audit_tests.lua) plus its seed
 --        freshness guard (the committed era_pair_seed.lua must match a fresh
 --        regeneration — run_era_pair_seed_freshness.lua), and the
@@ -366,6 +368,60 @@ local components = {
                 { "wotlk specs " .. tostring(specs) .. " (expected 41)", specs == 41 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
                 { "never-firing " .. never .. " (expected 0)", never == 0 },
+            }
+        end,
+    },
+    -- Vanilla-era battery (2026-08-11): the era previously had ZERO behavioral
+    -- coverage — run_all errored on non-sylvanas/wotlk eras, which is why
+    -- fury_vanilla's never-fired Pummel shipped silently (it needed a dedicated
+    -- test instead). Wiring: SPEC_FILES_VANILLA manifest (31 non-leveling specs,
+    -- leveling_vanilla excluded like TBC), CLI/run_all era acceptance, the
+    -- plain-style loading shape (vanilla files return bare strategies + register
+    -- get_state via NS.rotation_registry — the harness now captures it via the
+    -- build_ns registry mock), is_vanilla + NS.setting stubs (subtlety_vanilla
+    -- crashed on every matcher without setting — 6 lanes cleared by the stub).
+    -- Baseline (honest first run): 79 never-firing lanes, classified, future
+    -- campaigns clear them per the (a)/(b)/(c) discipline. The fury Pummel
+    -- interrupt (previous unit) FIRES in 11 scenarios incl. wotlk_interrupts.
+    --
+    -- Classification of the 79 pins:
+    --  * race-gated (3): smite DevouringPlague (undead) / Starshards (night elf),
+    --    warlock RacialArcaneTorrent (blood elf) — RACE_OVERRIDES is era-gated
+    --    to sylvanas; vanilla needs the same mechanism to observe.
+    --  * OOC/pre-combat/movement (10): FaerieFirePull, PrePullEnrage, TravelForm,
+    --    Dash, Prowl, ManaGemConjure x2, AuraManagement, DemonArmorBuff,
+    --    MountedProtection.
+    --  * cat form/stealth block (19): form/energy/stealth-gated (CatForm,
+    --    ClawFallback, FaerieFireFeral/StealthLock, PounceOpener, Powershift,
+    --    StealthShred, TigersFury, Barkskin opt-in, Rake/Rip/Shred/ShredOmen/
+    --    FerociousBite/RavageOpener, RakeSnapshot pinned family) — the TBC cat
+    --    scenarios don't drive vanilla cat's state reads.
+    --  * interrupt/CC (2): bear BashInterrupt (Pummel-shaped, needs target
+    --    casting), assassination KidneyShotCC.
+    --  * DoT/filler maintenance (~26): balance DoTs x2, hunter ArcaneShot x2 +
+    --    SerpentStingRefresh, mage Fireball/ArcaneExplosion/ColdSnap/leveling x2,
+    --    assassination finishers x5, subtlety Ambush, shaman FlameShock x2 +
+    --    totems x2 + GraceOfAirTotemTwist, kebab Execute/MortalStrikeGeneralUse,
+    --    fury Intercept/Overpower, protection Intercept (battery defaults
+    --    in_melee_range=true and has no dodge fixture).
+    --  * heal/dispel/totem (14): resto cures/totems x8 + RebirthBattleRez, holy
+    --    pal FriendlyTarget, priest DispelMagic x2/Fade x2/FriendlyTarget x2 +
+    --    AbolishDisease.
+    --  * pinned families (3): FireNovaReplacement (module-local unpinnable),
+    --    EncounterReactions (declined), Ret_JudgeSecondary_CommandCleave
+    --    (seal-twist scenario-shaped).
+    {
+        label = "behavioral battery (vanilla)",
+        cmd = "lua " .. R .. "/behavioral_audit.lua vanilla",
+        check = function(c)
+            local specs = num(c, "Total:%s*(%d+)%s*|")
+            local load_fail = num(c, "Load failures:%s*(%d+)")
+            local never = 0
+            for _ in c:gmatch("NEVER:") do never = never + 1 end
+            return {
+                { "vanilla specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
+                { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
+                { "never-firing " .. never .. " (expected 79 baseline, classified)", never == 79 },
             }
         end,
     },

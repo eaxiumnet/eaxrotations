@@ -29,33 +29,36 @@ local function spell(field, ids, label)
 end
 
 -- Spell actions (Classic subset; Bloodthirst added following the leveling_vanilla
--- precedent — uses the shared NS.WarriorSpells table so it's a safe no-op if the
--- spell isn't learned/resolvable on this client.)
+-- precedent — uses the shared NS.WarriorSpells table when the client provides
+-- it, with the vanilla rank lists as the self-contained fallback, mirroring
+-- arms_vanilla's spell() convention. Vanilla IDs verified from the era data:
+-- DeathWish=12328 (TBC=12292), SweepingStrikes=12292 (TBC=12328),
+-- Bloodthirst {23894,23893,23892,23881} (class_sylvanas levels 60/54/48/40).
 local ACTION = {
-    BattleShout = SPELLS.BattleShout,
-    BattleStance = SPELLS.BattleStance,
-    BerserkerRage = SPELLS.BerserkerRage,
-    BerserkerStance = SPELLS.BerserkerStance,
-    Bloodrage = SPELLS.Bloodrage,
-    Bloodthirst = SPELLS.Bloodthirst,
-    Charge = SPELLS.Charge,
-    Cleave = SPELLS.Cleave,
-    DeathWish = SPELLS.DeathWish,
-    DefensiveStance = SPELLS.DefensiveStance,
-    DemoralizingShout = SPELLS.DemoralizingShout,
-    Execute = SPELLS.Execute,
-    Hamstring = SPELLS.Hamstring,
-    HeroicStrike = SPELLS.HeroicStrike,
-    Intercept = SPELLS.Intercept,
-    Overpower = SPELLS.Overpower,
-    Pummel = SPELLS.Pummel,
-    Recklessness = SPELLS.Recklessness,
-    Rend = SPELLS.Rend,
-    Slam = SPELLS.Slam,
-    SunderArmor = SPELLS.SunderArmor,
-    SweepingStrikes = SPELLS.SweepingStrikes,
-    ThunderClap = SPELLS.ThunderClap,
-    Whirlwind = SPELLS.Whirlwind,
+    BattleShout = spell("BattleShout", { 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleStance = spell("BattleStance", 2457, "BattleStance"),
+    BerserkerRage = spell("BerserkerRage", 18499, "BerserkerRage"),
+    BerserkerStance = spell("BerserkerStance", 2458, "BerserkerStance"),
+    Bloodrage = spell("Bloodrage", 2687, "Bloodrage"),
+    Bloodthirst = spell("Bloodthirst", { 23894, 23893, 23892, 23881 }, "Bloodthirst"),
+    Charge = spell("Charge", { 11578, 6178, 100 }, "Charge"),
+    Cleave = spell("Cleave", { 20569, 11609, 11608, 7369, 845 }, "Cleave"),
+    DeathWish = spell("DeathWish", 12328, "DeathWish"),
+    DefensiveStance = spell("DefensiveStance", 71, "DefensiveStance"),
+    DemoralizingShout = spell("DemoralizingShout", { 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
+    Execute = spell("Execute", { 20662, 20661, 20660, 20658, 5308 }, "Execute"),
+    Hamstring = spell("Hamstring", { 7373, 7372, 1715 }, "Hamstring"),
+    HeroicStrike = spell("HeroicStrike", { 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+    Intercept = spell("Intercept", { 20617, 20616, 20252 }, "Intercept"),
+    Overpower = spell("Overpower", { 11585, 7887, 7384 }, "Overpower"),
+    Pummel = spell("Pummel", { 6554, 6552 }, "Pummel"),
+    Recklessness = spell("Recklessness", 1719, "Recklessness"),
+    Rend = spell("Rend", { 11574, 11573, 6548, 6547, 772 }, "Rend"),
+    Slam = spell("Slam", { 11605, 11604, 8820, 1464 }, "Slam"),
+    SunderArmor = spell("SunderArmor", { 11597, 11596, 8380, 7405, 7386 }, "SunderArmor"),
+    SweepingStrikes = spell("SweepingStrikes", 12292, "SweepingStrikes"),
+    ThunderClap = spell("ThunderClap", { 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
+    Whirlwind = spell("Whirlwind", 1680, "Whirlwind"),
 }
 
 -- Buff/debuff ID tables (Classic rank sets)

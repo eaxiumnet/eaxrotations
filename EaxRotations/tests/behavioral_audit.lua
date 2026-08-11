@@ -81,7 +81,25 @@ M.SPEC_FILES_WOTLK = {
     warrior = { "arms", "fury", "leveling", "protection" },
 }
 
-M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK }
+-- Vanilla era (Classic 1.15.x): the 30 non-leveling spec files mirror the TBC
+-- manifest shape. Vanilla files are plain-style — they return their strategies
+-- table directly and register get_state via NS.rotation_registry (fury_vanilla
+-- is the canonical example) — which the harness supports via the registry mock
+-- in build_ns + the run_spec build_state fallback. leveling_vanilla files run
+-- via run_leveling_tests.lua (same exclusion as TBC).
+M.SPEC_FILES_VANILLA = {
+    druid = { "balance", "bear", "cat", "caster", "resto" },
+    hunter = { "beast_mastery", "marksmanship", "survival" },
+    mage = { "arcane", "fire", "frost" },
+    paladin = { "holy", "protection", "retribution" },
+    priest = { "discipline", "holy", "shadow", "smite" },
+    rogue = { "assassination", "combat", "subtlety" },
+    shaman = { "elemental", "enhancement", "restoration" },
+    warlock = { "affliction", "demonology", "destruction" },
+    warrior = { "arms", "fury", "protection", "kebab" },
+}
+
+M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA }
 
 -- Class profiles used to build representative contexts.
 M.CLASS_PROFILE = {
@@ -516,6 +534,24 @@ function M.build_ns(class_key, era)
         if type(ov) == "table" and key and ov[key] ~= nil then return ov[key] end
         return nil
     end
+    -- Vanilla-era support (2026-08-11): mirror core/settings.lua's NS.setting
+    -- (context.settings first, then NS.get_setting, then default). The vanilla
+    -- files capture `local setting = NS.setting` at require time — without the
+    -- stub, subtlety_vanilla's matchers (option()/Evasion/Vanish/Preparation/
+    -- Feint, subtlety_vanilla:133-368) crashed on every scenario and all seven
+    -- of its lanes reported never. Scenario-aware via the get_setting chain.
+    ns.setting = function(context, key, default)
+        local settings = context and context.settings
+        if settings and settings[key] ~= nil then return settings[key] end
+        if ns.get_setting then
+            -- get_setting returns nil for unconfigured keys (deliberately, so
+            -- spec_kit.setting's chain can apply ITS default) — NS.setting must
+            -- fall through to its own default in that case (engine semantics).
+            local v = ns.get_setting(key, nil)
+            if v ~= nil then return v end
+        end
+        return default
+    end
     -- Scenario-aware settings: `setting_overrides = { [setting_key] = value }`
     -- (e.g. { seal_twisting_enabled = true }) flips get_any_setting for the
     -- scenario; unconfigured keys return nil, so retri can_twist stays false
@@ -580,6 +616,9 @@ function M.build_ns(class_key, era)
     -- callable form or presence_manager's `if not (NS.is_wotlk and NS.is_wotlk())`
     -- short-circuits on the boolean and every DK spec bails at load.
     ns.is_wotlk = (era == "wotlk") and function() return true end or false
+    -- Vanilla era flag, callable like is_wotlk (vanilla file headers reference
+    -- NS.is_vanilla() as the loader contract; keep it a function for parity).
+    ns.is_vanilla = (era == "vanilla") and function() return true end or false
     ns.is_sod = false
     ns.should_kite = function() return false end
     ns.has_player_buff = function() return false end
@@ -992,6 +1031,19 @@ function M.build_ns(class_key, era)
     ns.unified_state_builders = {}
     ns.playstyles = { leveling = {} }
 
+    -- Vanilla-era support (2026-08-11): plain-style vanilla files register via
+    -- NS.rotation_registry:register(name, strategies, { get_state = build_state })
+    -- and return their bare strategies table (fury_vanilla is the canonical
+    -- example). The real engine resolves get_state from this registry, so the
+    -- mock captures the registration per load (build_ns runs once per
+    -- load_spec) and run_spec falls back to it when result.build_state is
+    -- absent — without this, every vanilla state-field read in a matcher
+    -- (s.target_casting etc.) silently sees nil and the lanes report never.
+    ns.rotation_registry = {
+        register = function(self, name, strategies, options)
+            ns._registry = { name = name, strategies = strategies, options = options or {} }
+        end,
+    }
     ns.same_unit = function(a, b) return a == b end
     ns.not_same_unit = function(a, b) return a ~= b end
     ns.spell_action = function(rank_ids, label)
@@ -3064,6 +3116,13 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
         return nil, "no strategies table returned for " .. class_key .. "/" .. spec_key
     end
     local build_state = (type(result) == "table") and result.build_state or nil
+    -- Plain-style vanilla files return their bare strategies table and register
+    -- get_state via the registry mock in build_ns; recover it here so stateful
+    -- matchers see the real safe_state instead of the raw scenario ctx.
+    if not build_state and ns and ns._registry and ns._registry.options
+        and type(ns._registry.options.get_state) == "function" then
+        build_state = ns._registry.options.get_state
+    end
 
     local fired = {}
     local fired_in = {}
@@ -3213,7 +3272,7 @@ function M.run_all(era)
     local manifest = M.ERA_MANIFESTS[era]
     if not manifest then
         error("behavioral_audit: unknown era '" .. tostring(era)
-            .. "' (expected 'sylvanas' or 'wotlk')", 0)
+            .. "' (expected 'sylvanas', 'wotlk' or 'vanilla')", 0)
     end
     local total = 0
     local reports = {}
@@ -3322,8 +3381,9 @@ function M.check_manifest_drift(era)
         "class_", "schema_", "middleware_", "healing_", "cliptracker_",
         "heal_helper_", "shared_helpers_",
     }
-    if era == "sylvanas" then
-        -- TBC leveling files run via run_leveling_tests.lua, not the battery.
+    if era == "sylvanas" or era == "vanilla" then
+        -- TBC + vanilla leveling files run via run_leveling_tests.lua, not the
+        -- battery (WotLK leveling files ARE battery specs).
         non_spec[#non_spec + 1] = "leveling_"
     end
     local drift = { missing = {}, extra = {} }
@@ -3373,7 +3433,8 @@ end
 -- Printer
 -- ---------------------------------------------------------------------------
 function M.print_report(agg)
-    local era_label = (agg.era == "wotlk") and "wotlk" or "sylvanas"
+    local era_label = (agg.era == "wotlk") and "wotlk"
+        or ((agg.era == "vanilla") and "vanilla" or "sylvanas")
     print("=============================================================================")
     print("  BEHAVIORAL BATTERY AUDIT (" .. tostring(agg.total) .. " " .. era_label .. " specs)")
     print("=============================================================================")
@@ -3399,7 +3460,7 @@ function M.print_report(agg)
     print("=============================================================================")
 end
 
--- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua [wotlk]`
+-- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua [wotlk|vanilla]`
 -- Direct runs are detected via arg[0] (the invoked script path), NOT via
 -- select("#", ...): in Lua 5.1 the main chunk's `...` IS the CLI args, but the
 -- spec scorecard loads this file via loadfile + chunk('scorecard'), which also
@@ -3409,12 +3470,13 @@ end
 -- out with usage instead of silently producing no report.
 if arg and arg[0] and arg[0]:find("behavioral_audit", 1, true) then
     local cli_era = arg[1]
-    if cli_era and cli_era ~= "wotlk" then
+    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" then
         io.stderr:write("behavioral_audit: unknown era '" .. tostring(cli_era)
-            .. "' — expected 'wotlk' or no argument (default sylvanas)\n")
+            .. "' — expected 'wotlk', 'vanilla' or no argument (default sylvanas)\n")
         os.exit(1)
     end
-    local era = (cli_era == "wotlk") and "wotlk" or "sylvanas"
+    local era = (cli_era == "wotlk") and "wotlk"
+        or ((cli_era == "vanilla") and "vanilla" or "sylvanas")
     local agg = M.run_all(era)
     M.print_report(agg)
 end
