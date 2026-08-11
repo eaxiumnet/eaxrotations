@@ -393,16 +393,6 @@ function M.compile_strategies(dsl_defs, opts)
     return strategies
 end
 
--- Convenience: build a strategy from a name, conditions, and action.
-function M.strategy(name, conditions, action, opts)
-    opts = opts or {}
-    return M.compile_strategy({
-        name = name,
-        conditions = conditions,
-        action = action,
-        matches = opts.matches,
-        execute = opts.execute,
-    })
-end
 
 return M
+

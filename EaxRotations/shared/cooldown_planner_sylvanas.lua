@@ -135,36 +135,7 @@ function M.should_fire_offensive(context)
   return false
 end
 
---- Defensive trinket/CD alignment.
--- Fires immediately when HP is below threshold unless a defensive CD is already
--- active (avoid overlapping redundancy).
-function M.should_fire_defensive(context)
-  local hp = context and (context.hp or 100) or 100
-  local threshold = (context and context.settings and context.settings.trinket_defensive_hp) or 40
-  if hp >= threshold then return false end
-  if M.is_major_defensive_cd_active(context) then return false end
-  return true
-end
 
---- Returns true if a major offensive cooldown is about to come off cooldown soon.
--- Use to decide whether to hold a trinket for a few seconds.
--- @param context           rotation context
--- @param cd_spell_id       spell ID of the CD to wait for
--- @param max_wait_sec      maximum seconds to hold (default 10)
-function M.is_major_cd_imminent(context, cd_spell_id, max_wait_sec)
-  max_wait_sec = max_wait_sec or 10
-  if not cd_spell_id then return false end
-  local me = me_or_context(context)
-  if not me then return false end
-  local remains = 0
-  if NS and NS.cooldown_remains then
-    remains = NS.cooldown_remains(cd_spell_id)
-  elseif NS and NS.spell_ready then
-    if NS.spell_ready(cd_spell_id, me, { skip_range = true }) then return true end
-  end
-  if type(remains) ~= "number" then remains = 0 end
-  return remains > 0 and remains <= max_wait_sec
-end
 
 if NS then
   NS.CooldownPlanner = M
@@ -172,3 +143,4 @@ if NS then
 end
 
 return M
+

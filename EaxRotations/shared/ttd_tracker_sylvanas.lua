@@ -237,27 +237,6 @@ function M.update(target, now, settings)
     return ttd
 end
 
--- ============================================================================
--- Returns the current HP decay rate in % per second for the tracked target.
--- Positive value = losing HP. Negative = gaining. Nil = insufficient data.
--- @param target_or_guid game_object|string
--- @return number|nil  HP% loss per second (positive = losing health)
--- ============================================================================
-function M.get_decay_rate(target_or_guid)
-    local guid = type(target_or_guid) == "string" and target_or_guid or target_guid(target_or_guid)
-    if not guid then return nil end
-
-    local history = _samples[guid]
-    if not history or #history < 2 then return nil end
-
-    local first = history[1]
-    local last = history[#history]
-    local dt = last.t - first.t
-    if dt <= 0 then return nil end
-
-    local dhp = first.hp - last.hp  -- positive = health dropped
-    return dhp / dt
-end
 
 -- ============================================================================
 -- Export to NS namespace (production path)
@@ -271,3 +250,4 @@ if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
 end
 
 return M
+

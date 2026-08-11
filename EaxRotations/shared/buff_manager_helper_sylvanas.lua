@@ -44,36 +44,10 @@ function M.get_all_debuffs(unit, ttl_ms)
     return safe_bm_call("get_debuff_cache", unit, nil, ttl_ms)
 end
 
-function M.get_all_buffs(unit, ttl_ms)
-    return safe_bm_call("get_buff_cache", unit, nil, ttl_ms)
-end
 
-function M.has_any_debuff(unit, ids, ttl_ms)
-    local data = M.get_debuff_data(unit, ids, ttl_ms)
-    if data and data.is_active ~= false then return true end
-    return false
-end
 
-function M.has_any_buff(unit, ids, ttl_ms)
-    local data = M.get_buff_data(unit, ids, ttl_ms)
-    if data and data.is_active ~= false then return true end
-    return false
-end
 
-function M.debuff_remaining(unit, ids, ttl_ms)
-    local data = M.get_debuff_data(unit, ids, ttl_ms)
-    if data and data.is_active ~= false and type(data.remaining) == "number" then
-        return data.remaining / 1000
-    end
-    return 0
-end
 
-function M.buff_remaining(unit, ids, ttl_ms)
-    local data = M.get_buff_data(unit, ids, ttl_ms)
-    if data and data.is_active ~= false and type(data.remaining) == "number" then
-        return data.remaining / 1000
-    end
-    return 0
-end
 
 return M
+

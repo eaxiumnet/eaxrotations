@@ -142,43 +142,7 @@ function M.get_spell_index(spell_id)
     return _spell_index[spell_id]
 end
 
---- Get all spells for a class from the index.
---- @param class_name string Class name (e.g., "Warlock", "Priest")
---- @return table spells Array of {id, name, school, is_heal, aoe, cast_time, level}
-function M.get_class_spells(class_name)
-    load_index()
-    local result = {}
-    local n = 0
-    for id, info in pairs(_spell_index) do
-        if info.class == class_name then
-            n = n + 1
-            result[n] = {
-                id = id,
-                name = info.name,
-                school = info.school,
-                is_heal = info.is_heal,
-                aoe = info.aoe,
-                cast_time = info.cast_time,
-                level = info.level,
-            }
-        end
-    end
-    table.sort(result, function(a, b) return a.id < b.id end)
-    return result
-end
 
---- Get periodic tick data for a spell (convenience wrapper).
---- @param spell_id number Spell ID
---- @return table|nil {amount, school, interval} or nil
-function M.get_periodic_data(spell_id)
-    local info = M.get_spell_info(spell_id)
-    if not info or not info.periodic_amount then return nil end
-    return {
-        amount = info.periodic_amount,
-        school = info.periodic_school,
-        interval = info.periodic_interval,
-    }
-end
 
 --- Get spell cost (convenience wrapper).
 --- @param spell_id number Spell ID
@@ -200,51 +164,7 @@ function M.get_gcd(spell_id)
     return info.gcd
 end
 
---- Get spell cooldown in seconds.
---- @param spell_id number Spell ID
---- @return number|nil cooldown_seconds (nil = no cooldown)
-function M.get_cooldown(spell_id)
-    if not spell_id then return nil end
-    load_index()
-    local info = _spell_index[spell_id]
-    if not info then return nil end
-    return info.cooldown_seconds
-end
 
---- Search spells for a class by filter criteria.
---- @param class_name string Class name (e.g., "Warlock", "Priest")
---- @param filter table Criteria: {is_heal=bool, aoe=bool, school=string, max_level=number, name_contains=string}
---- @return table spells Array of matching {id, name, school, is_heal, aoe, cast_time, level}
-function M.search_spells(class_name, filter)
-    load_index()
-    if not class_name then return {} end
-    filter = filter or {}
-    local result = {}
-    local n = 0
-    for id, info in pairs(_spell_index) do
-        if info.class == class_name then
-            local match = true
-            if filter.is_heal ~= nil and info.is_heal ~= filter.is_heal then match = false end
-            if filter.aoe ~= nil and info.aoe ~= filter.aoe then match = false end
-            if filter.school and info.school ~= filter.school then match = false end
-            if filter.max_level and info.level and info.level > filter.max_level then match = false end
-            if filter.name_contains and info.name and not info.name:find(filter.name_contains, 1, true) then match = false end
-            if match then
-                n = n + 1
-                result[n] = {
-                    id = id,
-                    name = info.name,
-                    school = info.school,
-                    is_heal = info.is_heal,
-                    aoe = info.aoe,
-                    cast_time = info.cast_time,
-                    level = info.level,
-                }
-            end
-        end
-    end
-    table.sort(result, function(a, b) return a.id < b.id end)
-    return result
-end
 
 return M
+

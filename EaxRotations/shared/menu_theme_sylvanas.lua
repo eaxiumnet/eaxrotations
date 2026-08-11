@@ -79,11 +79,6 @@ function MenuTheme.playstyle_color(class_key, playstyle)
     return C(220, 220, 220) -- neutral fallback
 end
 
---- Signature color for a class key.
-function MenuTheme.class_color(class_key)
-    if class_key and CLASS_COLOR[class_key] then return CLASS_COLOR[class_key] end
-    return C(220, 220, 220)
-end
 
 -- ---------------------------------------------------------------------------
 -- Role + capability per playstyle (drives Control Panel filtering).
@@ -314,3 +309,4 @@ function MenuTheme.scope_admits(scope, active)
 end
 
 return MenuTheme
+

@@ -591,30 +591,7 @@ function M.on_update(me, target, spec, context)
     st.state = STATE_FIGHTING
 end
 
--- ============================================================================
--- Warlock-specific: auto-summon helpers
--- ============================================================================
-function M.needs_summon(me, desired_pet_spell)
-    if not me then return false end
-    local ok, has_pet = pcall(function() return me:has_pet() end)
-    if ok and has_pet then
-        local pet = M.get_pet(me)
-        if pet and M.pet_alive(pet) then return false end
-    end
-    if not desired_pet_spell then return false end
-    return NS.spell_ready and NS.spell_ready(desired_pet_spell, me, { skip_range = true }) or false
-end
 
--- ============================================================================
--- Pet info helpers for specs
--- ============================================================================
-function M.get_pet_mode()
-    if _core.spell_book and _core.spell_book.get_pet_mode then
-        local ok, mode = pcall(_core.spell_book.get_pet_mode)
-        if ok and type(mode) == "number" then return mode end
-    end
-    return nil
-end
 
 function M.get_pet_spells()
     if _core.spell_book and _core.spell_book.get_pet_spells then
@@ -624,13 +601,6 @@ function M.get_pet_spells()
     return {}
 end
 
-function M.get_pet_action_info(spell_id)
-    if not spell_id then return nil end
-    if _core.spell_book and _core.spell_book.get_pet_action_info then
-        local ok, info = pcall(_core.spell_book.get_pet_action_info, spell_id)
-        if ok and type(info) == "table" then return info end
-    end
-    return nil
-end
 
 return M
+

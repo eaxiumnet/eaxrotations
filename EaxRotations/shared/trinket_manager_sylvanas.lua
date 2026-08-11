@@ -325,9 +325,7 @@ function M.get_equipped_trinkets()
     return refresh_slot_cache()
 end
 
-M.TRINKETS = TRINKETS
 M.strategies = strategies
-M.DEFAULT_DEFENSIVE_HP = DEFAULT_DEFENSIVE_HP
 
 if NS then
     NS.TrinketManager = M
@@ -337,3 +335,4 @@ end
 
 _G.EaxTrinketManager = M
 return M
+

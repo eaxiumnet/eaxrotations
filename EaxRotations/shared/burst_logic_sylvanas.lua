@@ -73,37 +73,7 @@ function M.should_auto_burst(context, deps)
     return false
 end
 
---- Shared gate for all autocast offensive cooldowns (trinkets, racials, potions).
--- Mirrors the sim's APLActionAutocastOtherCooldowns gating logic.
--- @param context table - Rotation context
--- @param deps table - Injected dependencies (same as should_auto_burst)
--- @return boolean
-function M.offensive_autocast_matches(context, deps)
-    if not context.in_combat or not context.has_valid_enemy_target then return false end
-    -- CD Min TTD gate: don't autocast on dying targets
-    local min_ttd = context.settings and context.settings.cd_min_ttd or 0
-    if min_ttd > 0 and (context.ttd or 999) < min_ttd then
-        return false
-    end
-    -- APL alignment: fire during Bloodlust/Drums when burst_on_bloodlust is on
-    if context.settings and context.settings.burst_on_bloodlust then
-        if context.bloodlust_active or context.drums_active then
-            return true
-        end
-        -- [BL-ALIGN] Timeout fallback — same logic as should_auto_burst
-        local combat_time = context.combat_time or 0
-        local ttd = context.ttd or 999
-        if combat_time >= M.BLOODLUST_TIMEOUT_SECONDS or ttd <= 15 then
-            return true
-        end
-    end
-    -- Standard burst gate
-    local auto_burst = M.should_auto_burst(context, deps)
-    if auto_burst then return true end
-    -- Fallback: no burst conditions configured → fire on CD
-    if auto_burst == nil then return true end
-    return false
-end
 
 _G.BurstLogic = M
 return M
+

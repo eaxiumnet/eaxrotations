@@ -222,29 +222,6 @@ function M.get_recommended_imbue(class, spec)
     return nil
 end
 
--- Check if imbue needs refresh
-function M.needs_refresh(slot, threshold_seconds)
-    threshold_seconds = threshold_seconds or 300
-
-    if not api_available.weapon_enchant then
-        return true
-    end
-
-    local info = nil
-    if slot == "mainhand" then
-        info = M.get_mainhand_enchant_info()
-    elseif slot == "offhand" then
-        info = M.get_offhand_enchant_info()
-    end
-
-    if not info or not info.has then return true end
-
-    if info.expiration and info.expiration > 0 then
-        return info.expiration <= threshold_seconds
-    end
-
-    return false
-end
 
 -- Initialize
 function M.init()
@@ -257,3 +234,4 @@ end
 M.init()
 
 return M
+

@@ -63,67 +63,9 @@ function M.get_penalty_adjusted_heal(spell_id, base_heal, player_level)
     return math.floor(base_heal * penalty), penalty
 end
 
---- Standard DirectCoefficient: castTime / 3.5
-function M.direct_coefficient(cast_time)
-    return cast_time / 3.5
-end
 
---- Standard HotCoefficient: duration / 15
-function M.hot_coefficient(duration)
-    return duration / 15
-end
 
---- Healing spell coefficient table — spell power coefficient AFTER DirectCoefficient
--- Fields: coeff (cast heal), coeff_hot (HoT tick), cast_time, interval, ticks
-M.HEAL_COEFFS = {
-    -- DRUID
-    HealingTouch     = { coeff = nil,    cast_time = 3.5 },  -- dynamic: cast_time/3.5
-    Regrowth         = { coeff = 0.2857, coeff_hot = 0.7,  cast_time = 2.0, interval = 3, ticks = 7 },
-    Rejuvenation     = { coeff_hot = nil, interval = 3, ticks = 5 },  -- ((dur/15) * (1+EmpoweredRejuv%)) / ticks
-    Tranquility      = { coeff = 1.145,  interval = 2, ticks = 4 },
-    Lifebloom        = { coeff_hot = 0.52, interval = 1, ticks = 7 },
-    -- PRIEST
-    FlashHeal        = { coeff = 0.4286, cast_time = 1.5 },
-    GreaterHeal      = { coeff = 0.8571, cast_time = 3.0 },
-    Heal             = { coeff = 0.8571, cast_time = 3.0 },
-    PrayerOfHealing  = { coeff = 0.4316, cast_time = 3.0 },
-    BindingHeal      = { coeff = 0.4286, cast_time = 1.5 },
-    Renew            = { coeff_hot = 1,  interval = 3, ticks = 5 },
-    CircleOfHealing  = { coeff = 0.241,  cast_time = 1.5 },
-    -- PALADIN
-    HolyLight        = { coeff = 0.7143, cast_time = 2.5 },
-    FlashOfLight     = { coeff = 0.4286, cast_time = 1.5 },
-    HolyShock        = { coeff = 0.4286, cast_time = 0 },  -- instant
-    -- SHAMAN
-    ChainHeal        = { coeff = 0.7143, cast_time = 2.5 },
-    HealingWave      = { coeff = nil,    cast_time = 3.0 },  -- dynamic: cast_time/3.5
-    LesserHealingWave = { coeff = 0.4286, cast_time = 1.5 },
-}
 
---- Per-rank base heal averages (top TBC rank only, for default overheal gate)
--- Rank-averaged values at level 70 with no +heal
-M.HEAL_BASE_TBC = {
-    -- Druid (top rank at 70)
-    HealingTouch     = 2472,  -- rank 12 (level 60) at 70 = ~2577
-    Regrowth         = 1061,  -- rank 9 (level 60) at 70 = ~1095
-    Rejuvenation_tick = 888,  -- rank 12 (level 58) at 70 = ~923
-    Lifebloom_tick   = 300,   -- TBC rank 1 (level 64) = ~300/tick
-    -- Priest (top rank at 70)
-    GreaterHeal      = 2242,  -- rank 8 (level 63) at 70 = ~2268
-    FlashHeal        = 986,   -- rank 8 (level 61) at 70 = ~1001
-    Renew_tick       = 970,   -- rank 8 (level 60) at 70 = ~970
-    PrayerOfHealing  = 650,   -- per target
-    BindingHeal      = 1050,  -- per target (both)
-    CircleOfHealing  = 400,   -- per target
-    -- Paladin (top rank at 70)
-    HolyLight        = 1840,  -- rank 10 (level 62) at 70 = ~1872
-    FlashOfLight     = 475,   -- rank 7 (level 66) at 70 = ~486
-    HolyShock        = 600,   -- rank 4 (level 60) = ~600
-    -- Shaman (top rank at 70)
-    ChainHeal        = 648,   -- rank 4 (level 61) at 70 = ~667
-    HealingWave      = 1847,  -- rank 11 (level 63) at 70 = ~1879
-    LesserHealingWave = 880,  -- rank 7 (level 60) at 70 = ~901
-}
 
 -- ---------------------------------------------------------------------------
 -- HealPredict Shield Absorb Data (TBC Anniversary 2.5.5)
@@ -175,30 +117,7 @@ M.SHIELD_DATA = {
 -- HealPredict: Shield Absorb Helpers
 -- ---------------------------------------------------------------------------
 
---- Compute expected absorb for a shield spell given caster spell_power.
---- Returns the base absorb when spell_power is nil/0 (cheap predictor gate);
---- otherwise returns floor(coeff * spell_power).
----@param spell_id number      Shield spell ID (PW:S, Ice Barrier, Mana Shield)
----@param spell_power number|nil  Caster's +spell_power stat (may be nil)
----@return integer absorb      Predicted absorb amount (>= 0)
-function M.calc_shield_absorb(spell_id, spell_power)
-    local data = M.SHIELD_DATA[spell_id]
-    if not data then return 0 end
-    if not spell_power or spell_power <= 0 then
-        return data.base or 0
-    end
-    return math.floor((data.coeff or 0) * spell_power)
-end
 
---- Read current PW:S absorb remaining on a unit via NS.buff_points.
---- All rank IDs (1-12) are queried in a single buff_points call.
----@param unit table  game_object unit (from NS.object_manager or izi)
----@return integer absorb   Absorb remaining (0 if no shield active)
-function M.get_pws_absorb(unit)
-    if not unit then return 0 end
-    local pts = NS.buff_points(unit, M.PWS_BUFFS)
-    return (pts and pts[1]) or 0
-end
 
 -- ---------------------------------------------------------------------------
 -- Public API
@@ -367,3 +286,4 @@ end
 
 -- module initialized
 return M
+

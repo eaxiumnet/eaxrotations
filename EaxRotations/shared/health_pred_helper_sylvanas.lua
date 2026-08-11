@@ -74,19 +74,6 @@ function M.is_tank_role(unit)
     return false
 end
 
---- Get damage types (physical/magical) incoming on a unit.
---- Returns empty table if unavailable.
----@param unit game_object|nil Target unit
----@param deadline number|nil Seconds to look ahead (default 3.0)
----@return table { physical_damage = number[], magical_damage = number[] }
-function M.get_damage_types(unit, deadline)
-    local _hp = hp_mod()
-    if not unit or not _hp then return { physical_damage = {}, magical_damage = {} } end
-    if type(_hp.get_damage_types) ~= "function" then return { physical_damage = {}, magical_damage = {} } end
-    local ok, result = pcall(_hp.get_damage_types, _hp, unit, deadline or 3.0)
-    if not ok or type(result) ~= "table" then return { physical_damage = {}, magical_damage = {} } end
-    return result
-end
 
 -- Canonical table + flat NS aliases (per integrate-advanced-modules plan Phase 2).
 NS.HealthPredHelper = M
@@ -95,3 +82,4 @@ NS.predicted_hp_pct = M.predicted_hp_pct
 NS.is_tank_role = M.is_tank_role
 
 return M
+

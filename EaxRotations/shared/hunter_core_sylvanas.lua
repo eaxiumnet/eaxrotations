@@ -113,9 +113,6 @@ end
 function M.record_steady_start()
 end
 
---- Record the end of a Steady Shot cast.
-function M.record_steady_end()
-end
 
 --- Milliseconds until the next auto-shot.
 --- Returns 0 if no auto is queued/pending.
@@ -207,22 +204,6 @@ local STING_IDS = {
     viper   = { 27018, 14280, 14279, 3034 },
 }
 
---- Check if any sting is active on target.
----@param target game_object
----@param sting_type string|nil 'serpent', 'scorpid', 'viper', or nil for any
----@return boolean
-function M.has_sting(target, sting_type)
-    if not target then return false end
-    local types = sting_type and { STING_IDS[sting_type] } or STING_IDS
-    for _, ids in pairs(types) do
-        for _, id in ipairs(ids) do
-            if NS.debuff_up and NS.debuff_up(target, id) then
-                return true
-            end
-        end
-    end
-    return false
-end
 
 --- Get remaining time for a specific sting type.
 ---@param target game_object
@@ -315,13 +296,6 @@ function M.pet_hp_pct()
     return ok and hp or 0
 end
 
---- Should we Mend Pet?
-function M.should_mend_pet(hp_threshold)
-    hp_threshold = hp_threshold or 45
-    if not M.pet_alive() then return false end
-    if now() - _last_mend_time < 2 then return false end
-    return M.pet_hp_pct() < hp_threshold
-end
 
 function M.record_mend()
     _last_mend_time = now()
@@ -331,21 +305,6 @@ end
 -- IZI SDK Spell Sequences
 -- ============================================================================
 
---- Cast a two-spell sequence using IZI SDK.
--- Returns true if sequence was started, false otherwise.
----@param spell_a number First spell ID
----@param target_a game_object First target
----@param spell_b number Second spell ID
----@param target_b game_object Second target
----@return boolean
-function M.cast_shot_sequence(spell_a, target_a, spell_b, target_b)
-    if not _izi or not target_a then return false end
-    local izi_a = _izi.spell(spell_a)
-    local izi_b = _izi.spell(spell_b)
-    if not izi_a or not izi_b then return false end
-    local ok, result = pcall(_izi.a_into_b, izi_a, target_a, izi_b, target_b, 0, 3.0, "ShotSequence")
-    return ok and result == true
-end
 
 -- ============================================================================
 -- Shot Priority Calculator
@@ -377,35 +336,14 @@ function M.calculate_shot_window(buffer_ms)
     return steady_ok, instant_ok, remain_ms
 end
 
---- Returns the recommended next shot based on priority:
--- 1. Steady Shot (if window allows)  2. Arcane Shot (instant)  3. wait for auto
----@param arcane_id number|nil Arcane Shot spell ID
----@param steady_id number|nil Steady Shot spell ID
----@param target game_object|nil Current target
----@return number|nil spell_id Recommended spell ID or nil to wait
----@return string reason "steady", "instant", "wait", or "no_target"
-function M.recommend_shot(arcane_id, steady_id, target)
-    if not target then return nil, "no_target" end
-
-    local steady_ok, instant_ok = M.calculate_shot_window()
-
-    if steady_ok and steady_id then
-        return steady_id, "steady"
-    elseif instant_ok and arcane_id then
-        return arcane_id, "instant"
-    end
-
-    return nil, "wait"
-end
 
 -- ============================================================================
 -- Exposure
 -- ============================================================================
-M.STING_IDS = STING_IDS
-M.AUTO_SHOT_ID = AUTO_SHOT_ID
 
 if NS then
     NS.HunterCore = M
 end
 
 return M
+

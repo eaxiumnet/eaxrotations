@@ -93,26 +93,7 @@ function M.vanilla_level_from_context(context)
     return M.level_from_context(context, 60)
 end
 
---- Scale a threshold linearly with level, clamped to [floor, cap].
----@param level number
----@param base number
----@param per_level number
----@param floor_val number
----@param cap_val number
----@return number
-function M.level_scaled_threshold(level, base, per_level, floor_val, cap_val)
-    local threshold = base + (level * per_level)
-    if threshold < floor_val then threshold = floor_val end
-    if threshold > cap_val then threshold = cap_val end
-    return threshold
-end
 
---- Return true if Mangle (Cat) can be expected at the given level.
----@param level number|nil
----@return boolean
-function M.has_mangle_cat(level)
-    return (level or 70) >= 50
-end
 
 --- Return true if the player is below the level where endgame debuff dependencies make sense.
 ---@param level number|nil
@@ -148,16 +129,6 @@ function M.should_interrupt(target)
     return interruptible == true
 end
 
---- Return true when the player's mana is low enough to warrant recovery
---- (drink / wand / mana-return abilities). Reads the nil-guarded state field.
----@param state table|nil
----@param threshold number|nil percentage below which recovery is needed (default 20)
----@return boolean
-function M.needs_mana_recovery(state, threshold)
-    if not state then return false end
-    local mana = state.mana_pct
-    if type(mana) ~= "number" then return false end
-    return mana < (threshold or 20)
-end
 
 return M
+

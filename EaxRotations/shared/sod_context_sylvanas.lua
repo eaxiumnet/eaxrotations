@@ -209,8 +209,5 @@ end
 
 -- Canonical export shape (callable via require("shared/sod_context_sylvanas")).
 local M = { enrich = M_enrich }
-M.CAT_FORM = CAT_FORM
-M.BEAR_FORM = BEAR_FORM
-M.DEADLY_POISON = DEADLY_POISON
-M.MAELSTROM_WEAPON = MAELSTROM_WEAPON
 return M
+

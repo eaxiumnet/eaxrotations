@@ -21,6 +21,50 @@
 --        call even without an empty-if. One live find: dispel_manager:301's
 --        half-finished block was fixed (fear_nearby folded into skip_critical)
 --        rather than removed, per the site's documented intent.
+-- NEW (2026-08-11): the require-side family — the mirror of the dead-local
+--        rule on the module surface.
+--        S3 dead require: a column-0 `local X = require(...)` /
+--        `local _, X = pcall(require, ...)` binding whose X is referenced by
+--        nothing else in the file. S2 skips column-0 module constants, so the
+--        discarded-module shape needs its own rule.
+--        S4 dead export: a shared-module member (a table returned by
+--        require()) referenced by NO pool file. Reference pool = every .lua
+--        under EaxRotations/ (classes, shared, core, tests, root runtime
+--        files), comment-stripped; test files COUNT as references (a
+--        test-pinned export is used by the tree, not dead). This is the rule
+--        that would have caught the consumable_manager re-export family and
+--        the partially-dead spell_corpus surface swept in the 2026-08-11
+--        cleanup (94 dead exports across 36 shared files).
+--        S4 resolver rules (all validated against the real tree):
+--          * module shape: the module's own `local M = {}` + column-0
+--            `return M`, or a column-0 `return { ... }` literal (a mid-file
+--            `return {` never counts — only when no valid return-ident
+--            exists). Exports = dotted defs on the self-binding (excl `==`)
+--            + literal keys, minus leading-underscore (private) names.
+--          * require-map: `local X = require("shared/path")` and
+--            `local _, X = pcall(require, "shared/path")` -> path -> {X};
+--            a bare `require("path")` (side-effect load, no binding) marks
+--            the module dynamically-loaded and SKIPS it (consumption
+--            unknowable).
+--          * NS aliases: `NS.Name = BINDING` anywhere in the pool makes
+--            "Name" an extra reference prefix for BINDING's module (los_guard
+--            installs itself at los_guard:157; core_sylvanas:233 installs
+--            spell_corpus).
+--          * reference census: one gmatch pass per pool file collecting
+--            (prefix, member) pairs for every known prefix (self-binding +
+--            consumer bindings + NS aliases). A member is DEAD iff its total
+--            pool refs minus its definition occurrences == 0 (self-use inside
+--            the module counts as a reference, so an internal helper called
+--            only by a live member stays live).
+--          * dynamic consumption: `pairs(B)` / `ipairs(B)` over a module's
+--            prefix in any pool file skips the whole module.
+--          * scope: extraction covers shared/ module tables ONLY — the
+--            require() surface this rule targets. NS-surface members
+--            installed on NS by core_sylvanas are OUT of scope (a separate
+--            NS-surface sweep; census 2026-08-11: 58 genuinely-uncalled of
+--            75 flagged). Prefix-keyed census may under-report members whose
+--            names collide across modules (never over-report) — conservative
+--            by design.
 -- Resolver rules (all validated against the real tree):
 --   State-table names per file:
 --     A. every ident passed as the first argument to spec_kit.safe_state(...)
@@ -348,6 +392,29 @@ local function scan_content(content)
             end
         end
     end
+    -- S3. dead require: a column-0 `local X = require(...)` / pcall require
+    -- binding whose X is referenced by nothing else in the file. S2 skips
+    -- column-0 declarations (module constants), so the discarded-module shape
+    -- needs this rule. Same word-boundary reference check as S2; the require
+    -- path string can never match the binding name, so no extra exclusion.
+    for i = 1, #lines do
+        local name = lines[i]:match("^local%s+([%a_][%w_]*)%s*=%s*require%s*%(")
+            or lines[i]:match("^local%s+[%a_][%w_]*%s*,%s*([%a_][%w_]*)%s*=%s*pcall%s*%(%s*require%s*,")
+        if name then
+            local used = false
+            for j = 1, #lines do
+                if j ~= i then
+                    for token in lines[j]:gmatch("%f[%a_][%a_][%w_]*") do
+                        if token == name then used = true break end
+                    end
+                end
+                if used then break end
+            end
+            if not used then
+                stubs[#stubs + 1] = { kind = "dead_require", line = i, name = name }
+            end
+        end
+    end
 
     return { names = names, writes = writes, counts = counts, stubs = stubs }
 end
@@ -467,6 +534,337 @@ local function check_own_allowlist(path)
         print("  the earlier one — the mana_low footgun): " .. table.concat(dups, ", "))
         os.exit(1)
     end
+end
+
+-- ---------------------------------------------------------------------------
+-- S4. Dead-export scan: shared-module members referenced by no pool file.
+-- See the header for the full resolver contract. All functions below take an
+-- injected pool (path -> comment-stripped content) so the self-test can feed
+-- synthetic in-memory files; the CLI builds the pool from disk.
+-- ---------------------------------------------------------------------------
+local S4_POOL_ROOT = "EaxRotations"
+
+local function pool_files()
+    local files = {}
+    local pipe = io.popen("find " .. S4_POOL_ROOT .. " -name '*.lua'")
+    for line in pipe:lines() do
+        files[#files + 1] = line:gsub("\\", "/")
+    end
+    pipe:close()
+    table.sort(files)
+    return files
+end
+
+local function build_pool()
+    local pool = {}
+    for _, path in ipairs(pool_files()) do
+        local f = io.open(path, "rb")
+        if f then
+            local content = f:read("*a")
+            f:close()
+            pool[path] = strip_comments(content)
+        end
+    end
+    return pool
+end
+
+local function normalize_require_path(path)
+    if path:match("^EaxRotations/") then return path end
+    if path:match("^(shared/|classes/)") then return "EaxRotations/" .. path .. ".lua" end
+    if path:match("^common/") then return nil end -- engine module, out of pool
+    return "EaxRotations/" .. path .. ".lua"
+end
+
+-- path -> { binding = true } for every `local X = require("path")` and
+-- `local _, X = pcall(require, "path")`; bare (unbound) requires collected
+-- separately as dynamic side-effect loads.
+local function build_require_map(pool)
+    local rmap, bare = {}, {}
+    for path, src in pairs(pool) do
+        for binding, rpath in src:gmatch("local%s+([%a_][%w_]*)%s*=%s*require%s*%(%s*[\"']([^\"']+)[\"']%s*%)") do
+            local norm = normalize_require_path(rpath)
+            if norm and pool[norm] then
+                rmap[norm] = rmap[norm] or {}
+                rmap[norm][binding] = true
+            end
+        end
+        for binding, rpath in src:gmatch("local%s+[%a_][%w_]*%s*,%s*([%a_][%w_]*)%s*=%s*pcall%s*%(%s*require%s*,%s*[\"']([^\"']+)[\"']%s*%)") do
+            local norm = normalize_require_path(rpath)
+            if norm and pool[norm] then
+                rmap[norm] = rmap[norm] or {}
+                rmap[norm][binding] = true
+            end
+        end
+        for line in (src .. "\n"):gmatch("(.-)\n") do
+            local rpath = line:match("require%s*%(%s*[\"']([^\"']+)[\"']")
+            if rpath
+                and not line:match("local%s+[%a_][%w_]*%s*=%s*require%s*%(")
+                and not line:match("local%s+[%a_][%w_]*%s*,%s*[%a_][%w_]*%s*=%s*pcall%s*%(%s*require%s*,") then
+                local norm = normalize_require_path(rpath)
+                if norm and pool[norm] then bare[norm] = true end
+            end
+        end
+    end
+    return rmap, bare
+end
+
+-- Module self-binding: the module's own table name from a column-0
+-- `return X` where X is a module-level `local X = {` (or setmetatable);
+-- "LITERAL" for a column-0 `return { ... }`; nil otherwise (non-table
+-- return or no return — not a module table, out of scope). All patterns are
+-- PER-LINE anchored: Lua's `^` anchors to the string start, not to a line,
+-- so a `return M` at line 160 (los_guard) or a `local M = {}` below a
+-- header comment would silently fail an unanchored match.
+local function module_self_binding(stripped)
+    local ret, has_literal
+    local function each_line(fn)
+        for line in (stripped .. "\n"):gmatch("(.-)\n") do
+            fn(line)
+        end
+    end
+    each_line(function(line)
+        local r = line:match("^return%s+([%a_][%w_]*)")
+        if r then ret = r end
+        if line:match("^return%s*{") then has_literal = true end
+    end)
+    if ret then
+        local decl_ok = false
+        each_line(function(line)
+            if line:match("^local%s+" .. ret .. "%s*=%s*{")
+                or line:match("^local%s+" .. ret .. "%s*=%s*setmetatable%s*%(") then
+                decl_ok = true
+            end
+        end)
+        if decl_ok then return ret end
+        return nil -- return of a non-module value (function result etc.)
+    end
+    if has_literal then return "LITERAL" end
+    return nil
+end
+
+-- Top-level keys of the LAST `return { ... }` literal in the module (only
+-- consulted when module_self_binding returned "LITERAL", so a mid-file
+-- `return {` in a function body cannot hijack a named-table module).
+local function table_literal_keys(src)
+    local out, last = {}, nil
+    local pos = 1
+    while true do
+        local s = src:find("return%s*{", pos)
+        if not s then break end
+        last = s
+        pos = s + 1
+    end
+    if not last then return out end
+    local brace = src:find("{", last)
+    if not brace then return out end
+    local depth = 0
+    for i = brace, #src do
+        local ch = src:sub(i, i)
+        if ch == "{" then
+            depth = depth + 1
+        elseif ch == "}" then
+            if depth == 1 then break end
+            depth = depth - 1
+        elseif depth == 1 and ch == "=" and src:sub(i - 1, i - 1) ~= "=" then
+            local k = src:sub(math.max(1, i - 40), i - 1):match("([%a_][%w_]*)%s*$")
+            if k then out[k] = true end
+        end
+    end
+    return out
+end
+
+-- Dotted definitions of a binding's members (`B.x =` excluding `==`, and
+-- `function B.x(`). Returns member -> definition count.
+local function dotted_defs(stripped, binding)
+    local defs = {}
+    for line in (stripped .. "\n"):gmatch("(.-)\n") do
+        local pos = 1
+        while true do
+            local si, ei, m = line:find("%.([%a_][%w_]*)%s*=", pos)
+            if not si then break end
+            if line:sub(ei + 1, ei + 1) ~= "="
+                and line:sub(1, si - 1):match("%f[%a_]" .. binding .. "%s*$") then
+                defs[m] = (defs[m] or 0) + 1
+            end
+            pos = ei + 1
+        end
+        for m in line:gmatch("function%s+" .. binding .. "%.([%a_][%w_]*)%s*%(") do
+            defs[m] = (defs[m] or 0) + 1
+        end
+        for m in line:gmatch("function%s+" .. binding .. ":([%a_][%w_]*)%s*%(") do
+            defs[m] = (defs[m] or 0) + 1
+        end
+    end
+    return defs
+end
+
+-- Global (prefix, member) census across every pool file, one gmatch pass per
+-- file, for every known reference prefix.
+local function build_census(pool, binding_set)
+    local counts = {}
+    for _, src in pairs(pool) do
+        -- Dot references: `B.member` at any depth. Chains like
+        -- `NS.SpellCorpus.use_me()` must count BOTH (NS, SpellCorpus) and
+        -- (SpellCorpus, use_me) — a plain gmatch CONSUMES the middle token
+        -- ("NS.SpellCorpus" matches as one pair and the search resumes at
+        -- use_me), silently missing the NS-alias reference. The find-loop
+        -- advances past each matched `word.` segment so the member token is
+        -- re-scanned as a potential prefix.
+        local pos = 1
+        while true do
+            local s, e = src:find("%f[%a_][%a_][%w_]*%.", pos)
+            if not s then break end
+            local prefix = src:match("([%a_][%w_]*)%.", s)
+            local member = src:match("^[%a_][%w_]*", e + 1)
+            if prefix and member and binding_set[prefix] then
+                local t = counts[prefix]
+                if not t then t = {}; counts[prefix] = t end
+                t[member] = (t[member] or 0) + 1
+            end
+            pos = e + 1
+        end
+        -- String-index references: `B["member"]` / `B['member']` count too
+        -- (dot and bracket access are the same call).
+        for prefix, member in src:gmatch("([%a_][%w_]*)%[%s*[\"']([%a_][%w_]*)[\"']%s*%]") do
+            if binding_set[prefix] then
+                local t = counts[prefix]
+                if not t then t = {}; counts[prefix] = t end
+                t[member] = (t[member] or 0) + 1
+            end
+        end
+        -- Colon calls: `B:method(...)` — the 2026-08-11 sweep's census missed
+        -- this form and wrongly removed combat_mode.is_single_target/mode_name
+        -- (called through an NS alias) and spell_queue_helper's
+        -- queue_spell_position (called as `spell_queue:queue_spell_position`
+        -- behind a type() guard). A colon DEF line (`function M:method(`) is
+        -- counted here too and subtracted by dotted_defs, so a colon-defined
+        -- member with zero calls still flags dead.
+        for prefix, member in src:gmatch("([%a_][%w_]*)%:([%a_][%w_]*)") do
+            if binding_set[prefix] then
+                local t = counts[prefix]
+                if not t then t = {}; counts[prefix] = t end
+                t[member] = (t[member] or 0) + 1
+            end
+        end
+    end
+    return counts
+end
+
+local function iterated_bindings(pool)
+    local iterated = {}
+    for _, src in pairs(pool) do
+        for prefix in src:gmatch("pairs%s*%(%s*([%a_][%w_]*)") do iterated[prefix] = true end
+        for prefix in src:gmatch("ipairs%s*%(%s*([%a_][%w_]*)") do iterated[prefix] = true end
+    end
+    return iterated
+end
+
+-- Full S4 pass over an injected pool. Returns a sorted list of dead exports
+-- { path, member }.
+local function run_export_scan_from_pool(pool)
+    local rmap, bare = build_require_map(pool)
+    local binding_path = {}
+    for path, bindings in pairs(rmap) do
+        for b in pairs(bindings) do binding_path[b] = path end
+    end
+    -- NS aliases: (alias, binding) pairs -> the module path each alias refers
+    -- to. Consumer installs resolve the RHS binding through the require-map
+    -- (core_sylvanas:233 `NS.SpellCorpus = _spell_corpus`); self-installs
+    -- resolve through the module's OWN file only (`NS.LosGuard = M` at
+    -- los_guard:157 — the RHS "M" is unambiguous only inside the module that
+    -- declares that M, so the alias scan is scoped to the module's own
+    -- source, never pooled across modules with the same self-binding name).
+    local self_binding = {}
+    for path, src in pairs(pool) do
+        if path:match("^EaxRotations/shared/") then
+            local b = module_self_binding(src)
+            if b then self_binding[path] = b end
+        end
+    end
+    local alias_path = {}
+    for _, src in pairs(pool) do
+        for alias, binding in src:gmatch("NS%.([%a_][%w_]*)%s*=%s*([%a_][%w_]*)") do
+            local p = binding_path[binding]
+            if p then
+                alias_path[p] = alias_path[p] or {}
+                alias_path[p][alias] = true
+            end
+        end
+    end
+    for path, sb in pairs(self_binding) do
+        if sb ~= "LITERAL" and pool[path] then
+            for alias in pool[path]:gmatch("NS%.([%a_][%w_]*)%s*=%s*" .. sb) do
+                alias_path[path] = alias_path[path] or {}
+                alias_path[path][alias] = true
+            end
+        end
+    end
+    -- Full prefix set: every consumer binding, self-binding, and NS alias.
+    local binding_set = {}
+    for _, bindings in pairs(rmap) do
+        for b in pairs(bindings) do binding_set[b] = true end
+    end
+    for _, sb in pairs(self_binding) do binding_set[sb] = true end
+    for _, aliases in pairs(alias_path) do
+        for a in pairs(aliases) do binding_set[a] = true end
+    end
+    local counts = build_census(pool, binding_set)
+    local iterated = iterated_bindings(pool)
+
+    local dead = {}
+    for path, src in pairs(pool) do
+        if path:match("^EaxRotations/shared/") then
+            if bare[path] then -- side-effect-only load: consumption unknowable
+            else
+                local sb = self_binding[path]
+                if sb then
+                    local prefixes = {}
+                    if sb ~= "LITERAL" then prefixes[#prefixes + 1] = sb end
+                    for b in pairs(rmap[path] or {}) do prefixes[#prefixes + 1] = b end
+                    for a in pairs(alias_path[path] or {}) do prefixes[#prefixes + 1] = a end
+                    local skip = false
+                    for _, p in ipairs(prefixes) do
+                        if iterated[p] then skip = true break end
+                    end
+                    if not skip then
+                        local defs = {}
+                        if sb == "LITERAL" then
+                            -- Literal-return members are never counted in the
+                            -- census under a self-binding prefix (there is no
+                            -- `local M`), so their defs must NOT be subtracted.
+                            for m in pairs(table_literal_keys(src)) do
+                                if not m:match("^_") then defs[m] = 0 end
+                            end
+                        else
+                            defs = dotted_defs(src, sb)
+                        end
+                        for m in pairs(defs) do
+                            if not m:match("^_") then
+                                local refs = 0
+                                for _, p in ipairs(prefixes) do
+                                    local pc = counts[p]
+                                    if pc then refs = refs + (pc[m] or 0) end
+                                end
+                                refs = refs - (defs[m] or 0)
+                                if refs <= 0 then
+                                    dead[#dead + 1] = { path = path, member = m }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(dead, function(a, b)
+        if a.path ~= b.path then return a.path < b.path end
+        return a.member < b.member
+    end)
+    return dead
+end
+
+local function run_export_scan()
+    return run_export_scan_from_pool(build_pool())
 end
 
 -- ---------------------------------------------------------------------------
@@ -707,6 +1105,204 @@ local function run_self_tests()
     expect(resto["mana_low"], true, "restoration mana_low kept (heal_scan regression:189)")
     expect(resto["entries"], true, "restoration entries kept (preemptive_heal:285)")
 
+    -- ----------------------------------------------------------------------
+    -- S3 fixtures: column-0 dead require (the discarded-module shape S2 skips
+    -- by design — column-0 module constants are out of the stub family).
+    -- ----------------------------------------------------------------------
+    local s3 = scan_content(
+        "local Foo = require(\"shared/foo\")\n"
+        .. "local Bar = require(\"shared/bar\")\n"
+        .. "local function f()\n"
+        .. "    return Bar.thing\n"
+        .. "end\n")
+    local s3_kinds = {}
+    for _, s in ipairs(s3.stubs or {}) do
+        s3_kinds[#s3_kinds + 1] = s.kind .. ":" .. tostring(s.name or "")
+    end
+    table.sort(s3_kinds)
+    expect(#s3_kinds, 1, "S3: exactly one dead require flagged")
+    expect(s3_kinds[1], "dead_require:Foo", "S3: the unreferenced require is Foo")
+    -- S3 pcall form: `local _, X = pcall(require, ...)` with X unused.
+    local s3b = scan_content(
+        "local _ok, Mod = pcall(require, \"shared/mod\")\n"
+        .. "local _ok2, Used = pcall(require, \"shared/used\")\n"
+        .. "local function g()\n"
+        .. "    return Used.x\n"
+        .. "end\n")
+    local s3b_kinds = {}
+    for _, s in ipairs(s3b.stubs or {}) do
+        s3b_kinds[#s3b_kinds + 1] = s.kind .. ":" .. tostring(s.name or "")
+    end
+    expect(#s3b_kinds, 1, "S3: pcall dead require flagged")
+    expect(s3b_kinds[1], "dead_require:Mod", "S3: the unused pcall binding is Mod")
+
+    -- ----------------------------------------------------------------------
+    -- S4 fixtures: dead exports. Synthetic in-memory pools; every resolver
+    -- rule gets a positive and its live counterpart.
+    -- ----------------------------------------------------------------------
+    local function mock_pool(files)
+        local pool = {}
+        for path, content in pairs(files) do
+            pool[path] = strip_comments(content)
+        end
+        return pool
+    end
+    -- F1: dead export fires; live export (via a consumer binding) stays clean.
+    local pool1 = mock_pool({
+        ["EaxRotations/shared/m1.lua"] =
+            "local M = {}\n"
+            .. "function M.dead_fn()\n"
+            .. "end\n"
+            .. "function M.live_fn()\n"
+            .. "end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer.lua"] =
+            "local M1 = require(\"shared/m1\")\n"
+            .. "local x = M1.live_fn()\n",
+    })
+    local dead1 = run_export_scan_from_pool(pool1)
+    expect(#dead1, 1, "S4: exactly one dead export (F1)")
+    expect(dead1[1].member, "dead_fn", "S4: dead export name (F1)")
+    expect(dead1[1].path, "EaxRotations/shared/m1.lua", "S4: dead export file (F1)")
+    -- F2: string-index `B["member"]` is a reference.
+    local pool2 = mock_pool({
+        ["EaxRotations/shared/m2.lua"] =
+            "local M = {}\n"
+            .. "M.si = function() end\n"
+            .. "M.never = function() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer2.lua"] =
+            "local M2 = require(\"shared/m2\")\n"
+            .. "M2[\"si\"]()\n",
+    })
+    local dead2 = run_export_scan_from_pool(pool2)
+    expect(#dead2, 1, "S4: string-index keeps si, flags never (F2)")
+    expect(dead2[1].member, "never", "S4: string-index member is live (F2)")
+    -- F3: NS-alias self-install (`NS.SpellCorpus = M` inside the module)
+    -- makes the alias a reference prefix.
+    local pool3 = mock_pool({
+        ["EaxRotations/shared/m3.lua"] =
+            "local M = {}\n"
+            .. "function M.use_me()\n"
+            .. "end\n"
+            .. "function M.unused()\n"
+            .. "end\n"
+            .. "NS.SpellCorpus = M\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer3.lua"] =
+            "local S = require(\"shared/m3\")\n"
+            .. "local x = NS.SpellCorpus.use_me()\n",
+    })
+    local dead3 = run_export_scan_from_pool(pool3)
+    expect(#dead3, 1, "S4: NS-alias keeps use_me, flags unused (F3)")
+    expect(dead3[1].member, "unused", "S4: only unused flagged under NS alias (F3)")
+    -- F4: pairs() iteration over a module's binding is dynamic consumption ->
+    -- the whole module is skipped (members not statically resolvable).
+    local pool4 = mock_pool({
+        ["EaxRotations/shared/m4.lua"] =
+            "local M = {}\n"
+            .. "function M.a() end\n"
+            .. "function M.b() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer4.lua"] =
+            "local M4 = require(\"shared/m4\")\n"
+            .. "for k, v in pairs(M4) do print(k) end\n",
+    })
+    expect(#(run_export_scan_from_pool(pool4)), 0,
+        "S4: pairs iteration skips the module (F4)")
+    -- F5: literal-return module (`return { ... }`) — defs not subtracted (no
+    -- self-binding prefix in the census), dead members still flagged.
+    local pool5 = mock_pool({
+        ["EaxRotations/shared/m5.lua"] =
+            "return {\n"
+            .. "    live = function() end,\n"
+            .. "    ghost = 1,\n"
+            .. "}\n",
+        ["EaxRotations/classes/warrior/consumer5.lua"] =
+            "local M5 = require(\"shared/m5\")\n"
+            .. "local x = M5.live()\n",
+    })
+    local dead5 = run_export_scan_from_pool(pool5)
+    expect(#dead5, 1, "S4: literal-return module flags ghost (F5)")
+    expect(dead5[1].member, "ghost", "S4: literal-return dead name (F5)")
+    -- F6: `==` is a READ, not a definition — a compared member stays live.
+    local pool6 = mock_pool({
+        ["EaxRotations/shared/m6.lua"] =
+            "local M = {}\n"
+            .. "M.x = 1\n"
+            .. "M.y = 1\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer6.lua"] =
+            "local M6 = require(\"shared/m6\")\n"
+            .. "if M6.x == 1 then print('eq') end\n",
+    })
+    local dead6 = run_export_scan_from_pool(pool6)
+    expect(#dead6, 1, "S4: `==` guard keeps x, flags y (F6)")
+    expect(dead6[1].member, "y", "S4: `==` guard member (F6)")
+    -- F7: leading-underscore members are private, never exports.
+    local pool7 = mock_pool({
+        ["EaxRotations/shared/m7.lua"] =
+            "local M = {}\n"
+            .. "function M._priv() end\n"
+            .. "function M.dead() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer7.lua"] =
+            "local M7 = require(\"shared/m7\")\n",
+    })
+    local dead7 = run_export_scan_from_pool(pool7)
+    expect(#dead7, 1, "S4: leading-underscore private out of scope (F7)")
+    expect(dead7[1].member, "dead", "S4: _priv excluded, dead flagged (F7)")
+    -- F8: bare require (side-effect load, no binding) skips the module.
+    local pool8 = mock_pool({
+        ["EaxRotations/shared/m8.lua"] =
+            "local M = {}\n"
+            .. "function M.effect() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer8.lua"] =
+            "require(\"shared/m8\")\n",
+    })
+    expect(#(run_export_scan_from_pool(pool8)), 0,
+        "S4: bare require skips the module (F8)")
+    -- F9: a mid-file `return {` inside a function must NOT hijack a
+    -- named-table module (the earlier ret_name hijack regression).
+    local pool9 = mock_pool({
+        ["EaxRotations/shared/m9.lua"] =
+            "local M = {}\n"
+            .. "local function helper()\n"
+            .. "    return { internal = 1 }\n"
+            .. "end\n"
+            .. "function M.real() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer9.lua"] =
+            "local M9 = require(\"shared/m9\")\n"
+            .. "local x = M9.real()\n",
+    })
+    expect(#(run_export_scan_from_pool(pool9)), 0,
+        "S4: mid-file literal return does not hijack (F9)")
+    -- F10: colon calls (`B:method()`) and colon defs (`function M:method(`)
+    -- keep the member live; a colon-defined member with zero calls flags dead.
+    -- This pins the 2026-08-11 sweep's colon-blindness bug (the census missed
+    -- `spell_queue:queue_spell_position` and wrongly removed it).
+    local pool10 = mock_pool({
+        ["EaxRotations/shared/m10.lua"] =
+            "local M = {}\n"
+            .. "function M:method() end\n"
+            .. "function M:uncalled() end\n"
+            .. "return M\n",
+        ["EaxRotations/classes/warrior/consumer10.lua"] =
+            "local M10 = require(\"shared/m10\")\n"
+            .. "M10:method()\n",
+    })
+    local dead10 = run_export_scan_from_pool(pool10)
+    expect(#dead10, 1, "S4: colon call keeps method, flags uncalled (F10)")
+    expect(dead10[1].member, "uncalled", "S4: colon-defined dead member (F10)")
+
+    -- Real-file probe: the tree must be clean today (the 2026-08-11 sweep
+    -- removed the 94 dead exports; test-pinned members count as references
+    -- because tests are in the pool; the core_sylvanas NS surface is
+    -- deliberately out of S4 scope).
+    expect(#(run_export_scan()), 0, "S4: zero dead exports in the real tree")
+
     print("[PASS] State-field audit self-tests: dead detection, param-agnostic "
         .. "dot reads, `==` non-write, comment + schema-bare-key exclusion, "
         .. "declarative (state/in_combat/hp_threshold) reads, double-write, "
@@ -714,7 +1310,11 @@ local function run_self_tests()
         .. "s-named state, stub rules (empty if-body multi-line + inline, "
         .. "dead local with word-boundary, live-if/live-local negatives, "
         .. "real-file probes arms/dispel_manager zero stubs), real-file "
-        .. "probes (shadow/frost dead, fury live)")
+        .. "probes (shadow/frost dead, fury live), S3 dead-require (named + "
+        .. "pcall forms), S4 dead-export (dead/live, string-index, NS-alias "
+        .. "self-install, pairs-iteration skip, literal-return, `==` guard, "
+        .. "leading-underscore private, bare-require skip, mid-file return "
+        .. "hijack, zero-dead real-tree probe)")
     os.exit(0)
 end
 
@@ -784,7 +1384,7 @@ if #failures > 0 then
 end
 
 if #stub_failures > 0 then
-    print("  Never-completed stubs (empty if-body / dead local):")
+    print("  Never-completed stubs (empty if-body / dead local / dead require):")
     for _, s in ipairs(stub_failures) do
         print(string.format("    %s  line %d: %s %s", s.file, s.line, s.kind, s.name or ""))
     end
@@ -795,8 +1395,27 @@ if #stub_failures > 0 then
     os.exit(1)
 end
 
+-- S4 export scan (the require-side dead-export rule). Runs after the state
+-- field/stub sections: verify_all parses the FIRST `Invalid: %d` line, which
+-- remains the state-field count above, and the gate checks the exit code.
+local export_failures = run_export_scan()
+print(string.format("  Dead exports: %d (shared module members referenced by no pool file)",
+    #export_failures))
+if #export_failures > 0 then
+    print("=============================================================================")
+    print("  Shared-module exports referenced by nothing in the pool:")
+    for _, d in ipairs(export_failures) do
+        print(string.format("    %s  %s", d.path, d.member))
+    end
+    print("")
+    print("  Fix: remove the dead export (its definition and comment block). If")
+    print("  it is referenced outside the pool (docs, an untracked consumer),")
+    print("  pin it with evidence — never silently exempt it.")
+    os.exit(1)
+end
+
 check_own_allowlist(arg[0])
 
-print("  Every written state field is read somewhere; no empty if-bodies or")
-print("  dead locals in the stub family.")
+print("  Every written state field is read somewhere; no empty if-bodies,")
+print("  dead locals, dead requires, or dead shared-module exports.")
 os.exit(0)

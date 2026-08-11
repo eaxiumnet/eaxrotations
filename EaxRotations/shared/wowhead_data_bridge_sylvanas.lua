@@ -68,74 +68,10 @@ setmetatable(M, {
 -- Public API — mimics the old io.open-based interfaces
 -- ============================================================================
 
---- Get spell index entry (lightweight, from spell_list data).
---- Returns positional array {name, class, level, school, is_heal, aoe, cast_time, rank, gcd, cooldown_seconds}
---- @param spell_id number
---- @param expansion string|nil 'tbc' or 'vanilla' (default: 'tbc')
-function M.get_spell_index(spell_id, expansion)
-    if not spell_id then return nil end
-    expansion = expansion or 'tbc'
-    if expansion == 'vanilla' then
-        return M.spell_index_vanilla[spell_id]
-    end
-    return M.spell_index_tbc[spell_id]
-end
 
---- Get spell detail entry (from individual spell files).
---- Returns positional array {cost_type, cost_amount, range, cast_time, duration,
----                           periodic_amount, periodic_school, periodic_interval,
----                           flags, school}
---- @param spell_id number
-function M.get_spell_detail(spell_id)
-    if not spell_id then return nil end
-    return M.spell_detail[spell_id]
-end
 
---- Get all spell IDs for a class from the spell index.
---- @param class_name string Class name (e.g., 'Mage')
---- @param expansion string|nil
---- @return table Array of {id, name, school, is_heal, aoe, cast_time, level}
-function M.get_class_spells(class_name, expansion)
-    if not class_name then return {} end
-    expansion = expansion or 'tbc'
-    local index = (expansion == 'vanilla') and M.spell_index_vanilla or M.spell_index_tbc
-    local result = {}
-    local n = 0
-    for id, entry in pairs(index) do
-        if entry[2] == class_name then
-            n = n + 1
-            result[n] = {
-                id = id,
-                name = entry[1],
-                school = entry[4],
-                is_heal = entry[5],
-                aoe = entry[6],
-                cast_time = entry[7],
-                level = entry[3],
-            }
-        end
-    end
-    table.sort(result, function(a, b) return (a.id or 0) < (b.id or 0) end)
-    return result
-end
 
---- Get item index entry.
---- @param item_id number
---- @return table|nil {name, quality, ilvl, slot, subclass, required_level}
-function M.get_item_index(item_id)
-    if not item_id then return nil end
-    return M.item_index[item_id]
-end
 
---- Get the full spell index table for an expansion.
---- @param expansion string|nil 'tbc' or 'vanilla' (default: 'tbc')
---- @return table
-function M.get_full_index(expansion)
-    expansion = expansion or 'tbc'
-    if expansion == 'vanilla' then
-        return M.spell_index_vanilla
-    end
-    return M.spell_index_tbc
-end
 
 return M
+

@@ -36,19 +36,7 @@ function M.is_available()
     return menu ~= nil and type(menu.page) == "function"
 end
 
--- ---------------------------------------------------------------------------
--- get_page_path_str(): returns the stable path string for menu:get calls.
--- ---------------------------------------------------------------------------
-function M.get_page_path_str()
-    return PAGE_PATH_STR
-end
 
--- ---------------------------------------------------------------------------
--- get_page_path(): returns the path table for menu:page() calls.
--- ---------------------------------------------------------------------------
-function M.get_page_path()
-    return PAGE_PATH
-end
 
 -- ---------------------------------------------------------------------------
 -- build_widget_opts(def): translate schema tooltip/description into declarative opts.
@@ -404,12 +392,6 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
     return true
 end
 
--- ---------------------------------------------------------------------------
--- is_initialized(): true after a successful initialize() call.
--- ---------------------------------------------------------------------------
-function M.is_initialized()
-    return _initialized
-end
 
 -- ---------------------------------------------------------------------------
 -- sync_to_settings(settings_table, playstyle_keys):
@@ -491,11 +473,6 @@ function M.get_widget_value(id)
     return nil
 end
 
--- ---------------------------------------------------------------------------
--- get_widget_registry(): returns the internal widget registry (for debugging).
--- ---------------------------------------------------------------------------
-function M.get_widget_registry()
-    return _widget_registry
-end
 
 return M
+

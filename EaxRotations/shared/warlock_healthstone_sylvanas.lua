@@ -132,5 +132,5 @@ end
 
 return {
     make_strategy = make_strategy,
-    DEFAULT_HEALTHSTONE_IDS = DEFAULT_HEALTHSTONE_IDS,
 }
+

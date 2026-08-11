@@ -55,14 +55,6 @@ function M.estimate_next_tick(state, now)
     return math.max(0, M.TICK_INTERVAL - since_last)
 end
 
---- Predict energy after N seconds
----@param state table Tracker state
----@param energy number Current energy
----@param seconds number Seconds to predict
----@return number predicted_energy Capped at 100
-function M.predicted_energy(state, energy, seconds)
-    if not state then return energy end
-    return math.min(100, energy + (seconds / M.TICK_INTERVAL) * M.TICK_ENERGY)
-end
 
 return M
+

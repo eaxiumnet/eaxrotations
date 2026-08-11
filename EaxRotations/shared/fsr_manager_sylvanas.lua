@@ -134,60 +134,16 @@ function M.should_pause_for_fsr(state, context)
   return true, "pause for FSR regen: " .. string.format("%.0f", regen_delta)
 end
 
--- Exposed helper (for specs / tests / future consumers)
-function M.is_fsr_pause_enabled(context)
-  if spec_kit and spec_kit.setting_bool then
-    return spec_kit.setting_bool(context, "fsr_enabled", true)
-  end
-  local s = context and context.settings
-  if s and s.fsr_enabled ~= nil then return s.fsr_enabled ~= false end
-  return true
-end
 
--- Calculate the "regen opportunity cost" of casting a spell
--- Returns how much mana we lose by staying inside FSR
-function M.get_cast_opportunity_cost(cast_time)
-  cast_time = cast_time or 2.5
-  if not M.is_inside_fsr() then
-    -- Casting will put us inside FSR, cost = lost base regen for (cast_time + 5s)
-    local delta = M.get_regen_delta()
-    return delta * ((cast_time + _fsr_window) / 5)
-  end
-  -- Already inside FSR, additional cost is just the cast time extension
-  local delta = M.get_regen_delta()
-  return delta * (cast_time / 5)
-end
 
 -- ---------------------------------------------------------------------------
 -- Downranking Recommendation
 -- ---------------------------------------------------------------------------
 
--- Recommend a lower spell rank when mana is low and FSR is active
--- @param ranks table of {spell_id, label, mana_cost, base_heal}
--- @param target_deficit number - HP deficit of target
--- @param state table with mana_pct
--- @return best_rank_entry or nil
-function M.choose_downrank(ranks, target_deficit, state)
-  if not ranks or #ranks == 0 then return nil end
-  if not state then return ranks[#ranks] end  -- Default to lowest rank
-
-  local mana_pct = state.mana_pct or 100
-  if mana_pct > 30 then return nil end  -- No downranking above 30%
-
-  -- Find the cheapest rank that covers the deficit
-  for i = 1, #ranks do
-    local rank = ranks[i]
-    if rank.base_heal and rank.base_heal >= target_deficit then
-      return rank
-    end
-  end
-
-  -- If nothing covers deficit, return the lowest rank anyway
-  return ranks[1]
-end
 
 -- ---------------------------------------------------------------------------
 -- Export
 -- ---------------------------------------------------------------------------
 NS.FsrManager = M
 return M
+

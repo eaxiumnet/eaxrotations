@@ -247,55 +247,7 @@ end
 -- Public API
 -- ===========================================================================
 
---- Probe: find the palette and log its full structure (keys + RGBA values).
---- Call from console or a diagnostics button to inspect the theme before/after override.
-function M.probe()
-    local palette, source = find_palette()
-    if not palette then
-        log("[EaxRotations:ThemeOverride] probe: no theme palette found via any strategy")
-        return
-    end
-    log("[EaxRotations:ThemeOverride] probe: palette found via " .. tostring(source))
-    for k, v in pairs(palette) do
-        local r, g, b, a = read_rgba(v)
-        if r then
-            local purple = is_purple(r, g, b) and " [PURPLE]" or ""
-            log("[EaxRotations:ThemeOverride]   " .. tostring(k)
-                .. " = RGBA(" .. r .. "," .. g .. "," .. b .. "," .. a .. ")" .. purple)
-        elseif type(v) == "table" then
-            -- One level of nesting
-            for k2, v2 in pairs(v) do
-                local r2, g2, b2, a2 = read_rgba(v2)
-                if r2 then
-                    local purple2 = is_purple(r2, g2, b2) and " [PURPLE]" or ""
-                    log("[EaxRotations:ThemeOverride]   " .. tostring(k) .. "." .. tostring(k2)
-                        .. " = RGBA(" .. r2 .. "," .. g2 .. "," .. b2 .. "," .. a2 .. ")" .. purple2)
-                end
-            end
-        else
-            log("[EaxRotations:ThemeOverride]   " .. tostring(k) .. " = " .. type(v) .. " (non-color)")
-        end
-    end
-end
 
---- Apply: find the palette and mutate all purple entries to the target accent.
---- Returns true if any colors were changed, false if palette not found or no purples.
-function M.apply()
-    local palette, source = find_palette()
-    if not palette then
-        log("[EaxRotations:ThemeOverride] apply: no palette found (will retry on next call)")
-        return false
-    end
-
-    local changed, total = scan_and_mutate(palette, "", 0)
-    if changed > 0 then
-        log("[EaxRotations:ThemeOverride] Applied: " .. changed .. "/" .. total
-            .. " colors recolored (via " .. tostring(source) .. ")")
-    else
-        log("[EaxRotations:ThemeOverride] No purple colors found in palette (already recolored or different theme)")
-    end
-    return changed > 0
-end
 
 -- Singleton guards for one-shot apply (legacy; kept for initial load-time log).
 local _applied = false
@@ -511,3 +463,4 @@ function M.restore_palette()
 end
 
 return M
+

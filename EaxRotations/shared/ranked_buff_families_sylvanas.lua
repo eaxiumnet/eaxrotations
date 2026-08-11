@@ -251,9 +251,6 @@ function M.detect_n(key)
     return as_n_table(M.detect(key))
 end
 
-function M.cast_n(key)
-    return as_n_table(M.cast(key))
-end
 
 function M.label(key)
     local f = M.FAMILIES[key]
@@ -272,3 +269,4 @@ if NS then
 end
 
 return M
+

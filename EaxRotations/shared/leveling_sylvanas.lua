@@ -168,14 +168,6 @@ end
 -- Generic combat-or-target helper
 -- ============================================================================
 
---- Safe combat check: returns true if in combat OR has a valid target.
--- Used by low-level rotations where combat state detection is unreliable.
--- Does NOT gate OOC buffs (those should still check in_combat).
-function leveling.in_combat_or_has_target(context, state)
-    if not context or not state then return false end
-    if state.in_combat then return true end
-    return state.target ~= nil
-end
 
 -- ============================================================================
 -- Generic DoT refresh helper
@@ -249,3 +241,4 @@ function leveling.health_potion_execute(context)
 end
 
 return leveling
+

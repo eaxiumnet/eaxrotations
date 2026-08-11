@@ -48,18 +48,6 @@ function M.queue_spell_target_fast(spell, target, priority, message, allow_movem
     return false
 end
 
-function M.queue_spell_position(spell, position, priority, message, allow_movement)
-    local id = spell_id_from(spell)
-    if not id then return false end
-    priority = priority or 1
-    if _spell_queue and type(_spell_queue.queue_spell_position) == "function" then
-        local ok, result = pcall(_spell_queue.queue_spell_position, _spell_queue, id, position, priority, message, allow_movement == true)
-        if ok and result ~= false then return true end
-    end
-    if NS and NS.try_cast_position then
-        return NS.try_cast_position(spell, position, nil, message) == true
-    end
-    return false
-end
 
 return M
+

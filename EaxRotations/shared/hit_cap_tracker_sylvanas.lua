@@ -84,56 +84,13 @@ function M.get_expertise_cap()
   }
 end
 
--- Check if current hit rating meets cap (placeholder — real impl needs gear API)
--- @param spec_key string — e.g., "warrior_melee"
--- @param current_hit_rating number — from gear inspection or cached value
-function M.is_hit_capped(spec_key, current_hit_rating)
-  local cap = M.get_hit_cap(spec_key)
-  if not cap or not current_hit_rating then return false end
-  return current_hit_rating >= cap.rating_needed
-end
 
--- Check if current expertise meets soft cap
-function M.is_expertise_soft_capped(current_expertise_rating)
-  if not current_expertise_rating then return false end
-  return current_expertise_rating >= EXPERTISE_SOFT_CAP.rating
-end
 
--- Recommend ability gating based on hit cap (for specs that want to skip "missable" CDs when uncapped)
--- @return boolean — true = caution warranted, false = hit cap likely met
-function M.should_caution_missable(spec_key, current_hit_rating)
-  if not spec_key then return false end
-  local cap = M.get_hit_cap(spec_key)
-  if not cap then return false end
-  if not current_hit_rating then
-    -- No data available → conservative: assume capped to avoid nagging
-    return false
-  end
-  -- If significantly below cap (>30 rating deficit), suggest caution
-  local deficit = cap.rating_needed - current_hit_rating
-  return deficit > 30
-end
 
--- Return a human-readable summary for logging / debug
-function M.summary(spec_key, current_hit_rating, current_expertise_rating)
-  local cap = M.get_hit_cap(spec_key)
-  local expertise = M.get_expertise_cap()
-  local parts = {}
-  if cap then
-    local status = (current_hit_rating and current_hit_rating >= cap.rating_needed) and "MET" or "NEEDED"
-    parts[#parts+1] = string.format("Hit: %d/%d rating (%s)", current_hit_rating or 0, cap.rating_needed, status)
-  else
-    parts[#parts+1] = "Hit: unknown spec"
-  end
-  if expertise then
-    local status = (current_expertise_rating and current_expertise_rating >= expertise.soft_rating) and "SOFT-MET" or "NEEDED"
-    parts[#parts+1] = string.format("Expertise: %d/%d rating (%s)", current_expertise_rating or 0, expertise.soft_rating, status)
-  end
-  return table.concat(parts, " | ")
-end
 
 -- ---------------------------------------------------------------------------
 -- Export
 -- ---------------------------------------------------------------------------
 NS.HitCapTracker = M
 return M
+

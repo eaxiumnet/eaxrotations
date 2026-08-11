@@ -512,9 +512,6 @@ function M.get_summary_for_window(seconds)
     return summary
 end
 
-function M.get_damage_meter_replacement(seconds)
-    return M.get_dps_hps_per_unit(seconds)
-end
 
 function M.get_replay(seconds)
     local window = clamp_window(seconds)
@@ -549,7 +546,6 @@ function M.get_replay(seconds)
     return replay
 end
 
-M.get_replay_frames = M.get_replay
 
 function M._handle_spell_cast(data)
     if type(data) ~= "table" then
@@ -592,3 +588,4 @@ function M._notify_subscribers(entry)
 end
 
 return M
+

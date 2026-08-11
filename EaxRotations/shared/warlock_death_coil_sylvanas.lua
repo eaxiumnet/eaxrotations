@@ -66,7 +66,9 @@ local function make_strategy(name, spell_obj, opts)
 end
 
 return {
-    matches = matches,
-    execute = execute,
+    -- matches/execute were exported by the pre-make_strategy interface but
+    -- have zero consumers — every caller goes through make_strategy (which
+    -- closes over the local functions above). Removed 2026-08-11 by the
+    -- state-field audit's S4 dead-export rule.
     make_strategy = make_strategy,
 }

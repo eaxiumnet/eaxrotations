@@ -14,7 +14,6 @@
 
 local M = {}
 
-M.BUILD = "2.5.4.42940"
 
 M.SPELLS = {
     common = {
@@ -628,3 +627,4 @@ M.WEAPON_ENCHANTS = {
 }
 
 return M
+

@@ -202,39 +202,6 @@ function M.try_drop_tremor(context)
     return false
 end
 
---- Middleware strategy for auto tremor (NS.action_matches / NS.action_execute compatible).
--- Returns a strategy table suitable for NS.register_class_middleware.
--- @param SPELLS table - Class spell table (must contain TremorTotem key)
--- @return table - Strategy entry
-function M.as_middleware_strategy(SPELLS)
-    local spell = SPELLS and SPELLS.TremorTotem
-    if not spell then return nil end
-    return {
-        name = "AutoTremor",
-        matches = function(context)
-            if context.settings.use_auto_tremor_totem == false then return false end
-            if not context.in_combat then return false end
-            local fear_risk = M.is_fear_boss(context.target) or M.detect_fear_on_ally() or M.detect_fear_on_tank() or context.known_fear_boss or context.control_risk or context.control_nearby
-            if context.is_group and (context.known_fear_boss or context.control_risk) then fear_risk = true end
-            if not fear_risk then return false end
-            if M.has_tremor_totem() then return false end
-            return NS.action_matches(context, {
-                name = "AutoTremor",
-                spell = spell,
-                target = "self",
-                skip_range = true,
-            })
-        end,
-        execute = function(context)
-            return NS.action_execute(context, {
-                name = "AutoTremor",
-                spell = spell,
-                target = "self",
-                skip_range = true,
-            }, "[SHAMAN]")
-        end,
-    }
-end
 
 -- Register with EaxRotations namespace if available. Mock-NS guard (survey
 -- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
@@ -246,3 +213,4 @@ if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
 end
 
 return M
+

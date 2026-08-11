@@ -190,35 +190,6 @@ function M.try_purge(context)
     return false
 end
 
---- Middleware strategy for Purge (NS.action_matches / NS.action_execute compatible).
--- Returns a strategy table suitable for NS.register_class_middleware.
--- @param SPELLS table - Class spell table (must contain Purge key)
--- @return table - Strategy entry
-function M.as_middleware_strategy(SPELLS)
-    local spell = SPELLS and SPELLS.Purge
-    if not spell then return nil end
-    return {
-        name = "Purge",
-        matches = function(context)
-            if (context.settings and context.settings.use_purge == false) then return false end
-            if not context.in_combat then return false end
-            if not context.has_valid_enemy_target then return false end
-            if not M.has_purgeable_buff(context.target) then return false end
-            return NS.action_matches(context, {
-                name = "Purge",
-                spell = spell,
-                setting = "use_purge",
-            })
-        end,
-        execute = function(context)
-            return NS.action_execute(context, {
-                name = "Purge",
-                spell = spell,
-                setting = "use_purge",
-            }, "[SHAMAN]")
-        end,
-    }
-end
 
 -- Register with EaxRotations namespace if available. Mock-NS guard (survey
 -- item #2): a mock NS (battery / apl_status, marked _EAX_MOCK) must never
@@ -228,3 +199,4 @@ if _G.EaxRotations and not _G.EaxRotations._EAX_MOCK then
 end
 
 return M
+

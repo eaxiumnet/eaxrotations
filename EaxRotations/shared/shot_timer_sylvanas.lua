@@ -70,16 +70,10 @@ function M.get_auto_shot_buffer_ms()
     return 150
 end
 
---- Time to next auto including dynamic buffer.
-function M.ms_until_auto_with_buffer()
-    if hunter_core.ms_until_auto_with_buffer then
-        return hunter_core.ms_until_auto_with_buffer()
-    end
-    return 0
-end
 
 if NS then
     NS.ShotTimer = M
 end
 
 return M
+

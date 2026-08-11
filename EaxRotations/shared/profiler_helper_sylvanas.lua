@@ -27,13 +27,6 @@ function M.stop(key, is_failed)
     safe_call("stop", key, is_failed == true)
 end
 
-function M.wrap(key, fn, ...)
-    if not key or type(fn) ~= "function" then return fn(...) end
-    M.start(key)
-    local ok, result = pcall(fn, ...)
-    M.stop(key, not ok)
-    if not ok then error(result, 0) end
-    return result
-end
 
 return M
+
