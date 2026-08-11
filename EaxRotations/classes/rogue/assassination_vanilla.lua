@@ -43,7 +43,6 @@ local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511,
 local ASSN_VANILLA_SCHEMA = {
     stealth_active = false,  slice_dice_active = false,  snd_remains = 0,
     snd_needs_refresh = false,  rupture_remains = 0,  garrote_remains = 0,
-    dp_stacks = 0,  dp_remains = 0,  target_poisoned = false,
     combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
     hp_pct = 100,  find_weakness_active = false,
     has_cold_blood = false,  healing_item_id = nil,
@@ -55,16 +54,10 @@ local assassin_state = {
     snd_remains = 0,
     snd_needs_refresh = false,
     rupture_remains = 0,
-    garrote_remains = 0,
-    dp_stacks = 0,
-    dp_remains = 0,
-    target_poisoned = false,
     combo = 0,
     energy = 0,
-    energy_low = false,
     energy_pool_finisher = false,
     hp_pct = 100,
-    find_weakness_active = false,
     has_cold_blood = false,
     healing_item_id = nil,
 }
@@ -86,25 +79,14 @@ local function build_state(context)
     -- Debuffs on target
     if target then
         assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
-        assassin_state.garrote_remains = NS.debuff_remains and NS.debuff_remains(target, GARROTE_DEBUFF) or 0
-        assassin_state.dp_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, DEADLY_POISON_DEBUFF) or 0
-        assassin_state.dp_remains = NS.debuff_remains and NS.debuff_remains(target, DEADLY_POISON_DEBUFF) or 0
-        assassin_state.target_poisoned = assassin_state.dp_stacks > 0
             or (NS.has_target_debuff and NS.has_target_debuff(target, CRIPPLING_POISON_DEBUFF))
             or (NS.has_target_debuff and NS.has_target_debuff(target, WOUND_POISON_DEBUFF))
-        assassin_state.find_weakness_active = NS.has_target_debuff and NS.has_target_debuff(target, FIND_WEAKNESS_BUFF)
     else
         assassin_state.rupture_remains = 0
-        assassin_state.garrote_remains = 0
-        assassin_state.dp_stacks = 0
-        assassin_state.dp_remains = 0
-        assassin_state.target_poisoned = false
-        assassin_state.find_weakness_active = false
     end
     -- Resources
     assassin_state.combo = context.combo or 0
     assassin_state.energy = context.energy or 0
-    assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
 

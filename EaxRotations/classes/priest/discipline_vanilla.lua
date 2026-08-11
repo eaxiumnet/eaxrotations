@@ -95,13 +95,10 @@ local disc_state = {
     has_fear_ward = false,
     has_power_word_fortitude = false,
     pws_ready = false,
-    pom_ready = false,
     flash_heal_ready = false,
     greater_heal_ready = false,
     renew_ready = false,
-    circle_of_healing_ready = false,
     prayer_of_healing_ready = false,
-    prayer_of_mending_ready = false,
     shadow_word_pain_ready = false,
     smite_ready = false,
     holy_fire_ready = false,
@@ -112,12 +109,10 @@ local disc_state = {
     hp_pct = 100,
     in_combat = false,
     target_creature_type = nil,
-    target_casting = false,
     enemy_count = 0,
     has_divine_spirit = false,
     has_prayer_of_fortitude = false,
     -- CD state
-    pain_suppression_ready = false,
     power_infusion_ready = false,
     inner_focus_ready = false,
     has_inner_focus = false,
@@ -147,7 +142,6 @@ local DISC_VANILLA_SCHEMA = {
     target_creature_type = nil,  target_casting = false,
     enemy_count = 0,  has_divine_spirit = false,
     has_prayer_of_fortitude = false,
-    pain_suppression_ready = false,  power_infusion_ready = false,
     inner_focus_ready = false,  has_inner_focus = false,
     healthstone_ready = false,  healthstone_id = nil,
     has_fade_buff = false,  fade_ready = false,
@@ -178,19 +172,15 @@ local function build_state(context)
     disc_state.has_prayer_of_fortitude = false  -- Prayer of Fortitude is TBC-only
     disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     disc_state.divine_spirit_ready = me and NS.spell_ready(SPELLS.DivineSpirit, me, { skip_range = true }) or false
-    disc_state.prayer_of_fortitude_ready = false  -- Prayer of Fortitude is TBC-only
     disc_state.enemy_count = (NS.GetEnemiesCount and NS.GetEnemiesCount(10)) or (context.enemies_count or 0)
     disc_state.inner_fire_ready = me and NS.spell_ready(SPELLS.InnerFire, me, { skip_range = true }) or false
     disc_state.fear_ward_ready = me and NS.spell_ready(SPELLS.FearWard, me, { skip_range = true }) or false
     disc_state.power_word_fortitude_ready = me and NS.spell_ready(SPELLS.PowerWordFortitude, me, { skip_range = true }) or false
     disc_state.pws_ready = me and NS.spell_ready(SPELLS.PowerWordShield, me, { skip_range = true }) or false
-    disc_state.pom_ready = false  -- Prayer of Mending is TBC-only
     disc_state.flash_heal_ready = me and NS.spell_ready(SPELLS.FlashHeal, me, { skip_range = true }) or false
     disc_state.greater_heal_ready = me and NS.spell_ready(SPELLS.GreaterHeal, me, { skip_range = true }) or false
     disc_state.renew_ready = me and NS.spell_ready(SPELLS.Renew, me, { skip_range = true }) or false
-    disc_state.circle_of_healing_ready = false  -- Circle of Healing is TBC-only
     disc_state.prayer_of_healing_ready = me and NS.spell_ready(SPELLS.PrayerOfHealing, me, { skip_range = true }) or false
-    disc_state.prayer_of_mending_ready = false  -- Prayer of Mending is TBC-only
     disc_state.shadow_word_pain_ready = me and NS.spell_ready(SPELLS.ShadowWordPain, me, { expected_cooldown = 1.5 }) or false
     disc_state.smite_ready = me and NS.spell_ready(SPELLS.Smite, me, { expected_cooldown = 2.5 }) or false
     disc_state.holy_fire_ready = me and NS.spell_ready(SPELLS.HolyFire, me, { expected_cooldown = 10 }) or false
@@ -201,10 +191,8 @@ local function build_state(context)
     disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     disc_state.in_combat = context.in_combat or false
     disc_state.target_creature_type = target_creature_type(target)
-    disc_state.target_casting = target and target.is_casting and target:is_casting() or false
 
     -- Cooldown readiness
-    disc_state.pain_suppression_ready = false  -- Pain Suppression () is TBC-only
     disc_state.power_infusion_ready = me and NS.spell_ready(10060, me, { skip_range = true }) or false
     disc_state.inner_focus_ready = me and NS.spell_ready(SPELLS.InnerFocus or 14751, me, { skip_range = true }) or false
 

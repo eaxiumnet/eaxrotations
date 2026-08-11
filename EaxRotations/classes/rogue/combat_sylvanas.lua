@@ -184,7 +184,6 @@ local COMBAT_SCHEMA = {
     heroism_active = false, threat_pct = 0,
     snd_needs_refresh = false, expose_assigned = false,
     -- Spell readiness
-    stealth_ready = false, adrenaline_rush_ready = false,
     blade_flurry_ready = false, slice_and_dice_ready = false,
     rupture_ready = false, eviscerate_ready = false,
     envenom_ready = false,
@@ -198,10 +197,7 @@ local COMBAT_SCHEMA = {
     shiv_ready = false,
     -- Poison
     deadly_poison_stacks = 0,
-    hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
-    expertise_soft_cap = 26,
-    expertise_hard_cap = 56,
 }
 
 -- ============================================================================
@@ -213,7 +209,6 @@ local combat_state = {
     has_blade_flurry = false,
     has_adrenaline_rush = false,
     snd_remains = 0,
-    rupture_remains = 0,
     combo_points = 0,
     energy = 100,
     hp_pct = 100,
@@ -230,7 +225,6 @@ local combat_state = {
     snd_needs_refresh = false,
     expose_assigned = false,
     -- spell readiness
-    stealth_ready = false,
     adrenaline_rush_ready = false,
     blade_flurry_ready = false,
     slice_and_dice_ready = false,
@@ -262,7 +256,6 @@ local function build_state(context)
     combat_state.has_blade_flurry = me and NS.buff_up(me, BLADE_FLURRY_BUFF) or false
     combat_state.has_adrenaline_rush = me and NS.buff_up(me, ADRENALINE_RUSH_BUFF) or false
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
-    combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
     local combo_points = read_combo_points(me, NS.POWER_COMBO or 4)
     if type(combo_points) == "number" then combat_state.combo_points = combo_points end
@@ -293,7 +286,6 @@ local function build_state(context)
     end
     combat_state.target_casting = ok_casting and casting or false
     combat_state.target_casting_interruptible = combat_state.target_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    combat_state.stealth_ready = me and NS.spell_ready(ACTION.Stealth, me, { skip_range = true }) or false
     combat_state.adrenaline_rush_ready = me and NS.spell_ready(ACTION.AdrenalineRush, me, { skip_range = true, expected_cooldown = 300 }) or false
     combat_state.blade_flurry_ready = me and NS.spell_ready(ACTION.BladeFlurry, me, { skip_range = true, expected_cooldown = 120 }) or false
     combat_state.slice_and_dice_ready = me and NS.spell_ready(ACTION.SliceAndDice, me, { skip_range = true }) or false
@@ -351,13 +343,10 @@ local function build_state(context)
     if HitCap then
         local hit_info = HitCap.get_hit_cap("rogue_melee")
         if hit_info then
-            combat_state.hit_cap_pct = hit_info.pct_needed
             combat_state.hit_cap_rating_needed = hit_info.rating_needed
         end
         local exp_info = HitCap.get_expertise_cap()
         if exp_info then
-            combat_state.expertise_soft_cap = exp_info.soft_expertise
-            combat_state.expertise_hard_cap = exp_info.hard_expertise
         end
     end
 

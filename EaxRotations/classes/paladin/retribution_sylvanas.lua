@@ -154,14 +154,10 @@ local RET_SCHEMA = {
     has_might = false,  has_kings = false,  has_forbearance = false,
     target_has_crusader = false,  target_has_wisdom = false,
     -- Target
-    target_casting = false,  target_casting_interruptible = false,
     target_player = false,  target_fleeing = false,
     -- Power windows
     bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
-    hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
-    expertise_soft_cap = 26,
-    expertise_hard_cap = 56,
 }
 
 -- ============================================================================
@@ -206,7 +202,6 @@ local ret_state = {
     target_hp_pct = 100,
     enemy_count = 1,
     swing_remains = 99,
-    seal_preference = "auto",
     preferred_damage_seal = nil,
     utility_target = nil,
     secondary_target = nil,
@@ -225,8 +220,6 @@ local ret_state = {
     has_forbearance = false,
     target_has_crusader = false,
     target_has_wisdom = false,
-    target_casting = false,
-    target_casting_interruptible = false,
     target_player = false,
     target_fleeing = false,
     in_melee = true,
@@ -365,7 +358,6 @@ local function build_state(context)
     -- Prefer CLEU-authoritative swing timer when available; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
     ret_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or (context.time_to_swing or 0)
-    ret_state.seal_preference = spec_kit.setting(context, "seal_preference", spec_kit.setting(context, "retri_seal_preference", "auto"))
     ret_state.can_use_blood = should_use_blood(context)
     ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"
     -- [ARTISTRY] Improved: Dynamic Twist Window from settings (ms to seconds)
@@ -391,8 +383,6 @@ local function build_state(context)
     ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
     ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
     ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
-    ret_state.target_casting = is_casting(context.target)
-    ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
     ret_state.target_creature_type = creature_type(context.target)
@@ -418,13 +408,10 @@ local function build_state(context)
     if HitCap then
         local hit_info = HitCap.get_hit_cap("paladin_melee")
         if hit_info then
-            ret_state.hit_cap_pct = hit_info.pct_needed
             ret_state.hit_cap_rating_needed = hit_info.rating_needed
         end
         local exp_info = HitCap.get_expertise_cap()
         if exp_info then
-            ret_state.expertise_soft_cap = exp_info.soft_expertise
-            ret_state.expertise_hard_cap = exp_info.hard_expertise
         end
     end
     -- Centralized target validity gate used by base_matches guards

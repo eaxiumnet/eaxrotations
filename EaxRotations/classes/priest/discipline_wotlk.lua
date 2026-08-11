@@ -24,9 +24,7 @@ local WEAKENED_SOUL_DEBUFF = { 6788 }
 local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 
 local discipline_state = {
-    hp = 100,
     target_hp = 100,
-    mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
     weakened_soul_up = false,
@@ -37,8 +35,9 @@ local function build_state(context)
     local state = spec_kit.safe_state(discipline_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = (context and context.lowest and context.lowest.unit) or me
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    -- target_hp: the LOWEST FRIENDLY unit's hp (healers score the lowest
+    -- friendly as their target) — test-pinned in
+    -- test_discipline_wotlk_dsl_priority.lua:160.
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false

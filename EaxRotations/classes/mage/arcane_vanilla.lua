@@ -55,7 +55,6 @@ local ARCANE_VANILLA_SCHEMA = {
     has_ice_barrier = false,  has_mana_shield = false,
     mana_pct = 100,  hp_pct = 100,  max_mana = 15000,
     in_combat = false,  is_moving = false,  target_casting = false,
-    min_mtte = 12,  mtte_burn = 999,  mtte_conserve = 999,
     mana_gem_available = false,  evocation_available = false,
     bloodlust_active = false,  can_burn = false,  should_conserve = false,
     has_clearcasting = false,  arcane_power_available = false,
@@ -64,7 +63,6 @@ local ARCANE_VANILLA_SCHEMA = {
 local arcane_state = {
     phase = PHASE_CONSERVE,
     ab_stacks = 0,
-    ab_remains = 0,
     has_arcane_power = false,
     has_presence_of_mind = false,
     has_ice_barrier = false,
@@ -75,9 +73,7 @@ local arcane_state = {
     in_combat = false,
     is_moving = false,
     target_casting = false,
-    min_mtte = 12,
     mtte_burn = 999,
-    mtte_conserve = 999,
     mana_gem_available = false,
     evocation_available = false,
     bloodlust_active = false,
@@ -154,7 +150,6 @@ local function build_state(context)
         s.max_mana = (me.get_max_mana and me:get_max_mana()) or (NS.unit_max_mana and NS.unit_max_mana(me)) or 15000
         if s.max_mana <= 0 then s.max_mana = 15000 end
 
-        s.ab_stacks, s.ab_remains = get_ab_stacks(me)
         s.has_arcane_power = NS.buff_up and NS.buff_up(me, ARCANE_POWER_BUFF) or false
         s.has_presence_of_mind = NS.buff_up and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
         s.has_ice_barrier = NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
@@ -166,20 +161,17 @@ local function build_state(context)
     s.evocation_available = me and NS.spell_ready and NS.spell_ready(SPELLS.Evocation, me, { skip_range = true }) or false
     s.mana_gem_available = false
     if me then s.mana_gem_available = first_ready_mana_gem() ~= nil end
-    s.arcane_power_available = me and NS.spell_ready and NS.spell_ready(SPELLS.ArcanePower, me, { skip_range = true }) or false
     s.has_clearcasting = NS.buff_up and NS.buff_up(me, CLEARCASTING_BUFF) or false
 
     -- MTTE calculations using actual max mana
     local cur_stacks = s.ab_stacks
     s.mtte_burn = calc_mtte(s.mana_pct, math.max(cur_stacks, 2), s.max_mana)
-    s.mtte_conserve = calc_mtte(s.mana_pct, 0, s.max_mana)
 
     -- Phase decision
     local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
     local burn_threshold = spec_kit.setting(context, "arcane_burn_mana_threshold", 65)
     local conserve_threshold = spec_kit.setting(context, "arcane_conserve_mana_threshold", 25)
     local min_mtte = spec_kit.setting(context, "arcane_mtte_min", 12)
-    s.min_mtte = min_mtte
 
     -- Emergency: mana critically low
     if s.mana_pct < 10 then

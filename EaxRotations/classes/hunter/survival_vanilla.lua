@@ -100,7 +100,6 @@ local SV_VANILLA_SCHEMA = {
     volley_ready = false,  has_scorpid_sting = false,
     wing_clip_active = false,  mana_pct = 100,
     in_combat = false,  enemy_count = 1,
-    pre_steady_leveling = false,
 }
 
 local function build_state(context)
@@ -140,7 +139,6 @@ local function build_state(context)
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
     -- Classic Era: enable Arcane/Sting ladder when Aimed unlearned or unavailable (default level 60).
     local player_level = context.level or context.player_level or 60
-    sv_state.pre_steady_leveling = (player_level < 20)
         or (not sv_state.aimed_shot_ready)
         or (context.is_leveling == true)
 

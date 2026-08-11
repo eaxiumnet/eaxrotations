@@ -26,7 +26,6 @@ local RIPTIDE_BUFF = { 61301, 61300, 61299, 61295 }
 local EARTH_SHIELD_BUFF = { 49284, 32594, 32593, 974 }
 
 local restoration_state = {
-    hp = 100,
     target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
@@ -42,7 +41,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(restoration_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1

@@ -35,16 +35,12 @@ local STORMSTRIKE_DEBUFF = { 17364 }
 local LIGHTNING_SHIELD_BUFF = { 49281, 49280, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 
 local enhancement_state = {
-    hp = 100,
-    target_hp = 100,
-    mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
     maelstrom_stacks = 0,
     feral_spirit_ready = false,
     bloodlust_ready = false,
     flame_shock_remains = 0,
-    stormstrike_remains = 0,
     water_totem_remains = 300,
     lightning_shield_up = false,
 }
@@ -53,16 +49,12 @@ local function build_state(context)
     local state = spec_kit.safe_state(enhancement_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.maelstrom_stacks = (me and NS.buff_stacks and NS.buff_stacks(me, MAELSTROM_WEAPON_BUFF)) or 0
     state.feral_spirit_ready = (ACTION.FeralSpirit and ACTION.FeralSpirit.cooldown_remaining and ACTION.FeralSpirit:cooldown_remaining() <= 0) or false
     state.bloodlust_ready = (context and context.bloodlust_ready) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0
-    state.stormstrike_remains = (target and NS.debuff_remains and NS.debuff_remains(target, STORMSTRIKE_DEBUFF)) or 0
     state.water_totem_remains = (context and context.water_totem_remains) or 300
     if context and context.lightning_shield_up ~= nil then
         state.lightning_shield_up = context.lightning_shield_up

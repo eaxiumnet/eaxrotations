@@ -103,7 +103,6 @@ function rogue_leveling.build_state(context)
     state.stealth_ready = spell_ready(SPELLS.Stealth)
     state.kidney_shot_ready = spell_ready(SPELLS.KidneyShot)
     state.expose_armor_ready = spell_ready(SPELLS.ExposeArmor)
-    state.shiv_ready = spell_ready(SPELLS.Shiv)
     state.thistle_tea_ready = SPELLS.ThistleTea and spell_ready(SPELLS.ThistleTea) or false
     state.sap_ready = spell_ready(SPELLS.Sap)
     state.blind_ready = spell_ready(SPELLS.Blind)

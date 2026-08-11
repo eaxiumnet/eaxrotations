@@ -384,7 +384,6 @@ local aff_state = {
 	    -- Shadow Embrace stacks
 	    se_stacks = 0,
 	    -- Improved Shadow Bolt (Shadow Vulnerability) stacks
-	    isb_stacks = 0,
     -- Proc
     nightfall_active = false,
     -- Resources
@@ -396,7 +395,6 @@ local aff_state = {
     pet_health = 100,
     pet_mana = 100,
     pet_type_imp = false,
-    pet_casting_firebolt = false,
     -- Items
     mana_potion_id = nil,
     healthstone_id = nil,
@@ -434,7 +432,6 @@ local function build_state(context)
         aff_state.recklessness_remains = dot_remains_from_scan(target, dot_scan, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF)
         aff_state.weakness_remains     = dot_remains_from_scan(target, dot_scan, curse_helper.CURSE_OF_WEAKNESS_DEBUFF)
         aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
-        aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
         aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
     else
         aff_state.ua_remains = 0
@@ -446,7 +443,6 @@ local function build_state(context)
         aff_state.recklessness_remains = 0
         aff_state.weakness_remains = 0
         aff_state.se_stacks = 0
-        aff_state.isb_stacks = 0
 	        aff_state.target_hp = 100
 	    end
 	    -- Nightfall proc
@@ -470,7 +466,6 @@ local function build_state(context)
             end
             aff_state.has_pet = aff_state.pet_alive
             -- Imp Machine Gun detection: only the Imp has Firebolt
-            aff_state.pet_casting_firebolt = false
             aff_state.pet_type_imp = false
             if pet and aff_state.pet_alive then
                 if pet.is_casting_spell and pet:is_casting_spell() and pet.get_active_spell_id then
@@ -478,7 +473,6 @@ local function build_state(context)
                     if type(sid) == "number" then
                         for _, id in ipairs(IMP_FIREBOLT_IDS) do
                             if sid == id then
-                                aff_state.pet_casting_firebolt = true
                                 aff_state.pet_type_imp = true
                                 break
                             end

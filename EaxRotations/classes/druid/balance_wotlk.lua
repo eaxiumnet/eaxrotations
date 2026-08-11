@@ -27,30 +27,24 @@ local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 
 local balance_state = {
-    hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
     moonkin_up = false,
     insect_swarm_remains = 0,
     moonfire_remains = 0,
-    eclipse_proc = false,
 }
 
 local function build_state(context)
     local state = spec_kit.safe_state(balance_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.moonkin_up = (me and NS.buff_up and NS.buff_up(me, MOONKIN_FORM_BUFF)) or false
     state.insect_swarm_remains = (target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF)) or 0
     state.moonfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF)) or 0
-    state.eclipse_proc = (me and NS.buff_up and (NS.buff_up(me, { 48517 }) or NS.buff_up(me, { 48518 }))) or false
     return state
 end
 

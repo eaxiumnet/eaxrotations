@@ -49,8 +49,6 @@ local HORN_OF_WINTER_BUFF = { 57623, 57330 }
 local BONE_SHIELD_BUFF    = { 49222 }
 
 local unholy_state = {
-    hp                   = 100,
-    target_hp            = 100,
     enemy_count          = 1,
     in_combat            = false,
     frost_fever_remains  = 0,
@@ -70,8 +68,6 @@ local function build_state(context)
     local target = context and context.target
     local me = NS.me
 
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
 

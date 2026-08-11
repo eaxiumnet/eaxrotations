@@ -210,7 +210,6 @@ local MM_SCHEMA = {
     mend_pet_ready = false,  hunters_mark_ready = false,
     rapid_fire_ready = false,  rapid_fire_cd = 0,
     aimed_shot_prepull_ready = false,  aimed_shot_ready = false,
-    silencing_shot_ready = false,  target_is_casting = false,  target_interruptible = false,
     kill_command_ready = false,  multi_shot_ready = false,
     steady_shot_ready = false,  arcane_shot_ready = false,  serpent_sting_ready = false,
     call_pet_ready = false,  revive_pet_ready = false,
@@ -218,7 +217,6 @@ local MM_SCHEMA = {
     viper_sting_ready = false,  readiness_ready = false,
     trueshot_aura_ready = false,  trueshot_aura_active = false,
     raptor_strike_ready = false,  concussive_shot_ready = false,  volley_ready = false,
-    explosive_trap_ready = false,  wing_clip_active = false,  wing_clip_ready = false,
     bestial_wrath_ready = false,  has_deterrence = false,
     mana_pct = 100,  in_combat = false,  enemy_count = 1,  is_ooc = false,
     hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
@@ -245,9 +243,6 @@ local mm_state = {
     rapid_fire_cd = 0,
     aimed_shot_prepull_ready = false,
     aimed_shot_ready = false,
-    silencing_shot_ready = false,
-    target_is_casting = false,
-    target_interruptible = false,
     kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
@@ -262,11 +257,7 @@ local mm_state = {
     trueshot_aura_ready = false,
     trueshot_aura_active = false,
     raptor_strike_ready = false,
-    concussive_shot_ready = false,
-    volley_ready = false,
-    explosive_trap_ready = false,
     wing_clip_active = false,
-    use_misdirection = false,
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
@@ -303,13 +294,6 @@ local function build_state(context)
     mm_state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
     mm_state.aimed_shot_prepull_ready = target and spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.aimed_shot_ready = target and spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.silencing_shot_ready = target and spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
-    mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
-    mm_state.target_interruptible = mm_state.target_is_casting and (function()
-        if not NS.is_interruptible then return false end
-        local ok, inter = pcall(NS.is_interruptible, target)
-        return ok and inter or false
-    end)() or false
     mm_state.kill_command_ready = target and spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
     mm_state.multi_shot_ready = target and spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
     mm_state.steady_shot_ready = target and spell_ready(ACTION.SteadyShot, target) or false
@@ -324,12 +308,8 @@ local function build_state(context)
     mm_state.trueshot_aura_ready = me and spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
     mm_state.trueshot_aura_active = me and safe_buff_up(me, { 19506, 20905, 20906 }) or false
     mm_state.raptor_strike_ready = target and spell_ready(RAPTOR_STRIKE_IDS, target) or false
-    mm_state.concussive_shot_ready = target and spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
-    mm_state.volley_ready = target and spell_ready(VOLLEY_IDS, target) or false
-    mm_state.explosive_trap_ready = me and spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.wing_clip_active = target and safe_debuff_up(target, WING_CLIP_DEBUFF) or false
     mm_state.wing_clip_ready = target and spell_ready(ACTION.WingClip, target) or false
-    mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
     mm_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me))
     -- hp_pct was never assigned: Healthstone (hp<=28) and Deterrence (hp<=25)

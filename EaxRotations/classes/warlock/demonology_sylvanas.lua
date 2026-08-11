@@ -104,7 +104,6 @@ local DEMO_SCHEMA = {
     -- Buffs / pet
     has_fel_armor = false, has_pet = false, pet_alive = false,
     pet_hp_pct = 100, pet_type_imp = false, pet_type_succubus = false,
-    pet_casting_firebolt = false, has_soul_link = false,
     -- Resources
     hp_pct = 100, mana_pct = 100,
     -- Combat
@@ -117,7 +116,6 @@ local DEMO_SCHEMA = {
     shadow_bolt_ready = false, seed_of_corruption_ready = false,
     howl_of_terror_ready = false, shadow_ward_ready = false,
     siphon_life_ready = false, fel_domination_ready = false,
-    soulshatter_ready = false, incinerate_ready = false,
     soul_fire_ready = false, fear_ready = false,
     seduction_ready = false, rain_of_fire_ready = false,
     hellfire_ready = false, curse_of_agony_ready = false,
@@ -142,24 +140,19 @@ local demo_state = {
     pet_hp_pct = 100,
     pet_type_imp = false,
     pet_type_succubus = false,
-    pet_casting_firebolt = false,
     hp_pct = 100,
     mana_pct = 100,
     enemy_count = 1,
-    target_casting = false,
     fel_armor_ready = false,
     curse_of_doom_ready = false,
     corruption_ready = false,
     immolate_ready = false,
     life_tap_ready = false,
-    death_coil_ready = false,
     shadow_bolt_ready = false,
     seed_of_corruption_ready = false,
     howl_of_terror_ready = false,
-    shadow_ward_ready = false,
     siphon_life_ready = false,
     fel_domination_ready = false,
-    soulshatter_ready = false,
     incinerate_ready = false,
     soul_fire_ready = false,
     fear_ready = false,
@@ -196,7 +189,6 @@ local function build_state(context)
     demo_state.pet_hp_pct = 100
     demo_state.pet_type_imp = false
     demo_state.pet_type_succubus = false
-    demo_state.pet_casting_firebolt = false
     if me then
         local ok, has_pet = pcall(function() return me:has_pet() end)
         demo_state.has_pet = ok and has_pet or false
@@ -235,7 +227,6 @@ local function build_state(context)
                     end
                     if demo_state.pet_type_imp then
                         local ok_cast, casting = pcall(function() return pet:is_casting_spell() end)
-                        demo_state.pet_casting_firebolt = ok_cast and casting or false
                     end
                 end
             end
@@ -245,20 +236,16 @@ local function build_state(context)
     demo_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
     demo_state.in_combat = context.in_combat or false  -- [#fix-4] used by Pet{Defensive,Passive,Aggressive} matchers
-    demo_state.target_casting = target and target.is_casting and target:is_casting() or false
     demo_state.fel_armor_ready = me and NS.spell_ready(ACTION.FelArmor, me, { skip_range = true }) or false
     demo_state.curse_of_doom_ready = target and NS.spell_ready(ACTION.CurseOfDoom, target, { expected_cooldown = 60 }) or false
     demo_state.corruption_ready = target and NS.spell_ready(ACTION.Corruption, target) or false
     demo_state.immolate_ready = target and NS.spell_ready(ACTION.Immolate, target, { expected_cooldown = 1.5 }) or false
     demo_state.life_tap_ready = me and NS.spell_ready(ACTION.LifeTap, me, { skip_range = true }) or false
-    demo_state.death_coil_ready = target and NS.spell_ready(ACTION.DeathCoil, target, { expected_cooldown = 120 }) or false
     demo_state.shadow_bolt_ready = target and NS.spell_ready(ACTION.ShadowBolt, target, { expected_cooldown = 2.5 }) or false
     demo_state.seed_of_corruption_ready = target and NS.spell_ready(ACTION.SeedOfCorruption, target, { expected_cooldown = 1.5 }) or false
     demo_state.howl_of_terror_ready = me and NS.spell_ready(ACTION.HowlofTerror, me, { skip_range = true, expected_cooldown = 40 }) or false
-    demo_state.shadow_ward_ready = me and NS.spell_ready(ACTION.ShadowWard, me, { skip_range = true, expected_cooldown = 30 }) or false
     demo_state.siphon_life_ready = target and NS.spell_ready(ACTION.SiphonLife, target, { expected_cooldown = 1.5 }) or false
     demo_state.fel_domination_ready = me and NS.spell_ready(ACTION.FelDomination, me, { skip_range = true, expected_cooldown = 900 }) or false
-    demo_state.soulshatter_ready = me and NS.cooldown_remains(ACTION.Soulshatter, 300) <= 0 and NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true }) or false
     demo_state.incinerate_ready = target and NS.spell_ready(ACTION.Incinerate, target, { expected_cooldown = 2.5 }) or false
     demo_state.soul_fire_ready = target and NS.spell_ready(ACTION.SoulFire, target, { expected_cooldown = 1.5 }) or false
     demo_state.fear_ready = target and NS.spell_ready(ACTION.Fear, target) or false

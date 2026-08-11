@@ -292,8 +292,6 @@ local SHADOW_SCHEMA = {
     mb_cd_remains = 0,
     swd_ready = false,
     psychic_scream_ready = false,
-    silence_ready = false,
-    dispel_magic_ready = false,
     shackle_undead_ready = false,
     fade_ready = false,
     healthstone_ready = false,
@@ -326,9 +324,6 @@ local SHADOW_SCHEMA = {
     in_combat = false,
     enemy_count = 1,
     target_hp_pct = 100,
-    target_casting = false,
-    is_wanding = false,
-    mounted = false,
     -- Configurable thresholds (populated from settings)
     vt_refresh_window = 3,
     swp_refresh_window = 3,
@@ -338,7 +333,6 @@ local SHADOW_SCHEMA = {
     flash_heal_hp = 25,
     -- Mana management
     mana_pct = 100,
-    hp_pct = 100,
     mana_low = false,
     mana_emergency = false,
     -- Threat
@@ -360,9 +354,7 @@ local SHADOW_SCHEMA = {
     multidot_mode = 1,
     multidot_max = 3,
     dotted_swp_count = 0,
-    enemies_missing_swp = 0,
     dotted_vt_count = 0,
-    enemies_missing_vt = 0,
     -- Buffing
     is_group = false,
 }
@@ -400,17 +392,12 @@ local shadow_state = {
     swd_safety_hp = 80,
     shield_hp = 35,
     flash_heal_hp = 25,
-    mounted = false,
     psychic_scream_ready = false,
-    silence_ready = false,
-    dispel_magic_ready = false,
     shackle_undead_ready = false,
     mana_pct = 100,
-    hp_pct = 100,
     in_combat = false,
     enemy_count = 1,
     target_hp_pct = 100,
-    target_casting = false,
     target_creature_type = nil,
     -- Debuff tracking on target
     weaving_stacks = 0,                     -- Shadow Weaving stacks (0-5)
@@ -432,7 +419,6 @@ local shadow_state = {
     snapshot_target = nil,
     -- Wand/auto-attack state
     wand_learned = false,             -- Shoot (5019) is learned (wand equipped)
-    is_wanding = false,               -- Currently auto-attacking with wand
     -- Out-of-combat buffing
     fortitude_ready = false,          -- Power Word: Fortitude is ready to cast
     has_fortitude = false,            -- Self has Fortitude buff
@@ -443,9 +429,7 @@ local shadow_state = {
     multidot_max = 3,                 -- Max targets for multidot
     multidot_range = 30,              -- Scan range for multidot
     dotted_swp_count = 0,             -- Enemies with SW:P
-    enemies_missing_swp = 0,          -- Enemies without SW:P
     dotted_vt_count = 0,              -- Enemies with VT
-    enemies_missing_vt = 0,           -- Enemies without VT
     mb_cd_remains = 0,                -- Mind Blast cooldown remaining
     -- Healthstone
     healthstone_id = nil,
@@ -461,11 +445,9 @@ local function build_state(context)
     if not me then return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA) end
     if spec_kit.setting_bool(context, "shadow_mounted_bail", true) then
         if me.is_mounted and me:is_mounted() then
-            shadow_state.mounted = true
             return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA)
         end
     end
-    shadow_state.mounted = false
     
     local debuff_scan = target and scan_target_debuffs(target) or {}
     shadow_state.vt_remaining = debuff_remains_from_scan(target, debuff_scan, VAMPIRIC_TOUCH_DEBUFF)
@@ -526,12 +508,9 @@ local function build_state(context)
     -- Has Weakened Soul (cannot receive PW:Shield)
     shadow_state.has_weakened_soul = me and NS.debuff_up and NS.debuff_up(me, WEAKENED_SOUL_DEBUFF) or false
     
-    shadow_state.silence_ready = me and NS.spell_ready(SILENCE_INTERRUPT_SPELL, target, { expected_cooldown = 45 }) or false
     shadow_state.psychic_scream_ready = me and NS.spell_ready(ACTION.PsychicScream, me, { skip_range = true, expected_cooldown = 30 }) or false
-    shadow_state.dispel_magic_ready = me and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
     shadow_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
     shadow_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
-    shadow_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
 
     -- Shadow Weaving debuff stacks on target
     shadow_state.weaving_stacks = target and NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_WEAVING_DEBUFF) or 0
@@ -588,12 +567,10 @@ local function build_state(context)
     shadow_state.in_combat = context.in_combat or false
     shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
     shadow_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
-    shadow_state.target_casting = target and target.is_casting and target:is_casting() or false
     shadow_state.target_creature_type = target_creature_type(target)
     
     -- Wand readiness (Shoot spell - wand training)
     shadow_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
-    shadow_state.is_wanding = shadow_state.wand_learned and NS.is_auto_attacking and NS.is_auto_attacking(context.me) or false
     
     -- Fortitude buff readiness (party-aware)
     local me_unit = context.me or me
@@ -634,9 +611,7 @@ local function build_state(context)
     -- PR2: uses tracker.get_active_fights (when gate+available) for engaged-only counts; legacy raw as fallback.
     -- State fields always populated for UI/tests/compat regardless of path.
     shadow_state.dotted_swp_count = 0
-    shadow_state.enemies_missing_swp = 0
     shadow_state.dotted_vt_count = 0
-    shadow_state.enemies_missing_vt = 0
     local now_t = NS.time_now and NS.time_now() or 0
     if (now_t - _last_multidot_scan) >= 1.0 then
         _last_multidot_scan = now_t
@@ -671,9 +646,7 @@ local function build_state(context)
         end
     end
     shadow_state.dotted_swp_count = _cached_dotted_swp
-    shadow_state.enemies_missing_swp = _cached_enemies_missing_swp
     shadow_state.dotted_vt_count = _cached_dotted_vt
-    shadow_state.enemies_missing_vt = _cached_enemies_missing_vt
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
     local target_key = target and (target.get_guid and target:get_guid()) or nil
     if target_key ~= shadow_state.snapshot_target then

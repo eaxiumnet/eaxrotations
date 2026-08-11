@@ -281,7 +281,6 @@ function build_state(context)
 
     state.has_renew = has_buff(RENEW_BUFF)
 
-    state.target_creature_type = target_creature_type(context, state)
 
 
 

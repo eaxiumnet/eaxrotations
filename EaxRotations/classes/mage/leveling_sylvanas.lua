@@ -363,7 +363,6 @@ local function build_state(context)
 
     state.target_frozen = frostbite_active or target_rooted
 
-    state.target_not_rooted = target and not target_rooted or false
 
 
 

@@ -55,7 +55,6 @@ local blood_state = {
     horn_of_winter_up    = false,
     runic_power          = 0,
     presence             = nil,
-    rune_state           = nil,
 }
 
 -- safe_cast: invoke an action's cast_safe only when it is a real action table.
@@ -85,7 +84,6 @@ local function build_state(context)
 
     -- Runic power and rune snapshot sourced from RuneManager (shared module).
     state.runic_power = RuneManager.get_runic_power(me)
-    state.rune_state  = RuneManager.get_rune_state()
 
     if me and NS.buff_up and NS.buff_up(me, BLOOD_PRESENCE_BUFF) then
         state.presence = PresenceManager.presence_id("blood")

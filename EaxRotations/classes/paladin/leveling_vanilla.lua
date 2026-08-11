@@ -78,11 +78,9 @@ local function build_state(context)
     leveling_state.devotion_aura_ready = spell_is_ready(SPELLS.DevotionAura, nil, { skip_range = true })
     leveling_state.seal_righteousness_ready = spell_is_ready(SPELLS.SealRighteousness, nil, { skip_range = true })
     leveling_state.seal_command_ready = spell_is_ready(SPELLS.SealCommand, nil, { skip_range = true })
-    leveling_state.seal_blood_ready = false
     leveling_state.judgement_ready = spell_is_ready(SPELLS.Judgement, context.target)
     leveling_state.consecration_ready = spell_is_ready(SPELLS.Consecration, context.me, { skip_range = true, expected_cooldown = 8 })
     leveling_state.hammer_wrath_ready = spell_is_ready(SPELLS.HammerOfWrath, context.target)
-    leveling_state.crusader_strike_ready = false
     leveling_state.hammer_justice_ready = spell_is_ready(SPELLS.HammerOfJustice, context.target)
     leveling_state.exorcism_ready = spell_is_ready(SPELLS.Exorcism, context.target)
     leveling_state.divine_shield_ready = spell_is_ready(SPELLS.DivineShield, nil, { skip_range = true })

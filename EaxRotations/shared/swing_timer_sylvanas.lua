@@ -19,7 +19,6 @@ local swing_state = {
     oh_duration = 0,
     ranged_start = 0,
     ranged_duration = 0,
-    last_update = 0,
 }
 
 -- Spells that reset swings
@@ -97,7 +96,6 @@ function M.update()
         end
     end
     
-    swing_state.last_update = t
 end
 
 -- Get main-hand swing progress (0.0 to 1.0)

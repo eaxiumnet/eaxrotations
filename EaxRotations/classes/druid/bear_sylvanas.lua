@@ -161,22 +161,18 @@ local bear_state = {
     is_target_boss = false,  is_target_player = false,
     -- auras
     has_clearcasting = false,  has_barkskin = false,  has_frenzied_regen = false,
-    has_mark = false,  has_thorns = false,
     faerie_remains = 0,  lacerate_remains = 0,  lacerate_stacks = 0,  demo_remains = 0,
-    mangle_remains = 0,
     -- readiness
     mangle_ready = false,  mangle_cd = 0,
     -- threat (target-of-target)
     target_target_exists = false,  target_target_is_me = false,
     target_target_is_tank = false,  target_target_is_player = false,
     target_target_is_healer = false,
-    loose_target = false,
     -- interrupt
     target_is_casting = false,  target_interruptible = true,
     -- taunt tracking
     recent_taunt = 0,
     -- rage tracking
-    last_rage = 0,  last_rage_time = 0,  rage_delta = 0,  rage_per_second = 0,
     -- swing timer
     swing_remains = 99,
     -- context
@@ -312,15 +308,10 @@ end
 local function update_rage_tracking(state)
     local now   = state.now
     local elapsed = now - (state.last_rage_time or 0)
-    state.rage_delta = (state.rage or 0) - (state.last_rage or state.rage or 0)
     if elapsed > 0 and elapsed < 5 then
-        state.rage_per_second = state.rage_delta / elapsed
     else
-        state.rage_per_second = 0
     end
-    state.last_rage      = state.rage or 0
     state.last_rage_time = now
-    state.rage_deficit   = 100 - (state.rage or 0)
 end
 
 -------------------------------------------------------------------------------
@@ -338,7 +329,6 @@ local BEAR_SCHEMA = {
     auto_bear_form = true,  use_pvp_cc_gate = true,
     is_target_boss = false,  is_target_player = false,
     has_clearcasting = false,  has_barkskin = false,  has_frenzied_regen = false,
-    has_mark = false,  has_thorns = false,
     faerie_remains = 0,  lacerate_remains = 0,  lacerate_stacks = 0,
     demo_remains = 0,  mangle_remains = 0,
     mangle_ready = false,  mangle_cd = 0,
@@ -348,8 +338,6 @@ local BEAR_SCHEMA = {
     target_target_is_healer = false,  loose_target = false,
     target_is_casting = false,  target_interruptible = true,
     recent_taunt = 0,
-    last_rage = 0,  last_rage_time = 0,  rage_delta = 0,  rage_per_second = 0,
-    rage_deficit = 100,
     is_group = false,
 }
 
@@ -394,7 +382,6 @@ local function build_state(context)
     state.enemy_count  = context.enemy_count or context.enemies_count or 1
     state.is_target_boss = context.target_is_boss == true
                            or (NS.unit_is_boss and NS.unit_is_boss(state.target)) or false
-    state.is_target_player = context.target_is_player == true or unit_is_player(state.target)
 
     -- form
     if NS.has_form then
@@ -425,13 +412,10 @@ local function build_state(context)
     state.has_clearcasting   = (NS.buff_up and NS.buff_up(state.me, CLEARCASTING_BUFF)) or false
     state.has_barkskin       = (NS.buff_up and NS.buff_up(state.me, BARKSKIN_BUFF)) or false
     state.has_frenzied_regen = (NS.buff_up and NS.buff_up(state.me, FRENZIED_REGEN_BUFF)) or false
-    state.has_mark           = (NS.buff_up and NS.buff_up(state.me, MARK_BUFF)) or false
-    state.has_thorns         = (NS.buff_remains and NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
     state.faerie_remains     = safe_debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
     state.lacerate_remains   = safe_debuff_remains(state.target, LACERATE_DEBUFF)
     state.lacerate_stacks    = (NS.get_debuff_stacks and NS.get_debuff_stacks(state.target, LACERATE_DEBUFF))
                                or (NS.debuff_stacks and NS.debuff_stacks(state.target, LACERATE_DEBUFF)) or 0
-    state.mangle_remains     = safe_debuff_remains(state.target, MANGLE_DEBUFF)
     state.demo_remains       = safe_debuff_remains(state.target, DEMO_ROAR_DEBUFF)
 
     -- readiness
@@ -445,7 +429,6 @@ local function build_state(context)
     state.target_target_is_tank = is_tank(tt)
     state.target_target_is_player = unit_is_player(tt)
     state.target_target_is_healer = is_healer(tt)
-    state.loose_target = state.has_valid_target and state.target_target_exists
                          and not state.target_target_is_me
 
     -- interrupt info

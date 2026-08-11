@@ -117,7 +117,6 @@ local COMBAT_VANILLA_SCHEMA = {
     in_combat = false,  enemy_count = 1,  target_count = 1,
     target_casting = false,
     energy_low = false,  energy_pool_finisher = false,
-    heroism_active = false,  threat_pct = 0,
     snd_needs_refresh = false,  expose_assigned = false,
     stealth_ready = false,  adrenaline_rush_ready = false,
     blade_flurry_ready = false,  slice_and_dice_ready = false,
@@ -136,7 +135,6 @@ local combat_state = {
     has_blade_flurry = false,
     has_adrenaline_rush = false,
     snd_remains = 0,
-    rupture_remains = 0,
     combo_points = 0,
     energy = 100,
     hp_pct = 100,
@@ -147,7 +145,6 @@ local combat_state = {
     energy_low = false,
     energy_pool_finisher = false,
     target_count = 1,
-    heroism_active = false,
     threat_pct = 0,
     snd_needs_refresh = false,
     expose_assigned = false,
@@ -180,7 +177,6 @@ local function build_state(context)
     combat_state.has_blade_flurry = me and NS.buff_up(me, BLADE_FLURRY_BUFF) or false
     combat_state.has_adrenaline_rush = me and NS.buff_up(me, ADRENALINE_RUSH_BUFF) or false
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
-    combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
     combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
     combat_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
@@ -209,7 +205,6 @@ local function build_state(context)
     combat_state.energy_low = combat_state.energy < ENERGY_LOW_BUILDER
     combat_state.energy_pool_finisher = combat_state.energy < ENERGY_LOW_FINISHER
     combat_state.target_count = context.enemy_count or 1
-    combat_state.heroism_active = false
     combat_state.threat_pct = context.threat_pct or 0
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false

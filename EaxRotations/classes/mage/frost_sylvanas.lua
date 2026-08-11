@@ -172,8 +172,6 @@ local FROST_SCHEMA = {
     -- Combat
     enemy_count = 0, in_combat = false, is_group = false,
     -- Target
-    target_casting = false, target_casting_interruptible = false,
-    target_hp_pct = 100, target_not_rooted = false,
     target_frozen = false, frostbite_active = false,
     -- Spell readiness
     ice_barrier_ready = false, ice_block_ready = false, cold_snap_ready = false,
@@ -198,26 +196,16 @@ local frost_state = {
     has_arcane_intellect = false,
     has_mage_armor = false,
     has_any_armor = false,
-    has_ice_block = false,
     has_presence_of_mind = false,
-    has_combustion = false,
     has_clearcasting = false,
     mana_pct = 100,
     hp_pct = 100,
     enemy_count = 1,
-    target_casting = false,
-    target_casting_interruptible = false,
-    target_hp_pct = 100,
-    target_not_rooted = false,
     in_combat = false,
     ice_barrier_ready = false,
-    ice_block_ready = false,
-    cold_snap_ready = false,
     icy_veins_ready = false,
     water_elemental_ready = false,
-    frost_nova_ready = false,
     ice_lance_ready = false,
-    cone_of_cold_ready = false,
     blizzard_ready = false,
     frostbolt_ready = false,
     presence_of_mind_ready = false,
@@ -226,7 +214,6 @@ local frost_state = {
     arcane_intellect_ready = false,
     fire_blast_ready = false,
     frost_ward_ready = false,
-    counterspell_ready = false,
     polymorph_ready = false,
     remove_curse_ready = false,
     scorch_ready = false,
@@ -265,26 +252,16 @@ local function build_state(context)
     frost_state.has_arcane_intellect = me and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
     frost_state.has_mage_armor = me and NS.buff_up(me, MAGE_ARMOR_BUFF) or false
     frost_state.has_any_armor = me and NS.buff_up(me, ANY_MAGE_ARMOR_BUFF) or false
-    frost_state.has_ice_block = me and NS.buff_up(me, ICE_BLOCK_BUFF) or false
     frost_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
-    frost_state.has_combustion = me and NS.buff_up(me, COMBUSTION_BUFF) or false
     frost_state.has_clearcasting = me and NS.buff_up(me, CLEARCASTING_BUFF) or false
     frost_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     frost_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     frost_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    frost_state.target_casting = target and target.is_casting and target:is_casting() or false
-    frost_state.target_casting_interruptible = frost_state.target_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    frost_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
-    frost_state.target_not_rooted = target and not NS.debuff_up(target, FROST_NOVA_ROOTS) or false
     frost_state.in_combat = context.in_combat or false
     frost_state.ice_barrier_ready = me and NS.spell_ready(ACTION.IceBarrier, me, { skip_range = true }) or false
-    frost_state.ice_block_ready = me and NS.spell_ready(ACTION.IceBlock, me, { skip_range = true }) or false
-    frost_state.cold_snap_ready = me and NS.spell_ready(ACTION.ColdSnap, me, { skip_range = true, expected_cooldown = 480 }) or false
     frost_state.icy_veins_ready = me and NS.spell_ready(ACTION.IcyVeins, me, { skip_range = true, expected_cooldown = 180 }) or false
     frost_state.water_elemental_ready = me and NS.spell_ready(ACTION.WaterElemental, me, { skip_range = true, expected_cooldown = 180 }) or false
-    frost_state.frost_nova_ready = me and NS.spell_ready(ACTION.FrostNova, me, { skip_range = true, expected_cooldown = 25 }) or false
     frost_state.ice_lance_ready = target and NS.spell_ready(ACTION.IceLance, target) or false
-    frost_state.cone_of_cold_ready = me and NS.spell_ready(ACTION.ConeOfCold, me, { expected_cooldown = 10 }) or false
     frost_state.blizzard_ready = me and NS.spell_ready(ACTION.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
     frost_state.frostbolt_ready = target and NS.spell_ready(ACTION.Frostbolt, target, { expected_cooldown = 3 }) or false
     frost_state.presence_of_mind_ready = me and NS.spell_ready(ACTION.PresenceOfMind, me, { skip_range = true, expected_cooldown = 180 }) or false
@@ -293,7 +270,6 @@ local function build_state(context)
     frost_state.arcane_intellect_ready = me and NS.spell_ready(ACTION.ArcaneIntellect, me, { skip_range = true }) or false
     frost_state.fire_blast_ready = target and NS.spell_ready(ACTION.FireBlast, target, { expected_cooldown = 8 }) or false
     frost_state.frost_ward_ready = me and NS.spell_ready(ACTION.FrostWard, me, { skip_range = true }) or false
-    frost_state.counterspell_ready = target and NS.spell_ready(ACTION.Counterspell, target, { expected_cooldown = 24 }) or false
     frost_state.polymorph_ready = target and NS.spell_ready(ACTION.Polymorph, target, { expected_cooldown = 1.5 }) or false
     frost_state.remove_curse_ready = me and NS.spell_ready(ACTION.RemoveCurse, me, { skip_range = true }) or false
     frost_state.scorch_ready = target and NS.spell_ready(ACTION.Scorch, target, { expected_cooldown = 1.5 }) or false

@@ -167,52 +167,33 @@ local FURY_SCHEMA = {
     berserker_rage_ready = false,
     has_sweeping_strikes = false,
     has_rampage = false,
-    rampage_stacks = 0,
     victory_rush_ready = false,
     sunder_stacks = 0,
-    rend_remains = 0,
     hamstring_remains = 0,
     demo_remains = 0,
-    tclap_remains = 0,
     bt_cd = 99,
     ww_cd = 99,
     bt_ready = false,
     ww_ready = false,
-    execute_ready = false,
-    slam_ready = false,
     sweeping_ready = false,
-    heroic_ready = false,
-    cleave_ready = false,
     pummel_ready = false,
-    intercept_ready = false,
     charge_ready = false,
-    hamstring_ready = false,
     overpower_ready = false,
     execute_phase = false,
     death_wish_ready = false,
     recklessness_ready = false,
-    bloodrage_ready = false,
-    victory_ready = false,
-    sunder_ready = false,
-    rend_ready = false,
-    demo_ready = false,
     healthstone_ready = false,
     healthstone_id = nil,
     health_potion_ready = false,
     health_potion_id = nil,
     has_offhand = false,
     mh_until = 999,
-    mh_progress = 0,
-    oh_until = 999,
     ss_cd = 99,
     target_in_combat = false,
     charge_lock_until = 0,
     intercept_fired_at = 0,
     aoe_cc_nearby = false,
-    hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
-    expertise_soft_cap = 26,
-    expertise_hard_cap = 56,
 }
 
 local stance_lockout_active = WH.stance_lockout_active or function()
@@ -243,35 +224,21 @@ local fury_state = {
     berserker_rage_ready = false,
     has_sweeping_strikes = false,
     has_rampage = false,
-    rampage_stacks = 0,
     victory_rush_ready = false,
     sunder_stacks = 0,
-    rend_remains = 0,
     hamstring_remains = 0,
     demo_remains = 0,
-    tclap_remains = 0,
     bt_cd = 99,
     ww_cd = 99,
     bt_ready = false,
     ww_ready = false,
-    execute_ready = false,
-    slam_ready = false,
     sweeping_ready = false,
-    heroic_ready = false,
-    cleave_ready = false,
     pummel_ready = false,
-    intercept_ready = false,
     charge_ready = false,
-    hamstring_ready = false,
     overpower_ready = false,
     execute_phase = false,
     death_wish_ready = false,
     recklessness_ready = false,
-    bloodrage_ready = false,
-    victory_ready = false,
-    sunder_ready = false,
-    rend_ready = false,
-    demo_ready = false,
     -- Charge/Intercept protection
     charge_lock_until = 0,
     intercept_fired_at = 0,
@@ -390,16 +357,13 @@ local function build_state(context)
     fury_state.has_berserker_rage = NS.buff_up(me, BERSERKER_RAGE_BUFF) or false
     fury_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
     fury_state.has_rampage = NS.buff_up(me, RAMPAGE_BUFF) or false
-    fury_state.rampage_stacks = NS.buff_stacks(me, RAMPAGE_BUFF) or 0
     fury_state.victory_rush_ready = NS.buff_up(me, VICTORY_RUSH_BUFF) or false
 
     -- Debuffs on target
     if target then
         fury_state.sunder_stacks = NS.debuff_stacks(target, SUNDER_DEBUFF) or 0
-        fury_state.rend_remains = NS.debuff_remains(target, REND_DEBUFF) or 0
         fury_state.hamstring_remains = NS.debuff_remains(target, HAMSTRING_DEBUFF) or 0
         fury_state.demo_remains = NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
-        fury_state.tclap_remains = NS.debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     end
 
     -- Spell readiness
@@ -415,23 +379,12 @@ local function build_state(context)
         elseif NS.has_form("defensive") then fury_state.stance = STANCE.DEFENSIVE
         end
     end
-    fury_state.execute_ready = NS.spell_ready(ACTION.Execute, target) or false
-    fury_state.slam_ready = NS.spell_ready(ACTION.Slam, target) or false
     fury_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
-    fury_state.heroic_ready = NS.spell_ready(ACTION.HeroicStrike, target) or false
-    fury_state.cleave_ready = NS.spell_ready(ACTION.Cleave, target) or false
     fury_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
-    fury_state.intercept_ready = NS.spell_ready(ACTION.Intercept, target) or false
     fury_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
-    fury_state.hamstring_ready = NS.spell_ready(ACTION.Hamstring, target) or false
     fury_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) and fury_state.stance == STANCE.BATTLE
     fury_state.death_wish_ready = NS.spell_ready(ACTION.DeathWish, me, { skip_range = true }) or false
     fury_state.recklessness_ready = NS.spell_ready(ACTION.Recklessness, me, { skip_range = true }) or false
-    fury_state.bloodrage_ready = NS.spell_ready(ACTION.Bloodrage, me, { skip_range = true }) or false
-    fury_state.victory_ready = NS.spell_ready(ACTION.VictoryRush, target) or false
-    fury_state.sunder_ready = NS.spell_ready(ACTION.SunderArmor, target) or false
-    fury_state.rend_ready = NS.spell_ready(ACTION.Rend, target) or false
-    fury_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
     fury_state.berserker_rage_ready = NS.spell_ready(ACTION.BerserkerRage, me, { skip_range = true }) or false
     -- thunder_ready removed: not used by Fury (tank/Arms debuff)
 
@@ -467,8 +420,6 @@ local function build_state(context)
     -- Prefer CLEU-backed swing timer; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
     fury_state.mh_until = cleu_remains or (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
-    fury_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
-    fury_state.oh_until = (me and NS.swing_time_until and NS.swing_time_until(me, 2)) or 999
 
     -- Sweeping Strikes cooldown
     fury_state.ss_cd = NS.cooldown_remains(ACTION.SweepingStrikes, 30) or 0
@@ -484,19 +435,15 @@ local function build_state(context)
     fury_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
     fury_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     fury_state.major_cd_window = fury_state.bloodlust_active or fury_state.major_cd_active
-    fury_state.planner_ready = planner ~= nil
 
     fury_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
     if HitCap then
         local hit_info = HitCap.get_hit_cap("warrior_melee")
         if hit_info then
-            fury_state.hit_cap_pct = hit_info.pct_needed
             fury_state.hit_cap_rating_needed = hit_info.rating_needed
         end
         local exp_info = HitCap.get_expertise_cap()
         if exp_info then
-            fury_state.expertise_soft_cap = exp_info.soft_expertise
-            fury_state.expertise_hard_cap = exp_info.hard_expertise
         end
     end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)

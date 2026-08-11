@@ -40,7 +40,6 @@ local BATTLE_SHOUT_BUFF = { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242,
 local BATTLE_STANCE_BUFF = { 2457 }
 
 local warrior_state = {
-    hp = 100,
     target_hp = 100,
     rage = 0,
     enemy_count = 1,
@@ -55,7 +54,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(warrior_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.rage = (me and me.get_rage and me:get_rage()) or 0
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1

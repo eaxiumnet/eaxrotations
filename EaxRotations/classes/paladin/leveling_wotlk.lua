@@ -39,7 +39,6 @@ local BLESSING_OF_MIGHT_BUFF = { 48932, 48931, 27140, 25291, 19838, 19837, 19836
 local DEVOTION_AURA_BUFF = { 48942, 48941, 27149, 10293, 10292, 10291, 10290, 643, 465 }
 
 local paladin_state = {
-    hp = 100,
     target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
@@ -53,7 +52,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(paladin_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1

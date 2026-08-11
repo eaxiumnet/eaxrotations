@@ -36,8 +36,6 @@ local TOTEM_OF_WRATH_BUFF = { 57722 }
 local SEARING_TOTEM_DEBUFF = { 58704 }
 
 local elemental_state = {
-    hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -55,9 +53,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(elemental_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false

@@ -136,23 +136,18 @@ local shadow_state = {
     has_inner_focus = false,
     has_inner_fire = false,
     combat_mode = "auto",          -- "auto" | "st" | "cleave" | "aoe"
-    vt_refresh_window = 3,
     swp_refresh_window = 3,
     dp_refresh_window = 3,
     shield_hp = 35,
     flash_heal_hp = 25,
-    mounted = false,
     psychic_scream_ready = false,
     silence_ready = false,
     fade_ready = false,
     dispel_magic_ready = false,
     shackle_undead_ready = false,
     mana_pct = 100,
-    hp_pct = 100,
     in_combat = false,
     enemy_count = 1,
-    target_hp_pct = 100,
-    target_casting = false,
     target_creature_type = nil,
     -- Debuff tracking on target
     weaving_stacks = 0,                     -- Shadow Weaving stacks (0-5)
@@ -162,10 +157,8 @@ local shadow_state = {
     mana_emergency = false,                 -- Mana below emergency floor (wand only)
     -- Snapshot state (spell damage when DoT was applied)
     spell_damage = 0,
-    snapshot_vt_dmg = 0,
     snapshot_swp_dmg = 0,
     snapshot_dp_dmg = 0,
-    has_bloodlust = false,
     snapshot_target = nil,
 }
 
@@ -188,7 +181,6 @@ local SHADOW_VANILLA_SCHEMA = {
     shackle_undead_ready = false,
     mana_pct = 100,  hp_pct = 100,  in_combat = false,
     enemy_count = 1,  target_hp_pct = 100,
-    target_casting = false,  target_creature_type = nil,
     weaving_stacks = 0,  threat_safe = true,
     mana_low = false,  mana_emergency = false,
     spell_damage = 0,  snapshot_vt_dmg = 0,  snapshot_swp_dmg = 0,
@@ -202,11 +194,9 @@ local function build_state(context)
     local mounted_bail = spec_kit.setting_bool(context, "shadow_mounted_bail", true)
     if mounted_bail then
         if me.is_mounted and me:is_mounted() then
-            shadow_state.mounted = true
             return spec_kit.safe_state(shadow_state, SHADOW_VANILLA_SCHEMA)
         end
     end
-    shadow_state.mounted = false
     
     shadow_state.vt_remaining = target and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF) or 0
     shadow_state.swp_remaining = target and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
@@ -247,7 +237,6 @@ local function build_state(context)
     end
     shadow_state.combat_mode = mode
     -- Configurable refresh windows
-    shadow_state.vt_refresh_window = spec_kit.setting_number(context, "shadow_vt_refresh_window", 3)
     shadow_state.swp_refresh_window = spec_kit.setting_number(context, "shadow_swp_refresh_window", 3)
     shadow_state.dp_refresh_window = spec_kit.setting_number(context, "shadow_dp_refresh_window", 3)
     -- Configurable safety thresholds
@@ -262,7 +251,6 @@ local function build_state(context)
     shadow_state.dispel_magic_ready = me and NS.spell_ready(SPELLS.DispelMagic, me, { skip_range = true }) or false
     shadow_state.shackle_undead_ready = me and NS.spell_ready(SPELLS.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
     shadow_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
-    shadow_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
 
     -- Shadow Weaving debuff stacks on target
     shadow_state.weaving_stacks = target and NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_WEAVING_DEBUFF) or 0
@@ -283,23 +271,18 @@ local function build_state(context)
     end
     shadow_state.in_combat = context.in_combat or false
     shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    shadow_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
-    shadow_state.target_casting = target and target.is_casting and target:is_casting() or false
     shadow_state.target_creature_type = target_creature_type(target)
 
     -- Current spell damage from NS (provided by middleware or character API)
     shadow_state.spell_damage = context.spell_damage or 0
     -- Classic haste buff — enables more aggressive snapshot upgrade threshold
-    shadow_state.has_bloodlust = false
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
     local target_key = target and (target.get_guid and target:get_guid()) or nil
     if target_key ~= shadow_state.snapshot_target then
-        shadow_state.snapshot_vt_dmg = 0
         shadow_state.snapshot_swp_dmg = 0
         shadow_state.snapshot_dp_dmg = 0
         shadow_state.snapshot_target = target_key
     else
-        if shadow_state.vt_remaining <= 0 then shadow_state.snapshot_vt_dmg = 0 end
         if shadow_state.swp_remaining <= 0 then shadow_state.snapshot_swp_dmg = 0 end
         if shadow_state.dp_remaining <= 0 then shadow_state.snapshot_dp_dmg = 0 end
     end

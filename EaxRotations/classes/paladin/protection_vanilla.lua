@@ -65,7 +65,6 @@ local PROT_VANILLA_SCHEMA = {
     hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,
     -- Counts: assume zero → skip AoE (Pattern 14)
     enemy_count = 0,  consecration_remains = 0,  holy_shield_charges = 0,
-    now_ms = 0,
     -- Spell readiness: assume ready (nil → fallback reads true)
     holy_shield_ready = true,  exorcism_ready = true,  judgement_ready = true,
     divine_shield_ready = true,  lay_on_hands_ready = true,
@@ -95,7 +94,6 @@ local prot_state = {
     has_forbearance = false,
     consecration_remains = 0,
     has_blessing_sanctuary = false,
-    now_ms = 0,
     holy_shield_ready = false,
     exorcism_ready = false,
     judgement_ready = false,
@@ -141,7 +139,6 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
     prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
     prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
     -- Track remaining Holy Shield charges via buff.points for proactive refresh

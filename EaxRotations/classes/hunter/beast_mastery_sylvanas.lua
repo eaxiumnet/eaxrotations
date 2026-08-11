@@ -219,7 +219,6 @@ local BM_SCHEMA = {
     has_hawk = false,  has_viper = false,  has_cheetah = false,
     -- Debuff state
     has_hunters_mark = false,  has_serpent_sting = false,  wing_clip_active = false,
-    has_scorpid_sting = false,  has_viper_sting = false,
     -- Spell readiness (no hardcoded stand-ins: unset means NOT ready)
     hunters_mark_ready = false,  serpent_sting_ready = false,
     arcane_shot_ready = false,  steady_shot_ready = false,  multi_shot_ready = false,
@@ -229,16 +228,13 @@ local BM_SCHEMA = {
     call_pet_ready = false,  revive_pet_ready = false,
     readiness_ready = false,  raptor_strike_ready = false,
     concussive_shot_ready = false,  volley_ready = false,  explosive_trap_ready = false,
-    scorpid_sting_ready = false,  viper_sting_ready = false,
     -- Trinkets
     trinket_1_id = nil,  trinket_2_id = nil,
     trinket_1_ready = false,  trinket_2_ready = false,
     -- Parity settings (safe defaults)
-    aspect_mode = "auto",  sting_mode = "serpent",  fd_mode = "high_threat",
     multishot_mode = 2,  pull_mode = "combat_only",
     use_cooldowns = true,  use_misdirection = false,  misdirection_target = nil,
     trinket_mode = "off",  shot_buffer = 150,
-    sticky_target = false,  prioritize_markers = false,
     -- Melee & AoE
     use_melee = true,  hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
     aoe_threshold = 3,  use_volley = false,  use_explosive_trap = false,
@@ -248,7 +244,6 @@ local BM_SCHEMA = {
     -- Power windows
     bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
     has_deterrence = false,
-    hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
     -- Leveling (Pattern: pre-Steady Shot silent-gate fix)
     level = 70,
@@ -263,32 +258,25 @@ local state = {
     mana_pct = 100, in_combat = false, enemy_count = 1,
     has_hawk = false, has_viper = false, has_cheetah = false,
     has_hunters_mark = false, has_serpent_sting = false,
-    has_scorpid_sting = false, has_viper_sting = false,
     steady_shot_ready = false, arcane_shot_ready = false,
     multi_shot_ready = false, kill_command_ready = false,
     bestial_wrath_ready = false, rapid_fire_ready = false, rapid_fire_cd = 0,
     feign_death_ready = false, mend_pet_ready = false,
     call_pet_ready = false, revive_pet_ready = false,
     hunters_mark_ready = false, serpent_sting_ready = false,
-    scorpid_sting_ready = false, viper_sting_ready = false,
     readiness_ready = false,
     -- parity features
-    aspect_mode = "auto",
     sting_mode = "serpent",
     fd_mode = "high_threat",
     multishot_mode = 2,
-    pull_mode = "combat_only",
     use_cooldowns = true,
     use_misdirection = false,
     misdirection_target = nil,
     trinket_mode = "off",
-    sticky_target = false,
-    prioritize_markers = false,
     shot_buffer = 150,
     threat_level = 0,
     is_mounted = false,
     has_pet_spell = false,
-    wing_clip_active = false,
     -- Melee & AoE features (parity parity)
     use_melee = true,
     hunter_melee_weave = true,
@@ -340,9 +328,6 @@ local function build_state(context)
     if target then
         state.has_hunters_mark = safe_debuff_up(target, HUNTER_MARK_IDS) or false
         state.has_serpent_sting = safe_debuff_up(target, SERPENT_STING_IDS) or false
-        state.has_scorpid_sting = safe_debuff_up(target, SCORPID_STING_IDS) or false
-        state.has_viper_sting = safe_debuff_up(target, VIPER_STING_IDS) or false
-        state.wing_clip_active = safe_debuff_up(target, WING_CLIP_DEBUFF) or false
     end
 
     -- Spell readiness
@@ -363,10 +348,8 @@ local function build_state(context)
     state.readiness_ready = me and spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     -- Viper Sting ready from SPELLS or fallback
     if ACTION.ViperSting then
-        state.viper_sting_ready = target and spell_ready(ACTION.ViperSting, target) or false
     end
     if ACTION.ScorpidSting then
-        state.scorpid_sting_ready = target and spell_ready(ACTION.ScorpidSting, target) or false
     end
     -- Raptor Strike ready (melee weaving)
     state.raptor_strike_ready = target and spell_ready(RAPTOR_STRIKE_IDS, target) or false
@@ -389,17 +372,13 @@ local function build_state(context)
     state.trinket_2_ready = state.trinket_2_id ~= nil and safe_any(is_item_ready, me, state.trinket_2_id) or false
 
     -- parity settings (via spec_kit)
-    state.aspect_mode = spec_kit.setting(context, "aspect_mode", "auto")
     state.sting_mode = spec_kit.setting(context, "sting_mode", "serpent")
     state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
     state.multishot_mode = spec_kit.setting_number(context, "multishot_mode", spec_kit.setting_number(context, "aoe_threshold", 2))
-    state.pull_mode = spec_kit.setting(context, "pull_mode", "combat_only")
     state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
     state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     local dyn_buf = (hunter_core and hunter_core.get_auto_shot_buffer_ms and hunter_core.get_auto_shot_buffer_ms()) or 150
     state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", dyn_buf)
-    state.sticky_target = spec_kit.setting_bool(context, "sticky_target", false)
-    state.prioritize_markers = spec_kit.setting_bool(context, "prioritize_markers", false)
 
     -- Melee & AoE settings (parity parity)
     state.use_melee = spec_kit.setting_bool(context, "use_melee", true)
@@ -424,7 +403,6 @@ local function build_state(context)
     if HitCap then
         local hit_info = safe_any(HitCap.get_hit_cap, "hunter_ranged")
         if hit_info then
-            state.hit_cap_pct = hit_info.pct_needed
             state.hit_cap_rating_needed = hit_info.rating_needed
         end
     end

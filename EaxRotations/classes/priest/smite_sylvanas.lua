@@ -111,7 +111,6 @@ local smite_state = {
     has_renew = false, has_weakened_soul = false,
     inner_focus_ready = false, inner_fire_ready = false,
     power_word_shield_ready = false, renew_ready = false,
-    psychic_scream_ready = false, shadowfiend_ready = false,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
     threat_safe = true, enemy_count = 1, is_group = false, healthstone_ready = 0,
     shackle_undead_ready = false, target_creature_type = nil,
@@ -125,7 +124,6 @@ local SMITE_SCHEMA = {
     has_renew = false, has_weakened_soul = false,
     inner_focus_ready = true, inner_fire_ready = true,
     power_word_shield_ready = true, renew_ready = true,
-    psychic_scream_ready = true, shadowfiend_ready = true,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
     threat_safe = true, enemy_count = 0, is_group = false, healthstone_ready = 0,
     shackle_undead_ready = false, target_creature_type = nil,
@@ -162,7 +160,6 @@ local function build_state(context)
     smite_state.inner_fire_ready = spell_exists(ACTION.InnerFire) and spell_ready(ACTION.InnerFire, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.power_word_shield_ready = spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.renew_ready = spell_exists(ACTION.Renew) and spell_ready(ACTION.Renew, NS.PLAYER_UNIT, SKIP_RANGE)
-    smite_state.psychic_scream_ready = spell_exists(ACTION.PsychicScream) and spell_ready(ACTION.PsychicScream, NS.PLAYER_UNIT, PSYCHIC_SCREAM_OPTS)
     smite_state.shadowfiend_ready = spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, target, SHADOWFIEND_OPTS)
     smite_state.hp_pct = context.hp or 100
     smite_state.is_group = context.is_group or false

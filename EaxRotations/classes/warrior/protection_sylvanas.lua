@@ -252,14 +252,10 @@ local prot_state = {
  has_last_stand = false,
  has_shield_wall = false,
  ss_ready = false,
- revenge_ready = false,
- shield_block_ready = false,
- dev_ready = false,
- demo_ready = false,
- tclap_ready = false,
- hs_ready = false,
- execute_ready = false,
- pummel_ready = false,
+ revenge_ready = false,    shield_block_ready = false,
+    dev_ready = false,
+    execute_ready = false,
+    pummel_ready = false,
  taunt_ready = false,
  mocking_ready = false,
  challenging_ready = false,
@@ -269,7 +265,6 @@ local prot_state = {
  intercept_ready = false,
  hamstring_ready = false,
  berserker_rage_ready = false,
- battle_shout_ready = false,
  commanding_ready = false,
  shield_bash_ready = false,
  bloodrage_ready = false,
@@ -318,13 +313,9 @@ local function build_state(context)
 
  prot_state.ss_ready = target and NS.spell_ready(ACTION.ShieldSlam, target, { expected_cooldown = SHIELD_SLAM_CD }) or false
  prot_state.revenge_ready = target and NS.spell_ready(ACTION.Revenge, target, { expected_cooldown = REVENGE_CD }) or false
- prot_state.shield_block_ready = me and NS.spell_ready(ACTION.ShieldBlock, me, { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) or false
- prot_state.dev_ready = target and NS.spell_ready(ACTION.Devastate, target) or false
- prot_state.demo_ready = me and NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true, expected_cooldown = DEMO_SHOUT_CD }) or false
- prot_state.tclap_ready = me and NS.spell_ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = THUNDERCLAP_CD }) or false
- prot_state.hs_ready = target and NS.spell_ready(ACTION.HeroicStrike, target) or false
- prot_state.execute_ready = target and NS.spell_ready(ACTION.Execute, target) or false
- prot_state.pummel_ready = target and NS.spell_ready(ACTION.Pummel, target) or false
+ prot_state.shield_block_ready = me and NS.spell_ready(ACTION.ShieldBlock, me, { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) or false    prot_state.dev_ready = target and NS.spell_ready(ACTION.Devastate, target) or false
+    prot_state.execute_ready = target and NS.spell_ready(ACTION.Execute, target) or false
+    prot_state.pummel_ready = target and NS.spell_ready(ACTION.Pummel, target) or false
  prot_state.taunt_ready = target and NS.spell_ready(ACTION.Taunt, target) or false
  prot_state.mocking_ready = target and NS.spell_ready(ACTION.MockingBlow, target) or false
  prot_state.challenging_ready = me and NS.spell_ready(ACTION.ChallengingShout, me, { skip_range = true }) or false
@@ -335,7 +326,6 @@ local function build_state(context)
  prot_state.intervene_ready = me and NS.spell_ready(ACTION.Intervene, me, { skip_range = true }) or false
  prot_state.hamstring_ready = target and NS.spell_ready(ACTION.Hamstring, target) or false
  prot_state.berserker_rage_ready = me and NS.spell_ready(ACTION.BerserkerRage, me, { skip_range = true }) or false
- prot_state.battle_shout_ready = me and NS.spell_ready(ACTION.BattleShout, me, { skip_range = true }) or false
  prot_state.commanding_ready = me and NS.spell_ready(ACTION.CommandingShout, me, { skip_range = true }) or false
  prot_state.shield_bash_ready = target and NS.spell_ready(ACTION.ShieldBash, target) or false
  prot_state.bloodrage_ready = me and NS.spell_ready(ACTION.Bloodrage, me, { skip_range = true, expected_cooldown = BLOODRAGE_CD }) or false
@@ -372,8 +362,6 @@ local function build_state(context)
   if now - _last_threat_scan >= _threat_scan_interval then
    _last_threat_scan = now
    local nearby, nearby_count = get_threat_targets(context, me, target)
-   prot_state.nearby_enemies = nearby
-   prot_state.nearby_count = nearby_count
    -- Find first enemy not targeting us (has no aggro on tank)
    prot_state.no_threat_target = nil
    for i = 1, nearby_count do
@@ -408,8 +396,6 @@ local function build_state(context)
    end
   end
  else
-  prot_state.nearby_enemies = nil
-  prot_state.nearby_count = 0
   prot_state.no_threat_target = nil
  end
 

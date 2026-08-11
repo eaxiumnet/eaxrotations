@@ -173,7 +173,6 @@ local HOLY_SCHEMA = {
     entries = nil,  count = 0,  lowest = nil,  tank = nil,
     cleanse_target = nil,  purify_target = nil,  mana_target = nil,
     freedom_target = nil,  protection_target = nil,  sacrifice_target = nil,
-    pvp_stun_target = nil,  aura_spell = nil,  aura_label = nil,
     blessing_target = nil,  blessing_spell = nil,  blessing_label = nil,
     heal_target = nil,  heal_spell = nil,  heal_label = nil,  heal_priority = 0,
     holy_light_spell = nil,  holy_light_label = nil,
@@ -206,7 +205,6 @@ local state = {
  freedom_target = nil,
  protection_target = nil,
  sacrifice_target = nil,
- pvp_stun_target = nil,
  aura_spell = nil,
  aura_label = nil,
  blessing_target = nil,
@@ -215,7 +213,6 @@ local state = {
  heal_target = nil,
  heal_spell = nil,
  heal_label = nil,
- heal_priority = 0,
  holy_light_spell = nil,
  holy_light_label = nil,
  emergency_count = 0,
@@ -530,12 +527,10 @@ local function build_state(context)
  state.freedom_target = nil
  state.protection_target = nil
  state.sacrifice_target = nil
- state.pvp_stun_target = nil
  state.healthstone_ready = 0
  state.heal_target = nil
  state.heal_spell = nil
  state.heal_label = nil
- state.heal_priority = 0
  state.holy_light_spell = nil
  state.holy_light_label = nil
  state.emergency_count = 0
@@ -604,11 +599,9 @@ local function build_state(context)
   -- FSR (Five-Second Rule) tracking for mana efficiency
   if FsrManager then
    state.fsr_inside = FsrManager.is_inside_fsr()
-   state.fsr_seconds = FsrManager.seconds_until_fsr()
    state.fsr_regen_delta = FsrManager.get_regen_delta()
   else
    state.fsr_inside = false
-   state.fsr_seconds = 0
    state.fsr_regen_delta = 0
   end
   

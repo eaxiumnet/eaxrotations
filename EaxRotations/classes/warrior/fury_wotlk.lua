@@ -51,7 +51,6 @@ end
 -- -----------------------------------------------------------------------------
 local fury_state = {
     rage = 0,
-    hp = 100,
     target_hp = 100,
     enemy_count = 1,
     in_combat = false,
@@ -71,7 +70,6 @@ local function build_state(context)
     local target = context.target
 
     state.rage = (me and type(me.get_rage) == "function" and me:get_rage()) or 0
-    state.hp = (me and type(me.get_health_percentage) == "function" and me:get_health_percentage()) or 100
     state.target_hp = (target and type(target.get_health_percentage) == "function" and target:get_health_percentage()) or 100
     state.enemy_count = (context.enemy_count or 1)
     state.in_combat = (context.in_combat == true)

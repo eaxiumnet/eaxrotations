@@ -8,7 +8,13 @@
 --        era-pair coverage audit (era-mirror strategy
 --        divergence baseline, run_era_pair_audit_tests.lua) plus its seed
 --        freshness guard (the committed era_pair_seed.lua must match a fresh
---        regeneration — run_era_pair_seed_freshness.lua), and the
+--        regeneration — run_era_pair_seed_freshness.lua), and the state-field
+--        audit (run_state_field_audit_tests.lua: every build_state state-table
+--        field must be read somewhere in its file or pinned in the audit's
+--        CROSS_FILE_READS allowlist — the computed-but-unread class that let
+--        fury_vanilla's pummel_ready ship un-consumed for 18 months and hid
+--        shadow silence_ready / frost counterspell_ready as dead weight) plus
+--        its self-test, and the
 --        clean-checkout dependency probe
 --        (run_clean_checkout_probe.lua -- flags any test file-read target
 --        that resolves to a gitignored file instead of a tracked or
@@ -267,6 +273,22 @@ local components = {
         cmd = "lua " .. R .. "/run_dead_matcher_audit_tests.lua --self-test",
         check = function(c)
             return { { "self-test [PASS] marker present (dead matchers fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
+        label = "state-field audit",
+        cmd = "lua " .. R .. "/run_state_field_audit_tests.lua",
+        check = function(c)
+            local invalid = num(c, "Invalid:%s*(%d+)")
+            return { { "invalid " .. tostring(invalid), invalid == 0 } }
+        end,
+    },
+    {
+        label = "state-field audit self-test",
+        cmd = "lua " .. R .. "/run_state_field_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (dead fields fire)",
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },

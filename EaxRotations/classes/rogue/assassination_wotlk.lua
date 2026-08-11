@@ -29,8 +29,6 @@ local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
 
 local assassination_state = {
-    hp = 100,
-    target_hp = 100,
     energy = 0,
     combo_points = 0,
     enemy_count = 1,
@@ -44,8 +42,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(assassination_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.energy = (me and me.get_energy and me:get_energy()) or 0
     state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
     state.enemy_count = (context and context.enemy_count) or 1

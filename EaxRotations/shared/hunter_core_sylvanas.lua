@@ -28,11 +28,7 @@ local shot_state = {
     last_auto_time = 0,
     weapon_speed = 0,
     base_weapon_speed = 0,
-    last_instant_time = 0,
-    steady_start_time = 0,
-    steady_casting = false,
     auto_shot_active = false,
-    initial_sync_done = false,
 }
 
 local AUTO_SHOT_ID = 75
@@ -107,23 +103,18 @@ end
 function M.record_auto_shot()
     shot_state.last_auto_time = now()
     shot_state.auto_shot_active = true
-    shot_state.initial_sync_done = true
 end
 
 --- Record an instant shot (Arcane Shot, Multi-Shot, etc).
 function M.record_instant_shot()
-    shot_state.last_instant_time = now()
 end
 
 --- Record the start of a Steady Shot cast.
 function M.record_steady_start()
-    shot_state.steady_start_time = now()
-    shot_state.steady_casting = true
 end
 
 --- Record the end of a Steady Shot cast.
 function M.record_steady_end()
-    shot_state.steady_casting = false
 end
 
 --- Milliseconds until the next auto-shot.

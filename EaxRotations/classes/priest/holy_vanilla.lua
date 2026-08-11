@@ -104,8 +104,6 @@ local holy_state = {
     group_damaged_count = 0,
     surge_of_light = false,
     clearcasting = false,
-    pom_ready = false,
-    coh_ready = false,
     has_inner_focus = false,
     swp_remaining = 0,
     holy_fire_remaining = 0,
@@ -217,8 +215,6 @@ local function build_holy_state(context)
         or (core and core.get_map_id and core.get_map_id())
         or 0
 
-    holy_state.pom_ready = false  -- Prayer of Mending is TBC-only
-    holy_state.coh_ready = false  -- Circle of Healing is TBC-only
     holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
     holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
     holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0

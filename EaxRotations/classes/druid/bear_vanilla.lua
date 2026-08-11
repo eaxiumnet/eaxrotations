@@ -74,7 +74,6 @@ local bear_state = {
     settings = nil,
     hp = 100,
     rage = 0,
-    rage_deficit = 100,
     stance = STANCE_CASTER,
     in_combat = false,
     combat_time = 0,
@@ -93,7 +92,6 @@ local bear_state = {
     has_valid_target = false,
     is_bear = false,
     is_target_boss = false,
-    is_target_player = false,
     target_is_casting = false,
     target_interruptible = true,
     target_target_is_me = false,
@@ -101,29 +99,11 @@ local bear_state = {
     target_target_is_player = false,
     target_target_is_tank = false,
     target_target_is_healer = false,
-    has_clearcasting = false,
     has_barkskin = false,
     has_frenzied_regen = false,
-    has_mark = false,
-    has_thorns = false,
     faerie_remains = 0,
     demo_remains = 0,
-    swipe_ready = false,
-    maul_ready = false,
-    growl_ready = false,
-    challenging_ready = false,
-    barkskin_ready = false,
-    frenzied_ready = false,
-    bash_ready = false,
-    faerie_ready = false,
-    demo_ready = false,
-    enrage_ready = false,
-    group_pressure = false,
-    heavy_damage = false,
-    emergency_damage = false,
     loose_target = false,
-    off_target = nil,
-    off_target_threat_low = false,
     pack_needs_demo = false,
     pack_elites = 0,
     pack_loose = 0,
@@ -131,10 +111,7 @@ local bear_state = {
     healthstone_ready = 0,
     potion_ready = 0,
     recent_taunt = 0,
-    last_rage = 0,
     last_rage_time = 0,
-    rage_delta = 0,
-    rage_per_second = 1,
     last_scan_time = 1,
 }
 
@@ -260,8 +237,6 @@ local function scan_pack(state)
     state.pack_elites = 0
     state.pack_loose = 0
     state.pack_secure = 0
-    state.off_target = nil
-    state.off_target_threat_low = false
     state.pack_needs_demo = false
 
     if not NS.get_visible_units or not state.me then return end
@@ -294,8 +269,6 @@ local function scan_pack(state)
 
                 if unit ~= state.target and score > best_score then
                     best_score = score
-                    state.off_target = unit
-                    state.off_target_threat_low = not targets_me
                 end
             end
         end
@@ -313,15 +286,10 @@ end
 local function update_rage_tracking(state)
     local now = state.now
     local elapsed = now - (state.last_rage_time or 0)
-    state.rage_delta = (state.rage or 0) - (state.last_rage or state.rage or 0)
     if elapsed > 0 and elapsed < 5 then
-        state.rage_per_second = state.rage_delta / elapsed
     else
-        state.rage_per_second = 0
     end
-    state.last_rage = state.rage
     state.last_rage_time = now
-    state.rage_deficit = RAGE_CAP - (state.rage or 0)
 end
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
@@ -344,19 +312,11 @@ local BEAR_VANILLA_SCHEMA = {
     target_target_is_me = false,  target_target_exists = false,
     target_target_is_player = false,  target_target_is_tank = false,
     target_target_is_healer = false,
-    has_clearcasting = false,  has_barkskin = false,
     has_frenzied_regen = false,  has_mark = false,  has_thorns = false,
     faerie_remains = 0,  demo_remains = 0,
-    swipe_ready = false,  maul_ready = false,  growl_ready = false,
-    challenging_ready = false,  barkskin_ready = false,
-    frenzied_ready = false,  bash_ready = false,
-    faerie_ready = false,  demo_ready = false,  enrage_ready = false,
     healthstone_ready = 0,  potion_ready = 0,
     loose_target = false,  group_pressure = false,
-    heavy_damage = false,  emergency_damage = false,
-    rage_per_second = 0,  rage_delta = 0,  last_rage = 0,
     last_rage_time = 0,  pack_needs_demo = false,
-    off_target = nil,  off_target_threat_low = false,
     pack_loose = 0,  pack_elites = 0,  last_scan_time = 0,
 }
 
@@ -393,7 +353,6 @@ local function build_state(context)
         state.is_bear = state.stance == STANCE_BEAR or context.stance == nil
     end
     state.is_target_boss = context.target_is_boss == true or safe_method(state.target, "is_boss", false) == true
-    state.is_target_player = context.target_is_player == true or unit_is_player(state.target)
     state.target_is_casting = target_is_casting(state.target)
     state.target_interruptible = target_cast_interruptible(state.target)
 
@@ -404,32 +363,16 @@ local function build_state(context)
     state.target_target_is_tank = is_tank(target_target)
     state.target_target_is_healer = is_healer(target_target)
 
-    state.has_clearcasting = NS.buff_up(state.me, CLEARCASTING_BUFF) or false
     state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
     state.has_frenzied_regen = NS.buff_up(state.me, FRENZIED_REGEN_BUFF) or false
-    state.has_mark = NS.buff_up(state.me, MARK_BUFF) or false
-    state.has_thorns = (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
     state.faerie_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
     state.demo_remains = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
 
-    state.swipe_ready = spell_ready(SPELLS.SwipeBear, state.me)
-    state.maul_ready = spell_ready(SPELLS.Maul, state.target)
-    state.growl_ready = spell_ready(SPELLS.Growl, state.target)
-    state.challenging_ready = spell_ready(SPELLS.ChallengingRoar, state.me)
-    state.barkskin_ready = spell_ready(SPELLS.Barkskin, state.me)
-    state.frenzied_ready = spell_ready(SPELLS.FrenziedRegeneration, state.me)
-    state.bash_ready = spell_ready(BASH, state.target)
-    state.faerie_ready = spell_ready(SPELLS.FaerieFireFeral, state.target)
-    state.demo_ready = spell_ready(SPELLS.DemoralizingRoar, state.me)
-    state.enrage_ready = spell_ready(ENRAGE, state.me)
     state.loose_target = state.has_valid_target and state.target_target_exists and not state.target_target_is_me
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     state.potion_ready = first_ready_item(HEALING_POTION_IDS)
 
     scan_pack(state)
-    state.group_pressure = (state.enemy_count or 1) >= (state.aoe_threshold or 3) or (state.pack_loose or 0) > 0
-    state.heavy_damage = (state.hp or 100) <= (state.frenzied_regen_hp or 35) or ((state.hp or 100) <= (state.barkskin_hp or 55) and ((state.enemy_count or 1) >= 2 or (state.pack_elites or 0) > 0))
-    state.emergency_damage = (state.hp or 100) <= 30 and (state.pack_loose or 0) > 0
 
     update_rage_tracking(state)
 

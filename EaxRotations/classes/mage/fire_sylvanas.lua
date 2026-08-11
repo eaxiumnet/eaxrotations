@@ -82,10 +82,8 @@ local FIRE_SCHEMA = {
     remove_curse_ready = false,
     healthstone_ready = 0,
     has_clearcasting = false,
-    has_presence_of_mind = false,
     bloodlust_active = false,
     major_cd_window = false,
-    hit_cap_pct = 16,
     hit_cap_rating_needed = 202,
     in_combat = false,
     is_moving = false,
@@ -129,7 +127,6 @@ local function build_state(context)
     fire_state.is_moving = context.is_moving or false
     -- Clearcasting proc (Arcane Concentration) — consumed on Fireball below. [#fix-1]
     fire_state.has_clearcasting = me and NS.buff_up(me, CLEARCASTING_BUFF) or false
-    fire_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     if target then
         fire_state.scorch_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SCORCH_DEBUFF) or 0
         fire_state.scorch_remains = NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF) or 0
@@ -156,7 +153,6 @@ local function build_state(context)
     if HitCap then
         local hit_info = HitCap.get_hit_cap("mage_caster")
         if hit_info then
-            fire_state.hit_cap_pct = hit_info.pct_needed
             fire_state.hit_cap_rating_needed = hit_info.rating_needed
         end
     end

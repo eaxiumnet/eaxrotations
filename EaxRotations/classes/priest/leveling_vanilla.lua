@@ -97,7 +97,6 @@ local LEVELING_VANILLA_SCHEMA = {
     has_fortitude = false,  has_inner_fire = false,
     has_shadowform = false,  has_shield = false,
     has_renew = false,  has_inner_focus = false,
-    target_creature_type = nil,
 }
 
 function build_state(context)
@@ -133,7 +132,6 @@ function build_state(context)
     state.has_shield = has_buff(POWER_WORD_SHIELD_BUFF)
     state.has_renew = has_buff(RENEW_BUFF)
     state.has_inner_focus = has_buff(INNER_FOCUS_BUFF)
-    state.target_creature_type = target_creature_type(context, state)
 
     state.is_channeling = (context.is_channeling or context.is_casting) or false
     state.heal_hp = (context.settings and context.settings.leveling_heal_hp) or 60

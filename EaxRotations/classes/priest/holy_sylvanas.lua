@@ -424,11 +424,9 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
   -- FSR (Five-Second Rule) tracking for mana efficiency
   if FsrManager then
    holy_state.fsr_inside = FsrManager.is_inside_fsr()
-   holy_state.fsr_seconds = FsrManager.seconds_until_fsr()
    holy_state.fsr_regen_delta = FsrManager.get_regen_delta()
   else
    holy_state.fsr_inside = false
-   holy_state.fsr_seconds = 0
    holy_state.fsr_regen_delta = 0
   end
 

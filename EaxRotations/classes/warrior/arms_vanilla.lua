@@ -99,48 +99,21 @@ local arms_state = {
     in_combat = false,
     is_moving = false,
     target_distance = 0,
-    target_is_player = false,
-    target_is_pet = false,
     target_is_casting = false,
     target_casting_interruptible = false,
     target_is_melee = false,
     has_battle_shout = false,
-    has_berserker_rage = false,
     has_sweeping_strikes = false,
-    ms_remains = 0,
     rend_remains = 0,
     hamstring_remains = 0,
     demo_remains = 0,
     tclap_remains = 0,
     sunder_stacks = 0,
     ms_cd = 99,
-    ww_cd = 99,
     overpower_ready = false,
-    execute_ready = false,
-    ms_ready = false,
     ww_ready = false,
-    slam_ready = false,
-    sweeping_ready = false,
-    heroic_ready = false,
-    cleave_ready = false,
-    pummel_ready = false,
-    intercept_ready = false,
-    charge_ready = false,
-    hamstring_ready = false,
-    piercing_ready = false,
-    disarm_ready = false,
-    intimidating_ready = false,
-    thunder_ready = false,
-    demo_ready = false,
-    bloodrage_ready = false,
-    death_wish_ready = false,
-    recklessness_ready = false,
-    retaliation_ready = false,
-    shield_wall_ready = false,
     execute_phase = false,
-    target_in_combat = false,
     mh_until = 999,
-    mh_progress = 0,
     healthstone_ready = false,
     healthstone_id = nil,
 }
@@ -153,49 +126,22 @@ local ARMS_VANILLA_SCHEMA = {
     is_pvp = false,
     in_combat = false,
     is_moving = false,
-    target_is_player = false,
-    target_is_pet = false,
     target_is_casting = false,
     target_casting_interruptible = false,
     target_is_melee = false,
     has_battle_shout = false,
-    has_berserker_rage = false,
     has_sweeping_strikes = false,
-    ms_remains = 0,
     rend_remains = 0,
     hamstring_remains = 0,
     demo_remains = 0,
     tclap_remains = 0,
     sunder_stacks = 0,
     ms_cd = 99,
-    ww_cd = 99,
     ss_cd = 99,
     overpower_ready = false,
-    execute_ready = false,
-    ms_ready = false,
     ww_ready = false,
-    slam_ready = false,
-    sweeping_ready = false,
-    heroic_ready = false,
-    cleave_ready = false,
-    pummel_ready = false,
-    intercept_ready = false,
-    charge_ready = false,
-    hamstring_ready = false,
-    piercing_ready = false,
-    disarm_ready = false,
-    intimidating_ready = false,
-    thunder_ready = false,
-    demo_ready = false,
-    bloodrage_ready = false,
-    death_wish_ready = false,
-    recklessness_ready = false,
-    retaliation_ready = false,
-    shield_wall_ready = false,
     execute_phase = false,
-    target_in_combat = false,
     mh_until = 999,
-    mh_progress = 0,
     healthstone_ready = false,
     healthstone_id = nil,
 }
@@ -299,18 +245,13 @@ local function build_state(context)
     arms_state.in_combat = context.in_combat or false
     arms_state.is_moving = context.is_moving or false
     arms_state.target_distance = context.target_distance or context.target_range or context.distance or 0
-    arms_state.target_is_player = target and bool_call(target, "is_player") or false
-    arms_state.target_is_pet = target and bool_call(target, "is_pet") or false
     arms_state.target_is_casting = context.target_is_casting or bool_call(target, "is_casting") or false
     arms_state.target_casting_interruptible = arms_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     arms_state.target_is_melee = target_is_melee(target)
-    arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false
 
     arms_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
-    arms_state.has_berserker_rage = NS.buff_up(me, BERSERKER_RAGE_BUFF) or false
     arms_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
 
-    arms_state.ms_remains = NS.debuff_remains(target, MORTAL_STRIKE_DEBUFF) or 0
     arms_state.rend_remains = NS.debuff_remains(target, REND_DEBUFF) or 0
     arms_state.hamstring_remains = NS.debuff_remains(target, HAMSTRING_DEBUFF) or 0
     arms_state.demo_remains = NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
@@ -318,30 +259,9 @@ local function build_state(context)
     arms_state.sunder_stacks = NS.debuff_stacks(target, SUNDER_DEBUFF) or 0
 
     arms_state.ms_cd = NS.cooldown_remains(ACTION.MortalStrike, 6) or 0
-    arms_state.ww_cd = NS.cooldown_remains(ACTION.Whirlwind, 10) or 0
     arms_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) or false
-    arms_state.execute_ready = NS.spell_ready(ACTION.Execute, target) or false
-    arms_state.ms_ready = NS.spell_ready(ACTION.MortalStrike, target, { expected_cooldown = 6 }) or false
     arms_state.ww_ready = NS.spell_ready(ACTION.Whirlwind, target, { expected_cooldown = 10 }) or false
-    arms_state.slam_ready = NS.spell_ready(ACTION.Slam, target) or false
-    arms_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
     arms_state.ss_cd = NS.cooldown_remains(ACTION.SweepingStrikes, 30) or 0
-    arms_state.heroic_ready = NS.spell_ready(ACTION.HeroicStrike, target) or false
-    arms_state.cleave_ready = NS.spell_ready(ACTION.Cleave, target) or false
-    arms_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
-    arms_state.intercept_ready = NS.spell_ready(ACTION.Intercept, target) or false
-    arms_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
-    arms_state.hamstring_ready = NS.spell_ready(ACTION.Hamstring, target) or false
-    arms_state.piercing_ready = NS.spell_ready(ACTION.PiercingHowl, me, { skip_range = true }) or false
-    arms_state.disarm_ready = NS.spell_ready(ACTION.Disarm, target) or false
-    arms_state.intimidating_ready = NS.spell_ready(ACTION.IntimidatingShout, me, { skip_range = true }) or false
-    arms_state.thunder_ready = NS.spell_ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 }) or false
-    arms_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
-    arms_state.bloodrage_ready = NS.spell_ready(ACTION.Bloodrage, me, { skip_range = true }) or false
-    arms_state.death_wish_ready = NS.spell_ready(ACTION.DeathWish, me, { skip_range = true }) or false
-    arms_state.recklessness_ready = NS.spell_ready(ACTION.Recklessness, me, { skip_range = true }) or false
-    arms_state.retaliation_ready = NS.spell_ready(ACTION.Retaliation, me, { skip_range = true }) or false
-    arms_state.shield_wall_ready = NS.spell_ready(ACTION.ShieldWall, me, { skip_range = true }) or false
 
     arms_state.execute_phase = execute_phase(context, arms_state)
 
@@ -359,7 +279,6 @@ local function build_state(context)
     end
 
     arms_state.mh_until = me and NS.swing_time_until(me) or 999
-    arms_state.mh_progress = me and NS.swing_progress(me) or 0
 
     return spec_kit.safe_state(arms_state, ARMS_VANILLA_SCHEMA)
 end

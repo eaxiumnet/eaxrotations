@@ -35,7 +35,6 @@ local MANGLE_DEBUFF = { 48566, 33983, 33982, 33876 }
 local SAVAGE_ROAR_BUFF = { 52610 }
 
 local cat_state = {
-    hp = 100,
     target_hp = 100,
     energy = 0,
     combo_points = 0,
@@ -54,7 +53,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(cat_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.energy = (me and me.get_energy and me:get_energy()) or 0
     state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0

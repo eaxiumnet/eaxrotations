@@ -61,7 +61,6 @@ local prot_state = {
     sunder_stacks = 0,
     sunder_remains = 0,
     demo_remains = 0,
-    tclap_remains = 0,
     hp = 100,
     rage = 0,
     stance = 2,
@@ -77,10 +76,6 @@ local prot_state = {
     revenge_ready = false,
     shield_slam_ready = false,
     shield_block_ready = false,
-    demo_ready = false,
-    tclap_ready = false,
-    hs_ready = false,
-    execute_ready = false,
     pummel_ready = false,
     taunt_ready = false,
     mocking_ready = false,
@@ -89,12 +84,10 @@ local prot_state = {
     intercept_ready = false,
     hamstring_ready = false,
     berserker_rage_ready = false,
-    battle_shout_ready = false,
     shield_bash_ready = false,
     bloodrage_ready = false,
     rend_ready = false,
     intimidating_shout_ready = false,
-    sunder_ready = false,
 }
 
 -- Schema for safe_state: mirrors prot_state defaults. Fields NOT listed here
@@ -103,7 +96,6 @@ local PROT_VANILLA_SCHEMA = {
     sunder_stacks = 0,
     sunder_remains = 0,
     demo_remains = 0,
-    tclap_remains = 0,
     hp = 100,
     rage = 0,
     stance = 2,
@@ -119,10 +111,6 @@ local PROT_VANILLA_SCHEMA = {
     revenge_ready = false,
     shield_slam_ready = false,
     shield_block_ready = false,
-    demo_ready = false,
-    tclap_ready = false,
-    hs_ready = false,
-    execute_ready = false,
     pummel_ready = false,
     taunt_ready = false,
     mocking_ready = false,
@@ -131,12 +119,10 @@ local PROT_VANILLA_SCHEMA = {
     intercept_ready = false,
     hamstring_ready = false,
     berserker_rage_ready = false,
-    battle_shout_ready = false,
     shield_bash_ready = false,
     bloodrage_ready = false,
     rend_ready = false,
     intimidating_shout_ready = false,
-    sunder_ready = false,
 }
 
 local setting = spec_kit.setting
@@ -154,12 +140,10 @@ local function build_state(context)
         prot_state.sunder_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SUNDER_DEBUFF) or 0
         prot_state.sunder_remains = NS.debuff_remains and NS.debuff_remains(target, SUNDER_DEBUFF) or 0
         prot_state.demo_remains = NS.debuff_remains and NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
-        prot_state.tclap_remains = NS.debuff_remains and NS.debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     else
         prot_state.sunder_stacks = 0
         prot_state.sunder_remains = 0
         prot_state.demo_remains = 0
-        prot_state.tclap_remains = 0
     end
     prot_state.hp = context.hp or 100
     prot_state.rage = context.rage or 0
@@ -179,10 +163,6 @@ local function build_state(context)
     prot_state.revenge_ready = target and NS.spell_ready(SPELLS.Revenge, target, { expected_cooldown = REVENGE_CD }) or false
     prot_state.shield_slam_ready = target and NS.spell_ready(SPELLS.ShieldSlam, target, { expected_cooldown = SHIELD_SLAM_CD }) or false
     prot_state.shield_block_ready = me and NS.spell_ready(SPELLS.ShieldBlock, me, { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) or false
-    prot_state.demo_ready = me and NS.spell_ready(SPELLS.DemoralizingShout, me, { skip_range = true, expected_cooldown = DEMO_SHOUT_CD }) or false
-    prot_state.tclap_ready = me and NS.spell_ready(SPELLS.ThunderClap, me, { skip_range = true, expected_cooldown = THUNDERCLAP_CD }) or false
-    prot_state.hs_ready = target and NS.spell_ready(SPELLS.HeroicStrike, target) or false
-    prot_state.execute_ready = target and NS.spell_ready(SPELLS.Execute, target) or false
     prot_state.pummel_ready = target and NS.spell_ready(SPELLS.Pummel, target) or false
     prot_state.taunt_ready = target and NS.spell_ready(SPELLS.Taunt, target) or false
     prot_state.mocking_ready = target and NS.spell_ready(SPELLS.MockingBlow, target) or false
@@ -191,12 +171,10 @@ local function build_state(context)
     prot_state.intercept_ready = target and NS.spell_ready(SPELLS.Intercept, target) or false
     prot_state.hamstring_ready = target and NS.spell_ready(SPELLS.Hamstring, target) or false
     prot_state.berserker_rage_ready = me and NS.spell_ready(SPELLS.BerserkerRage, me, { skip_range = true }) or false
-    prot_state.battle_shout_ready = me and NS.spell_ready(SPELLS.BattleShout, me, { skip_range = true }) or false
     prot_state.shield_bash_ready = target and NS.spell_ready(SPELLS.ShieldBash, target) or false
     prot_state.bloodrage_ready = me and NS.spell_ready(SPELLS.Bloodrage, me, { skip_range = true, expected_cooldown = BLOODRAGE_CD }) or false
     prot_state.rend_ready = target and NS.spell_ready(SPELLS.Rend, target) or false
     prot_state.intimidating_shout_ready = me and NS.spell_ready(SPELLS.IntimidatingShout, me, { skip_range = true, expected_cooldown = INTIMIDATING_SHOUT_CD }) or false
-    prot_state.sunder_ready = target and NS.spell_ready(SPELLS.SunderArmor, target) or false
 
     return spec_kit.safe_state(prot_state, PROT_VANILLA_SCHEMA)
 end

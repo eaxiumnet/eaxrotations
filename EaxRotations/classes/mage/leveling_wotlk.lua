@@ -57,11 +57,9 @@ local MAGE_ARMOR_BUFF = { 43024, 43023, 27125, 22783, 22782, 6117 }
 
 local mage_state = {
     hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
-    fireball_remains = 0,
     living_bomb_remains = 0,
     ice_barrier_up = false,
     mana_shield_up = false,
@@ -76,11 +74,9 @@ local function build_state(context)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
-    state.fireball_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FIREBALL_DEBUFF)) or 0
     state.living_bomb_remains = (target and NS.debuff_remains and NS.debuff_remains(target, LIVING_BOMB_DEBUFF)) or 0
     state.ice_barrier_up = (me and NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF)) or false
     state.mana_shield_up = (me and NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF)) or false

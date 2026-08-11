@@ -143,19 +143,16 @@ local STEALTH_PREVENT_TYPES = { [7] = true, [1] = true }
 
 local cat_state = {
     now = 0,
-    now_ms = 0,
     me = nil,
     target = nil,
     settings = nil,
     hp = 100,
     mana_pct = 100,
     energy = 0,
-    projected_energy = 0,
     combo_points = 0,
     enemy_count = 1,
     target_hp = 100,
     target_ttd = 999,
-    target_ttd_known = false,
     target_range = 0,
     in_combat = false,
     is_pvp = false,
@@ -174,7 +171,6 @@ local cat_state = {
     rake_remains = 0,
     mangle_remains = 0,
     faerie_fire_remains = 0,
-    pounce_remains = 0,
     maim_remains = 0,
     rip_ap = 0,
     rake_ap = 0,
@@ -190,7 +186,6 @@ local cat_state = {
     should_pool_for_shred = false,
     should_execute = false,
     should_tab_rake = false,
-    should_aoe = false,
     healthstone_ready = 0,
     combat_time = 0,
     should_burst = false,
@@ -222,15 +217,12 @@ local FORM_SWITCH_COOLDOWN = 5.0
 -- Custom defaults override the kit defaults where cat needs different behavior.
 local CAT_SCHEMA = {
     now = 0,
-    now_ms = 0,
     mana_pct = 100,
     energy = 0,
-    projected_energy = 0,
     combo_points = 0,
     enemy_count = 1,
     target_hp = 100,
     target_ttd = 999,
-    target_ttd_known = false,
     target_range = 0,
     in_combat = false,
     is_pvp = false,
@@ -249,7 +241,6 @@ local CAT_SCHEMA = {
     rake_remains = 0,
     mangle_remains = 0,
     faerie_fire_remains = 0,
-    pounce_remains = 0,
     maim_remains = 0,
     rip_ap = 0,
     rake_ap = 0,
@@ -265,7 +256,6 @@ local CAT_SCHEMA = {
     should_pool_for_shred = false,
     should_execute = false,
     should_tab_rake = false,
-    should_aoe = false,
     healthstone_ready = 0,
     combat_time = 0,
     should_burst = false,
@@ -487,7 +477,6 @@ local function update_energy_tick(state)
     local me = state.me
     -- IZI SDK fast path: use native energy prediction when available
     if me and type(me.energy_predicted) == "function" then
-        state.projected_energy = me:energy_predicted(ENERGY_TICK_INTERVAL) or
             math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
         state.tick_confident = true
         -- Try to get time-to-next-tick from IZI
@@ -507,7 +496,6 @@ local function update_energy_tick(state)
         end
         _energy_state.last_energy = state.energy
         state.next_tick_in = EnergyTickTracker.estimate_next_tick(_energy_state, state.now)
-        state.projected_energy = EnergyTickTracker.predicted_energy(_energy_state, state.energy, ENERGY_TICK_INTERVAL)
     end
 end
 
@@ -657,7 +645,6 @@ build_state = function(context)
 
     state.is_group = context.is_group or false
     state.now = now
-    state.now_ms = get_now_ms()
     state.me = me
     state.target = target
     state.settings = context.settings or {}
@@ -670,7 +657,6 @@ build_state = function(context)
     state.enemy_count = context.enemy_count or 1
     state.target_hp = context.target_hp or (NS.health_pct and NS.health_pct(target)) or 100
     state.target_ttd = context.ttd or context.target_ttd or 999
-    state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_range = get_target_range(me, target, context)
     state.in_combat = context.in_combat == true
     state.is_pvp = context.is_pvp == true or spec_kit.setting_bool(context, "pvp_mode", false)
@@ -688,7 +674,6 @@ build_state = function(context)
     state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
     state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
     state.faerie_fire_remains = NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-    state.pounce_remains = NS.debuff_remains(target, POUNCE_DEBUFF) or 0
     state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context)
@@ -715,7 +700,6 @@ build_state = function(context)
     update_energy_tick(state)
     state.should_execute = state.target_hp <= spec_kit.setting_number(context, "cat_execute_hp", EXECUTE_HP)
     local aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
-    state.should_aoe = (CombatMode and CombatMode.is_aoe(context.settings or {}, state.enemy_count, aoe_threshold))
         or (state.enemy_count >= aoe_threshold)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
     state.should_pool_for_rip = (state.combo_points or 0) >= spec_kit.setting_number(context, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)

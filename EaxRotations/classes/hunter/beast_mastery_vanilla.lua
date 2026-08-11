@@ -62,7 +62,6 @@ local state = {
     mana_pct = 100, in_combat = false, enemy_count = 1,
     has_hawk = false, has_viper = false, has_cheetah = false,
     has_hunters_mark = false, has_serpent_sting = false,
-    has_scorpid_sting = false, has_viper_sting = false,
     arcane_shot_ready = false,
     multi_shot_ready = false,
     aimed_shot_ready = false,
@@ -70,24 +69,17 @@ local state = {
     feign_death_ready = false, mend_pet_ready = false,
     call_pet_ready = false, revive_pet_ready = false,
     hunters_mark_ready = false, serpent_sting_ready = false,
-    scorpid_sting_ready = false, viper_sting_ready = false,
     -- parity features
-    aspect_mode = "auto",
     sting_mode = "serpent",
     fd_mode = "high_threat",
     multishot_mode = 2,
-    pull_mode = "combat_only",
     use_cooldowns = true,
-    use_misdirection = false,
     misdirection_target = nil,
     trinket_mode = "off",
-    sticky_target = false,
-    prioritize_markers = false,
     shot_buffer = 150,
     threat_level = 0,
     is_mounted = false,
     has_pet_spell = false,
-    wing_clip_active = false,
     -- Melee & AoE features (parity parity)
     use_melee = true,
     raptor_strike_ready = false,
@@ -109,22 +101,18 @@ local BM_VANILLA_SCHEMA = {
     mana_pct = 100,  in_combat = false,  enemy_count = 1,
     has_hawk = false,  has_viper = false,  has_cheetah = false,
     has_hunters_mark = false,  has_serpent_sting = false,
-    has_scorpid_sting = false,  has_viper_sting = false,
     arcane_shot_ready = false,  multi_shot_ready = false,
     aimed_shot_ready = false,  bestial_wrath_ready = false,
     rapid_fire_ready = false,  feign_death_ready = false,
     mend_pet_ready = false,  call_pet_ready = false,
     revive_pet_ready = false,  hunters_mark_ready = false,
     serpent_sting_ready = false,  scorpid_sting_ready = false,
-    viper_sting_ready = false,  aspect_mode = "auto",
     sting_mode = "serpent",  fd_mode = "high_threat",
     multishot_mode = 2,  pull_mode = "combat_only",
     use_cooldowns = true,  use_misdirection = false,
     misdirection_target = nil,  trinket_mode = "off",
-    sticky_target = false,  prioritize_markers = false,
     shot_buffer = 150,  threat_level = 0,
     is_mounted = false,  has_pet_spell = false,
-    wing_clip_active = false,  use_melee = true,
     raptor_strike_ready = false,  concussive_shot_ready = false,
     volley_ready = false,  explosive_trap_ready = false,
     aoe_threshold = 3,  use_volley = false,
@@ -153,16 +141,11 @@ local function build_state(context)
 
     -- Aspect state
     state.has_hawk = me and NS.buff_up and NS.buff_up(me, ASPECT_HAWK_IDS) or false
-    state.has_viper = me and NS.buff_up and NS.buff_up(me, ASPECT_VIPER_IDS) or false
-    state.has_cheetah = me and NS.buff_up and NS.buff_up(me, ASPECT_CHEETAH_IDS) or false
 
     -- Debuff state
     if target then
         state.has_hunters_mark = NS.debuff_up and NS.debuff_up(target, HUNTER_MARK_IDS) or false
         state.has_serpent_sting = NS.debuff_up and NS.debuff_up(target, SERPENT_STING_IDS) or false
-        state.has_scorpid_sting = NS.debuff_up and NS.debuff_up(target, SCORPID_STING_IDS) or false
-        state.has_viper_sting = NS.debuff_up and NS.debuff_up(target, VIPER_STING_IDS) or false
-        state.wing_clip_active = NS.debuff_up and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
     end
 
     -- Spell readiness
@@ -179,10 +162,8 @@ local function build_state(context)
     state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
     -- Viper Sting ready from SPELLS or fallback
     if SPELLS.ViperSting then
-        state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ViperSting, target) or false
     end
     if SPELLS.ScorpidSting then
-        state.scorpid_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ScorpidSting, target) or false
     end
     -- Raptor Strike ready (melee weaving)
     state.raptor_strike_ready = target and NS.spell_ready and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
@@ -205,16 +186,11 @@ local function build_state(context)
     state.trinket_2_ready = state.trinket_2_id ~= nil and is_item_ready(me, state.trinket_2_id)
 
     -- parity settings
-    state.aspect_mode = spec_kit.setting(context, "aspect_mode", "auto")
     state.sting_mode = spec_kit.setting(context, "sting_mode", "serpent")
     state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
     state.multishot_mode = spec_kit.setting_number(context, "multishot_mode", spec_kit.setting_number(context, "aoe_threshold", 2))
-    state.pull_mode = spec_kit.setting(context, "pull_mode", "combat_only")
     state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
-    state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", 150)
-    state.sticky_target = spec_kit.setting_bool(context, "sticky_target", false)
-    state.prioritize_markers = spec_kit.setting_bool(context, "prioritize_markers", false)
 
     -- Melee & AoE settings (parity parity)
     state.use_melee = spec_kit.setting_bool(context, "use_melee", true)

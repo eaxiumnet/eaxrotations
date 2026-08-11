@@ -41,7 +41,6 @@ local FLAME_SHOCK_DEBUFF = { 49233, 25457, 29228, 10448, 10447, 8053, 8052, 8050
 
 local shaman_state = {
     hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -56,7 +55,6 @@ local function build_state(context)
     local target = context and context.target
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0

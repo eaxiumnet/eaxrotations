@@ -81,7 +81,6 @@ local FEINT_THREAT_DEFAULT = 90
 local SUB_VANILLA_SCHEMA = {
     stealth_up = false,  slice_remains = 0,  rupture_remains = 0,
     hemo_remains = 0,  expose_remains = 0,  garrote_remains = 0,
-    cheap_shot_remains = 0,  kidney_remains = 0,
     shadowstep_buff = false,  master_of_subtlety = false,
     combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
     hp = 100,  target_hp = 100,  target_distance = 40,  target_count = 1,
@@ -96,8 +95,6 @@ local subtlety_state = {
     rupture_remains = 0,
     hemo_remains = 0,
     expose_remains = 0,
-    garrote_remains = 0,
-    cheap_shot_remains = 0,
     kidney_remains = 0,
     shadowstep_buff = false,
     master_of_subtlety = false,
@@ -108,7 +105,6 @@ local subtlety_state = {
     hp = 100,
     target_hp = 100,
     target_distance = 40,
-    target_count = 1,
     is_behind = false,
     is_caster_target = false,
     control_active = false,
@@ -148,8 +144,6 @@ local function build_state(context)
     subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
     subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
     subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
-    subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
-    subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
     subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
     subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
     subtlety_state.combo = context.combo_points or context.combo or 0
@@ -159,7 +153,6 @@ local function build_state(context)
     subtlety_state.hp = context.hp or context.player_hp or 100
     subtlety_state.target_hp = context.target_hp or 100
     subtlety_state.target_distance = context.target_distance or context.target_range or 40
-    subtlety_state.target_count = context.enemy_count or context.enemies_count or 1
     subtlety_state.is_behind = NS.is_behind_target and NS.is_behind_target(target) or false
     subtlety_state.is_caster_target = target_is_casting(target)
     subtlety_state.threat_pct = context.threat_pct or 0

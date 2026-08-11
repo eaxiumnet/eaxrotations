@@ -50,7 +50,6 @@ local totem_state = {
     -- Earth
     -- Water
     -- Fire
-    fire_totem_type = "none",
     fire_nova_active = false,
     last_fire_nova_ms = 0,
     -- Shield
@@ -74,8 +73,6 @@ local enh_state = {
     oh_has_flametongue_weapon = false,
     oh_has_rockbiter_weapon = false,
     oh_has_frostbrand_weapon = false,
-    mh_enchant_id = nil,
-    oh_enchant_id = nil,
     -- Resources
     mana_pct = 100,
     hp_pct = 100,
@@ -83,7 +80,6 @@ local enh_state = {
     mana_emergency = false,
     in_combat = false,
     enemy_count = 1,
-    is_moving = false,
     target_is_casting = false,
     target_cast_pct = 0,
     -- Spell readiness
@@ -126,7 +122,6 @@ local enh_state = {
     kick_min_pct = 40,
     kick_max_pct = 80,
     ghost_wolf_ooc = true,
-    water_shield_mana = 60,
     lightning_shield_mana = 80,
     manage_totems = true,
     totem_twisting = true,
@@ -148,10 +143,8 @@ local ENH_VANILLA_SCHEMA = {
     has_ghost_wolf = false,
     oh_has_windfury_weapon = false,  oh_has_flametongue_weapon = false,
     oh_has_rockbiter_weapon = false,  oh_has_frostbrand_weapon = false,
-    mh_enchant_id = nil,  oh_enchant_id = nil,
     mana_pct = 100,  hp_pct = 100,  mana_low = false,
     mana_emergency = false,  in_combat = false,  enemy_count = 1,
-    is_moving = false,  target_is_casting = false,  target_cast_pct = 0,
     lightning_shield_ready = false,  lightning_shield_charges = 0,
     stormstrike_ready = false,  flame_shock_ready = false,
     earth_shock_ready = false,  frost_shock_ready = false,
@@ -191,17 +184,12 @@ local function build_state(context)
     enh_state.kick_min_pct = s.enhancement_interrupt_kick_min or 40
     enh_state.kick_max_pct = s.enhancement_interrupt_kick_max or 80
     enh_state.ghost_wolf_ooc = s.enhancement_ghost_wolf_ooc ~= false
-    enh_state.water_shield_mana = s.enhancement_water_shield_mana or 60
     enh_state.lightning_shield_mana = s.enhancement_lightning_shield_mana or 80
     enh_state.manage_totems = s.enhancement_manage_totems ~= false
     enh_state.totem_twisting = s.enhancement_totem_twisting ~= false
     enh_state.interrupt_mode = s.enhancement_interrupt_mode or "target"
-    enh_state.totem_range = s.enhancement_totem_range or 30
     enh_state.fs_multi_target = s.enhancement_fs_multi_target ~= false
     enh_state.hold_shocks_focus = s.enhancement_hold_shocks_focus == true
-    enh_state.sr_melee_only = s.enhancement_sr_melee_only ~= false
-    enh_state.auto_attack = s.enhancement_auto_attack ~= false
-    enh_state.auto_totemic_call = s.enhancement_auto_totemic_call ~= false
     enh_state.gift_of_the_naaru_enabled = s.enhancement_cd_gift_of_the_naaru ~= false
 
     -- -- Resource state
@@ -212,7 +200,6 @@ local function build_state(context)
     enh_state.mana_emergency = enh_state.mana_pct < (s.enhancement_mana_emergency_pct or 10)
     enh_state.in_combat = context.in_combat or false
     enh_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    enh_state.is_moving = me and me:is_moving() or false
 
     -- -- Determine combat mode from auto
     if enh_state.combat_mode == "auto" then
@@ -248,13 +235,11 @@ local function build_state(context)
         enh_state.has_flametongue_weapon = match_enchant(mh_info, FLAMETONGUE_WEAPON_SPELLS)
         enh_state.has_rockbiter_weapon = match_enchant(mh_info, ROCKBITER_WEAPON_SPELLS)
         enh_state.has_frostbrand_weapon = match_enchant(mh_info, FROSTBRAND_WEAPON_SPELLS)
-        enh_state.mh_enchant_id = mh_info and mh_info.enchant_id or nil
     else
         enh_state.has_windfury_weapon = false
         enh_state.has_flametongue_weapon = false
         enh_state.has_rockbiter_weapon = false
         enh_state.has_frostbrand_weapon = false
-        enh_state.mh_enchant_id = nil
     end
 
     if oh_has then
@@ -262,13 +247,11 @@ local function build_state(context)
         enh_state.oh_has_windfury_weapon = match_enchant(oh_info, WINDFURY_WEAPON_SPELLS)
         enh_state.oh_has_rockbiter_weapon = match_enchant(oh_info, ROCKBITER_WEAPON_SPELLS)
         enh_state.oh_has_frostbrand_weapon = match_enchant(oh_info, FROSTBRAND_WEAPON_SPELLS)
-        enh_state.oh_enchant_id = oh_info and oh_info.enchant_id or nil
     else
         enh_state.oh_has_flametongue_weapon = false
         enh_state.oh_has_windfury_weapon = false
         enh_state.oh_has_rockbiter_weapon = false
         enh_state.oh_has_frostbrand_weapon = false
-        enh_state.oh_enchant_id = nil
     end
 
     -- -- Target state
@@ -308,7 +291,6 @@ local function build_state(context)
     enh_state.natures_swiftness_ready = me and NS.spell_ready(SPELLS.NaturesSwiftness, me, { skip_range = true, expected_cooldown = 180 }) or false
     enh_state.lesser_healing_wave_ready = me and NS.spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     enh_state.chain_heal_ready = me and NS.spell_ready(SPELLS.ChainHeal, me, { skip_range = true }) or false
-    enh_state.shadow_totem_ready = false
     enh_state.tremor_totem_ready = me and NS.spell_ready(TREMOR_TOTEM_SPELL, me, { skip_range = true }) or false
     enh_state.grounding_totem_ready = me and NS.spell_ready(SPELLS.GroundingTotem, me, { skip_range = true }) or false
     enh_state.ghost_wolf_ready = me and NS.spell_ready(GHOST_WOLF_SPELL, me, { skip_range = true }) or false
@@ -720,20 +702,17 @@ local function fire_totem_execute()
     if s == "searing" then
         if totem_try_cast(SPELLS.SearingTotem, "[ENHANCEMENT] Searing Totem") then
             totem_state.fire_nova_active = false
-            totem_state.fire_totem_type = "searing"
             return true
         end
     elseif s == "magma" then
         if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Magma Totem") then
             totem_state.fire_nova_active = false
-            totem_state.fire_totem_type = "magma"
             return true
         end
     elseif s == "fire_nova" or s == "fire_weaving" then
         if totem_try_cast(SPELLS.FireNovaTotem, "[ENHANCEMENT] Fire Nova Totem") then
             totem_state.fire_nova_active = true
             totem_state.last_fire_nova_ms = enh_state.now_ms
-            totem_state.fire_totem_type = "fire_nova"
             return true
         end
     end
@@ -743,7 +722,6 @@ end
 local function fire_nova_replacement_execute()
     if totem_try_cast(SPELLS.MagmaTotem, "[ENHANCEMENT] Fire Nova -> Magma replacement") then
         totem_state.fire_nova_active = false
-        totem_state.fire_totem_type = "magma"
         return true
     end
     return false

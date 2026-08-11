@@ -105,7 +105,6 @@ local DESTRO_SCHEMA = {
     recklessness_remains = 0,
     weakness_remains = 0,
     has_backlash = false,
-    has_backdraft = false,
     has_fel_armor = false,
     has_demon_armor = false,
     has_demonic_sacrifice = false,
@@ -126,7 +125,6 @@ local destro_state = {
     recklessness_remains = 0,
     weakness_remains = 0,
     has_backlash = false,
-    has_backdraft = false,
     has_fel_armor = false,
     has_demon_armor = false,
     has_demonic_sacrifice = false,
@@ -158,7 +156,6 @@ local function build_state(context)
     state.has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false
     -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
     -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
-    state.has_backdraft = false
     state.has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false
     state.has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
     state.has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false

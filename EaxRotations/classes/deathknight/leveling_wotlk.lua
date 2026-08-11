@@ -50,7 +50,6 @@ local BLOOD_PRESENCE_BUFF = { 48266 }
 
 local dk_state = {
     hp = 100,
-    target_hp = 100,
     runic_power = 0,
     enemy_count = 1,
     in_combat = false,
@@ -67,7 +66,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(dk_state)
     local target = context and context.target
     state.hp = (NS.me and NS.me.get_health_percentage and NS.me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.runic_power = (NS.me and NS.me.get_runic_power and NS.me:get_runic_power()) or 0
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false

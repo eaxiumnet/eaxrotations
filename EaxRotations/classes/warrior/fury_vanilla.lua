@@ -88,8 +88,6 @@ local fury_state = {
     has_valid_enemy = false,
     bw_ready = false,
     berserker_rage_ready = false,
-    bloodrage_ready = false,
-    charge_ready = false,
     death_wish_ready = false,
     demo_ready = false,
     execute_ready = false,
@@ -99,18 +97,14 @@ local fury_state = {
     overpower_ready = false,
     pummel_ready = false,
     target_casting = false,
-    recklessness_ready = false,
     rend_ready = false,
     slam_ready = false,
     sunder_ready = false,
     sweeping_strikes_ready = false,
-    tclap_ready = false,
     whirlwind_ready = false,
-    has_battle_shout = false,
     has_demo_shout = false,
     has_rend = false,
     has_sunder = false,
-    has_tclap = false,
     has_hamstring = false,
     overpower_window = false,
     target_ttd = 15,
@@ -127,8 +121,6 @@ local FURY_VANILLA_SCHEMA = {
     has_valid_enemy = false,
     bw_ready = false,
     berserker_rage_ready = false,
-    bloodrage_ready = false,
-    charge_ready = false,
     death_wish_ready = false,
     demo_ready = false,
     execute_ready = false,
@@ -138,18 +130,14 @@ local FURY_VANILLA_SCHEMA = {
     overpower_ready = false,
     pummel_ready = false,
     target_casting = false,
-    recklessness_ready = false,
     rend_ready = false,
     slam_ready = false,
     sunder_ready = false,
     sweeping_strikes_ready = false,
-    tclap_ready = false,
     whirlwind_ready = false,
-    has_battle_shout = false,
     has_demo_shout = false,
     has_rend = false,
     has_sunder = false,
-    has_tclap = false,
     has_hamstring = false,
     overpower_window = false,
     target_ttd = 15,
@@ -183,14 +171,12 @@ local function build_state(context)
     fury_state.target_count = context.enemies_count or 1
     fury_state.target_ttd = (context.ttd or 15)
     if me then
-        fury_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
     end
     if target then
         fury_state.target_casting = target.is_casting and target:is_casting() or false
         fury_state.has_demo_shout = NS.debuff_up(target, DEMO_SHOUT_DEBUFF) or false
         fury_state.has_rend = NS.debuff_up(target, REND_DEBUFF) or false
         fury_state.has_sunder = NS.debuff_up(target, SUNDER_DEBUFF) or false
-        fury_state.has_tclap = NS.debuff_up(target, THUNDER_CLAP_DEBUFF) or false
         fury_state.has_hamstring = NS.debuff_up(target, HAMSTRING_DEBUFF) or false
         local dodge_fn = target.get_dodge_chance
         local ok_dodge, dodge_val = false, 0
@@ -199,9 +185,7 @@ local function build_state(context)
         fury_state.overpower_window = dodge_val > 0
     end
     fury_state.bw_ready = spell_ready(ACTION.BerserkerRage, me, { skip_range = true })
-    fury_state.bloodrage_ready = spell_ready(ACTION.Bloodrage, me, { skip_range = true })
     fury_state.bloodthirst_ready = target and spell_ready(ACTION.Bloodthirst, target) or false
-    fury_state.charge_ready = target and spell_ready(ACTION.Charge, target)
     fury_state.death_wish_ready = spell_ready(ACTION.DeathWish, me, { skip_range = true })
     fury_state.demo_ready = spell_ready(ACTION.DemoralizingShout, me, { skip_range = true })
     fury_state.execute_ready = target and spell_ready(ACTION.Execute, target)
@@ -210,12 +194,10 @@ local function build_state(context)
     fury_state.intercept_ready = target and spell_ready(ACTION.Intercept, target)
     fury_state.overpower_ready = target and spell_ready(ACTION.Overpower, target)
     fury_state.pummel_ready = target and spell_ready(ACTION.Pummel, target)
-    fury_state.recklessness_ready = spell_ready(ACTION.Recklessness, me, { skip_range = true })
     fury_state.rend_ready = target and spell_ready(ACTION.Rend, target)
     fury_state.slam_ready = target and spell_ready(ACTION.Slam, target)
     fury_state.sunder_ready = target and spell_ready(ACTION.SunderArmor, target)
     fury_state.sweeping_strikes_ready = spell_ready(ACTION.SweepingStrikes, me, { skip_range = true })
-    fury_state.tclap_ready = target and spell_ready(ACTION.ThunderClap, target)
     fury_state.whirlwind_ready = target and spell_ready(ACTION.Whirlwind, target)
     fury_state.cleave_ready = target and spell_ready(ACTION.Cleave, target)
     return spec_kit.safe_state(fury_state, FURY_VANILLA_SCHEMA)

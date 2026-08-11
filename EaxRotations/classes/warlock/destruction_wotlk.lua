@@ -29,7 +29,6 @@ local IMMOLATE_REFRESH_SECONDS = type(IMMOLATE_CAST_TIME) == "number"
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 
 local DESTRUCTION_SCHEMA = {
-    hp = 100, target_hp = 100, mana_pct = 100,
     enemy_count = 1, in_combat = false,
     immolate_remains = 0,
 }
@@ -40,9 +39,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(destruction_state, DESTRUCTION_SCHEMA)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.immolate_remains = (target and NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF)) or 0

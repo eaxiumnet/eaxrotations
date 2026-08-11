@@ -31,11 +31,9 @@ local FROST_NOVA_DEBUFF = { 122, 865, 6131, 10230 }
 
 local frost_state = {
     hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
-    frostbolt_remains = 0,
     frostfire_remains = 0,
     target_frozen = false,
     target_is_casting = false,
@@ -47,10 +45,8 @@ local function build_state(context)
     local target = context and context.target
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
-    state.frostbolt_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROSTBOLT_DEBUFF)) or 0
     state.frostfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROSTFIRE_BOLT_DEBUFF)) or 0
     state.target_frozen = (target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_DEBUFF)) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false

@@ -285,11 +285,9 @@ local PROT_SCHEMA = {
 
     -- Misc
 
-    now_ms = 0,  target_creature_type = nil,
 
     ally_threatened = nil,  low_hp_ally = nil,  utility_target = nil,
 
-    swing_remains = 99,
 
 }
 
@@ -320,7 +318,6 @@ local prot_state = {
 
  has_blessing_sanctuary = false,
 
- now_ms = 0,
 
  holy_shield_ready = false,
 
@@ -336,7 +333,6 @@ local prot_state = {
 
  lay_on_hands_ready = false,
 
- hammer_of_justice_ready = false,
 
  hammer_of_wrath_ready = false,
 
@@ -370,7 +366,6 @@ local prot_state = {
 
  target_creature_type = nil,
 
- target_casting = false,
 
  ally_threatened = nil,
 
@@ -427,7 +422,6 @@ local function build_state(context)
  local target = context.target
 
 
- prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
 
 
 
@@ -482,7 +476,6 @@ local function build_state(context)
 
  prot_state.lay_on_hands_ready = me and NS.spell_ready(ACTION.LayOnHands, me, { skip_range = true, expected_cooldown = 3600 }) or false
 
- prot_state.hammer_of_justice_ready = target and NS.spell_ready(ACTION.HammerOfJustice, target, { expected_cooldown = 60 }) or false
 
  prot_state.hammer_of_wrath_ready = target and NS.spell_ready(ACTION.HammerOfWrath, target, { expected_cooldown = 6 }) or false
 
@@ -554,7 +547,6 @@ local function build_state(context)
 
  prot_state.target_creature_type = creature_type(target)
 
- prot_state.target_casting = target and target.is_casting and target:is_casting() or false
 
 
  -- Scan allies for threat and low HP (Righteous Defense / BoP peel)
@@ -691,7 +683,6 @@ local function build_state(context)
          local ok, sr = pcall(NS.swing_time_until, me)
          if ok and type(sr) == "number" then swing_remains = sr end
      end
-     prot_state.swing_remains = swing_remains
 
     return spec_kit.safe_state(prot_state, PROT_SCHEMA)
 

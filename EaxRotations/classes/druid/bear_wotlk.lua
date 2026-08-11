@@ -26,8 +26,6 @@ local LACERATE_DEBUFF = { 33745 }
 local FAERIE_FIRE_FERAL_DEBUFF = { 27011, 17392, 17391, 17390, 16857 }
 
 local bear_state = {
-    hp = 100,
-    target_hp = 100,
     rage = 0,
     enemy_count = 1,
     in_combat = false,
@@ -39,8 +37,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(bear_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.rage = (me and me.get_rage and me:get_rage()) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false

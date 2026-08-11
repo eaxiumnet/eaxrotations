@@ -154,7 +154,6 @@ local function build_state(context)
     kebab_state.sunder_duration = target and get_debuff_remains(target, SUNDER_DEBUFF) or 0
     kebab_state.thunder_clap_duration = target and get_debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     kebab_state.demo_shout_duration = target and get_debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
-    kebab_state.pummel_ready = spell_exists(SPELLS.Pummel) and spell_ready(SPELLS.Pummel, target)
     kebab_state.ms_cd = get_cooldown(SPELLS.MortalStrike)
     kebab_state.ww_cd = get_cooldown(SPELLS.Whirlwind)
     return spec_kit.safe_state(kebab_state, KEBAB_SCHEMA)

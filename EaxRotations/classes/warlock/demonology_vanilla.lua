@@ -89,7 +89,6 @@ local demo_state = {
     enemy_count = 1,
     in_combat = false,
     is_pvp = false,
-    target_is_casting = false,
     corruption_remains = 0,
     agony_remains = 0,
     doom_remains = 0,
@@ -168,7 +167,6 @@ local function build_state(context)
     demo_state.mana_pct = context.mana_pct or 100
     demo_state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    demo_state.target_is_casting = target and target.is_casting and target:is_casting() or false
 
     -- Pet
     demo_state.has_pet = false

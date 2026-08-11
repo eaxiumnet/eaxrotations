@@ -125,13 +125,11 @@ end
 -- ============================================================================
 local totem_state = {
     -- Twisting
-    air_totem_remains = 0,
     last_wf_cast_ms = -99999,  -- throttle Windfury re-casts; negative = never cast
     last_goa_cast_ms = -99999, -- throttle Grace-of-Air re-casts; negative = never cast
     -- Earth
     -- Water
     -- Fire
-    fire_totem_type = "none",
     fire_nova_active = false,
     last_fire_nova_ms = 0,
     -- Shield
@@ -150,7 +148,6 @@ local ENH_SCHEMA = {
     has_lightning_shield = false,  has_water_shield = false,
     has_windfury_weapon = false,  has_flametongue_weapon = false,
     has_rockbiter_weapon = false,  has_frostbrand_weapon = false,
-    has_shamanistic_rage = false,  has_bloodlust = false,  has_ghost_wolf = false,
     bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
     -- OH imbues
     oh_has_windfury_weapon = false,  oh_has_flametongue_weapon = false,
@@ -174,7 +171,6 @@ local ENH_SCHEMA = {
     tremor_totem_ready = false,  grounding_totem_ready = false,
     ghost_wolf_ready = false,  bloodlust_ready = false,
     totemic_call_ready = false,  gift_of_the_naaru_ready = false,
-    shadow_totem_ready = false,
     -- Settings
     aoe_threshold = 3,  self_heal_hp = 40,  chain_heal_hp = 35,
     kick_min_pct = 40,  kick_max_pct = 80,
@@ -182,7 +178,6 @@ local ENH_SCHEMA = {
     water_shield_mana = 60,  lightning_shield_mana = 80,
     sr_melee_only = false,  hold_shocks_focus = false,
     fs_multi_target = false,  gift_of_the_naaru_enabled = false,
-    auto_attack = false,  auto_totemic_call = false,
     -- Items
     healthstone_ready = 0,
 }
@@ -199,16 +194,12 @@ local enh_state = {
     has_flametongue_weapon = false,
     has_rockbiter_weapon = false,
     has_frostbrand_weapon = false,
-    has_shamanistic_rage = false,
-    has_bloodlust = false,
     has_ghost_wolf = false,
     -- OH weapon imbue (distinct from MH fields)
     oh_has_windfury_weapon = false,
     oh_has_flametongue_weapon = false,
     oh_has_rockbiter_weapon = false,
     oh_has_frostbrand_weapon = false,
-    mh_enchant_id = nil,
-    oh_enchant_id = nil,
     -- Resources
     mana_pct = 100,
     hp_pct = 100,
@@ -329,12 +320,9 @@ local function build_state(context)
     enh_state.manage_totems = spec_kit.setting_bool(context, "enhancement_manage_totems", true)
     enh_state.totem_twisting = spec_kit.setting_bool(context, "enhancement_totem_twisting", true)
     enh_state.interrupt_mode = spec_kit.setting(context, "enhancement_interrupt_mode", "target")
-    enh_state.totem_range = spec_kit.setting_number(context, "enhancement_totem_range", 30)
     enh_state.fs_multi_target = spec_kit.setting_bool(context, "enhancement_fs_multi_target", true)
     enh_state.hold_shocks_focus = spec_kit.setting_bool(context, "enhancement_hold_shocks_focus", false)
     enh_state.sr_melee_only = spec_kit.setting_bool(context, "enhancement_sr_melee_only", true)
-    enh_state.auto_attack = spec_kit.setting_bool(context, "enhancement_auto_attack", true)
-    enh_state.auto_totemic_call = spec_kit.setting_bool(context, "enhancement_auto_totemic_call", true)
     enh_state.gift_of_the_naaru_enabled = spec_kit.setting_bool(context, "enhancement_cd_gift_of_the_naaru", true)
 
     -- -- Resource state
@@ -406,8 +394,6 @@ local function build_state(context)
     enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
     enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
     enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
-    enh_state.has_shamanistic_rage = me and NS.buff_up(me, SHAMANISTIC_RAGE_BUFF) or false
-    enh_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFF_ID) or false
     enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
 
     -- -- Weapon buff detection via WeaponImbueManager + exact enchant IDs.
@@ -430,13 +416,11 @@ local function build_state(context)
         enh_state.has_flametongue_weapon = match_enchant(mh_info, FLAMETONGUE_WEAPON_SPELLS)
         enh_state.has_rockbiter_weapon = match_enchant(mh_info, ROCKBITER_WEAPON_SPELLS)
         enh_state.has_frostbrand_weapon = match_enchant(mh_info, FROSTBRAND_WEAPON_SPELLS)
-        enh_state.mh_enchant_id = mh_info and mh_info.enchant_id or nil
     else
         enh_state.has_windfury_weapon = false
         enh_state.has_flametongue_weapon = false
         enh_state.has_rockbiter_weapon = false
         enh_state.has_frostbrand_weapon = false
-        enh_state.mh_enchant_id = nil
     end
 
     if oh_has then
@@ -444,13 +428,11 @@ local function build_state(context)
         enh_state.oh_has_windfury_weapon = match_enchant(oh_info, WINDFURY_WEAPON_SPELLS)
         enh_state.oh_has_rockbiter_weapon = match_enchant(oh_info, ROCKBITER_WEAPON_SPELLS)
         enh_state.oh_has_frostbrand_weapon = match_enchant(oh_info, FROSTBRAND_WEAPON_SPELLS)
-        enh_state.oh_enchant_id = oh_info and oh_info.enchant_id or nil
     else
         enh_state.oh_has_flametongue_weapon = false
         enh_state.oh_has_windfury_weapon = false
         enh_state.oh_has_rockbiter_weapon = false
         enh_state.oh_has_frostbrand_weapon = false
-        enh_state.oh_enchant_id = nil
     end
 
     -- -- Target state
@@ -492,7 +474,6 @@ local function build_state(context)
     enh_state.natures_swiftness_ready = me and NS.spell_ready(ACTION.NaturesSwiftness, me, { skip_range = true, expected_cooldown = 180 }) or false
     enh_state.lesser_healing_wave_ready = me and NS.spell_ready(ACTION.LesserHealingWave, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     enh_state.chain_heal_ready = me and NS.spell_ready(ACTION.ChainHeal, me, { skip_range = true }) or false
-    enh_state.shadow_totem_ready = false
     enh_state.tremor_totem_ready = me and NS.spell_ready(TREMOR_TOTEM_SPELL, me, { skip_range = true }) or false
     enh_state.grounding_totem_ready = me and NS.spell_ready(ACTION.GroundingTotem, me, { skip_range = true }) or false
     enh_state.ghost_wolf_ready = me and NS.spell_ready(GHOST_WOLF_SPELL, me, { skip_range = true }) or false
@@ -515,7 +496,6 @@ local function build_state(context)
     if air_info and air_info.have_totem then
         local air_remains = (air_info.duration or 0) - ((NS.game_time_ms and NS.game_time_ms() or 0) / 1000 - (air_info.start_time or 0))
         if air_remains < 0 then air_remains = 0 end
-        totem_state.air_totem_remains = air_remains
         -- Determine current phase from active totem spell_id
         local sid = air_info.spell_id or 0
         local is_wf = false
@@ -528,11 +508,12 @@ local function build_state(context)
         for i = 1, #GOA_TOTEM_SPELLS do if sid == GOA_TOTEM_SPELLS[i] then is_grace = true; break end end
         -- twist_phase intentionally removed; matching is now buff-driven
     else
-        totem_state.air_totem_remains = 0
     end
 
     -- Prefer CLEU-backed swing timer; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
+    -- swing_remains: consumed by the CLEU swing diagnostics (test-pinned in
+    -- test_melee_cleu_wiring.lua:97/102 — CLEU value or native fallback).
     enh_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or 0
     enh_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
@@ -991,20 +972,17 @@ local function fire_totem_execute()
     if s == "searing" then
         if totem_try_cast(ACTION.SearingTotem, "[ENHANCEMENT] Searing Totem") then
             totem_state.fire_nova_active = false
-            totem_state.fire_totem_type = "searing"
             return true
         end
     elseif s == "magma" then
         if totem_try_cast(ACTION.MagmaTotem, "[ENHANCEMENT] Magma Totem") then
             totem_state.fire_nova_active = false
-            totem_state.fire_totem_type = "magma"
             return true
         end
     elseif s == "fire_nova" or s == "fire_weaving" then
         if totem_try_cast(ACTION.FireNovaTotem, "[ENHANCEMENT] Fire Nova Totem") then
             totem_state.fire_nova_active = true
             totem_state.last_fire_nova_ms = enh_state.now_ms
-            totem_state.fire_totem_type = "fire_nova"
             return true
         end
     end
@@ -1014,7 +992,6 @@ end
 local function fire_nova_replacement_execute()
     if totem_try_cast(ACTION.MagmaTotem, "[ENHANCEMENT] Fire Nova -> Magma replacement") then
         totem_state.fire_nova_active = false
-        totem_state.fire_totem_type = "magma"
         return true
     end
     return false

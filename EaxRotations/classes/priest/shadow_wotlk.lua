@@ -33,8 +33,6 @@ local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 
 local DEVOURING_PLAGUE_DEBUFF = { 25467, 19280, 19279, 19278, 19277, 19276, 2944 }
 
 local shadow_state = {
-    hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -48,9 +46,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(shadow_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false

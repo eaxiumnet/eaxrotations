@@ -129,14 +129,12 @@ local LEVELING_VANILLA_SCHEMA = {
     use_searing_totem = true,  use_strength_totem = true,
     use_water_totem = true,  now_ms = 0,
     has_lightning_shield = false,  has_mainhand_imbue = false,
-    weapon_imbue_api_known = true,
     lightning_bolt_ready = false,  earth_shock_ready = false,
     flame_shock_ready = false,  frost_shock_ready = false,
     chain_lightning_ready = false,  lightning_shield_ready = false,
     healing_wave_ready = false,  lesser_healing_wave_ready = false,
     ghost_wolf_ready = false,  purge_ready = false,
     earthbind_totem_ready = false,  stoneclaw_totem_ready = false,
-    fire_nova_totem_ready = false,  searing_totem_ready = false,
     strength_of_earth_ready = false,  grace_of_air_ready = false,
     mana_spring_ready = false,  healing_stream_ready = false,
     grounding_totem_ready = false,  windfury_totem_ready = false,
@@ -148,7 +146,6 @@ function shaman_leveling.build_state(context)
     local state = {}
     leveling.build_common_state(context, state)
     state.is_pvp = context.is_pvp == true or context.is_arena == true or context.is_battleground == true
-    state.now_ms = now_ms()
 
     local me = get_player()
     state.lightning_bolt_ready = spell_ready(SPELLS.LightningBolt, state.target)
@@ -163,14 +160,11 @@ function shaman_leveling.build_state(context)
     state.purge_ready = spell_ready(SPELLS.Purge, state.target)
     state.earthbind_totem_ready = spell_ready(SPELLS.EarthbindTotem, me, { skip_range = true })
     state.stoneclaw_totem_ready = SPELLS.StoneclawTotem and spell_ready(SPELLS.StoneclawTotem, me, { skip_range = true }) or false
-    state.fire_nova_totem_ready = spell_ready(SPELLS.FireNovaTotem, me, { skip_range = true })
     state.searing_totem_ready = SPELLS.SearingTotem and spell_ready(SPELLS.SearingTotem, me, { skip_range = true }) or false
     state.strength_of_earth_ready = spell_ready(SPELLS.StrengthOfEarthTotem, me, { skip_range = true })
-    state.grace_of_air_ready = spell_ready(SPELLS.GraceOfAirTotem, me, { skip_range = true })
     state.mana_spring_ready = spell_ready(SPELLS.ManaSpringTotem, me, { skip_range = true })
     state.healing_stream_ready = SPELLS.HealingStreamTotem and spell_ready(SPELLS.HealingStreamTotem, me, { skip_range = true }) or false
     state.grounding_totem_ready = spell_ready(SPELLS.GroundingTotem, me, { skip_range = true })
-    state.windfury_totem_ready = spell_ready(SPELLS.WindfuryTotem, me, { skip_range = true })
     state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
     state.stormstrike_ready = spell_ready(SPELLS.Stormstrike, state.target)
 
@@ -178,7 +172,6 @@ function shaman_leveling.build_state(context)
     local _dist = state.target and state.target.get_distance and state.target:get_distance(me)
     state.in_melee_range = _dist and _dist <= 5 or false
     state.has_mainhand_imbue = mainhand_has_imbue()
-    state.weapon_imbue_api_known = true
 
     state.heal_hp = spec_kit.setting_number(context, "leveling_heal_hp", 50)
     state.use_shocks = spec_kit.setting_bool(context, "leveling_use_shocks", true)
@@ -189,7 +182,6 @@ function shaman_leveling.build_state(context)
     state.use_searing_totem = spec_kit.setting_bool(context, "leveling_use_searing_totem", true)
     state.use_strength_totem = spec_kit.setting_bool(context, "leveling_use_strength_totem", true)
     state.use_water_totem = spec_kit.setting_bool(context, "leveling_use_water_totem", true)
-    state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
 
     return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end

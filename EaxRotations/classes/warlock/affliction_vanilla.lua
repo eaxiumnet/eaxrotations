@@ -98,15 +98,12 @@ local SOULSTONE_ITEMS = { 16896, 16895, 16893, 16892, 5232 }
 -- ============================================================================
 local aff_state = {
     -- DoT remains on target
-    ua_remains = 0,
     corruption_remains = 0,
     agony_remains = 0,
     doom_remains = 0,
     siphon_remains = 0,
     immolate_remains = 0,	    -- Shadow Embrace stacks
-	    se_stacks = 0,
 	    -- Improved Shadow Bolt (Shadow Vulnerability) stacks
-	    isb_stacks = 0,
     -- Proc
     nightfall_active = false,
     -- Resources
@@ -126,7 +123,6 @@ local aff_state = {
     has_soulstone = false,
     wand_learned = false,    -- Snapshot state (spell damage when DoT was applied — persisted across build_state calls)
     spell_damage = 0,
-    snapshot_ua_dmg = 0,
     snapshot_corruption_dmg = 0,
     snapshot_siphon_dmg = 0,
     snapshot_immolate_dmg = 0,
@@ -137,7 +133,6 @@ local aff_state = {
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local AFFL_VANILLA_SCHEMA = {
-    ua_remains = 0,  corruption_remains = 0,  agony_remains = 0,
     doom_remains = 0,  siphon_remains = 0,  immolate_remains = 0,
     coe_remains = 0,  se_stacks = 0,  isb_stacks = 0,
     nightfall_active = false,  mana_pct = 100,  hp_pct = 100,
@@ -158,25 +153,19 @@ local function build_state(context)
     if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
-        aff_state.ua_remains = NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFL_DEBUFF) or 0
         aff_state.corruption_remains = NS.debuff_remains and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0
         aff_state.agony_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
         aff_state.doom_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
         aff_state.siphon_remains = NS.debuff_remains and NS.debuff_remains(target, SIPHON_LIFE_DEBUFF) or 0
         aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
         aff_state.coe_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
-        aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
-		        aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
 	        aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
 	    else
-	        aff_state.ua_remains = 0
 	        aff_state.corruption_remains = 0
 	        aff_state.agony_remains = 0
 	        aff_state.siphon_remains = 0
 	        aff_state.immolate_remains = 0
             aff_state.coe_remains = 0
-            aff_state.se_stacks = 0
-		        aff_state.isb_stacks = 0
 	        aff_state.target_hp = 100
 	    end
 	    -- Nightfall proc
@@ -199,19 +188,16 @@ local function build_state(context)
             aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })
 	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
 	    -- Classic haste buff — enables more aggressive snapshot upgrade threshold
-	    aff_state.has_bloodlust = false
 	    -- Maintain snapshot state: reset snapshots if DoT expired (stale)
 	    local target_key = target and (target.get_guid and target:get_guid()) or nil
 	    if target_key ~= aff_state.snapshot_target then
 	        -- Target changed: reset all snapshots for fresh tracking
-	        aff_state.snapshot_ua_dmg = 0
 	        aff_state.snapshot_corruption_dmg = 0
 	        aff_state.snapshot_siphon_dmg = 0
 	        aff_state.snapshot_immolate_dmg = 0
 	        aff_state.snapshot_target = target_key
 	    else
 	        -- Reset per-DoT snapshot if DoT completely fell off
-	        if aff_state.ua_remains <= 0 then aff_state.snapshot_ua_dmg = 0 end
 	        if aff_state.corruption_remains <= 0 then aff_state.snapshot_corruption_dmg = 0 end
 	        if aff_state.siphon_remains <= 0 then aff_state.snapshot_siphon_dmg = 0 end
 	        if aff_state.immolate_remains <= 0 then aff_state.snapshot_immolate_dmg = 0 end

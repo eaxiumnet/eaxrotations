@@ -48,8 +48,6 @@ local SERPENT_STING_DEBUFF = { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 
 local hunter_state = {
-    hp = 100,
-    target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -68,9 +66,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(hunter_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.serpent_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SERPENT_STING_DEBUFF)) or 0

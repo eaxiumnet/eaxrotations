@@ -206,9 +206,7 @@ function rogue_leveling.build_state(context)
     state.vanish_ready = spell_ready(SPELLS.Vanish)
 
     state.stealth_ready = spell_ready(SPELLS.Stealth)
-
     state.sap_ready = HAS_SAP and spell_ready(SPELLS.Sap)
-
     state.blind_ready = spell_ready(SPELLS.Blind)
 
     state.kidney_shot_ready = spell_ready(SPELLS.KidneyShot)

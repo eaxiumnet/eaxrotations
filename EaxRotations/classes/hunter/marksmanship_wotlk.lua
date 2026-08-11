@@ -35,7 +35,6 @@ local EXPLOSIVE_TRAP_DEBUFF = { 49067 }
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 
 local mm_state = {
-    hp = 100,
     target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
@@ -51,7 +50,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(mm_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1

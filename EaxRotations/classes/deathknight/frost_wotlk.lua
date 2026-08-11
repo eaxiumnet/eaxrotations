@@ -57,8 +57,6 @@ local FROST_PRESENCE_BUFF = { 48263 }
 
 -- Frost DK raw state (safe_state proxy applies Pattern 14 defaults in build_state).
 local frost_state = {
-    hp = 100,
-    target_hp = 100,
     enemy_count = 1,
     in_combat = false,
     frost_fever_remains = 0,
@@ -76,7 +74,6 @@ local frost_state = {
     unbreakable_armor_ready = false,
     empower_rune_weapon_ready = false,
     frost_presence_up = false,
-    presence = 1,
 }
 
 local function build_state(context)
@@ -84,8 +81,6 @@ local function build_state(context)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
 
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
 
@@ -96,7 +91,6 @@ local function build_state(context)
     state.killing_machine = (me and NS.buff_up and NS.buff_up(me, KILLING_MACHINE_BUFF)) or false
     state.unbreakable_armor_up = (me and NS.buff_up and NS.buff_up(me, UNBREAKABLE_ARMOR_BUFF)) or false
     state.frost_presence_up = (me and NS.buff_up and NS.buff_up(me, FROST_PRESENCE_BUFF)) or false
-    state.presence = state.frost_presence_up and 2 or 1
 
     -- Runic power via rune_manager (primary) with direct unit API fallback.
     if rune_manager and rune_manager.get_runic_power then

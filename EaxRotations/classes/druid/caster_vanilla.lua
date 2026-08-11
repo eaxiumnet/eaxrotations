@@ -57,7 +57,6 @@ local caster_state = {
     mana_pct = 100,
     hp_pct = 100,
     target_hp = 100,
-    target_casting = false,
 }
 
 local function build_state(context)
@@ -74,7 +73,6 @@ local function build_state(context)
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
     caster_state.hp_pct = context.hp or context.hp_pct or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100
-    caster_state.target_casting = target and target.is_casting and target:is_casting() or false
     caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(ACTION.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
     return spec_kit.safe_state(caster_state, CASTER_SCHEMA)
 end

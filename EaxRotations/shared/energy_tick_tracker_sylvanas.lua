@@ -20,7 +20,6 @@ function M.new_state()
         last_energy = 0,
         last_tick_time = 0,
         tick_confident = false,
-        next_tick_in = M.TICK_INTERVAL,
     }
 end
 
@@ -36,7 +35,6 @@ function M.update(state, energy, now)
         state.tick_confident = true
     end
     state.last_energy = energy
-    state.next_tick_in = M.estimate_next_tick(state, now)
 end
 
 --- Estimate seconds until next energy tick

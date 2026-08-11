@@ -27,7 +27,6 @@ local BEACON_OF_LIGHT_BUFF = { 53563 }
 local SACRED_SHIELD_BUFF = { 53601 }
 
 local holy_state = {
-    hp = 100,
     target_hp = 100,
     mana_pct = 100,
     enemy_count = 1,
@@ -40,7 +39,6 @@ local function build_state(context)
     local state = spec_kit.safe_state(holy_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = (context and context.lowest and context.lowest.unit) or me
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1

@@ -43,15 +43,10 @@ local MANA_EMERGENCY_DEFAULT = 5
 local resto_state = {
     lowest = nil,
     tank = nil,
-    natures_swiftness_active = false,
     has_lightning_shield = false,
     lightning_shield_ready = false,
     chain_heal_ready = false,
     healing_wave_ready = false,
-    lesser_healing_wave_ready = false,
-    mana_tide_ready = false,
-    bloodlust_ready = false,
-    natures_swiftness_ready = false,
     earth_shock_ready = false,
     flame_shock_ready = false,
     lightning_bolt_ready = false,
@@ -61,7 +56,6 @@ local resto_state = {
     cure_disease_ready = false,
     mana_pct = 100,
     hp_pct = 100,
-    mana_low = false,
     mana_conserve = false,
     mana_emergency = false,
     in_combat = false,
@@ -76,18 +70,14 @@ local resto_state = {
     poison_cleansing_totem_ready = false,
     disease_cleansing_totem_ready = false,
     cleanse_target = nil,
-    lowest_hp_pct = 100,
     lowest_time_to_die = 999,
 }
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local RESTO_VANILLA_SCHEMA = {
     lowest = nil,  tank = nil,
-    natures_swiftness_active = false,  has_lightning_shield = false,
     lightning_shield_ready = false,  chain_heal_ready = false,
     healing_wave_ready = false,  lesser_healing_wave_ready = false,
-    mana_tide_ready = false,  bloodlust_ready = false,
-    natures_swiftness_ready = false,  earth_shock_ready = false,
     flame_shock_ready = false,  lightning_bolt_ready = false,
     chain_lightning_ready = false,  purge_ready = false,
     cure_poison_ready = false,  cure_disease_ready = false,
@@ -114,15 +104,10 @@ local function build_state(context)
     resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
     resto_state.tank = NS.healing_get_tank(entries, count) or resto_state.lowest
     local s = context.settings
-    resto_state.natures_swiftness_active = _ns_is_active()
     resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
     resto_state.lightning_shield_ready = me and NS.spell_ready(LIGHTNING_SHIELD_SPELL, me, { skip_range = true }) or false
     resto_state.chain_heal_ready = me and NS.spell_ready(SPELLS.ChainHeal, me, { skip_range = true }) or false
     resto_state.healing_wave_ready = me and NS.spell_ready(SPELLS.HealingWave, me, { skip_range = true }) or false
-    resto_state.lesser_healing_wave_ready = me and NS.spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true }) or false
-    resto_state.mana_tide_ready = me and NS.spell_ready(SPELLS.ManaTideTotem, me, { skip_range = true }) or false
-    resto_state.bloodlust_ready = me and NS.spell_ready(SPELLS.UnavailableClassicShamanBurst, me, { skip_range = true }) or false
-    resto_state.natures_swiftness_ready = me and NS.spell_ready(SPELLS.NaturesSwiftness, me, { skip_range = true }) or false
     resto_state.earth_shock_ready = me and NS.spell_ready(SPELLS.EarthShock, me, { expected_cooldown = 6 }) or false
     resto_state.flame_shock_ready = me and NS.spell_ready(SPELLS.FlameShock, me, { expected_cooldown = 6 }) or false
     resto_state.lightning_bolt_ready = me and NS.spell_ready(SPELLS.LightningBolt, me, { expected_cooldown = 2.5 }) or false
@@ -136,7 +121,6 @@ local function build_state(context)
     local mana_low_pct = s.restoration_mana_low_pct or MANA_LOW_DEFAULT
     local mana_conserve_pct = s.restoration_mana_conserve_pct or MANA_CONSERVE_DEFAULT
     local mana_emergency_pct = s.restoration_mana_emergency_pct or MANA_EMERGENCY_DEFAULT
-    resto_state.mana_low = resto_state.mana_pct < mana_low_pct
     resto_state.mana_conserve = resto_state.mana_pct < mana_conserve_pct
     resto_state.mana_emergency = resto_state.mana_pct < mana_emergency_pct
     resto_state.in_combat = context.in_combat or false
@@ -153,10 +137,8 @@ local function build_state(context)
     resto_state.disease_cleansing_totem_ready = me and SPELLS.DiseaseCleansingTotem and NS.spell_ready(SPELLS.DiseaseCleansingTotem, me, { skip_range = true }) or false
     -- Track lowest ally HP + estimated time-to-die for NS emergency gating
     if resto_state.lowest then
-        resto_state.lowest_hp_pct = resto_state.lowest.effective_hp or 100
         resto_state.lowest_time_to_die = resto_state.lowest.time_to_die or 999
     else
-        resto_state.lowest_hp_pct = 100
         resto_state.lowest_time_to_die = 999
     end
     -- Resolve cleanse target for dispel strategies (cached per frame)

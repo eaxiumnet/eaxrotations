@@ -93,7 +93,6 @@ local ret_state = {
     target_hp_pct = 100,
     enemy_count = 1,
     swing_remains = 99,
-    seal_preference = "auto",
     preferred_damage_seal = nil,
     utility_target = nil,
     secondary_target = nil,
@@ -116,7 +115,6 @@ local ret_state = {
     target_casting_interruptible = false,
     target_player = false,
     target_fleeing = false,
-    in_melee = true,
     can_twist = false,
     can_use_blood = false,
 }
@@ -236,7 +234,6 @@ local function build_state(context)
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
     ret_state.target_hp_pct = health_pct(context.target, context.target_hp or 100)
     ret_state.swing_remains = (NS.get_time_until_swing and NS.get_time_until_swing()) or context.time_to_swing or 99
-    ret_state.seal_preference = get_setting(context, "seal_preference", get_setting(context, "retri_seal_preference", "auto"))
     ret_state.can_use_blood = should_use_blood(context)
     ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"
     -- [ARTISTRY] Improved: Dynamic Twist Window from settings (ms to seconds)
@@ -259,7 +256,6 @@ local function build_state(context)
     ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
-    ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
     ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", false) and ret_state.mana_pct >= get_setting(context, "retri_twist_mana_floor", 20)
     ret_state.utility_target = nil
     ret_state.secondary_target = find_secondary_enemy(context)

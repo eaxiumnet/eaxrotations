@@ -62,10 +62,7 @@ local mm_state = {
     rapid_fire_ready = false,
     aimed_shot_prepull_ready = false,
     aimed_shot_ready = false,
-    target_is_casting = false,
-    target_interruptible = false,
     multi_shot_ready = false,
-    steady_shot_ready = false,
     arcane_shot_ready = false,
     serpent_sting_ready = false,
     call_pet_ready = false,
@@ -73,7 +70,6 @@ local mm_state = {
     feign_death_ready = false,
     freezing_trap_ready = false,
     viper_sting_ready = false,
-    bestial_wrath_ready = false,
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
@@ -89,7 +85,6 @@ local MM_VANILLA_SCHEMA = {
     has_aspect_viper = false,  mend_pet_ready = false,
     hunters_mark_ready = false,  rapid_fire_ready = false,
     aimed_shot_prepull_ready = false,  aimed_shot_ready = false,
-    target_is_casting = false,  target_interruptible = false,
     multi_shot_ready = false,  steady_shot_ready = false,
     arcane_shot_ready = false,  serpent_sting_ready = false,
     call_pet_ready = false,  revive_pet_ready = false,
@@ -119,10 +114,7 @@ local function build_state(context)
     mm_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
-    mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
-    mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotA, target) or false
     mm_state.arcane_shot_ready = target and NS.spell_ready(SPELLS.ArcaneShot, target, { expected_cooldown = 6 }) or false
     mm_state.serpent_sting_ready = target and NS.spell_ready(SPELLS.SerpentSting, target) or false
     mm_state.call_pet_ready = me and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
@@ -130,7 +122,6 @@ local function build_state(context)
     mm_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
-    mm_state.bestial_wrath_ready = me and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true, expected_cooldown = 120 }) or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1

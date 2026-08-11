@@ -129,14 +129,12 @@ local RESTO_SCHEMA = {
     has_natures_swiftness = false,
     has_clearcasting = false,
     in_tree = false,
-    in_caster = false,
     can_tree = false,
     should_dance_caster = false,
     should_move_form = false,
     friendly_target_ready = false,
     mana_conserve = false,
     mana_emergency = false,
-    mana_critical = false,
     is_group = false,
     in_combat = false,
     lowest_hp_pct = 100,
@@ -162,13 +160,11 @@ local resto_state = {
  lifebloom_tank = nil,
  lifebloom_raid = nil,
  lifebloom_raid2 = nil,
- lifebloom_refresh = nil,
  lifebloom_bloom = nil,
  innervate_target = nil,
  cursed_target = nil,
  poison_target = nil,
  tranquility_count = 0,
- tranquility_best_target = nil,
  tree_aura_count = 0,
  melee_pressure_count = 0,
  melee_target = nil,
@@ -176,7 +172,6 @@ local resto_state = {
  root_target = nil,
  has_natures_swiftness = false,
  in_tree = false,
- in_caster = false,
  can_tree = false,
  should_dance_caster = false,
  should_move_form = false,
@@ -450,14 +445,12 @@ local function build_state(context)
  resto_state.lifebloom_tank = nil
  resto_state.lifebloom_raid = nil
  resto_state.lifebloom_raid2 = nil
- resto_state.lifebloom_refresh = nil
  resto_state.lifebloom_bloom = nil
  resto_state.innervate_target = nil
  resto_state.cursed_target = nil
  resto_state.poison_target = nil
  resto_state.tranquility_count = 0
  resto_state.in_tree = context.stance == STANCE_TREE
- resto_state.in_caster = not context.stance or context.stance == STANCE_CASTER
  resto_state.tree_aura_count = count_tree_aura_targets(entries, count)
  resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
  resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
@@ -481,15 +474,12 @@ local function build_state(context)
  if NS.AoEHeal and NS.AoEHeal.best_target and count > 0 then
   local best_cluster, cluster_count = NS.AoEHeal.best_target(entries, count, 40, 3)
   if best_cluster and cluster_count >= 3 then
-   resto_state.tranquility_best_target = best_cluster
    if cluster_count > resto_state.tranquility_count then
     resto_state.tranquility_count = cluster_count
    end
   else
-   resto_state.tranquility_best_target = nil
   end
  else
-  resto_state.tranquility_best_target = nil
  end
  resto_state.is_group = context.is_group or false
  resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
@@ -502,7 +492,6 @@ local function build_state(context)
  local mana_critical_pct = spec_kit.setting_number(context, "resto_mana_critical_pct", MANA_CRITICAL_PCT)
  resto_state.mana_conserve = resto_state.mana_pct <= mana_conserve_pct
  resto_state.mana_emergency = resto_state.mana_pct <= mana_emergency_pct
- resto_state.mana_critical = resto_state.mana_pct <= mana_critical_pct
 
  local swiftmend_hp = spec_kit.setting_number(context, "resto_swiftmend_hp", 50)
  local ns_hp = spec_kit.setting_number(context, "resto_ns_hp", 30)
@@ -531,7 +520,6 @@ local function build_state(context)
 
  if resto_state.tank and needs_lifebloom_refresh(resto_state.tank, context, 3) and not should_let_lifebloom_bloom(resto_state.tank, context) then
   resto_state.lifebloom_tank = resto_state.tank
-  resto_state.lifebloom_refresh = resto_state.tank
  end
  if lifebloom_targets > 1 then
   for i = 1, count do
@@ -565,11 +553,9 @@ local function build_state(context)
  -- FSR (Five-Second Rule) tracking for mana efficiency
  if FsrManager then
   resto_state.fsr_inside = FsrManager.is_inside_fsr()
-  resto_state.fsr_seconds = FsrManager.seconds_until_fsr()
   resto_state.fsr_regen_delta = FsrManager.get_regen_delta()
  else
   resto_state.fsr_inside = false
-  resto_state.fsr_seconds = 0
   resto_state.fsr_regen_delta = 0
  end
 

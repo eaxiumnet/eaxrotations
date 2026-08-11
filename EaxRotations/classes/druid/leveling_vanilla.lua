@@ -99,7 +99,6 @@ function druid_leveling.build_state(context)
 
     state.is_bear = NS.has_form and NS.has_form("bear") or false
     state.is_cat = NS.has_form and NS.has_form("cat") or false
-    state.in_caster = not state.is_bear and not state.is_cat
 
     state.energy = context.energy or 0
     state.combo_points = context.combo_points or context.cp or 0

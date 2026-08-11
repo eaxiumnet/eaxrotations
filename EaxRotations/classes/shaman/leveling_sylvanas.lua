@@ -353,7 +353,6 @@ function shaman_leveling.build_state(context)
 
     state.level = context.level or context.player_level or 60
 
-    state.now_ms = now_ms()
     -- Shaman-specific spell readiness
 
     local me = get_player()
@@ -388,13 +387,11 @@ function shaman_leveling.build_state(context)
 
     state.stoneclaw_totem_ready = SPELLS.StoneclawTotem and spell_ready(SPELLS.StoneclawTotem, me, { skip_range = true }) or false
 
-    state.fire_nova_totem_ready = spell_ready(SPELLS.FireNovaTotem, me, { skip_range = true })
 
     state.searing_totem_ready = SPELLS.SearingTotem and spell_ready(SPELLS.SearingTotem, me, { skip_range = true }) or false
 
     state.strength_of_earth_ready = spell_ready(SPELLS.StrengthOfEarthTotem, me, { skip_range = true })
 
-    state.grace_of_air_ready = spell_ready(SPELLS.GraceOfAirTotem, me, { skip_range = true })
 
     state.mana_spring_ready = spell_ready(SPELLS.ManaSpringTotem, me, { skip_range = true })
 
@@ -402,11 +399,9 @@ function shaman_leveling.build_state(context)
 
     state.grounding_totem_ready = spell_ready(SPELLS.GroundingTotem, me, { skip_range = true })
 
-    state.windfury_totem_ready = spell_ready(SPELLS.WindfuryTotem, me, { skip_range = true })
 
     state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
 
-    state.shield_slot = nil  -- Will be set from game query
 
 
 
@@ -455,9 +450,7 @@ function shaman_leveling.build_state(context)
 
 
     -- Settings
-
     state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
-
     state.heal_hp = spec_kit.setting_number(context, "leveling_heal_hp", 50)
 
     state.use_shocks = spec_kit.setting_bool(context, "leveling_use_shocks", true)

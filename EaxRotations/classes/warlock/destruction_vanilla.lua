@@ -83,7 +83,6 @@ local destro_state = {
     cod_remains = 0,
     coa_remains = 0,
     has_backlash = false,
-    has_backdraft = false,
     has_demon_armor = false,
     has_shadow_ward = false,
     hp = 100,
@@ -118,7 +117,6 @@ local function build_state(context)
     state.cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
     state.coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
     state.has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false
-    state.has_backdraft = false
     state.has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
     state.has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false
     state.hp = context.hp or 100

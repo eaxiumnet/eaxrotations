@@ -70,9 +70,6 @@ local INNERVATE_OPTS = { expected_cooldown = INNERVATE_EXPECTED_CD }
 local TRANQUILITY_OPTS = { skip_range = true, expected_cooldown = TRANQUILITY_EXPECTED_CD }
 
 local resto_state = {
-    entries = nil,
-    count = 0,
-    tank = nil,
     lowest = nil,
     lowest_tank = nil,
     lowest_healer = nil,
@@ -91,7 +88,6 @@ local resto_state = {
     enemy_healer = nil,
     root_target = nil,
     has_natures_swiftness = false,
-    in_caster = false,
     should_move_form = false,
     moonfire_remains = 0,
     insect_swarm_remains = 0,
@@ -99,7 +95,6 @@ local resto_state = {
     mana_pct = 100,
     mana_conserve = false,
     mana_emergency = false,
-    mana_critical = false,
     melee_pressure_count = 0,
     melee_target = nil,
     enemy_healer = nil,
@@ -108,7 +103,6 @@ local resto_state = {
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local RESTO_VANILLA_SCHEMA = {
-    entries = nil,  count = 0,  tank = nil,  lowest = nil,
     lowest_tank = nil,  lowest_healer = nil,  lowest_dps = nil,
     swiftmend_target = nil,  ns_target = nil,  ht_target = nil,
     regrowth_target = nil,  rejuv_target = nil,  innervate_target = nil,
@@ -116,7 +110,6 @@ local RESTO_VANILLA_SCHEMA = {
     tranquility_count = 0,  melee_pressure_count = 0,
     melee_target = nil,  enemy_healer = nil,  root_target = nil,
     has_natures_swiftness = false,  has_clearcasting = false,
-    in_caster = false,  should_move_form = false,
     moonfire_remains = 0,  insect_swarm_remains = 0,
     mana_pct = 100,  mana_conserve = false,
     mana_emergency = false,  mana_critical = false,
@@ -248,9 +241,6 @@ local function build_state(context)
     local entries, count = Healing.scan_healing_targets()
     local settings = context.settings or NS.settings or {}
 
-    resto_state.entries = entries
-    resto_state.count = count
-    resto_state.tank = NS.healing_get_tank and NS.healing_get_tank(entries, count) or nil
     resto_state.lowest = NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(entries, count, 100) or nil
     resto_state.lowest_tank = nil
     resto_state.lowest_healer = nil
@@ -264,7 +254,6 @@ local function build_state(context)
     resto_state.cursed_target = nil
     resto_state.poison_target = nil
     resto_state.tranquility_count = 0
-    resto_state.in_caster = not context.stance or context.stance == STANCE_CASTER
     resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
     resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
     resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
@@ -275,7 +264,6 @@ local function build_state(context)
     local mana_critical_pct = (settings.resto_mana_critical_pct ~= nil and settings.resto_mana_critical_pct) or MANA_CRITICAL_PCT
     resto_state.mana_conserve = resto_state.mana_pct <= mana_conserve_pct
     resto_state.mana_emergency = resto_state.mana_pct <= mana_emergency_pct
-    resto_state.mana_critical = resto_state.mana_pct <= mana_critical_pct
 
     local swiftmend_hp = settings.resto_swiftmend_hp or 50
     local ns_hp = settings.resto_ns_hp or 30

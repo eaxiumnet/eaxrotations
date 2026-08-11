@@ -155,7 +155,6 @@ local DISC_SCHEMA = {
     renew_ready = false,
     binding_heal_ready = false,
     prayer_of_healing_ready = false,
-    prayer_of_mending_ready = false,
     shadow_word_pain_ready = false,
     smite_ready = false,
     holy_fire_ready = false,
@@ -186,7 +185,6 @@ local DISC_SCHEMA = {
     has_power_word_fortitude = false,
     has_prayer_of_fortitude = false,
     player_control_locked = false,
-    target_casting = false,
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
@@ -206,7 +204,6 @@ local disc_state = {
  renew_ready = false,
  binding_heal_ready = false,
  prayer_of_healing_ready = false,
- prayer_of_mending_ready = false,
  shadow_word_pain_ready = false,
  smite_ready = false,
  holy_fire_ready = false,
@@ -217,7 +214,6 @@ local disc_state = {
  hp_pct = 100,
  in_combat = false,
  target_creature_type = nil,
- target_casting = false,
  enemy_count = 0,
  has_divine_spirit = false,
  has_prayer_of_fortitude = false,
@@ -326,7 +322,6 @@ local function build_state(context)
  disc_state.renew_ready = me and NS.spell_ready(ACTION.Renew, me, { skip_range = true }) or false
  disc_state.binding_heal_ready = me and NS.spell_ready(ACTION.BindingHeal, me, { skip_range = true }) or false
  disc_state.prayer_of_healing_ready = me and NS.spell_ready(ACTION.PrayerOfHealing, me, { skip_range = true }) or false
- disc_state.prayer_of_mending_ready = me and NS.spell_ready(ACTION.PrayerofMending, me, { skip_range = true }) or false
  disc_state.shadow_word_pain_ready = me and NS.spell_ready(ACTION.ShadowWordPain, me, { expected_cooldown = 1.5 }) or false
  disc_state.smite_ready = me and NS.spell_ready(ACTION.Smite, me, { expected_cooldown = 2.5 }) or false
  disc_state.holy_fire_ready = me and NS.spell_ready(ACTION.HolyFire, me, { expected_cooldown = 10 }) or false
@@ -339,7 +334,6 @@ local function build_state(context)
  disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
  disc_state.in_combat = context.in_combat or false
  disc_state.target_creature_type = target_creature_type(target)
- disc_state.target_casting = target and target.is_casting and target:is_casting() or false
 
  -- Cooldown readiness
  disc_state.pain_suppression_ready = me and NS.spell_ready(ACTION.PainSuppression, me, { skip_range = true }) or false
@@ -375,11 +369,9 @@ local function build_state(context)
   -- FSR (Five-Second Rule) tracking for mana efficiency
   if FsrManager then
    disc_state.fsr_inside = FsrManager.is_inside_fsr()
-   disc_state.fsr_seconds = FsrManager.seconds_until_fsr()
    disc_state.fsr_regen_delta = FsrManager.get_regen_delta()
   else
    disc_state.fsr_inside = false
-   disc_state.fsr_seconds = 0
    disc_state.fsr_regen_delta = 0
   end
 

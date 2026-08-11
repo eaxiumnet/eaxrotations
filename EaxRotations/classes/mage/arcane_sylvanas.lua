@@ -108,8 +108,6 @@ local ARCANE_SCHEMA = {
     has_ice_barrier = false,  has_mana_shield = false,  has_clearcasting = false,
     mana_pct = 100,  hp_pct = 100,  max_mana = 15000,
     in_combat = false,  is_moving = false,  is_group = false,
-    target_casting = false,
-    min_mtte = 12,  mtte_burn = 999,  mtte_conserve = 999,
     mana_gem_available = false,  evocation_available = false,
     bloodlust_active = false,  can_burn = false,  should_conserve = false,
     healthstone_ready = 0,  current_mana = 15000,  mana_regen = 0,
@@ -130,10 +128,7 @@ local arcane_state = {
     max_mana = 15000,
     in_combat = false,
     is_moving = false,
-    target_casting = false,
-    min_mtte = 12,
     mtte_burn = 999,
-    mtte_conserve = 999,
     mana_gem_available = false,
     evocation_available = false,
     bloodlust_active = false,
@@ -208,7 +203,6 @@ local function build_state(context)
     s.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     s.in_combat = context.in_combat or false
     s.is_moving = context.is_moving or false
-    s.target_casting = context.target and context.target.is_casting and context.target:is_casting() or false
     s.combat_time = context.combat_time or 0
 
     if me then
@@ -264,13 +258,11 @@ local function build_state(context)
     -- MTTE calculations using actual max mana
     local cur_stacks = s.ab_stacks
     s.mtte_burn = calc_mtte(s.mana_pct, math.max(cur_stacks, 2), s.max_mana)
-    s.mtte_conserve = calc_mtte(s.mana_pct, 0, s.max_mana)
 
     -- Wowsims APL-aligned phase decision
     -- Conserve Start = 20%, Conserve End = 30%, Delay Major CDs = 10s
     local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
     local min_mtte = spec_kit.setting_number(context, "arcane_mtte_min", 12)
-    s.min_mtte = min_mtte
 
     -- Emergency: mana critically low
     if (s.mana_pct or 100) < 10 then
