@@ -27,6 +27,7 @@ local ACTION = {
     Scorch = define("Scorch", { 42859 }, "Scorch"),
     Fireball = define("Fireball", { 42833, 38692, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Combustion = define("Combustion", 11129, "Combustion"),
+    Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
 }
 
 local LIVING_BOMB_DEBUFF = { 55360 }
@@ -44,6 +45,7 @@ local fire_state = {
     hot_streak_proc = false,
     ttd = 999,
     scorch_cast_time = nil,
+    target_is_casting = false,
 }
 
 local function resolve_scorch_cast_time(context)
@@ -75,6 +77,7 @@ local function build_state(context)
     state.living_bomb_remains = (target and NS.debuff_remains and NS.debuff_remains(target, LIVING_BOMB_DEBUFF)) or 0
     state.scorch_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF)) or 0
     state.hot_streak_proc = (me and NS.buff_up and NS.buff_up(me, HOT_STREAK_BUFF)) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     return state
 end
 
@@ -82,6 +85,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Counterspell",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Counterspell, target = "target" },
+    },
     {
         name = "Combustion",
         conditions = {
@@ -157,6 +168,7 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Counterspell" },
     { name = "Combustion" },
     { name = "Scorch" },
     { name = "Pyroblast" },

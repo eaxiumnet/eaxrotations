@@ -95,6 +95,7 @@ local fury_state = {
     intercept_ready = false,
     overpower_ready = false,
     pummel_ready = false,
+    target_casting = false,
     recklessness_ready = false,
     rend_ready = false,
     slam_ready = false,
@@ -133,6 +134,7 @@ local FURY_VANILLA_SCHEMA = {
     intercept_ready = false,
     overpower_ready = false,
     pummel_ready = false,
+    target_casting = false,
     recklessness_ready = false,
     rend_ready = false,
     slam_ready = false,
@@ -181,6 +183,7 @@ local function build_state(context)
         fury_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
     end
     if target then
+        fury_state.target_casting = target.is_casting and target:is_casting() or false
         fury_state.has_demo_shout = NS.debuff_up(target, DEMO_SHOUT_DEBUFF) or false
         fury_state.has_rend = NS.debuff_up(target, REND_DEBUFF) or false
         fury_state.has_sunder = NS.debuff_up(target, SUNDER_DEBUFF) or false
@@ -215,8 +218,23 @@ local function build_state(context)
     return spec_kit.safe_state(fury_state, FURY_VANILLA_SCHEMA)
 end
 
+-- Pummel interrupt: baseline warrior ability in vanilla; fires only when the
+-- target is actually casting (mirrors the WotLK/TBC interrupt conventions).
+local function pummel_matches(c, s)
+    if not c.in_combat then return false end
+    if not s.target_casting then return false end
+    if not s.pummel_ready then return false end
+    return true
+end
+
 -- Classic Fury Strategy table
 local strategies = {}
+
+-- Pummel interrupt (first: baseline warrior interrupt, outside the filler order)
+table.insert(strategies, { name = "Pummel",
+    matches = pummel_matches,
+    execute = function(c) return try_cast(ACTION.Pummel, c.target, "[VANILLA FURY] Pummel interrupt") end
+})
 
 -- Auto-potions (context-based, O(1) gate)
 table.insert(strategies, { name = "HealthPotion",

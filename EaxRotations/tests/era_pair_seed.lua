@@ -194,7 +194,7 @@ return {
     {
         spec = "mage/fire",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "Counterspell", "DragonsBreath", "Evocation", "Flamestrike", "FlamestrikeRank6", "Healthstone", "HitCapPriority", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
+        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "DragonsBreath", "Evocation", "Flamestrike", "FlamestrikeRank6", "Healthstone", "HitCapPriority", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
         reason = "WotLK-era build-out: mage_fire_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -212,7 +212,7 @@ return {
     {
         spec = "mage/frost",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "Counterspell", "Evocation", "FireBlast", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBarrier", "IceBlock", "IcyVeins", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
+        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "Evocation", "FireBlast", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBarrier", "IceBlock", "IcyVeins", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
         reason = "WotLK-era build-out: mage_frost_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -518,7 +518,7 @@ return {
     {
         spec = "warrior/fury",
         missing_in = "vanilla",
-        names = { "BattleShout", "BattleStance", "BerserkerStance", "Bloodrage", "Charge", "EngineeringBomb", "Healthstone", "HitCapPriority", "Pummel", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
+        names = { "BattleShout", "BattleStance", "BerserkerStance", "Bloodrage", "Charge", "EngineeringBomb", "Healthstone", "HitCapPriority", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

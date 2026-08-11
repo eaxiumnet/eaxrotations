@@ -22,6 +22,7 @@ local ACTION = {
     IceLance = define("IceLance", { 42914, 30455 }, "IceLance"),
     DeepFreeze = define("DeepFreeze", 44572, "DeepFreeze"),
     ColdSnap = define("ColdSnap", 11958, "ColdSnap"),
+    Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
 }
 
 local FROSTBOLT_DEBUFF = { 27072, 27071, 25304, 10181, 10180, 10179, 10177, 10176, 10175, 116, 205 }
@@ -37,6 +38,7 @@ local frost_state = {
     frostbolt_remains = 0,
     frostfire_remains = 0,
     target_frozen = false,
+    target_is_casting = false,
 }
 
 local function build_state(context)
@@ -51,6 +53,7 @@ local function build_state(context)
     state.frostbolt_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROSTBOLT_DEBUFF)) or 0
     state.frostfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROSTFIRE_BOLT_DEBUFF)) or 0
     state.target_frozen = (target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_DEBUFF)) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     return state
 end
 
@@ -58,6 +61,14 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    {
+        name = "Counterspell",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Counterspell, target = "target" },
+    },
     {
         name = "ColdSnap",
         conditions = {
@@ -100,6 +111,7 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Counterspell" },
     { name = "ColdSnap" },
     { name = "DeepFreeze" },
     { name = "FrostfireBolt" },
