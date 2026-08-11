@@ -10,6 +10,11 @@
 --        (c) adds the is_group/party_low_ally/friend_hp known keys, and
 --        (d) adds the group_ally_low scenario ({ is_group = true, is_pvp =
 --        true, party_low_ally = true, friend_hp = 30 }).
+--        UPDATED 2026-08-11: the bare-value-read sweep removed the
+--        ns.get_party_members / ns.party_members mock stubs (never-defined
+--        members) and prot now reads the ENGINE's context.party_members; the
+--        group_ally_low scenario presents the _friend(30, 5) ally through
+--        ctx.party_members and the party_low_ally/friend_hp keys are gone.
 --        PROTECTION (spec fix): intervene_matches_fn read positions with
 --        `local dx, dy = me.get_position and me:get_position()` — the
 --        and-form truncates a multi-value call to ONE value, so dy/ay were
@@ -72,8 +77,8 @@ print("PASS: cross-scenario negatives (is_group/ally gates all block)")
 -- ============================================================================
 -- Mechanism pins — group_ally_low context drives Intervene:
 --   1. ctx.is_group true -> state.is_group true (protection:757).
---   2. ctx.party_low_ally true -> get_party_members presents _friend(30, 5)
---      -> the party scan (protection:425-452) populates lowest_allied with
+--   2. ctx.party_members presents _friend(30, 5) -> the party scan
+--      (protection:424-451) populates lowest_allied with
 --      effective_hp 30 (below warrior_intervene_hp_threshold default 60) and
 --      an in-range position (0,0 vs 0,0 -> dist 0 <= 25yd^2 gate 625).
 --   3. ctx.is_pvp true -> warrior_intervene_pvp_only (default true) passes.
@@ -99,8 +104,10 @@ local ctx = aud.build_context_for("warrior", scen)
 aud.apply_battery_state(ns, ctx, "warrior")
 assert_true(ctx.is_group == true, "ctx.is_group must be true in group_ally_low")
 assert_true(ctx.is_pvp == true, "ctx.is_pvp must be true in group_ally_low")
-assert_true(ctx.party_low_ally == true, "ctx.party_low_ally must be true in group_ally_low")
-assert_true(ctx.friend_hp == 30, "ctx.friend_hp must be 30 in group_ally_low")
+assert_true(type(ctx.party_members) == "table" and #ctx.party_members >= 1,
+    "ctx.party_members must present the low-hp ally in group_ally_low")
+assert_true(ctx.party_members[1] and (ctx.party_members[1].hp or 100) == 30,
+    "the presented ally must be the low-hp 30% friend")
 
 local st = result.build_state(ctx)
 assert_true(st.is_group == true, "state.is_group must be true")
@@ -130,7 +137,7 @@ assert_true(strat ~= nil, "Intervene strategy not found")
 local ok_m, m = pcall(strat.matches, ctx, st)
 assert_true(ok_m and m, "warrior/protection Intervene must match in group_ally_low context")
 
--- Sharp negative: is_group true but NO low ally (party_low_ally unset) ->
+-- Sharp negative: is_group true but NO low ally (no party_members) ->
 -- party scan finds nothing -> lowest_allied nil -> matcher rejects.
 local ctx2 = aud.build_context_for("warrior", {
     name = "group_no_ally",
@@ -143,6 +150,6 @@ assert_true(st2.lowest_allied == nil,
     "lowest_allied must be nil when the party stub presents no ally")
 local ok2, m2 = pcall(strat.matches, ctx2, st2)
 assert_true(ok2 and not m2, "Intervene must NOT match without a low in-range ally")
-print("PASS: mechanism pins (is_group + party_low_ally -> lowest_allied -> match; no ally blocks)")
+print("PASS: mechanism pins (is_group + ctx.party_members -> lowest_allied -> match; no ally blocks)")
 
 print("ALL PASS: test_intervene_lane_regression")

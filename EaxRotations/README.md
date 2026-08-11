@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.23.0-blue" alt="Version 2.23.0">
   <img src="https://img.shields.io/badge/specs-29%20%2B%209%20leveling-brightgreen" alt="29 Specs + 9 Leveling">
-  <img src="https://img.shields.io/badge/tests-492%2F492%20passing-brightgreen" alt="492/492 Tests Passing (rotation suite fully green)">
+  <img src="https://img.shields.io/badge/tests-493%2F493%20passing-brightgreen" alt="493/493 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -52,7 +52,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 524 test suites (492 rotation + 32 leveling)
+    tests/                  # 525 test suites (493 rotation + 32 leveling)
 ```
 
 ---
@@ -84,7 +84,7 @@ scripts/
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **524 Test Suites** | 492 rotation + 32 leveling registered; 492 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
+| 🧪 **525 Test Suites** | 493 rotation + 32 leveling registered; 493 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -122,7 +122,7 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 492 rotation suites
+    ├── run_rotation_tests.lua    # 493 rotation suites
     ├── run_leveling_tests.lua    # 32 leveling suites
     └── test_*.lua                # Individual test files
 ```
@@ -175,7 +175,7 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**492 suites**):
+Run the full rotation regression suite (**493 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua

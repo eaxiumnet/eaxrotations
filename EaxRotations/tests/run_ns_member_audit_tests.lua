@@ -95,6 +95,19 @@ local ALLOWLIST = {
     energy                = "optional: guarded chains (cat_sylvanas:423, cat_vanilla:180, leveling:268) read context.energy (engine :811) + me:get_power(3) first; leveling_vanilla bare read fixed 2026-08-11",
     get_combo_points      = "optional: guarded chains (cat_sylvanas:371, cat_vanilla:170, leveling:111) read context.combo_points / me:get_power(4) first",
     unit_creature_type    = "optional: guarded by type() checks, discipline_sylvanas:81 with unit:get_creature_type() fallback right after (all 6 priest files)",
+    -- 2026-08-11 bare-value-read rule sweep (leveling_vanilla class): every
+    -- remaining value read below is a DOCUMENTED-BENIGN optional path — a
+    -- guard-then-use presence check on an engine-mounted module/constant, or
+    -- a nil-safe default chain. The two genuine finds of the sweep were
+    -- FIXED instead (cat:127 get_item_count crash, protection:414 party
+    -- members), so no live break hides behind these pins.
+    SPELLS                = "optional: generic class-table fallback — `NS.<Class>Spells or NS.SPELLS or {}` in 6 leveling files; never assigned, default {} when absent (per-class tables are the real surface)",
+    target_selector       = "optional: engine-mounted module (documented .api/common/utility/ts_override_helper.lua:154); cached at load, every consumer nil-guards (ts_helper_sylvanas:15)",
+    izi                   = "optional: engine-mounted IZI SDK presence check — hunter BM/MM/SV `if not NS.izi or type(NS.izi.spell) ~= function` with NS.spell_ready fallback when absent",
+    ConsumableManager     = "optional: engine-mounted module — guard + pcall method access (holy_sylvanas:614, discipline_sylvanas:959)",
+    GetRaidMembers        = "optional: guarded engine member — multidot_engagement_filter:74 `if NS.GetRaidMembers then pcall(NS.GetRaidMembers)`",
+    debuff_types          = "optional: guarded engine member — dispel_manager:165-166 `if NS.debuff_types then pcall(NS.debuff_types, unit)`",
+    PLAYER_CLASS          = "optional: engine constant read inside `if NS and NS.PLAYER_CLASS then` (spell_validation_sylvanas:226)",
     -- Third batch (2026-08-10, CI parity fix): these four names resolve on
     -- the maintainer's machine ONLY via the gitignored engine-doc dirs
     -- (.api/, apidocs/pages/, scraped_docs_md/dev/api/ — absent in CI's
@@ -284,7 +297,33 @@ local function scan_content(content)
             calls[name][#calls[name] + 1] = { line = i, text = line }
         end
     end
-    return { calls = calls, binding = binding, lines = lines }
+    -- Bare value reads (2026-08-11 rule): `TOKEN.<name>` tokens that are
+    -- NOT a call / assignment / method-access / index and NOT a guard-position
+    -- presence check. The value of an undefined member consumed as data is
+    -- the leveling_vanilla crash/degrade class (`state.x = NS.undef or 0`,
+    -- `pcall(NS.undef, ...)` — pcall(nil) ERRORS); a guard-position token
+    -- (`NS.x and NS.x(`, `if NS.x then`, `type(NS.x) == "function"`) is a
+    -- nil-safe presence check and is excluded here by construction.
+    local value_reads = {}
+    for i = 1, #lines do
+        local line = lines[i]
+        for pos, name, after in line:gmatch("()" .. esc .. "%s*%.([A-Za-z_][A-Za-z0-9_]*)()") do
+            local prev = line:sub(pos - 1, pos - 1)
+            if prev == "" or not prev:match("[%w_]") then
+                local nxt = line:sub(after, after)
+                if nxt ~= "(" and nxt ~= "=" and nxt ~= "." and nxt ~= "[" then
+                    local rest = line:sub(after)
+                    local is_guard = rest:match("^%s+and") or rest:match("^%s+then")
+                        or rest:match("^%s*%)%s*[~=]%s*=")
+                    if not is_guard then
+                        value_reads[name] = value_reads[name] or {}
+                        value_reads[name][#value_reads[name] + 1] = { line = i, text = line }
+                    end
+                end
+            end
+        end
+    end
+    return { calls = calls, value_reads = value_reads, binding = binding, lines = lines }
 end
 
 -- ============================================================================
@@ -330,6 +369,21 @@ local function collect_assignments()
                     end
                     for name in stripped:gmatch("function%s+" .. esc .. "%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*%(") do
                         into[name] = true
+                    end
+                    -- 1b) Multi-assignment LHS: `NS.a, NS.b = x, y` — only the
+                    -- LAST name is followed by `=`. Capture every NS.<name> in
+                    -- the LHS segment of a line whose LHS contains an NS
+                    -- comma-list and a whitespace-prefixed `=` (a `~=` compare
+                    -- is excluded by the `%s+=` requirement — paladin
+                    -- class_sylvanas:497 HL_COEFFICIENT shape).
+                    for line in stripped:gmatch("[^\n]+") do
+                        local eq = line:find("%s+=[^=]")
+                        if eq and line:sub(1, eq):find(esc .. "%s*%.%s*[A-Za-z_][A-Za-z0-9_]*%s*,") then
+                            local lhs = line:sub(1, eq)
+                            for name in lhs:gmatch(esc .. "%s*%.%s*([A-Za-z_][A-Za-z0-9_]*)%s*,?%s*") do
+                                into[name] = true
+                            end
+                        end
                     end
                     -- 2) `_G.EaxRotations.<name> =` direct writes (the
                     --    write-back modules: execute_phase, dot_refresh,
@@ -532,6 +586,20 @@ local function violations(scan)
                     end
                 end
             end
+        -- 2026-08-11 rule: bare VALUE reads of members that are never
+        -- assigned / not engine / not allowlisted — the leveling_vanilla
+        -- `state.x = NS.combo_points or 0` class (and pcall(NS.undef, ...),
+        -- which ERRORS on a nil reference). Guard-position presence checks
+        -- are excluded at collection time (nil-safe by construction);
+        -- allowlisted optional paths resolve above.
+        for name, sites in pairs(res.value_reads or {}) do
+            if not (scan.assigned[name] or scan.engine[name] or ALLOWLIST[name]) then
+                for _, s in ipairs(sites) do
+                    v[#v + 1] = { file = fname, line = s.line, name = name, text = s.text,
+                        why = "bare value read of never-assigned member (leveling_vanilla shape)" }
+                end
+            end
+        end
         end
     end
     table.sort(v, function(a, b)
@@ -703,10 +771,63 @@ local function run_self_tests()
     local v3 = violations(scan3)
     expect(#v3, 1, "stale mock allowlist pin fails")
 
+    -- Style 11: bare VALUE reads (2026-08-11 rule) — the leveling_vanilla
+    -- `state.x = NS.undef or 0` shape flags; guard-position presence checks
+    -- and type()-guards are NOT value reads (collection-level exclusion);
+    -- pcall(NS.undef, ...) IS a value read (a nil reference ERRORS in
+    -- pcall); allowlisted members (SPELLS shape) are collected but resolve.
+    local value_scan = {
+        assigned = {}, engine = {}, mock = {},
+        results = {
+            { rel = "d.lua", binding = "NS", skipped = nil, lines = {
+                "state.combo_points = NS.never_defined_member or 0",
+            }, calls = {}, value_reads = {
+                never_defined_member = {
+                    { line = 1, text = "state.combo_points = NS.never_defined_member or 0" },
+                },
+            } },
+        },
+    }
+    local vv = violations(value_scan)
+    expect(#vv, 1, "bare value read of undefined member flags once")
+    expect(vv[1].name, "never_defined_member", "flagged member name")
+    expect(vv[1].why:find("bare value read") ~= nil, true, "violation reason names the rule")
+
+    local guard_reads = scan_content(
+        "local NS = _G.EaxRotations\n"
+        .. "if NS.opt_module and NS.opt_module.method() then return true end\n"
+        .. "if type(NS.opt_fn) == \"function\" then return NS.opt_fn() end\n")
+    expect(guard_reads.value_reads.opt_module == nil, true, "guard-position token is not a value read")
+    expect(guard_reads.value_reads.opt_fn == nil, true, "type()-guard token is not a value read")
+
+    local pcall_read = scan_content(
+        "local NS = _G.EaxRotations\n"
+        .. "local ok, count = pcall(NS.never_defined_fn, id)\n")
+    expect(pcall_read.value_reads.never_defined_fn ~= nil, true, "pcall function reference is a value read")
+
+    local allow_reads = scan_content(
+        "local NS = _G.EaxRotations\n"
+        .. "local SPELLS = NS.RogueSpells or NS.SPELLS or {}\n")
+    expect(allow_reads.value_reads.SPELLS ~= nil, true, "allowlisted member value read is still collected")
+
+    -- Style 12: type()-guard recognition pin (2026-08-11 refinement) — the
+    -- optional-method guard shape the six priest creature-type readers use
+    -- (discipline_sylvanas:81), recognized on comment/string-stripped lines.
+    local type_guard = is_guarded_site(
+        { "if type(NS.unit_creature_type) == \"function\" then return NS.unit_creature_type(unit) end" },
+        1, "NS", "unit_creature_type")
+    expect(type_guard, true, "type(NS.x) == function guard recognized")
+    local type_guard_neq = is_guarded_site(
+        { "if type(NS.unit_creature_type) ~= \"function\" then return nil end" },
+        1, "NS", "unit_creature_type")
+    expect(type_guard_neq, true, "type(NS.x) ~= function guard recognized")
+
     print("[PASS] NS-member audit self-tests: binding detection (NS vs param "
         .. "ns), string/line/block-comment exclusion, whitespace parens, "
         .. "inline + block guard detection, bare-call flagging, allowlist "
-        .. "gating incl. unguarded-allowlisted and stale-mock failure")
+        .. "gating incl. unguarded-allowlisted and stale-mock failure, bare "
+        .. "value-read rule (leveling_vanilla shape / guard exclusion / pcall "
+        .. "reference), type()-guard recognition pin")
     os.exit(0)
 end
 
@@ -721,7 +842,8 @@ local scan = run_scan()
 local bad = violations(scan)
 
 print("=============================================================================")
-print("  NS-MEMBER AUDIT (called members must be assigned, engine, or allowlisted)")
+print("  NS-MEMBER AUDIT (called + bare-value-read members must be assigned,")
+print("  engine, or allowlisted)")
 print("=============================================================================")
 local clean = 0
 for _, res in ipairs(scan.results) do
@@ -770,5 +892,6 @@ if #bad > 0 then
     os.exit(1)
 end
 
-print("  Every NS member call targets an assigned, engine, or allowlisted member.")
+print("  Every NS member call and bare value read targets an assigned, engine,")
+print("  or allowlisted member.")
 os.exit(0)

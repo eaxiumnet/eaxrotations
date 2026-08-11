@@ -678,8 +678,6 @@ function M.build_ns(class_key, era)
     ns.unit_creature_type = function() return ns._bstate("target_creature_type", 7) end
     ns.threat_status = function() return 0 end
     ns.is_threat_safe = function() return true end
-    ns.get_party_members = function() return {} end
-    ns.party_members = function() return {} end
     ns.get_pet = function() return nil end
     ns.GetPet = function() return nil end
     ns.get_pet_hp = function() return 100 end
@@ -2058,11 +2056,12 @@ M.SCENARIOS = {
     { name = "totem_far",     overrides = { totem_active = true, totem_far = true, visible_enemies = true } },
     -- Close-out triage (2026-08-08, ranked #3): prot Intervene needs is_group
     -- (protection:757) + is_pvp (warrior_intervene_pvp_only default true) + a
-    -- low-hp in-range ally via the party scan (state.lowest_allied from
-    -- get_party_members). The party stub presents the _friend(30, 5) ally only
-    -- here (party_low_ally flag), so no other spec's party reads change; the
-    -- me + ally get_position multi-value mocks satisfy the 25-yard range gate.
-    { name = "group_ally_low", overrides = { is_group = true, is_pvp = true, party_low_ally = true, friend_hp = 30 } },
+    -- low-hp in-range ally via the party scan (state.lowest_allied). The
+    -- scenario presents the _friend(30, 5) ally through ctx.party_members —
+    -- the ENGINE surface prot reads since the 2026-08-11 bare-value-read fix
+    -- (the old ns.get_party_members mock stubs were never-defined members and
+    -- are gone). The me + ally get_position mocks satisfy the 25-yard gate.
+    { name = "group_ally_low", overrides = { is_group = true, is_pvp = true, party_members = { _friend(30, 5) } } },
     -- Defensive-casting PvP (warrior/rogue triage 2026-08-08): prot Pummel +
     -- SpellReflection read state.target_is_casting, which prot derives from
     -- target:is_casting_spell() (wired in build_scenario_target — arms reads
@@ -2725,10 +2724,10 @@ function M.build_context_for(class_key, scenario)
         -- reads it, so it stays scoped.
         target_class=true,
         -- Close-out triage (2026-08-08, ranked #3): is_group drives prot
-        -- Intervene's group gate (protection:757) and party_low_ally presents
-        -- a low-hp ally through get_party_members so the party scan populates
-        -- lowest_allied. Both are prot-scoped reads.
-        is_group=true, party_low_ally=true, friend_hp=true,
+        -- Intervene's group gate (protection:757) and the group_ally_low
+        -- scenario presents a low-hp ally through ctx.party_members (the
+        -- engine surface) so the party scan populates lowest_allied.
+        is_group=true,
         -- Threat-family close-out (2026-08-10): party_members / group_members
         -- present the ally scan for prot's peel lanes (protection:566 reads
         -- context.party_members OR context.group_members directly); now feeds
@@ -3130,21 +3129,12 @@ function M.apply_battery_state(ns, ctx, class_key)
     -- injured-group scenarios drive the *Heal/cleanse lanes. This replaces the
     -- earlier always-injured scan (every healer scenario reported 55/70/85 hp
     -- friends, which silenced every Idle*/Solo* DPS lane).
-    local friends = ctx.friends or {}
-    -- NS-level party accessors fall back to the populated ctx.party_members
-    -- (holy MassDispel scans it) so both entry points see the same party.
-    local party = ctx.party_members or friends
-    -- Intervene close-out (2026-08-08, ranked #3): the group_ally_low scenario
-    -- presents one low-hp ally (30%, within range) through the party scan so
-    -- prot build_state (protection:428-449) populates state.lowest_allied —
-    -- the Intervene matcher needs is_group + a low-hp in-range ally. Only prot
-    -- reads get_party_members, so this stays scoped (priest middleware uses
-    -- NS.GetPartyMembers, a separate stub).
-    if ctx.party_low_ally == true then
-        party = { _friend(ctx.friend_hp or 30, 5) }
-    end
-    ns.get_party_members = function() return party end
-    ns.party_members = function() return party end
+    -- Party access for scenarios that set ctx.party_members (holy MassDispel
+    -- and prot's Intervene/peel scans read the engine field directly). The
+    -- ns.get_party_members / ns.party_members mock stubs were REMOVED in the
+    -- 2026-08-11 bare-value-read sweep — those members are never defined in
+    -- live play (the engine writes context.party_members at main_sylvanas.lua
+    -- :932) and were masking a dead scan path.
     if ns.HealerDeficit then
         ns.HealerDeficit.deficit_of = function(u) return math.max(0, 100 - (u and u.hp or 100)) end
     end

@@ -124,8 +124,18 @@ local function first_ready_item(item_ids)
     for i = 1, #item_ids do
         local id = item_ids[i]
         if id and NS.is_item_ready(id) then
-            local ok, count = pcall(NS.get_item_count, id)
-            if ok and (count or 0) > 0 then return id end
+            -- NS.get_item_count is NOT part of the defined NS surface
+            -- (core/items.lua owns the item API and exposes no count query),
+            -- so the bare reference here was nil and `pcall(nil, id)` ERRORS
+            -- the moment a ready healthstone was found. Guard the reference
+            -- and fail open on count when the reader is absent — is_item_ready
+            -- already proved the item is usable. Fixed 2026-08-11.
+            local usable = true
+            if NS.get_item_count then
+                local ok, count = pcall(NS.get_item_count, id)
+                usable = ok and (count or 0) > 0
+            end
+            if usable then return id end
         end
     end
     return 0

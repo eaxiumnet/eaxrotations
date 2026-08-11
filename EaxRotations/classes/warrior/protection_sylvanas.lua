@@ -411,7 +411,12 @@ local function build_state(context)
  prot_state.tank = nil
  prot_state.lowest_allied = nil
  if prot_state.is_group and me then
-  local party_scan = NS.get_party_members or NS.party_members
+  -- The party list is the ENGINE's context.party_members (main_sylvanas.lua
+  -- :932, from NS.GetPartyMembers when is_group). The old bare reads of
+  -- NS.get_party_members / NS.party_members — NEVER defined — left party_scan
+  -- nil live and the whole Intervene scan dead. Fixed 2026-08-11 to read the
+  -- authoritative engine context field (this block already gates on is_group,
+  -- so the field is populated exactly when it is needed).
   -- NOTE (2026-08-08): get_position returns ONE vec3 table {x,y,z} (with
   -- [1]/[2] index aliases) — see shared/auto_loot + shared/targeting. The
   -- previous pcall multi-capture (me_x, me_y) got me_x=table, me_y=nil and
@@ -422,8 +427,8 @@ local function build_state(context)
   end)
   local me_x = me_pos and (me_pos.x or me_pos[1]) or nil
   local me_y = me_pos and (me_pos.y or me_pos[2]) or nil
-  if party_scan and me_pos_ok and me_x and me_y then
-   local members = party_scan(me, NS) or {}
+  if context.party_members and me_pos_ok and me_x and me_y then
+   local members = context.party_members
    local best_ally = nil
    local best_hp = 101
    local best_dist_sq = 999999
