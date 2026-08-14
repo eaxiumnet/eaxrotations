@@ -199,9 +199,10 @@ local NO_WRITER_ALLOWLIST = {
         heal_target_hp_pct = "SOD: working fallback (ctx.lowest.hp) in druid resto build_state",
         holy_shield_charges = "SOD: working fallback (NS.buff_points) in protection_sod build_state",
         dual_daggers = "SOD: no weapon-type API; fail-open gate (nil ~= false allows Mutilate)",
-        offhand_imbue = "SOD: needs per-weapon imbue inspection; NS.buff_up cannot distinguish weapons",
-        water_totem_active = "SOD: totem-slot index ambiguous (repo comment slot 4=air vs standard 3=fire/4=water); mis-wire risks under-cast",
-        fire_totem_active = "SOD: totem-slot index ambiguous; mis-wire risks under-cast",
+        -- W4.2: offhand_imbue / water_totem_active / fire_totem_active pins
+        -- REMOVED — the reads are now produced: offhand_imbue gate dropped in
+        -- enhancement_sod (W4.2), totem slots wired in sod_context enrich via
+        -- NS.get_totem_info (elemental_wotlk.lua:42 slot map 1=fire/3=water).
     },
     -- Per-file allowlist: module-internal records / settings aliases that the
     -- state/context receiver name collision surfaces (the `state`/`s`/`c`

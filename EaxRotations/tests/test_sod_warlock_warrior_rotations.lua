@@ -112,10 +112,10 @@ assert_eq(strategy(warlock_dps, "HealthFunnel").matches(
         target = target, pet = {}, pet_alive = false, pet_hp_pct = 20 })), false,
     "Warlock Health Funnel requires a live pet")
 assert_eq(strategy(warlock_dps, "Incinerate").matches(
-    { is_sod = true, sod_phase = 1, in_combat = true, target = target, sod_runes = {} },
+    { is_sod = true, sod_phase = 1, in_combat = true, target = target, sod_runes = { [999999] = true } },
     warlock_dps.build_state({ is_sod = true, sod_phase = 1, in_combat = true,
-        target = target, sod_runes = {} })), false,
-    "Warlock Incinerate requires its rune")
+        target = target, sod_runes = { [999999] = true } })), false,
+    "Warlock Incinerate requires its rune (known rune table without it closes)")
 
 local warlock_tank_meta = {
     is_sod = true, sod_phase = 8, in_combat = true, target = target, me = me,

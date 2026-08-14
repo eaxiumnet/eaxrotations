@@ -18,17 +18,25 @@ local function assert_false(value, label)
     if value then error(label or "assert_false failed", 2) end
 end
 
+local function assert_true(value, label)
+    if not value then error(label or "assert_true failed", 2) end
+end
+
 local define = spec_kit.define_sod_action_for_class({})
 local rune_action = assert(define("GaleWinds", 417135, { rune_id = 417135, min_phase = 4 }))
 
+-- W4.2 contract: EMPTY/absent rune state = UNKNOWN → fail OPEN (spell
+-- existence in NS.spell_ready / NS.try_cast is the real gate — a player
+-- without the rune cannot cast it anyway). Malformed types and non-boolean
+-- membership still fail closed below.
 assert_false(spec_kit.has_sod_rune(nil, 417135), "nil context fails closed")
-assert_false(spec_kit.has_sod_rune({}, 417135), "missing rune state fails closed")
+assert_true(spec_kit.has_sod_rune({}, 417135), "unknown (empty) rune state fails open")
 assert_false(spec_kit.has_sod_rune({ sod_runes = "417135" }, 417135),
     "malformed rune state fails closed")
 assert_false(spec_kit.has_sod_rune({ sod_runes = { [417135] = "yes" } }, 417135),
     "non-boolean rune membership fails closed")
-assert_false(spec_kit.sod_action_available({ sod_phase = 8 }, rune_action),
-    "missing rune state disables rune-only action")
+assert_false(spec_kit.sod_action_available({ sod_phase = 8, sod_runes = { [999999] = true } }, rune_action),
+    "known non-empty rune table without the rune disables rune-only action")
 assert_false(spec_kit.sod_action_available({ sod_phase = "phase 8", sod_runes = { [417135] = true } }, rune_action),
     "malformed explicit phase disables the action")
 assert_false(spec_kit.sod_action_available({ sod_phase = 3, sod_runes = { [417135] = true } }, rune_action),

@@ -346,6 +346,7 @@ local WIRED_FIELDS = {
     "lacerate_remains", "lacerate_stacks", "curse_remains",
     "shadow_cleave_remains", "immolate_remains", "corruption_remains",
     "serpent_sting_remains", "sunder_stacks", "demoralizing_remains",
+    "fire_totem_active", "water_totem_active", -- W4.2: wired via NS.get_totem_info
 }
 for _, field in ipairs(WIRED_FIELDS) do
     local pat = "\n%s*" .. field .. "%s*="

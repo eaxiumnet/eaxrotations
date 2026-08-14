@@ -113,6 +113,19 @@ function NS.is_cata()
     return _resolve_expansion_key() == "cata"
 end
 
+-- SoD rune state provider: the engine (main_sylvanas.lua:1258) populates
+-- context.sod_runes from this when it is a function. SoD runes are
+-- settings-driven (mirroring sod_phase at main_sylvanas.lua:220): the
+-- settings table carries `sod_runes` as { [rune_id] = true }. Absent config
+-- yields {} — spec_kit gates fail OPEN on unknown rune state and spell
+-- existence is the real gate (W4.2: previously defined only in test mocks,
+-- which silently killed every rune-gated SoD strategy in production).
+function NS.get_sod_runes(settings)
+    local runes = settings and settings.sod_runes
+    if type(runes) ~= "table" then return {} end
+    return runes
+end
+
 function NS.get_expansion_max_level()
     if NS.is_sod() then return 60 end
     if NS.is_vanilla() then return 60 end

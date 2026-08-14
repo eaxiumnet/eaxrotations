@@ -156,13 +156,20 @@ local enhancement_lava_context = {
 assert_eq(strategy(enhancement, "LavaBurst").matches(
     enhancement_lava_context, enhancement.build_state(enhancement_lava_context)), true,
     "Enhancement casts Lava Burst only inside the safe swing window")
-local enhancement_bad_imbue = {
-    is_sod = true, sod_phase = 8, target = {}, offhand_imbue = "none",
+local enhancement_imbue_free = {
+    is_sod = true, sod_phase = 8, target = {}, in_combat = true,
     sod_runes = { [408507] = true },
 }
 assert_eq(strategy(enhancement, "LavaLash").matches(
-    enhancement_bad_imbue, enhancement.build_state(enhancement_bad_imbue)), false,
-    "Enhancement does not Lava Lash without an off-hand imbue")
+    enhancement_imbue_free, enhancement.build_state(enhancement_imbue_free)), true,
+    "Enhancement Lava Lash fires on rune availability alone (W4.2: offhand imbue gate removed)")
+local enhancement_no_rune = {
+    is_sod = true, sod_phase = 8, target = {}, in_combat = true,
+    sod_runes = { [408490] = true }, -- LavaBurst rune, NOT LavaLash's 408507
+}
+assert_eq(strategy(enhancement, "LavaLash").matches(
+    enhancement_no_rune, enhancement.build_state(enhancement_no_rune)), false,
+    "Enhancement Lava Lash gated on its own rune")
 
 local warden_context = {
     is_sod = true, sod_phase = 8, target = {}, mana_pct = 90, enemy_count = 5,

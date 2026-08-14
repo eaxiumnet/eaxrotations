@@ -56,7 +56,10 @@ local strategies = {
         return available(c, ACTION.Bloodrage, false) and s.rage < 20 and ready(ACTION.Bloodrage, c.me)
     end, execute = function(c) return cast(ACTION.Bloodrage, c.me, "Bloodrage") end },
     { name = "BerserkerRage", matches = function(c, s)
-        return available(c, ACTION.BerserkerRage, false) and c.stance == "berserker"
+        -- W4.2: engine produces stance as a NUMBER (main_sylvanas.lua:909 via
+        -- NS.get_player_stance → 3 = Berserker); tests fed strings. Accept
+        -- both forms (mirrors dps_stance() above).
+        return available(c, ACTION.BerserkerRage, false) and (c.stance == "berserker" or c.stance == 3)
             and s.rage < 40 and ready(ACTION.BerserkerRage, c.me)
     end, execute = function(c) return cast(ACTION.BerserkerRage, c.me, "BerserkerRage") end },
     { name = "SweepingStrikes", matches = function(c, s)

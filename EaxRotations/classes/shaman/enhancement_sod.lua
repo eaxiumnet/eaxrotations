@@ -71,8 +71,11 @@ local strategies = {
         return available(context, ACTION.Stormstrike, true)
     end, execute = cast_target(ACTION.Stormstrike, "[SOD ENHANCEMENT] Stormstrike") },
     { name = "LavaLash", matches = function(context)
+        -- W4.2: the offhand_imbue gate was mock-only (no production producer —
+        -- NS.buff_up cannot distinguish weapons). Dropped per the
+        -- enhancement_wotlk.lua:187 precedent; rune availability in
+        -- available() is the real gate.
         return available(context, ACTION.LavaLash, true)
-            and (context.offhand_imbue == "flametongue" or context.offhand_imbue == "windfury")
     end, execute = cast_target(ACTION.LavaLash, "[SOD ENHANCEMENT] LavaLash") },
     { name = "LightningShield", matches = function(context, state)
         return available(context, ACTION.LightningShield, false) and not state.lightning_shield_up

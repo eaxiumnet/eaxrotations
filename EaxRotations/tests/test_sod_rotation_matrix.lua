@@ -174,7 +174,9 @@ for _, role in ipairs(roles) do
             local equipped = with_sod_context({ sod_runes = { [descriptor.rune_id] = true } })
             assert_true(require("shared/spec_kit_sylvanas").sod_action_available(equipped, descriptor),
                 role.key .. " rune gate opens " .. action_name)
-            local absent = with_sod_context({ sod_runes = {} })
+            -- W4.2 contract: a KNOWN non-empty rune table without the rune
+            -- still closes the gate (strict); unknown/empty state fails open.
+            local absent = with_sod_context({ sod_runes = { [999999] = true } })
             assert_eq(require("shared/spec_kit_sylvanas").sod_action_available(absent, descriptor), false,
                 role.key .. " rune gate closes " .. action_name)
         end

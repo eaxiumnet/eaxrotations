@@ -54,8 +54,26 @@ NS.try_cast = original_try_cast
 local without_rune = {}
 for key, value in pairs(context) do without_rune[key] = value end
 without_rune.sod_runes = {}
-assert_eq(strategy.matches(without_rune, rotation.build_state(without_rune)), false,
-    "missing rune disables the production strategy")
+-- The lazy-context proxy only exposes materialized fields to pairs(), so
+-- re-set the gate inputs explicitly (same values as the equipped case).
+without_rune.is_sod = true
+without_rune.target = context.target
+without_rune.enemy_count = 3
+-- W4.2 contract: EMPTY rune state = UNKNOWN, so the rune gate fails OPEN —
+-- spell existence in NS.spell_ready / NS.try_cast is the real gate (a player
+-- without the rune cannot cast it anyway). Previously empty meant "disabled",
+-- which in production was ALWAYS the case (no provider) — the never-lane.
+assert_eq(strategy.matches(without_rune, rotation.build_state(without_rune)), true,
+    "unknown (empty) rune state fails open — spell existence is the real gate")
+
+local with_other_rune = {}
+for key, value in pairs(context) do with_other_rune[key] = value end
+with_other_rune.sod_runes = { [999999] = true }
+with_other_rune.is_sod = true
+with_other_rune.target = context.target
+with_other_rune.enemy_count = 3
+assert_eq(strategy.matches(with_other_rune, rotation.build_state(with_other_rune)), false,
+    "known non-empty rune table still gates strictly on the required rune")
 
 local wrong_phase = {}
 for key, value in pairs(context) do wrong_phase[key] = value end

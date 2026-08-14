@@ -51,6 +51,12 @@ local LIGHTNING_SHIELD = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 
 local WATER_SHIELD = { 33736, 24398 }
 local RIPTIDE = { 408521 }
 local LIFEBLOOM = { 33763 }
+-- Weakened Soul debuff id (mirrors healing_sylvanas.lua:41 WEAKENED_SOUL_DEBUFF_IDS).
+local WEAKENED_SOUL = { 6788 }
+-- Totem slots (player:get_totem_info): 1 = fire, 2 = earth, 3 = water, 4 = air
+-- (mirrors elemental_wotlk.lua:42).
+local TOTEM_SLOT_FIRE = 1
+local TOTEM_SLOT_WATER = 3
 local REJUVENATION = { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 local ROCKBITER = { 25485, 25479, 16316, 16315, 16314, 10399, 8019, 8018, 8017 }
 
@@ -200,6 +206,30 @@ function M_enrich(ctx)
     if heal_target and NS and type(NS.buff_up) == "function" then
         ctx.has_lifebloom = call(NS.buff_up, heal_target, LIFEBLOOM) == true
         ctx.has_rejuvenation = call(NS.buff_up, heal_target, REJUVENATION) == true
+    end
+
+    -- Priest: Weakened Soul on the heal target (PW:S refresh gate in
+    -- healing_sod reads lowest.has_weakened_soul — previously mock-only; the
+    -- audit allowlist pin is removed W4.2 and this is the real writer).
+    -- Mutates the engine's `lowest` table (same table the spec reads), so
+    -- the chained subfield read wakes up in production.
+    if heal_target and NS and type(NS.debuff_up) == "function" then
+        local weakest = ctx.lowest
+        if type(weakest) == "table" then
+            weakest.has_weakened_soul = call(NS.debuff_up, heal_target, WEAKENED_SOUL) == true
+        end
+    end
+
+    -- Shaman: fire/water totem slot occupancy (warden Magma/Searing totem
+    -- gates + restoration_sod HealingStream gate). Mirrors the wotlk slot
+    -- mapping (elemental_wotlk.lua:42: 1 = fire, 2 = earth, 3 = water,
+    -- 4 = air) via NS.get_totem_info — the allowlist pins (previously
+    -- "totem-slot index ambiguous") are removed W4.2.
+    if NS and type(NS.get_totem_info) == "function" then
+        local fire_info = call(NS.get_totem_info, TOTEM_SLOT_FIRE)
+        ctx.fire_totem_active = type(fire_info) == "table" and fire_info.have_totem == true or false
+        local water_info = call(NS.get_totem_info, TOTEM_SLOT_WATER)
+        ctx.water_totem_active = type(water_info) == "table" and water_info.have_totem == true or false
     end
 
     -- Enhancement LavaBurst swing window (time until next mainhand/offhand swing).

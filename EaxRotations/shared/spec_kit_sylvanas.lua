@@ -112,7 +112,17 @@ function M.define_sod_action_for_class(SPELLS)
     return function(spell_field, rank_ids, requirements, label)
         local source_ids = rank_ids
         if type(SPELLS) == "table" and SPELLS[spell_field] ~= nil then
-            source_ids = SPELLS[spell_field]
+            local entry = SPELLS[spell_field]
+            -- Rich spell_action objects ({ _meta = { ids = ... } }) carry the
+            -- rank list inside; unwrap for validation (W4.2 — class tables
+            -- store rich objects, which valid_action_ids would otherwise
+            -- reject, silently killing every class-table-backed SoD action).
+            if type(entry) == "table" and type(entry._meta) == "table"
+                and type(entry._meta.ids) == "table" then
+                source_ids = entry._meta.ids
+            else
+                source_ids = entry
+            end
         end
         if not valid_action_ids(source_ids) then return nil, "invalid action ids" end
         if requirements ~= nil and type(requirements) ~= "table" then
@@ -156,7 +166,17 @@ end
 function M.has_sod_rune(context, rune_id)
     if type(context) ~= "table" or not is_positive_integer(rune_id) then return false end
     local runes = context.sod_runes
-    return type(runes) == "table" and runes[rune_id] == true
+    if runes == nil then return true end
+    if type(runes) ~= "table" then return false end
+    -- Unknown/empty rune state (provider absent or no config): fail OPEN —
+    -- spell existence in NS.spell_ready / NS.try_cast is the real gate, so a
+    -- player without the rune simply cannot cast it (W4.2: previously every
+    -- rune-gated SoD action was dead in production because sod_runes stayed
+    -- empty; the empty table meant "no runes" instead of "unknown").
+    local count = 0
+    for _ in pairs(runes) do count = count + 1 break end
+    if count == 0 then return true end
+    return runes[rune_id] == true
 end
 
 function M.sod_action_available(context, descriptor)
