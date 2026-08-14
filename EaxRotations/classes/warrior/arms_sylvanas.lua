@@ -25,7 +25,6 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
-local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
@@ -315,7 +314,6 @@ local ARMS_SCHEMA = {
     mh_until = 999,
     healthstone_ready = false,
     aoe_cc_nearby = false,
-    hit_cap_rating_needed = 142,
 }
 
 local _last_build_state_time = -1
@@ -389,13 +387,6 @@ local function build_state(context)
     arms_state.mh_until = cleu_remains or (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
 
     arms_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
-    -- Hit cap / expertise awareness
-    if HitCap then
-        local hit_info = HitCap.get_hit_cap("warrior_melee")
-        if hit_info then
-            arms_state.hit_cap_rating_needed = hit_info.rating_needed
-        end
-    end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     -- Once wrapped, all match() functions can read state.X without nil-guards.
     return spec_kit.safe_state(arms_state, ARMS_SCHEMA)
@@ -992,22 +983,6 @@ for i = 1, #STRATEGY_SPECS do
         }
     end
 end
-
--- Hit-cap awareness: gate missable abilities when significantly below cap
-strategies[#strategies + 1] = {
-    name = "HitCapPriority",
-    matches = function(context, state)
-        local s = state or _build(context or {})
-        if not s.hit_cap_rating_needed then return false end
-        local hit_rating = context.hit_rating
-        if not hit_rating then return false end
-        local deficit = s.hit_cap_rating_needed - hit_rating
-        if deficit <= 30 then return false end
-        if NS.log then NS.log(string.format("[ARMS] Hit cap deficit %d — gating missable abilities", deficit)) end
-        return true
-    end,
-    execute = function() return true end,
-}
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arms", strategies, { get_state = build_state })

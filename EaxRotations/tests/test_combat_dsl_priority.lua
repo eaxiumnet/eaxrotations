@@ -97,14 +97,14 @@ local combat = require("classes/rogue/combat_sylvanas")
 --   7 SliceAndDice, 8 AdrenalineRush, 9 BladeFlurry, 10 Rupture,
 --   11 Eviscerate, 12 Envenom, 13 ShivPurge, 14 Gouge, 15 Sprint,
 --   16 Vanish, 17 Feint, 18 Blind, 19 Hemorrhage, 20 GhostlyStrike, 21 Backstab,
---   22 KidneyShot, 23 ExposeArmor, 24 SinisterStrike, 25 HitCapPriority
+--   22 KidneyShot, 23 ExposeArmor, 24 SinisterStrike
 -- ============================================================================--
 local expected_order = {
     "HealthPotion", "DamagePotion", "Kick", "Stealth", "CheapShot", "Garrote",
     "SliceAndDice", "AdrenalineRush", "BladeFlurry", "Rupture",
     "Eviscerate", "Envenom", "ShivPurge", "Gouge", "Sprint",
     "Vanish", "Feint", "Blind", "Hemorrhage", "GhostlyStrike", "Backstab",
-    "KidneyShot", "ExposeArmor", "SinisterStrike", "HitCapPriority",
+    "KidneyShot", "ExposeArmor", "SinisterStrike",
 }
 
 local actual_order = {}

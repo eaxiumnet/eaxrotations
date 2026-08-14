@@ -42,7 +42,6 @@ local expected_order = {
     "Whirlwind", "Overpower", "Slam", "SweepingStrikes", "Rend",
     "PiercingHowl", "Hamstring", "DemoralizingShout", "ThunderClap",
     "Cleave", "HeroicStrike", "Healthstone", "EngineeringBomb",
-    "HitCapPriority",
 }
 
 local actual_order = {}

@@ -53,7 +53,6 @@ local expected_order = {
     "SweepingStrikes", "Rampage", "Execute", "Bloodthirst",
     "Whirlwind", "Overpower", "Slam", "SwingDesync",
     "SunderArmor", "DemoralizingShout", "Cleave", "HeroicStrike",
-    "HitCapPriority",
 }
 
 local actual_order = {}

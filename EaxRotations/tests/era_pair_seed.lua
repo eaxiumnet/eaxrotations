@@ -116,13 +116,13 @@ return {
     {
         spec = "hunter/beast_mastery",
         missing_in = "vanilla",
-        names = { "AdaptiveRotation", "AspectOfTheDragonhawk", "AspectOfTheViper", "AutoAspect", "Deterrence", "Healthstone", "HitCapPriority", "Intimidation", "KillCommand", "KillShot", "LevelingArcaneShot", "LevelingSting", "Misdirection", "Readiness", "ScatterShot", "SilencingShot", "SteadyShot" },
+        names = { "AdaptiveRotation", "AspectOfTheDragonhawk", "AspectOfTheViper", "AutoAspect", "Deterrence", "Healthstone", "Intimidation", "KillCommand", "KillShot", "LevelingArcaneShot", "LevelingSting", "Misdirection", "Readiness", "ScatterShot", "SilencingShot", "SteadyShot" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "hunter/beast_mastery",
         missing_in = "wotlk",
-        names = { "AdaptiveRotation", "AspectOfTheHawk_OOC", "AutoAspect", "CallPet", "ConcussiveShot", "Deterrence", "FeignDeath", "FreezingTrap", "HealthPotion", "Healthstone", "HitCapPriority", "Intimidation", "LevelingArcaneShot", "LevelingSting", "ManaPotion", "MendPet", "Misdirection", "PetAggressive", "PetDefensive", "PetPassive", "RapidFire", "RaptorStrike", "Readiness", "RevivePet", "ScatterShot", "SerpentStingRefresh", "SilencingShot", "Trinket", "Volley" },
+        names = { "AdaptiveRotation", "AspectOfTheHawk_OOC", "AutoAspect", "CallPet", "ConcussiveShot", "Deterrence", "FeignDeath", "FreezingTrap", "HealthPotion", "Healthstone", "Intimidation", "LevelingArcaneShot", "LevelingSting", "ManaPotion", "MendPet", "Misdirection", "PetAggressive", "PetDefensive", "PetPassive", "RapidFire", "RaptorStrike", "Readiness", "RevivePet", "ScatterShot", "SerpentStingRefresh", "SilencingShot", "Trinket", "Volley" },
         reason = "WotLK-era build-out: hunter_beast_mastery_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -188,13 +188,13 @@ return {
     {
         spec = "mage/fire",
         missing_in = "vanilla",
-        names = { "BlastWave", "DragonsBreath", "Healthstone", "HitCapPriority", "LivingBomb", "ScorchFinal" },
+        names = { "BlastWave", "DragonsBreath", "Healthstone", "LivingBomb", "ScorchFinal" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "mage/fire",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "DragonsBreath", "Evocation", "Flamestrike", "FlamestrikeRank6", "Healthstone", "HitCapPriority", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
+        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "DragonsBreath", "Evocation", "Flamestrike", "FlamestrikeRank6", "Healthstone", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
         reason = "WotLK-era build-out: mage_fire_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -356,13 +356,13 @@ return {
     {
         spec = "rogue/combat",
         missing_in = "vanilla",
-        names = { "Blind", "CheapShot", "Envenom", "Garrote", "HitCapPriority", "KillingSpree", "ShivPurge" },
+        names = { "Blind", "CheapShot", "Envenom", "Garrote", "KillingSpree", "ShivPurge" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "rogue/combat",
         missing_in = "wotlk",
-        names = { "AdrenalineRush", "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "HitCapPriority", "KidneyShot", "Rupture", "ShivPurge", "Sprint", "Stealth", "Vanish" },
+        names = { "AdrenalineRush", "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "KidneyShot", "Rupture", "ShivPurge", "Sprint", "Stealth", "Vanish" },
         reason = "WotLK-era build-out: rogue_combat_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -500,13 +500,13 @@ return {
     {
         spec = "warrior/arms",
         missing_in = "vanilla",
-        names = { "BerserkerRage", "Bladestorm", "CommandingShout", "EngineeringBomb", "HitCapPriority", "SpellReflection", "VictoryRush" },
+        names = { "BerserkerRage", "Bladestorm", "CommandingShout", "EngineeringBomb", "SpellReflection", "VictoryRush" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warrior/arms",
         missing_in = "wotlk",
-        names = { "BerserkerRage", "Bloodrage", "CommandingShout", "DamagePotion", "DeathWish", "Disarm", "EngineeringBomb", "HealthPotion", "Healthstone", "HitCapPriority", "IntimidatingShout", "PiercingHowl", "Recklessness", "SpellReflection", "SunderArmor", "VictoryRush", "Whirlwind" },
+        names = { "BerserkerRage", "Bloodrage", "CommandingShout", "DamagePotion", "DeathWish", "Disarm", "EngineeringBomb", "HealthPotion", "Healthstone", "IntimidatingShout", "PiercingHowl", "Recklessness", "SpellReflection", "SunderArmor", "VictoryRush", "Whirlwind" },
         reason = "WotLK-era build-out: warrior_arms_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -518,13 +518,13 @@ return {
     {
         spec = "warrior/fury",
         missing_in = "vanilla",
-        names = { "BattleStance", "BerserkerStance", "Charge", "EngineeringBomb", "Healthstone", "HitCapPriority", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
+        names = { "BattleStance", "BerserkerStance", "Charge", "EngineeringBomb", "Healthstone", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warrior/fury",
         missing_in = "wotlk",
-        names = { "BattleStance", "BerserkerRage", "Bloodrage", "Charge", "Cleave", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "HeroicStrike", "HitCapPriority", "Intercept", "Overpower", "Rampage", "Recklessness", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
+        names = { "BattleStance", "BerserkerRage", "Bloodrage", "Charge", "Cleave", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "HeroicStrike", "Intercept", "Overpower", "Rampage", "Recklessness", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
         reason = "WotLK-era build-out: warrior_fury_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

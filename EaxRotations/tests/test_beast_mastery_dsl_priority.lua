@@ -157,7 +157,7 @@ local expected_order = {
     "FeignDeath", "AdaptiveRotation", "SerpentSting",
     "SerpentStingRefresh", "MultiShot", "LevelingArcaneShot", "LevelingSting",
     "ArcaneShot", "SteadyShot", "Trinket", "ConcussiveShot",
-    "Volley", "ExplosiveTrap", "RaptorStrike", "HitCapPriority",
+    "Volley", "ExplosiveTrap", "RaptorStrike",
 }
 assert_true(#strategies == #expected_order, "strategy count matches (" .. #strategies .. " vs " .. #expected_order .. ")")
 for i = 1, math.min(#strategies, #expected_order) do

@@ -123,7 +123,6 @@ local expected_order = {
     "Combustion", "Pyroblast", "Scorch", "Evocation", "ManaGem", "Fireball",
     "FireBlast", "Flamestrike", "FlamestrikeRank6", "ArcaneExplosion", "Blizzard",
     "BlastWave", "DragonsBreath", "Polymorph", "RemoveCurse", "ManaGemConjure",
-    "HitCapPriority",
 }
 assert_true(#strategies == #expected_order, "strategy count matches (" .. #strategies .. " vs " .. #expected_order .. ")")
 for i = 1, math.min(#strategies, #expected_order) do

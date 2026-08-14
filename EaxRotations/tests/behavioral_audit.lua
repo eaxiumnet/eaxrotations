@@ -2557,12 +2557,6 @@ M.SCENARIOS = {
     -- assn ThistleTea: setting + energy <= 40 + combo <= 3 (energy_low shape;
     -- the setting alone flips it on, verified match=true in energy_low).
     { name = "thistle_tea",     overrides = { setting_overrides = { assassin_thistle_tea = true }, energy = 30, combo_points = 0 } },
-    -- hit_cap_deficit: the HitCapPriority lanes (combat/arms/fury — identical
-    -- matcher: state.hit_cap_rating_needed - context.hit_rating, fires when
-    -- the deficit exceeds 30) need a non-nil hit_rating. Caps: melee specs 142
-    -- (hunter_ranged/paladin_melee also 142); mage_caster is 202 — still
-    -- clears at rating 50 (deficit 152 > 30).
-    { name = "hit_cap_deficit", overrides = { hit_rating = 50 } },
     -- mutilate_daggers: assassin Mutilate's has_daggers needs a dagger in BOTH
     -- hands (assn:234-240 reads get_equipped_item_id for MAIN_HAND/OFF_HAND +
     -- the is_dagger map). equipped_daggers=true makes the mock return 776 for
@@ -3514,12 +3508,9 @@ function M.build_context_for(class_key, scenario, era)
         -- context.party_members OR context.group_members directly); now feeds
         -- bear build_state's clock so Growl's taunt throttle passes.
         party_members=true, group_members=true, now=true,
-        -- Stat/weapon mocks (2026-08-08 focused triage): hit_rating feeds the
-        -- HitCapPriority matchers (combat/arms/fury read context.hit_rating and
-        -- gate on deficit = hit_cap_rating_needed - hit_rating > 30 — default
-        -- ctx has no rating so they could never fire); equipped_daggers feeds
-        -- the dagger mock above for assassin Mutilate.
-        hit_rating=true, equipped_daggers=true,
+        -- Stat/weapon mocks (2026-08-08 focused triage): equipped_daggers feeds
+        -- the dagger mock for assassin Mutilate.
+        equipped_daggers=true,
         -- Totemic Call (2026-08-08): totem_active drives the
         -- core.spell_book.get_totem_info stub (has_totem gate); totem_far
         -- appends a distant totem mock to the visible-objects scan. Both are

@@ -21,7 +21,6 @@ local SPELLS = NS.HunterSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
-local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     ArcaneShot       = define("ArcaneShot",       {27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044}, "ArcaneShot"),
@@ -246,7 +245,6 @@ local BM_SCHEMA = {
     -- Power windows
     bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
     has_deterrence = false,
-    hit_cap_rating_needed = 142,
     -- Leveling (Pattern: pre-Steady Shot silent-gate fix)
     level = 70,
     pre_steady_leveling = false,
@@ -406,13 +404,6 @@ local function build_state(context)
     state.bloodlust_active = me and safe_buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
     state.major_cd_active = (planner and type(planner.is_major_offensive_cd_active) == "function") and safe_any(planner.is_major_offensive_cd_active, context) or false
     state.major_cd_window = state.bloodlust_active or state.major_cd_active
-
-    if HitCap then
-        local hit_info = safe_any(HitCap.get_hit_cap, "hunter_ranged")
-        if hit_info then
-            state.hit_cap_rating_needed = hit_info.rating_needed
-        end
-    end
 
     -- Pre-Steady Shot leveling: Steady is learned at 62. Without it, Arcane Shot is the
     -- only real filler — the endgame 50% mana floor would silence the rotation at 20-61.
@@ -1068,17 +1059,6 @@ local strategies = {
         name = "RaptorStrike",
         matches = raptor_strike_matches,
         execute = function(context) return NS.try_cast(RAPTOR_STRIKE_IDS, context.target, "[BEAST_MASTERY] RaptorStrike") end,
-    },    { name = "HitCapPriority",
-        matches = function(context, s)
-            if not s.hit_cap_rating_needed then return false end
-            local hit_rating = context.hit_rating
-            if not hit_rating then return false end
-            local deficit = s.hit_cap_rating_needed - hit_rating
-            if deficit <= 30 then return false end
-            if NS.log then NS.log(string.format("[BM] Hit cap deficit %d — gating missable abilities", deficit)) end
-            return true
-        end,
-        execute = function() return true end,
     },
 }
 

@@ -10,7 +10,6 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 	local potion_helper = require("shared/potion_helper_sylvanas")
-	local HitCap = require("shared/hit_cap_tracker_sylvanas")
 	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 	local SPELLS = NS.RogueSpells or {}
 	local spec_kit = require("shared/spec_kit_sylvanas")
@@ -203,7 +202,6 @@ local COMBAT_SCHEMA = {
     deadly_poison_stacks = 0,
     -- Weapons
     has_daggers = false,
-    hit_cap_rating_needed = 142,
 }
 
 -- ============================================================================
@@ -356,14 +354,6 @@ local function build_state(context)
     if combat_state.in_combat and (context.is_pvp or false) and target and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
         if best_id then combat_state.shiv_purge_name = best_name end
-    end
-
-    -- Hit cap / expertise awareness
-    if HitCap then
-        local hit_info = HitCap.get_hit_cap("rogue_melee")
-        if hit_info then
-            combat_state.hit_cap_rating_needed = hit_info.rating_needed
-        end
     end
 
     return spec_kit.safe_state(combat_state, COMBAT_SCHEMA)
@@ -755,17 +745,6 @@ local strategies = {
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return NS.try_cast(ACTION.KidneyShot, context.target, "[COMBAT] KidneyShot") end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return NS.try_cast(ACTION.ExposeArmor, context.target, "[COMBAT] ExposeArmor") end },
     { name = "SinisterStrike" },  -- DSL-substituted at runtime
-    { name = "HitCapPriority",
-      matches = function(context, s)
-          if not s.hit_cap_rating_needed then return false end
-          local hit_rating = context.hit_rating
-          if not hit_rating then return false end
-          local deficit = s.hit_cap_rating_needed - hit_rating
-          if deficit <= 30 then return false end
-          if NS.log then NS.log(string.format("[COMBAT] Hit cap deficit %d — gating missable abilities", deficit)) end
-          return true
-      end,
-      execute = function() return true end },
 }
 
 -- ============================================================================

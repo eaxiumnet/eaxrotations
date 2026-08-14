@@ -1,30 +1,30 @@
--- test_hitcap_dagger_regression.lua — pins the stat/weapon-mock lanes
--- unblocked by the hit_rating ctx key + equipped_daggers mock (2026-08-08,
--- warrior/rogue focused triage, (c) stat cluster).
--- WHAT:  behavioral_audit.lua gained two scenario keys and two scenarios:
---          hit_rating      (ctx key) — the HitCapPriority matchers
---            (combat/arms/fury, plus the identical shared-matcher copies in
---            hunter/BM, mage/fire, paladin/retri) read context.hit_rating and
---            fire when deficit = state.hit_cap_rating_needed - hit_rating
---            exceeds 30. The cap is 142 (shared/hit_cap_tracker HIT_CAPS
---            warrior_melee/rogue_melee; hunter/mage/paladin read their own
---            caster/melee tables but all equal 142) and the default context
---            had NO rating — so every HitCapPriority lane was never-firing.
---            hit_cap_deficit = { hit_rating = 50 } → deficit 92 > 30.
---          equipped_daggers (ctx key → state bank) — the get_equipped_item_id
---            stub now returns dagger item id 776 (from shared/dagger_set
---            DAGGER_IDS) for MAIN_HAND/OFF_HAND when the flag is set, so assn
---            build_state (assn:234-240 — reads both hands + is_dagger map)
---            derives state.has_daggers = true. Mutilate also needs energy_low
---            false (energy 90 default) + should_spend_energy true (default).
---            mutilate_daggers = { equipped_daggers = true }.
---        All cleared lanes fire EXCLUSIVELY in their scenario (each carries
---        exactly one new key), so they are pinned with fires-in(1) exclusivity
---        + matcher asserts with sharp negatives + end-to-end never-list checks.
+-- test_hitcap_dagger_regression.lua — pins the weapon-mock lane unblocked by
+-- the equipped_daggers state-bank flag (2026-08-08 warrior/rogue triage, (c)
+-- stat cluster; hit-cap half removed 2026-08-14, see below).
+-- WHAT:  equipped_daggers (ctx key → state bank) — the get_equipped_item_id
+--        stub returns dagger item id 776 (from shared/dagger_set DAGGER_IDS)
+--        for MAIN_HAND/OFF_HAND when the flag is set, so assassination
+--        build_state (assn:234-240 — reads both hands + is_dagger map) derives
+--        state.has_daggers = true. Mutilate also needs energy_low false
+--        (energy 90 default) + should_spend_energy true (default).
+--        mutilate_daggers = { equipped_daggers = true }.
+--        The lane fires EXCLUSIVELY in its scenario, so it is pinned with
+--        fires-in(1) exclusivity + matcher asserts with sharp negatives +
+--        end-to-end never-list checks.
 -- WHEN:  rotation suite execution.
--- WHY:   a future battery edit (dropping the keys, the dagger mock, or the
---        scenarios) could silently re-hide these 7 lanes; this test fails if
---        any stops firing or leaks into another scenario.
+-- WHY:   a future battery edit (dropping the key, the dagger mock, or the
+--        scenario) could silently re-hide the Mutilate lane; this test fails
+--        if it stops firing or leaks into another scenario.
+--        2026-08-14 (W5.1): the hit_rating half of this test was REMOVED —
+--        the HitCapPriority lanes (combat/arms/fury/hunter BM/mage fire/
+--        paladin retri) read context.hit_rating, which has NO producer in
+--        the engine or API (no current-rating accessor exists in the PS
+--        stubs; hit_cap_tracker is a static cap table). The lanes could
+--        never fire in production; the battery mock (hit_cap_deficit
+--        scenario + hit_rating ctx key) only made them battery-green. Per
+--        Pattern 17 the lanes, the scenario, and the ctx key were deleted;
+--        the Mutilate dagger mock stays because get_equipped_item_id IS a
+--        live API surface the dagger lane can fire on.
 -- SAFETY: Pure unit test with the behavioral_audit mock; no game data.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -69,56 +69,11 @@ local function assert_lane(spec_mod, ns, class_key, scenario_name, lane, want, l
 end
 
 -- ============================================================================
--- Mechanism pin: the hit_rating ctx key + equipped_daggers state-bank flag.
+-- Mechanism pin: the equipped_daggers state-bank flag.
 -- ============================================================================
-local hd_ctx = aud.build_context_for("warrior", build_scenario("hit_cap_deficit"))
-assert_true(hd_ctx.hit_rating == 50,
-    "hit_cap_deficit must set ctx.hit_rating 50, got " .. tostring(hd_ctx.hit_rating))
 local md_ctx = aud.build_context_for("rogue", build_scenario("mutilate_daggers"))
 assert_true(md_ctx.equipped_daggers == true, "mutilate_daggers must set equipped_daggers")
-print("PASS: mechanism — hit_rating ctx key + equipped_daggers flag wired")
-
--- ============================================================================
--- HitCapPriority x3 (the requested lanes): combat / arms / fury
--- ============================================================================
-local combat, combat_err, combat_ns = aud.load_spec("rogue", "combat")
-assert_true(combat ~= nil, "rogue/combat load failed: " .. tostring(combat_err))
-_G.EaxRotations = combat_ns
-
-local hc_ctx, hc_state = assert_lane(combat, combat_ns, "rogue", "hit_cap_deficit", "HitCapPriority", true,
-    "combat HitCapPriority must match in hit_cap_deficit (rating 50, deficit 92)")
-assert_true((hc_state.hit_cap_rating_needed or 0) >= 100,
-    "combat state.hit_cap_rating_needed must be the ~142 cap, got "
-    .. tostring(hc_state.hit_cap_rating_needed))
--- Negative: default context has no hit_rating — the stat gate blocks it.
-assert_lane(combat, combat_ns, "rogue", "standard", "HitCapPriority", false,
-    "combat HitCapPriority must NOT match in standard (no hit_rating)")
--- Deficit boundary: rating 120 → deficit 22 <= 30 — the second matcher branch.
-local bd_ctx, bd_state = make_state(combat, combat_ns, "rogue", "standard")
-bd_ctx.hit_rating = 120
-local bc_s = find_strategy(combat.strategies, "HitCapPriority")
-local bc_ok, bc_m = pcall(bc_s.matches, bd_ctx, bd_state)
-assert_true(bc_ok and bc_m == false,
-    "combat HitCapPriority must NOT match at hit_rating 120 (deficit 22 <= 30)")
-print("PASS: rogue/combat HitCapPriority regression")
-
-local arms, arms_err, arms_ns = aud.load_spec("warrior", "arms")
-assert_true(arms ~= nil, "warrior/arms load failed: " .. tostring(arms_err))
-_G.EaxRotations = arms_ns
-assert_lane(arms, arms_ns, "warrior", "hit_cap_deficit", "HitCapPriority", true,
-    "arms HitCapPriority must match in hit_cap_deficit")
-assert_lane(arms, arms_ns, "warrior", "standard", "HitCapPriority", false,
-    "arms HitCapPriority must NOT match in standard (no hit_rating)")
-print("PASS: warrior/arms HitCapPriority regression")
-
-local fury, fury_err, fury_ns = aud.load_spec("warrior", "fury")
-assert_true(fury ~= nil, "warrior/fury load failed: " .. tostring(fury_err))
-_G.EaxRotations = fury_ns
-assert_lane(fury, fury_ns, "warrior", "hit_cap_deficit", "HitCapPriority", true,
-    "fury HitCapPriority must match in hit_cap_deficit")
-assert_lane(fury, fury_ns, "warrior", "standard", "HitCapPriority", false,
-    "fury HitCapPriority must NOT match in standard (no hit_rating)")
-print("PASS: warrior/fury HitCapPriority regression")
+print("PASS: mechanism — equipped_daggers flag wired")
 
 -- ============================================================================
 -- rogue/assassination: Mutilate (dagger mock)
@@ -139,8 +94,7 @@ assert_lane(assn, assn_ns, "rogue", "standard", "Mutilate", false,
 print("PASS: rogue/assassination Mutilate regression (dagger mock)")
 
 -- ============================================================================
--- Exclusivity: HitCapPriority (all 6 shared-matcher lanes) fire ONLY in
--- hit_cap_deficit; Mutilate ONLY in mutilate_daggers.
+-- Exclusivity: Mutilate fires ONLY in mutilate_daggers.
 -- ============================================================================
 local function assert_exclusive(class_key, spec, lane, only_in)
     local report = aud.run_spec(class_key, spec)
@@ -153,18 +107,11 @@ local function assert_exclusive(class_key, spec, lane, only_in)
         class_key .. "/" .. spec .. " " .. lane .. " must fire ONLY in " .. only_in
         .. ", fired in " .. tostring(n) .. " scenarios")
 end
-assert_exclusive("rogue", "combat", "HitCapPriority", "hit_cap_deficit")
-assert_exclusive("warrior", "arms", "HitCapPriority", "hit_cap_deficit")
-assert_exclusive("warrior", "fury", "HitCapPriority", "hit_cap_deficit")
 assert_exclusive("rogue", "assassination", "Mutilate", "mutilate_daggers")
--- Bonus lanes sharing the same matcher math (142 cap, rating 50 → deficit 92).
-assert_exclusive("hunter", "beast_mastery", "HitCapPriority", "hit_cap_deficit")
-assert_exclusive("mage", "fire", "HitCapPriority", "hit_cap_deficit")
-assert_exclusive("paladin", "retribution", "HitCapPriority", "hit_cap_deficit")
-print("PASS: exclusivity — HitCapPriority x6 + Mutilate fire only in their scenario")
+print("PASS: exclusivity — Mutilate fires only in mutilate_daggers")
 
 -- ============================================================================
--- End-to-end: the battery must report none of the 7 lanes as never-firing.
+-- End-to-end: the battery must not report Mutilate as never-firing.
 -- ============================================================================
 local function assert_lane_fires(class_key, spec, lane)
     local report = aud.run_spec(class_key, spec)
@@ -174,12 +121,6 @@ local function assert_lane_fires(class_key, spec, lane)
             "battery still reports " .. class_key .. "/" .. spec .. " " .. lane .. " as never-firing")
     end
 end
-assert_lane_fires("rogue", "combat", "HitCapPriority")
-assert_lane_fires("warrior", "arms", "HitCapPriority")
-assert_lane_fires("warrior", "fury", "HitCapPriority")
 assert_lane_fires("rogue", "assassination", "Mutilate")
-assert_lane_fires("hunter", "beast_mastery", "HitCapPriority")
-assert_lane_fires("mage", "fire", "HitCapPriority")
-assert_lane_fires("paladin", "retribution", "HitCapPriority")
-print("PASS: battery reports none of the 7 hit-cap/dagger lanes as never-firing")
+print("PASS: battery does not report the Mutilate lane as never-firing")
 print("ALL PASS: test_hitcap_dagger_regression")
