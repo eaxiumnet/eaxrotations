@@ -371,7 +371,19 @@ local function fire_nova_totem_matches_fn(context, state)
 end
 
 local function magma_totem_matches_fn(context, state)
-    return false  -- Magma Totem max rank is TBC-only in Classic
+    -- All four Magma Totem ranks (8190/10585/10586/10587) are Classic-era —
+    -- rank IV is level 56, well inside the Classic cap. 25552 (rank V) is
+    -- TBC-only, but the class-table ladder resolves the highest LEARNED rank,
+    -- so casting is safe on the Classic client. Previously disabled with the
+    -- wrong rationale "max rank is TBC-only" (fix 2026-08-14).
+    local s = context.settings or {}
+    if s.elemental_use_fire_nova_aoe == false then return false end
+    if not context.in_combat then return false end
+    if state.mana_conserve then return false end
+    local min_targets = s.elemental_aoe_threshold or 4
+    if (state.target_count or 0) < min_targets then return false end
+    if context.cc_safe == false then return false end
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -490,7 +502,7 @@ local strategies = {
       execute = function() return NS.try_cast(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Fire Nova Totem AoE") end },
     { name = "MagmaTotem",
       matches = magma_totem_matches_fn,
-      execute = function() return false end },  -- Magma Totem max rank is TBC-only
+      execute = function() return NS.try_cast(SPELLS.MagmaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Magma Totem AoE") end },
     -- parity parity: weapon buffs, self-heal, totem recall
     { name = "FlametongueWeapon",
       matches = flametongue_weapon_matches_fn,

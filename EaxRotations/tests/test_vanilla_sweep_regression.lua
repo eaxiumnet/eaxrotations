@@ -46,6 +46,11 @@ end
 -- threat_pct >= 99 while the battery's threat channel is capped at 95 by the
 -- Soulshatter fires-ONLY-in-threat_high exclusivity contract). Each remaining
 -- lane is classified in docs/never_strategy_triage_vanilla_2026-08-13.md.
+-- 2026-08-14: 13 → 12 — elemental/vanilla MagmaTotem ENABLED. All four ranks
+-- (8190/10585/10586/10587, rank IV = level 56) are Classic-era; the class
+-- ladder resolves the highest learned rank, so the "max rank is TBC-only"
+-- disable was factually wrong. WrathOfAirTotem stays pinned (TBC-only spell
+-- on the Classic client).
 local EXPECTED_NEVER = {
     { "druid", "bear", 2 },              -- FaerieFirePull, PrePullEnrage (OOC pre-pull)
     { "mage", "fire", 1 },               -- ManaGemConjure (OOC conjure, gem always available)
@@ -53,7 +58,7 @@ local EXPECTED_NEVER = {
     { "mage", "leveling", 1 },           -- ConjureManaGem (OOC conjure, gem always available)
     { "priest", "holy", 2 },             -- EncounterReactions (era gate), MountedProtection (mounted OOC)
     { "priest", "leveling", 1 },         -- Fade (threat_pct >= 99, battery threat channel capped at 95)
-    { "shaman", "elemental", 2 },        -- MagmaTotem, WrathOfAirTotem (inert/TBC-only)
+    { "shaman", "elemental", 1 },        -- WrathOfAirTotem (TBC-only on the Classic client; MagmaTotem enabled 2026-08-14)
     { "shaman", "enhancement", 2 },      -- FireNovaReplacement, GraceOfAirTotemTwist (module-local state)
     { "warlock", "affliction", 1 },      -- RacialArcaneTorrent (blood elf)
 }
@@ -71,8 +76,8 @@ for _, rep in ipairs(agg.reports or {}) do
     by_spec[key] = #(rep.never or {})
     total_never = total_never + #(rep.never or {})
 end
-assert_eq(total_never, 13, "vanilla battery must report exactly 13 never-firing lanes, got " .. total_never)
-print("PASS: vanilla battery total never-fires = 13 (reclassified content, 40-spec battery)")
+assert_eq(total_never, 12, "vanilla battery must report exactly 12 never-firing lanes, got " .. total_never)
+print("PASS: vanilla battery total never-fires = 12 (MagmaTotem enabled 2026-08-14)")
 
 -- The battery manifest must cover all 40 vanilla spec files (wave 1.4
 -- extension: 31 non-leveling + 9 leveling_vanilla).
@@ -105,7 +110,7 @@ for _, e in ipairs(EXPECTED_NEVER) do
     assert_eq(by_spec[key], e[3], "spec " .. key .. " must keep " .. e[3]
         .. " pinned never-firing lane(s), got " .. tostring(by_spec[key]))
 end
-print("PASS: all 13 kept pins are exactly as classified")
+print("PASS: all 12 kept pins are exactly as classified")
 
 -- ============================================================================
 -- (2) Defect-fix non-vacuity (matcher level, mirroring the cat-sweep
@@ -374,4 +379,4 @@ for name, check in pairs(WAVE14_SHAPES) do
 end
 print("PASS: wave-1.4 fixture scenarios (cat_lev_claw/ambush_opener/pal_lev_seal/priest_ve/lev_shock_earth/lev_shock_frost/pvp_cc_gate/ooc_afflicted) present")
 
-print("PASS: vanilla sweep regression (13 pins, 40-spec battery, 6 defect fixes, 10 fixture shapes)")
+print("PASS: vanilla sweep regression (12 pins, 40-spec battery, 6 defect fixes, 10 fixture shapes)")

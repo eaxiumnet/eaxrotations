@@ -141,7 +141,7 @@ cleared by the fixture scenarios above:
 | mage/leveling | ConjureManaGem | Same gem-availability suppression (CONJURE_MANA_GEM_SPELLS ready + `mana_gem_available` always true in the mock). |
 | priest/holy | EncounterReactions | Era gate: matcher requires `NS.is_tbc()` truthy (holy_vanilla:359-361) — Karazhan is TBC-only. Impossible in Classic by design; not modelable (is_tbc() false is the correct era answer). |
 | priest/holy | MountedProtection | Mounted-OOC safety net (`me:is_mounted()`). A modeling scenario would fire the TBC sibling pin (MountedProtection = b in LANE_CLASS), breaking the era count contract. Correctly silent. |
-| shaman/elemental | MagmaTotem | Intentionally inert by file design (elemental_vanilla:461-462 — "Magma Totem max rank is TBC-only in Classic"). Impossible-by-design. |
+| shaman/elemental | MagmaTotem | **CLEARED 2026-08-14** — enabled. All four ranks (8190/10585/10586/10587, rank IV = level 56) are Classic-era; the "max rank is TBC-only" disable (elemental_vanilla:461-462) was factually wrong — 25552 (rank V) is the TBC-only one and the class-table ladder resolves the highest learned rank. Vanilla never 13 → 12. |
 | shaman/elemental | WrathOfAirTotem | TBC-only spell; inert marker at elemental_vanilla:452. Impossible-by-design. |
 | warlock/affliction | RacialArcaneTorrent | Blood Elf racial — no blood elves in vanilla; ArcaneTorrent pinned nil (affliction_vanilla:83). Impossible-by-design. |
 

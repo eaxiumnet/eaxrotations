@@ -500,7 +500,7 @@ local components = {
             return {
                 { "vanilla specs " .. tostring(specs) .. " (expected 40)", specs == 40 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 13 baseline, classified)", never == 13 },
+                { "never-firing " .. never .. " (expected 12 baseline, classified)", never == 12 },
             }
         end,
     },
