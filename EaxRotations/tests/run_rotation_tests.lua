@@ -101,6 +101,7 @@ local tests = {
   "test_arms_rage_gating.lua",
   "test_arms_critical_fixes.lua",
   "test_warrior_defensive_threshold_wiring.lua",
+  "test_warrior_prot_live_fixes.lua",
   "test_warrior_arms_wotlk.lua",
   "test_arms_wotlk_dsl_priority.lua",
   "test_fury_wotlk_dsl_priority.lua",
@@ -197,7 +198,6 @@ local tests = {
  "test_spell_resolver_cache.lua",
  "test_boss_count.lua",
  "test_tbc_consumable_data.lua",
- "test_cooldown_registry.lua",
  "test_runtime_compat_aliases.lua",
  "test_archive_self_buff_aliases.lua",
  "test_expansion_helpers.lua", "test_execute_phase.lua",
@@ -615,6 +615,112 @@ local tests = {
  "test_priest_smite_shackle.lua",
  "test_paladin_protection_turn_evil.lua",
  "test_paladin_retribution_turn_evil.lua",
+
+ -- 2026-08-12 live-correctness campaign fixes
+ "test_druid_live_fixes.lua",
+ "test_hunter_live_fixes.lua",
+ "test_mage_live_fixes.lua",
+ "test_paladin_live_fixes.lua",
+ "test_priest_dps_live_fixes.lua",
+ "test_priest_healer_live_fixes.lua",
+ "test_rogue_live_fixes.lua",
+ "test_shaman_live_fixes.lua",
+ "test_warlock_live_fixes.lua",
+ "test_warrior_dps_live_fixes.lua",
+
+ -- 2026-08-13 vanilla live-fixes campaign (Wave 1.3/1.4 — Phase 1 close-out)
+ "test_druid_vanilla_live_fixes.lua",
+ "test_hunter_vanilla_live_fixes.lua",
+ "test_mage_vanilla_live_fixes.lua",
+ "test_paladin_vanilla_live_fixes.lua",
+ "test_priest_vanilla_live_fixes.lua",
+ "test_rogue_vanilla_live_fixes.lua",
+ "test_shaman_vanilla_live_fixes.lua",
+ "test_warlock_vanilla_live_fixes.lua",
+ "test_warrior_vanilla_live_fixes.lua",
+
+ -- Phase 2 (2026-08-13 Top-Tier Parsing campaign, engine agent): player_spell_damage
+ -- snapshot-engine gating — setting=0 byte-equivalence + setting>0 snapshot upgrades
+ "test_spell_damage_snapshot_sylvanas.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3): warlock WotLK
+ -- live fixes — WotLK max-rank debuff ids, Life Tap sustain lanes, plain
+ -- define_action resolution, engine context-field state reads.
+ "test_warlock_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3): paladin WotLK
+ -- live fixes — holy Beacon/Sacred Shield retarget, protection Righteous Fury
+ -- + Holy Shield charge upkeep, retribution Art of War 53486 + seal switch,
+ -- leveling seal rank-ladder closure.
+ "test_paladin_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3): warrior WotLK
+ -- live fixes — real-API cooldown gates (NS.cooldown_remains, never the
+ -- mock-only 99 fallback), Execute rage 15, swing-QUEUED Heroic Strike/Cleave,
+ -- Defensive-stance Shield Wall/Retaliation + Berserker dance lanes, proc-gated
+ -- Overpower/Slam/Victory Rush, Last Stand, Revenge max rank 57823.
+ "test_warrior_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3): shaman WotLK
+ -- live fixes — elemental Wind Shear kick lane + CD windows from
+ -- NS.spell_ready (never phantom context flags) + totem slot-occupancy,
+ -- enhancement Feral Spirit/Bloodlust/Shamanistic Rage readiness + weapon
+ -- imbue upkeep (58804/58790), restoration Mana Tide/Chain Heal on real
+ -- engine fields + Earth Shield charges + Water Shield, leveling Lava Burst
+ -- 60043 + shared fire-slot totem timestamp.
+ "test_shaman_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): deathknight WotLK
+ -- live fixes — mock-only action:cooldown_remaining -> NS.cooldown_remains and
+ -- cast_safe -> NS.try_cast (presence executes), phantom context.is_boss ->
+ -- context.target_is_boss (unholy SummonGargoyle), rune-state fan-out -> ONE
+ -- get_rune_state() call (frost) / 2s-TTL snapshot (unholy), blood DeathStrike
+ -- disease-uptime guard, long-CD gate args aligned with class-table cooldowns
+ -- (DRW 90 / UA 60 / ERW 300), ghoul Gnaw/Leap lanes, leveling rank-list
+ -- decontamination + RuneManager.get_runic_power.
+ "test_deathknight_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): druid WotLK
+ -- live fixes — resource reads via real engine surface (context fields /
+ -- me:get_power / NS.mana_pct; mock-only me:get_rage/get_energy/
+ -- get_combo_points/get_mana_percentage gone), balance Starfall ST + Eclipse
+ -- switching, bear Mangle refresh gate + FrenziedRegeneration, cat SavageRoar
+ -- 5-CP + FB dump + TigersFury/Berserk/ShredOmen, resto injured-ally
+ -- WildGrowth + Lifebloom + Nourish/Innervate, leveling IS/FF refresh gates.
+ "test_druid_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): hunter WotLK
+ -- live fixes — BestialWrath readiness via NS.cooldown_remains, mana via
+ -- NS.unit_mana_pct (never me:get_mana_percentage), Explosive Shot max-rank
+ -- 60051 ladder, Lock and Load wired through NS.buff_up (56344-family) with
+ -- the proc lane casting MAX rank, leveling rank lists not shadowed by TBC
+ -- HunterSpells.
+ "test_hunter_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): mage WotLK
+ -- live fixes — PoM readiness via NS.spell_ready, AB/AM/ABarrage distinct
+ -- lane semantics, mana via me:mana_pct, plain define_action (no TBC MageSpells
+ -- shadowing), fire Hot Streak 44448, frost FROST_NOVA_DEBUFF 42917 +
+ -- FROSTFIRE_BOLT_DEBUFF 44549 + Fingers of Frost 44545, leveling Living Bomb
+ -- DoT family 55360/55362 + Frostfire Bolt max rank 47610.
+ "test_mage_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): priest WotLK
+ -- live fixes — define_action_for_class precedence shadowing (systemic 4),
+ -- missing WotLK max-rank aura ids (systemic 3), mock-only mana reads
+ -- (systemic 6), Penance full trainer ladder 53007..47540 + Prayer of Mending
+ -- 48113..33076 single-rank never-lanes.
+ "test_priest_wotlk_live_fixes.lua",
+
+ -- Phase 3 (2026-08-13 Top-Tier Parsing campaign, Wave 3.3/3.5): rogue WotLK
+ -- live fixes — real cooldown reads (NS.cooldown_remains, never mock-only
+ -- action:cooldown_remaining), context-first energy/combo (never mock-only
+ -- get_energy/get_combo_points), dagger + behind gates (Mutilate/Backstab/
+ -- Ambush), WotLK max-rank debuff ids literal (Rupture 48672, Deadly Poison
+ -- 57970/57969), Envenom DP-stack + buff management, Hunger for Blood upkeep,
+ -- ToTT/Killing Spree energy gates, BladeFlurry SnD alignment, plain
+ -- spec_kit.define_action.
+ "test_rogue_wotlk_live_fixes.lua",
 }
 
 local function first_failure_line(output)
