@@ -1,5 +1,87 @@
 # Changelog
 
+## 2.24.0 — 2026-08-14
+
+### Customer Changelog
+- **Top-tier parsing campaign complete (all three eras)**: every rotation
+  spec (TBC 29 + 12 leveling, Vanilla 40, WotLK 29 + 12 leveling) now
+  battery-verified with never-firing pins TBC 16 / WotLK 0 / Vanilla 13.
+  Campaign scope (2026-08-07 → 2026-08-14): dead-matcher sweeps, the
+  behavioral battery extended to every spec, spell-ID era audits, and the
+  WotLK production never-lane campaign below.
+- **WotLK production never-lanes eliminated (25 Criticals across 10
+  classes)**: the Wave-3 audits found ~25 Criticals that the test battery
+  could not see — mock-only API reads that made real rotations dead in
+  production (`action:cooldown_remaining()`, `action:cast_safe()`,
+  `me:get_rage()/get_energy()/get_combo_points()/get_mana_percentage()`,
+  phantom `context.*` fields the engine never sets, `context.is_boss`
+  vs the real `context.target_is_boss`, WotLK max-rank debuff IDs missing
+  from lookup tables, rank-list contamination such as HowlingBlast
+  containing rogue Blade Flurry IDs, and TBC-capped rank lists shadowed by
+  `define_action_for_class`). All fixed with real engine API; the battery
+  now fails loudly on any re-introduction (fail-on-use tripwires). Notable
+  rescues: Feral Spirit, Bloodlust, Mana Tide, Summon Gargoyle, Unbreakable
+  Armor, Empower Rune Weapon, Frost Presence (never applied), Conflagrate
+  (never fired), the entire warrior rage family, paladin DivinePlea, DK
+  Frost/Unholy presences, WotLK-interrupt Wind Shear, Tiger's Fury CD gate.
+- **New parse-critical mechanics added** (pin-safe, mostly opt-in):
+  - TBC: `player_spell_damage` engine (DoT snapshot-upgrade gates for
+    affliction/shadow/elemental/balance + Immolate min-SP gate), in-combat
+    Aimed Shot weave (`mm_aimed_weave`), PoH-priority mode
+    (`disc_poh_priority`) + PoH 4→3 threshold, resto emergency
+    Lesser Healing Wave above ChainHeal, elemental single-target Chain
+    Lightning + Flame Shock maintain (`elemental_cl_single_target`,
+    `elemental_fs_maintain`), balance aggressive Wrath (`balance_wrath_conserve`
+    opt-out) + restored healer-priority Innervate, affliction curse-first
+    opener (`aff_curse_first`), fire Evocation/ManaGem promoted above the
+    filler chain (wowsims 20% mana threshold).
+  - WotLK: queued Heroic Strike/Cleave with swing-timer gates, Last Stand,
+    Righteous Fury + Holy Shield charge management, seal switching, weapon
+    imbue upkeep, totem slot-occupancy management, ghoul pet commands,
+    Eclipse spell-switching, Tiger's Fury/Berserk, Nourish/Innervate,
+    Circle of Healing at its pinned APL slot, Shadowfiend + Mind Flay clip
+    gating, Lock and Load proc wiring, Explosive Shot max rank.
+- **10 new live-fix regression suites** (`test_<class>_wotlk_live_fixes.lua`)
+  exercising the REAL production API shapes (no mock-only members) so the
+  entire mock-only bug class cannot silently regress; 9 vanilla live-fix
+  suites from Phase 1.
+- **Battery hardening**: the lenient mock members that masked the production
+  never-lanes are removed or converted to fail-on-use tripwires; era-pair
+  seed, spec scorecard, and badges all regenerated from the live tree.
+- Version **2.24.0**.
+- Tests: 523 rotation + 32 leveling + 45 WotLK suites registered (600 total;
+  all green at runtime; `run_verify_all.lua` exit 0).
+
+### Developer Notes
+- **The 7 systemic mock-only patterns** (documented in AGENTS.md Pattern 17):
+  `ACTION.*:cooldown_remaining()` / `ACTION.*:cast_safe()` exist ONLY on test
+  mocks (production `spell_action` exposes id/IsReady/IsInRange/Cast);
+  raw unit methods (`get_rage`/`get_energy`/`get_combo_points`/
+  `get_mana_percentage`/`get_runic_power`) are NOT on the engine surface
+  (use context fields, `me:get_power(...)`, or izi `*_current()`); phantom
+  context fields; `context.is_boss` → `context.target_is_boss`; WotLK
+  buff/debuff tables must carry WotLK max-rank IDs (literal matching);
+  `define_action_for_class` shadows file-local WotLK rank lists (use plain
+  `spec_kit.define_action`, fire_wotlk.lua:20 precedent); rank-list
+  contamination (verify against the wotlk bridge).
+- **Wave-3.4 battery tightening**: `behavioral_audit.lua` mock injections
+  for the removed members are now fail-on-use tripwires; phantom scenario
+  overrides deleted; the two W3.4 residuals (warrior rage, paladin mana
+  sole-source reads) were fixed in targeted waves and their injections
+  converted to tripwires with 0 dispatch errors across all eras.
+- **Parse-spec docs**: `docs/parse_specs/<era>/<class>/<spec>.md` now
+  documents every guide divergence (9 files: protection, marksmanship,
+  fire, arcane, discipline, restoration, balance, elemental, affliction) —
+  pinned source, priority, thresholds, divergence, and the setting that
+  flips it.
+- **Provenance**: `tools/evidence/apl/SOURCES.md` gained the campaign
+  delta — no fixtures re-fetched (563e4a08 baseline holds, APL pass 50/50);
+  the only manifest change is the holy `CircleOfHealing 48089` resolve
+  (W3.3).
+- **Pre-commit gate**: unchanged steps; all 17 verify_all components green.
+- **CI**: verified via `run_verify_all.lua` locally (exit 0); push follows
+  the release commit.
+
 ## 2.23.0 — 2026-08-10
 
 ### Customer Changelog
