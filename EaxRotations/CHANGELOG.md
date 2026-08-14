@@ -1,5 +1,71 @@
 # Changelog
 
+## 2.24.2 — 2026-08-14
+
+### Customer Changelog
+- **Wave-5 live-lane sweep (11-agent research audit → 12 targeted fixes)**:
+  a read-only audit of every rotation against the real engine surface found
+  lanes that pass every test yet cannot work in production. Fixes:
+  - **Druid Rebirth actually resurrects now** — the resto Rebirth lane cast
+    on the player itself with no dead-ally discovery; it now targets a real
+    dead party member via the shared find_dead_party_ally chain (mirrors the
+    vanilla-era fix).
+  - **Mage Scorch vulnerability now tracked** — fire_wotlk read the
+    "Improved Scorch" *talent* id (12873) as the target debuff, so
+    scorch_remains was always 0 and Scorch re-cast every GCD. Now reads
+    Fire Vulnerability (22959), the real rank-independent debuff (DBC-
+    verified; TBC file already used it).
+  - **Death Knight presences stay put** — state.presence is now populated
+    from the shared buff-detection helper (per-spec tables were dropped);
+    this kills the infinite presence-recast loop when the desired presence
+    differs from Blood.
+  - **Warlock Curse of Tongues fires in PvP** — the lane read a context
+    field only test mocks provided; the engine now detects mana-class
+    enemies (the cast-speed curse only affects mana classes).
+  - **Shaman Purge works in PvE** — same mock-only field; the engine now
+    flags targets carrying any buff (the real purge candidates).
+  - **Shaman Magma Totem restored in Classic** — elemental_vanilla had the
+    lane hard-disabled with a wrong rationale ("max rank is TBC-only"); all
+    four ranks are Classic-era. Vanilla never-firing pins 13 → 12.
+  - **Priest mana-floor wanding works** — the <5% mana wand lane called
+    start_auto_attack() with no target (a guaranteed no-op); it now passes
+    the target + wand attack type.
+  - **Warrior healthstones respect cooldowns** — protection's stone gate
+    checked bag presence only, so at ≤28% HP it monopolized the rotation
+    during the stone's cooldown; arms' stone ladder now reads the real
+    era-data list (the old code read an undefined global).
+- **Hunter WotLK rotations no longer act out of combat**: 27 offensive
+  lanes (9 per BM/MM/Survival) now require in-combat — no more casting
+  Kill Shot / Serpent Sting / traps etc. while idle.
+- **Paladin peel reliability**: threat-aware peel lanes now read the real
+  threat API through one canonical helper (context.threat_level engine
+  producer) instead of mock-only unit fields.
+
+### Developer Notes
+- **W5.1**: dead HitCapPriority lanes removed (context.hit_rating is not
+  producible — the rating API returns a bonus %, not rating); the SoD
+  class-table shadow eliminated (`define_sod_action_for_class` now resolves
+  explicit rune ids); the sylvanas spell-ID audit gained an SoD tier — 58
+  pinned SOD_RUNE_IDS + single-numeric define extraction covers all 20
+  `_sod.lua` loaders; Shadowburn corrected to 29341 (was Searing Pain r3).
+- **W5.2**: `main_sylvanas.lua` produces `context.threat_level` (number +
+  has_aggro from the real `get_threat_situation`); paladin protection/holy
+  peel lanes and their vanilla mirrors consume `NS.threat_status`;
+  battery mock reworked to bank-driven threat. Hunter WotLK OOC gating
+  applied via EOL-safe transform (27 lanes, 3 specs).
+- **W5.3**: the research findings that survived DBC/era-mirror verification
+  — full re-verification disproved the priest pushback-inversion and
+  shaman LightningShield-default claims (the vanilla files faithfully
+  mirror the TBC design). Contract pins moved with evidence: WotLK audit
+  Scorch allowlist 12873 → 22959 (count 184 unchanged), sod_context
+  Lifebloom 33763 → rune 409824 (Riptide precedent), Rebirth DSL tests
+  supply dead allies, vanilla never 13 → 12 (MagmaTotem).
+- **Battery contracts after the wave**: TBC never=16 · WotLK 0 · Vanilla
+  12 · SoD 0 — all four eras green in `run_verify_all.lua` (18 components,
+  exit 0). Provenance: `tools/evidence/apl/SOURCES.md` documents why the
+  SoD era has no wowsims APL fixtures by design.
+- **Pre-commit gate**: all 19 steps green; release commit follows.
+
 ## 2.24.0 — 2026-08-14
 
 ### Customer Changelog
