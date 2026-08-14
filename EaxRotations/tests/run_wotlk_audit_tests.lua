@@ -58,7 +58,14 @@ local WOTLK_REFERENCE_ALIASES = {
     -- 42873 (Fire Blast) is pinned once, in the rank-audit section below, with
     -- the authoritative wowhead WotLK Classic verification as source.
     [44448] = { kind = "VALID_AURA_ALIAS", family = "Hot Streak", source = "sim/mage/talents.go" },
-    [12873] = { kind = "VALID_AURA_ALIAS", family = "Scorch", source = "sim/core/debuffs.go" },
+    -- 22959 Fire Vulnerability: the Improved Scorch target debuff (rank-
+    -- independent in 3.3.x). 2026-08-14 DBC correction: the prior entry
+    -- allowlisted 12873 = "Improved Scorch" (the talent, sourced from
+    -- wowsims' sim/core/debuffs.go modeling choice), whose aura never lands
+    -- on the target — fire_wotlk.lua:33 read it and scorch_remains stayed 0.
+    -- DBC SpellName (wowsims.db 2.5.5): 22959 = "Fire Vulnerability",
+    -- 12873 = "Improved Scorch"; matches fire_sylvanas.lua:47 (TBC) precedent.
+    [22959] = { kind = "VALID_AURA_ALIAS", family = "Scorch", source = "DBC SpellName 22959 + fire_sylvanas.lua:47 precedent" },
     [19940] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "sim/paladin/holy/holy.go + shared/_dbc_spell_ids.lua + shared/wowhead_data_bridge_sylvanas.lua" },
     [19939] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "sim/paladin/holy/holy.go + shared/_dbc_spell_ids.lua + shared/wowhead_data_bridge_sylvanas.lua" },
     [48785] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "wowhead WotLK Classic spell=48785 (Flash of Light, top 3.3.x rank) + shared/wowhead_data_bridge_spell_index_wotlk_sylvanas.lua rank family" },

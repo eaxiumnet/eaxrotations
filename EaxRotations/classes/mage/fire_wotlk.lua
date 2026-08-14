@@ -30,7 +30,13 @@ local ACTION = {
 }
 
 local LIVING_BOMB_DEBUFF = { 55360 }
-local SCORCH_DEBUFF = { 12873 }
+-- 22959 Fire Vulnerability is the Improved Scorch target debuff (rank-
+-- independent, applied by any Scorch rank with the talent). 12873 is the
+-- "Improved Scorch" talent itself — its aura never lands on the target, so
+-- reading it left scorch_remains perpetually 0. DBC-verified: SpellName
+-- 22959 = "Fire Vulnerability", 12873 = "Improved Scorch" (wowsims.db);
+-- matches fire_sylvanas.lua:47 (TBC) precedent.
+local SCORCH_DEBUFF = { 22959 }
 local HOT_STREAK_BUFF = { 44448 }
 
 local fire_state = {
