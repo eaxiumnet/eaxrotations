@@ -91,13 +91,14 @@ local function build_state(context)
     state.killing_machine = (me and NS.buff_up and NS.buff_up(me, KILLING_MACHINE_BUFF)) or false
     state.unbreakable_armor_up = (me and NS.buff_up and NS.buff_up(me, UNBREAKABLE_ARMOR_BUFF)) or false
     state.frost_presence_up = (me and NS.buff_up and NS.buff_up(me, FROST_PRESENCE_BUFF)) or false
+    -- Current presence id feeds presence_manager.should_switch_presence
+    -- (it falls back to PRESENCE.BLOOD when unset — without this the auto
+    -- lane would recast Frost Presence every tick).
+    state.presence = presence_manager and presence_manager.current_presence_id(me) or nil
 
-    -- Runic power via rune_manager (primary) with direct unit API fallback.
-    if rune_manager and rune_manager.get_runic_power then
-        state.runic_power = rune_manager.get_runic_power(me) or 0
-    else
-        state.runic_power = (me and me.get_runic_power and me:get_runic_power()) or 0
-    end
+    -- Runic power via rune_manager (primary path; the legacy me:get_runic_power
+    -- fallback is a Pattern 17 mock-only read — rune_manager handles it).
+    state.runic_power = rune_manager and rune_manager.get_runic_power(me) or 0
 
     -- Rune availability via rune_manager: ONE get_rune_state() call per frame
     -- (6 slots x 2 pcall + 2 table allocs), sliced into per-type ready counts.

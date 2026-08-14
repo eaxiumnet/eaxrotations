@@ -117,11 +117,18 @@
 -- but whose reads live outside the writing file. Each entry is pinned with
 -- the evidence (file:line of the reader) so it cannot silently drift.
 local CROSS_FILE_READS = {
-    -- blood_wotlk presence: read by presence_manager_sylvanas.lua:107
+    -- blood_wotlk presence: read by presence_manager_sylvanas.lua:127
     -- (`state.presence or context.presence`) — blood passes its state to
     -- get_optimal_presence / should_switch_presence (blood_wotlk.lua:112-113),
     -- and test_wotlk_battery_regression.lua:120-122 pins state.presence.
     ["EaxRotations/classes/deathknight/blood_wotlk.lua"] = { presence = true },
+    -- frost_wotlk / unholy_wotlk presence: same cross-file read — the auto
+    -- presence lanes pass the spec state to presence_manager.should_switch_
+    -- presence (frost_wotlk.lua:265 / unholy_wotlk.lua:335); populated via the
+    -- shared current_presence_id helper (W5.3) so the fallback-to-blood
+    -- recast loop is gone.
+    ["EaxRotations/classes/deathknight/frost_wotlk.lua"] = { presence = true },
+    ["EaxRotations/classes/deathknight/unholy_wotlk.lua"] = { presence = true },
     -- resto healer entries/count: read by preemptive_heal_sylvanas.lua:285-286
     -- (`state.entries`, `state.count`) — the healer passes its state to
     -- PreemptiveHeal.match(context, state, ...) (e.g. resto_sylvanas.lua:802).

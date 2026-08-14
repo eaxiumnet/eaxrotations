@@ -138,6 +138,26 @@ function M.presence_id(name)
 end
 
 -- ---------------------------------------------------------------------------
+-- Detect the CURRENT presence from the player's buffs.
+-- Returns "blood", "frost", "unholy", or nil (no presence buff up).
+-- ---------------------------------------------------------------------------
+function M.current_presence(me)
+    if not (NS.is_wotlk and NS.is_wotlk()) then return nil end
+    if not me or not NS.buff_up then return nil end
+    if NS.buff_up(me, { PRESENCE_SPELL_IDS[PRESENCE.BLOOD] }) then return "blood" end
+    if NS.buff_up(me, { PRESENCE_SPELL_IDS[PRESENCE.FROST] }) then return "frost" end
+    if NS.buff_up(me, { PRESENCE_SPELL_IDS[PRESENCE.UNHOLY] }) then return "unholy" end
+    return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- Current presence as the numeric id (PRESENCE.*) or nil.
+-- ---------------------------------------------------------------------------
+function M.current_presence_id(me)
+    return M.presence_id(M.current_presence(me))
+end
+
+-- ---------------------------------------------------------------------------
 -- Convenience: get the spell ID for a presence
 -- ---------------------------------------------------------------------------
 function M.presence_spell_id(presence)

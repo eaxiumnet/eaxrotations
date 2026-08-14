@@ -151,6 +151,8 @@ package.preload["shared/presence_manager_sylvanas"] = function()
         presence_id = function(name) return PRESENCE_IDS[name] end,
         get_optimal_presence = function(context, state) return desired_presence end,
         should_switch_presence = function(context, state, name) return desired_presence == name end,
+        current_presence = function() return nil end,
+        current_presence_id = function() return nil end,
     }
 end
 package.preload["shared/interrupt_manager_sylvanas"] = function()

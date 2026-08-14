@@ -4091,6 +4091,11 @@ function M.load_spec(class_key, spec_key, era, race_override)
             presence_id = function(name) return name end,
             presence_name = function(id) return id end,
             presence_spell_id = function() return 0 end,
+            -- W5.3: the specs populate state.presence via this helper; the
+            -- battery never has presence buffs up, so it returns nil (the same
+            -- state the dk_presence scenario already relies on).
+            current_presence = function() return nil end,
+            current_presence_id = function() return nil end,
         }
         -- Interrupts (Phase 1, second pass): register_interrupt_spell returned a
         -- matches=false strategy, so MindFreeze (blood/frost/unholy) could never

@@ -43,10 +43,6 @@ local FROST_FEVER         = DK_CONST.FROST_FEVER_DEBUFF or { 55095 }
 local BLOOD_PLAGUE        = DK_CONST.BLOOD_PLAGUE_DEBUFF or { 55078 }
 local HORN_OF_WINTER_BUFF = DK_CONST.HORN_OF_WINTER_BUFF or { 57623, 57330 }
 
-local BLOOD_PRESENCE_BUFF  = { 48266 }
-local FROST_PRESENCE_BUFF  = { 48263 }
-local UNHOLY_PRESENCE_BUFF = { 48265 }
-
 local blood_state = {
     hp                   = 100,
     target_hp            = 100,
@@ -77,15 +73,8 @@ local function build_state(context)
     -- Runic power and rune snapshot sourced from RuneManager (shared module).
     state.runic_power = RuneManager.get_runic_power(me)
 
-    if me and NS.buff_up and NS.buff_up(me, BLOOD_PRESENCE_BUFF) then
-        state.presence = PresenceManager.presence_id("blood")
-    elseif me and NS.buff_up and NS.buff_up(me, FROST_PRESENCE_BUFF) then
-        state.presence = PresenceManager.presence_id("frost")
-    elseif me and NS.buff_up and NS.buff_up(me, UNHOLY_PRESENCE_BUFF) then
-        state.presence = PresenceManager.presence_id("unholy")
-    else
-        state.presence = nil
-    end
+    -- Current presence id via the shared buff-detection helper.
+    state.presence = PresenceManager.current_presence_id(me)
 
     return state
 end

@@ -101,6 +101,11 @@ local function build_state(context)
     state.horn_of_winter_up = (me and NS.buff_up and NS.buff_up(me, HORN_OF_WINTER_BUFF)) or false
     state.bone_shield_up = (me and NS.buff_up and NS.buff_up(me, BONE_SHIELD_BUFF)) or false
 
+    -- Current presence id feeds presence_manager.should_switch_presence
+    -- (it falls back to PRESENCE.BLOOD when unset — without this the auto
+    -- lane would recast Unholy Presence every tick).
+    state.presence = presence_manager and presence_manager.current_presence_id(me) or nil
+
     state.runic_power = 0
     if me and rune_manager then
         state.runic_power = rune_manager.get_runic_power(me) or 0

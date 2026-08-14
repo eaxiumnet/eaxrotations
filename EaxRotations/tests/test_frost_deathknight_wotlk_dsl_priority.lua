@@ -45,6 +45,8 @@ package.loaded["shared/presence_manager_sylvanas"] = {
     get_optimal_presence = function() return nil end,
     should_switch_presence = function() return false end,
     presence_id = function(name) return name end,
+    current_presence = function() return nil end,
+    current_presence_id = function() return nil end,
 }
 
 package.loaded["shared/interrupt_manager_sylvanas"] = {
