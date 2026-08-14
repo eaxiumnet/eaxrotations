@@ -87,7 +87,7 @@ local warlock_execute = {
 assert_eq(strategy(warlock_dps, "Shadowburn").matches(
     warlock_execute, warlock_dps.build_state(warlock_execute)), true,
     "Warlock DPS uses execute Shadowburn")
-assert_execute(warlock_dps, "Shadowburn", warlock_execute, 17920, target)
+assert_execute(warlock_dps, "Shadowburn", warlock_execute, 29341, target)
 
 local warlock_life_tap = {
     is_sod = true, sod_phase = 8, in_combat = true, target = target,

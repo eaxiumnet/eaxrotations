@@ -10,7 +10,7 @@ local ACTION = {
     MendPet = define("SodMendPet", { 13542, 3661, 136 }, {}, "MendPet"),
     HealthFunnel = define("SodHealthFunnel", 11695, {}, "HealthFunnel"),
     CurseOfRecklessness = define("SodCurseOfRecklessness", 7658, {}, "CurseOfRecklessness"),
-    Shadowburn = define("SodShadowburn", 17920, {}, "Shadowburn"),
+    Shadowburn = define("SodShadowburn", 29341, {}, "Shadowburn"),
     ChaosBolt = define("SodChaosBolt", 403629, { rune_id = 403629, min_phase = 1 }, "ChaosBolt"),
     Incinerate = define("SodIncinerate", 412758, { rune_id = 412758, min_phase = 1 }, "Incinerate"),
     Conflagrate = define("SodConflagrate", 18932, {}, "Conflagrate"),

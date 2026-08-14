@@ -68,6 +68,76 @@ local CROSS_ERA_FILES = {
     ["shared/talent_inference_sylvanas.lua"] = true,
 }
 
+-- ---------------------------------------------------------------------------
+-- SoD rune/ability IDs (the 20 *_sod.lua loaders, 2026-08-14 W5.1 pin).
+-- SoD rune spells (399956-458371) are NOT present in the 2.5.5 DBC — they are
+-- Season-of-Discovery client additions, so bridge-membership alone would flag
+-- every one of them. These 58 ids are pinned from the loaders' own ACTION
+-- tables (the same ids the task-1 action map records) as the drift guard:
+-- a NEW id added to a *_sod.lua file must be either TBC-bridge-valid (era-
+-- common spells like Eviscerate/Rejuvenation ladders) or pinned here —
+-- anything else fails the audit. file:line = first occurrence.
+local SOD_RUNE_IDS = {
+    [399956] = 399956,  -- rogue/combat_sod.lua:23  (Mutilate)
+    [399963] = 399963,  -- rogue/tank_sod.lua:18    (Envenom)
+    [400012] = 400012,  -- rogue/tank_sod.lua:15    (BladeDance)
+    [400014] = 400014,  -- rogue/tank_sod.lua:14    (JustAFleshWound)
+    [401502] = 401502,  -- mage/dps_mage_sod.lua:19
+    [401977] = 401977,  -- priest/shadow_sod.lua:21
+    [402284] = 402284,  -- priest/healing_sod.lua:15
+    [402668] = 402668,  -- priest/shadow_sod.lua:17
+    [402799] = 402799,  -- priest/shadow_sod.lua:20
+    [402911] = 402911,  -- warrior/dps_warrior_sod.lua:16
+    [403629] = 403629,  -- warlock/dps_sod.lua:14   (ChaosBolt)
+    [403789] = 403789,  -- warlock/tank_sod.lua:8
+    [403851] = 403851,  -- warlock/tank_sod.lua:10
+    [407632] = 407632,  -- paladin/protection_sod.lua:19
+    [407669] = 407669,  -- paladin/protection_sod.lua:18
+    [407676] = 407676,  -- paladin/retribution_sod.lua:17
+    [407778] = 407778,  -- paladin/retribution_sod.lua:15
+    [407988] = 407988,  -- druid/feral_sod.lua:15   (SavageRoar)
+    [407995] = 407995,  -- druid/tank_sod.lua:17    (Mangle Bear)
+    [408120] = 408120,  -- druid/restoration_sod.lua:14 (WildGrowth)
+    [408247] = 408247,  -- druid/restoration_sod.lua:15 (Nourish)
+    [408427] = 408427,  -- shaman/elemental_sod.lua:19
+    [408490] = 408490,  -- shaman/enhancement_sod.lua:16
+    [408498] = 408498,  -- shaman/warden_sod.lua:17
+    [408507] = 408507,  -- shaman/enhancement_sod.lua:21
+    [408510] = 408510,  -- shaman/restoration_sod.lua:15 (WaterShield)
+    [408521] = 408521,  -- shaman/restoration_sod.lua:16 (Riptide)
+    [408531] = 408531,  -- shaman/warden_sod.lua:14
+    [409433] = 409433,  -- hunter/dps_hunter_sod.lua:17
+    [409593] = 409593,  -- hunter/dps_hunter_sod.lua:18
+    [409824] = 409824,  -- druid/restoration_sod.lua:16 (Lifebloom)
+    [409828] = 409828,  -- druid/feral_sod.lua:16   (Mangle Cat)
+    [412096] = 412096,  -- rogue/tank_sod.lua:17    (CrimsonTempest)
+    [412532] = 412532,  -- mage/dps_mage_sod.lua:18
+    [412758] = 412758,  -- warlock/tank_sod.lua:13
+    [414644] = 414644,  -- druid/tank_sod.lua:16    (Lacerate)
+    [414684] = 414684,  -- druid/balance_sod.lua:16
+    [415073] = 415073,  -- paladin/retribution_sod.lua:16 (Exorcism)
+    [415236] = 415236,  -- shaman/restoration_sod.lua:17 (HealingRain)
+    [417141] = 417141,  -- druid/tank_sod.lua:18    (Berserk)
+    [417157] = 417157,  -- druid/balance_sod.lua:14
+    [424785] = 424785,  -- rogue/tank_sod.lua:20    (SaberSlash)
+    [424919] = 424919,  -- rogue/tank_sod.lua:16    (MainGauche)
+    [425012] = 425012,  -- rogue/combat_sod.lua:25  (PoisonedKnife)
+    [425204] = 425204,  -- priest/shadow_sod.lua:15
+    [425336] = 425336,  -- shaman/warden_sod.lua:15
+    [425339] = 425339,  -- shaman/warden_sod.lua:20
+    [425463] = 425463,  -- warlock/tank_sod.lua:9
+    [426940] = 426940,  -- warrior/tank_warrior_sod.lua:9 (Rampage)
+    [428878] = 428878,  -- mage/dps_mage_sod.lua:17
+    [429765] = 429765,  -- warrior/dps_warrior_sod.lua:17
+    [431655] = 431655,  -- priest/shadow_sod.lua:23
+    [439748] = 439748,  -- druid/balance_sod.lua:17
+    [440488] = 440488,  -- warrior/tank_warrior_sod.lua:13 (Shockwave)
+    [440580] = 440580,  -- shaman/enhancement_sod.lua:14
+    [440658] = 440658,  -- paladin/protection_sod.lua:21
+    [440802] = 440802,  -- mage/dps_mage_sod.lua:16
+    [458371] = 458371,  -- paladin/protection_sod.lua:16
+}
+
 local valid_item_ids = {}
 for id in pairs(item_index) do
     valid_item_ids[id] = true
@@ -100,6 +170,33 @@ for _, class in ipairs({
         SYLVANAS_FILES[#SYLVANAS_FILES + 1] = "classes/" .. class .. "/" .. suffix .. "_sylvanas.lua"
     end
 end
+
+-- SoD-era loaders (Season of Discovery runes on the 2.5.x client). Scanned
+-- with the same bridge check PLUS the pinned SOD_RUNE_IDS set (runes are not
+-- in the 2.5.5 DBC); single-numeric `define("Name", NNN, ...)` action ids are
+-- also extracted (the rune-spell shape the brace-group scanner cannot see).
+local SOD_FILES = {
+    "classes/druid/balance_sod.lua",
+    "classes/druid/feral_sod.lua",
+    "classes/druid/restoration_sod.lua",
+    "classes/druid/tank_sod.lua",
+    "classes/hunter/dps_hunter_sod.lua",
+    "classes/mage/dps_mage_sod.lua",
+    "classes/paladin/protection_sod.lua",
+    "classes/paladin/retribution_sod.lua",
+    "classes/priest/healing_sod.lua",
+    "classes/priest/shadow_sod.lua",
+    "classes/rogue/combat_sod.lua",
+    "classes/rogue/tank_sod.lua",
+    "classes/shaman/elemental_sod.lua",
+    "classes/shaman/enhancement_sod.lua",
+    "classes/shaman/restoration_sod.lua",
+    "classes/shaman/warden_sod.lua",
+    "classes/warlock/dps_sod.lua",
+    "classes/warlock/tank_sod.lua",
+    "classes/warrior/dps_warrior_sod.lua",
+    "classes/warrior/tank_warrior_sod.lua",
+}
 
 -- Shared modules known to contain spell IDs (buffs, debuffs, talents, consumables)
 local SHARED_FILES_WITH_IDS = {
@@ -286,7 +383,7 @@ local function is_comment_line(line)
     return line:match("^%s*%-%-") ~= nil
 end
 
-local function scan_content(content, cross_era)
+local function scan_content(content, cross_era, sod)
     if type(content) ~= "string" then
         return { error = "content must be a string", hits = {} }
     end
@@ -297,6 +394,17 @@ local function scan_content(content, cross_era)
         line_no = line_no + 1
         if not is_comment_line(line) then
             local ids = extract_ids_from_line(line)
+            if sod then
+                -- SoD rune actions use the single-numeric define form
+                -- (`Envenom = define("Envenom", 399963, ...)`) that the
+                -- brace-group scanner cannot see — collect those ids too.
+                for n in line:gmatch('define%(%s*"[^"]+"%s*,%s*(%d+)') do
+                    local v = tonumber(n)
+                    if v and v >= 1000 and v <= 999999 then
+                        ids[#ids + 1] = v
+                    end
+                end
+            end
             for _, id in ipairs(ids) do
                 if WOTLK_ONLY_IDS[id] then
                     hits[#hits + 1] = {
@@ -306,6 +414,8 @@ local function scan_content(content, cross_era)
                         desc = WOTLK_ONLY_IDS[id],
                         snippet = line:match("^%s*(.-)%s*$") or line,
                     }
+                elseif sod and SOD_RUNE_IDS[id] then
+                    -- allowed: pinned SoD rune/ability id (not in the 2.5.5 DBC)
                 elseif not valid_spell_ids[id] then
                     -- Cross-era shared modules (talent_inference) legitimately
                     -- carry the verified WotLK max-rank signature heads; a TBC
@@ -333,7 +443,7 @@ local function scan_content(content, cross_era)
     return { found = #hits > 0, hits = hits }
 end
 
-local function scan_file(filepath)
+local function scan_file(filepath, sod)
     if not file_exists(filepath) then
         return { skipped = true, hits = {} }
     end
@@ -343,7 +453,7 @@ local function scan_file(filepath)
     end
     -- Cross-era flag is scoped to the shared talent_inference module only.
     local cross_era = CROSS_ERA_FILES[filepath:gsub("^" .. root .. "/", "")] == true
-    return scan_content(content, cross_era)
+    return scan_content(content, cross_era, sod)
 end
 
 -- ---------------------------------------------------------------------------
@@ -434,6 +544,41 @@ local function run_self_tests()
         expect(seen_files[f], nil, "duplicate inventory entry: " .. tostring(f))
         seen_files[f] = true
     end
+    for _, f in ipairs(SOD_FILES) do
+        expect(seen_files[f], nil, "duplicate SoD inventory entry: " .. tostring(f))
+        seen_files[f] = true
+    end
+    expect(#SOD_FILES, 20, "SOD_FILES size")
+
+    -- SoD tier: pinned rune ids (single-numeric define form) must be silent in
+    -- sod mode, flagged INVALID without it (proves the pin unlocks them), and
+    -- an UNPINNED rune id must fail even in sod mode.
+    local sod_pinned_count = 0
+    for _ in pairs(SOD_RUNE_IDS) do sod_pinned_count = sod_pinned_count + 1 end
+    expect(sod_pinned_count, 58, "SOD_RUNE_IDS size")
+    local dup_runes = {}
+    for id in pairs(SOD_RUNE_IDS) do
+        if dup_runes[id] then error("duplicate SOD_RUNE_IDS entry: " .. tostring(id)) end
+        dup_runes[id] = true
+        if id < 399000 then
+            error("SOD_RUNE_IDS entry below the SoD rune range: " .. tostring(id))
+        end
+    end
+    local sod_pinned = scan_content(
+        "Envenom = define(\"Envenom\", 399963, { rune_id = 399963 }, \"Envenom\")", nil, true)
+    expect(sod_pinned.found, false, "pinned SoD rune id silent in sod mode (single-numeric define)")
+    local sod_unlocked = scan_content(
+        "Envenom = define(\"Envenom\", { 399963 }, \"Envenom\")")
+    expect(sod_unlocked.found, true, "pinned SoD rune id INVALID without the sod flag")
+    local sod_unpinned = scan_content(
+        "NewRune = define(\"NewRune\", 412345, { rune_id = 412345 }, \"NewRune\")", nil, true)
+    expect(sod_unpinned.found, true, "unpinned rune id fails in sod mode")
+    local sod_tbc = scan_content(
+        "Eviscerate = define(\"Eviscerate\", { 31016 }, nil, \"Eviscerate\")", nil, true)
+    expect(sod_tbc.found, false, "TBC-bridge ladder id silent in sod mode")
+    local sod_wotlk = scan_content(
+        "Berserk = define(\"Berserk\", { 50334 }, \"Berserk\")", nil, true)
+    expect(sod_wotlk.found, true, "WotLK-only id still fires in sod mode")
 
     -- Masking-gap helper: is_tracked() must resolve the EaxRotations-relative
     -- inventory form against the repo-root git ls-files form. Feed a synthetic
@@ -446,7 +591,7 @@ local function run_self_tests()
     expect(is_tracked("classes/mage/arcane_sylvanas.lua"), false, "untracked inventory entry stays clear")
     TRACKED = saved_tracked
 
-    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, masking-gap helper resolves")
+    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), masking-gap helper resolves")
 end
 
 -- ---------------------------------------------------------------------------
@@ -477,11 +622,20 @@ if not tracked_ok then
     os.exit(1)
 end
 
+local SCAN_LIST = {}
 for _, file in ipairs(SYLVANAS_FILES) do
+    SCAN_LIST[#SCAN_LIST + 1] = { file = file }
+end
+for _, file in ipairs(SOD_FILES) do
+    SCAN_LIST[#SCAN_LIST + 1] = { file = file, sod = true }
+end
+
+for _, entry in ipairs(SCAN_LIST) do
+    local file = entry.file
     local path = root .. "/" .. file
     total = total + 1
 
-    local result = scan_file(path)
+    local result = scan_file(path, entry.sod)
     if result.skipped then
         skipped = skipped + 1
         skipped_files[#skipped_files + 1] = file
@@ -507,7 +661,7 @@ print("")
 print("=============================================================================")
 print("  SYLVANAS SPELL AUDIT RESULTS")
 print("=============================================================================")
-print(string.format("  Total:     %3d sylvanas files", total))
+print(string.format("  Total:     %3d sylvanas files (incl. %d SoD loaders)", total, #SOD_FILES))
 print(string.format("  Skipped:   %3d (file not present)", skipped))
 print(string.format("  Clean:     %3d", passed))
 print(string.format("  Invalid:   %3d", failed))
