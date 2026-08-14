@@ -57,8 +57,8 @@ _G.EaxRotations = {
         STANCE = STANCE,
     },
     PLAYER_UNIT = {},
-    GetPlayer = function() return { get_class = function() return 1 end, get_rage = function() return 50 end, get_health_percentage = function() return 80 end, get_stance = function() return 1 end } end,
-    me = { get_rage = function() return 50 end, get_health_percentage = function() return 80 end, get_stance = function() return 1 end },
+    GetPlayer = function() return { get_class = function() return 1 end, get_power = function(self, p) return 50 end, get_health_percentage = function() return 80 end, get_stance = function() return 1 end } end,
+    me = { get_power = function(self, p) return 50 end, get_health_percentage = function() return 80 end, get_stance = function() return 1 end },
     spell_action = make_action,
     spell_ready = function() return true end,
     spell_exists = function() return true end,
@@ -150,13 +150,13 @@ local execute_state_low_hp = arms.build_state({ in_combat = true, target = { get
 assert_true(execute.matches({}, execute_state_low_hp), "Execute should match when target HP < 20% and rage >= 10")
 
 -- Target HP low but insufficient rage -> should NOT match
-local original_get_rage = NS.me.get_rage
-NS.me.get_rage = function() return 5 end
+local original_get_rage = NS.me.get_power
+NS.me.get_power = function() return 5 end
 local ok_rage, err_rage = pcall(function()
     local execute_state_low_rage = arms.build_state({ in_combat = true, target = { get_health_percentage = function() return 15 end }, settings = {} })
     assert_false(execute.matches({}, execute_state_low_rage), "Execute should not match when rage < 10")
 end)
-NS.me.get_rage = original_get_rage
+    NS.me.get_power = original_get_rage
 if not ok_rage then error(err_rage) end
 
 -- ============================================================================

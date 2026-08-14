@@ -1,12 +1,17 @@
--- test_resto_wotlk_dsl_priority.lua  WotLK Resto DSL priority order validation.
+-- test_resto_wotlk_dsl_priority.lua — WotLK Resto DSL priority order validation.
 -- WHAT:  Asserts the declarative DSL strategies appear in the correct priority order
 --        and that key match/no-match gates behave correctly under mocked combat state.
 -- WHEN:  Runs as part of the WotLK rotation test suite.
--- WHY:   Regression guard for the WotLK DSL adoption  ensures declarative conditions
+-- WHY:   Regression guard for the WotLK DSL adoption — ensures declarative conditions
 --        produce the same behavior as the original imperative match functions.
 -- SAFETY: Uses synthetic context/state; no live game data required.
+-- NOTE:   W3.3 (2026-08-13): WildGrowth gates on injured ALLIES
+--         (party_injured_count) instead of enemy_count; every heal targets the
+--         lowest-HP friendly; Lifebloom gained a mana floor + 3-stack gate;
+--         Rejuv/Regrowth gained overheal gates; Nourish + Innervate added
+--         (appended — positions 1-5 of the pinned order are unchanged).
 
--- Validates the 5 strategies (4 declarative + 1 custom OR condition) in the DSL_DEFS table.
+-- Validates the 7 strategies in the DSL_DEFS table.
 
 local mock_ns = {
     GetPlayer = function() return nil end,
@@ -23,6 +28,8 @@ local mock_ns = {
         Regrowth = 8936,
         Swiftmend = 18562,
         Lifebloom = 33763,
+        Nourish = 50464,
+        Innervate = 29166,
     },
     spec_kit = nil,
 }
@@ -30,6 +37,10 @@ _G.EaxRotations = mock_ns
 
 local _mock_spec_kit = {
     merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
+    define_action = function(spell_field, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id }
+    end,
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids
@@ -39,7 +50,7 @@ local _mock_spec_kit = {
     safe_state = function(tbl)
         local mt = {
             __index = function(_, key)
-                local defaults = { hp=100, mana_pct=100, target_hp=100, enemy_count=0, rejuvenation_remains=0, regrowth_remains=0, lifebloom_remains=0 }
+                local defaults = { hp=100, mana_pct=100, target_hp=100, enemy_count=0, lowest_hp_pct=55, party_injured_count=0, rejuvenation_remains=0, regrowth_remains=0, lifebloom_remains=0, lifebloom_stacks=0 }
                 return defaults[key] or 0
             end
         }
@@ -61,6 +72,7 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                         if cond.type == "state" then
                             local val = state[cond.field]
                             if cond.op == "<" and (val or 0) >= (cond.value or 0) then return false end
+                            if cond.op == "<=" and (val or 0) > (cond.value or 0) then return false end
                             if cond.op == ">=" and (val or 0) < (cond.value or 0) then return false end
                             if cond.op == ">" and (val or 0) <= (cond.value or 0) then return false end
                         elseif cond.type == "custom" and cond.fn then
@@ -93,7 +105,7 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    local expected = { "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth" }
+    local expected = { "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -106,7 +118,9 @@ local function make_state(overrides)
     local ctx = { in_combat = true, target = {}, enemy_count = 1 }
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
+        lowest_hp_pct = 55, party_injured_count = 0,
         rejuvenation_remains = 0, regrowth_remains = 0, lifebloom_remains = 0,
+        lifebloom_stacks = 0,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -129,41 +143,54 @@ local function test_match(name, state_overrides, expected)
     end
 end
 
--- WildGrowth: matches when enemy_count >= 2 AND mana_pct >= 25
-tests.test_WildGrowth_matches_when_aoe = test_match("WildGrowth", { enemy_count = 3, mana_pct = 50 }, true)
-tests.test_WildGrowth_does_not_match_when_single = test_match("WildGrowth", { enemy_count = 1, mana_pct = 50 }, false)
-tests.test_WildGrowth_does_not_match_when_low_mana = test_match("WildGrowth", { enemy_count = 3, mana_pct = 20 }, false)
+-- WildGrowth: matches when 2+ allies are injured AND mana >= 25 (W3.3: was
+-- enemy_count >= 2 — never fired in the single-boss fight it exists for)
+tests.test_WildGrowth_matches_when_injured = test_match("WildGrowth", { party_injured_count = 3, mana_pct = 50 }, true)
+tests.test_WildGrowth_does_not_match_when_single_injured = test_match("WildGrowth", { party_injured_count = 1, mana_pct = 50 }, false)
+tests.test_WildGrowth_does_not_match_when_low_mana = test_match("WildGrowth", { party_injured_count = 3, mana_pct = 20 }, false)
 
--- Swiftmend: matches when target_hp < 50 AND (rejuv_remains > 0 OR regrowth_remains > 0)
-tests.test_Swiftmend_matches_when_hp_low_and_rejuv = test_match("Swiftmend", { target_hp = 30, rejuvenation_remains = 5, regrowth_remains = 0 }, true)
-tests.test_Swiftmend_matches_when_hp_low_and_regrowth = test_match("Swiftmend", { target_hp = 30, rejuvenation_remains = 0, regrowth_remains = 5 }, true)
-tests.test_Swiftmend_does_not_match_when_no_hot = test_match("Swiftmend", { target_hp = 30, rejuvenation_remains = 0, regrowth_remains = 0 }, false)
-tests.test_Swiftmend_does_not_match_when_hp_high = test_match("Swiftmend", { target_hp = 70, rejuvenation_remains = 5, regrowth_remains = 5 }, false)
+-- Swiftmend: matches when lowest ally hp < 50 AND (rejuv_remains > 0 OR regrowth_remains > 0)
+tests.test_Swiftmend_matches_when_hp_low_and_rejuv = test_match("Swiftmend", { lowest_hp_pct = 30, rejuvenation_remains = 5, regrowth_remains = 0 }, true)
+tests.test_Swiftmend_matches_when_hp_low_and_regrowth = test_match("Swiftmend", { lowest_hp_pct = 30, rejuvenation_remains = 0, regrowth_remains = 5 }, true)
+tests.test_Swiftmend_does_not_match_when_no_hot = test_match("Swiftmend", { lowest_hp_pct = 30, rejuvenation_remains = 0, regrowth_remains = 0 }, false)
+tests.test_Swiftmend_does_not_match_when_hp_high = test_match("Swiftmend", { lowest_hp_pct = 70, rejuvenation_remains = 5, regrowth_remains = 5 }, false)
 
--- Lifebloom: matches when lifebloom_remains < 3
+-- Lifebloom: matches when expiring and mana >= 25 (stacks < 3 rolls freely)
 tests.test_Lifebloom_matches_when_expiring = test_match("Lifebloom", { lifebloom_remains = 2 }, true)
 tests.test_Lifebloom_does_not_match_when_fresh = test_match("Lifebloom", { lifebloom_remains = 10 }, false)
+tests.test_Lifebloom_does_not_match_when_low_mana = test_match("Lifebloom", { lifebloom_remains = 2, mana_pct = 20 }, false)
+-- 3-stack awareness: at 3 stacks only refresh inside the last 1.2s
+tests.test_Lifebloom_does_not_clip_at_3_stacks = test_match("Lifebloom", { lifebloom_remains = 2, lifebloom_stacks = 3 }, false)
+tests.test_Lifebloom_refreshes_at_3_stacks_near_expiry = test_match("Lifebloom", { lifebloom_remains = 0.6, lifebloom_stacks = 3 }, true)
 
--- Rejuvenation: matches when rejuvenation_remains < 3
+-- Rejuvenation: matches when lowest ally <= 88 and HoT expiring (friendly target)
 tests.test_Rejuvenation_matches_when_expiring = test_match("Rejuvenation", { rejuvenation_remains = 2 }, true)
 tests.test_Rejuvenation_does_not_match_when_fresh = test_match("Rejuvenation", { rejuvenation_remains = 10 }, false)
+tests.test_Rejuvenation_does_not_match_when_group_healthy = test_match("Rejuvenation", { rejuvenation_remains = 2, lowest_hp_pct = 95 }, false)
 
--- Regrowth: matches when regrowth_remains < 3 AND target_hp < 70 AND mana_pct >= 25
-tests.test_Regrowth_matches_when_all_conditions = test_match("Regrowth", { regrowth_remains = 2, target_hp = 50, mana_pct = 50 }, true)
-tests.test_Regrowth_does_not_match_when_fresh = test_match("Regrowth", { regrowth_remains = 10, target_hp = 50, mana_pct = 50 }, false)
-tests.test_Regrowth_does_not_match_when_hp_high = test_match("Regrowth", { regrowth_remains = 2, target_hp = 90, mana_pct = 50 }, false)
-tests.test_Regrowth_does_not_match_when_low_mana = test_match("Regrowth", { regrowth_remains = 2, target_hp = 50, mana_pct = 20 }, false)
+-- Regrowth: matches when lowest ally <= 70 and HoT expiring and mana >= 25
+tests.test_Regrowth_matches_when_all_conditions = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 50, mana_pct = 50 }, true)
+tests.test_Regrowth_does_not_match_when_fresh = test_match("Regrowth", { regrowth_remains = 10, lowest_hp_pct = 50, mana_pct = 50 }, false)
+tests.test_Regrowth_does_not_match_when_hp_high = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 90, mana_pct = 50 }, false)
+tests.test_Regrowth_does_not_match_when_low_mana = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 50, mana_pct = 20 }, false)
+
+-- Nourish (W3.3 addition): direct spot heal at lowest ally <= 60
+tests.test_Nourish_matches_when_lowest_injured = test_match("Nourish", { lowest_hp_pct = 50, mana_pct = 50 }, true)
+tests.test_Nourish_does_not_match_when_group_healthy = test_match("Nourish", { lowest_hp_pct = 80, mana_pct = 50 }, false)
+
+-- Innervate (W3.3 addition): self mana regen at mana <= 30
+tests.test_Innervate_matches_when_low_mana = test_match("Innervate", { mana_pct = 25 }, true)
+tests.test_Innervate_does_not_match_when_high_mana = test_match("Innervate", { mana_pct = 80 }, false)
 
 for name, fn in pairs(tests) do
-    local ok, err = pcall(fn)
+    local ok, err, msg = pcall(fn)
     if ok and err == true then
         passed = passed + 1
         io.write(".")
     else
         failed = failed + 1
         io.write("F")
-        local msg = type(err) == "string" and err or (type(err) == "table" and (err[2] or "unknown") or "unknown")
-        io.write(" [" .. name .. ": " .. tostring(msg) .. "]")
+        io.write(" [" .. name .. ": " .. tostring(msg or err) .. "]")
     end
 end
 

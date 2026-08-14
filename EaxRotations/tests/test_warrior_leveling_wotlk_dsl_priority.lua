@@ -50,11 +50,11 @@ _G.EaxRotations = {
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 100 end,
-        get_rage = function() return 0 end,
+        get_power = function(self, p) return 0 end, -- W3.4: real member (me:get_rage is mock-only)
     } end,
     me = {
         get_health_percentage = function() return 100 end,
-        get_rage = function() return 0 end,
+        get_power = function(self, p) return 0 end, -- W3.4: real member (me:get_rage is mock-only)
     },
     AOE_RADIUS = { SELF_8 = 8, TARGET_8 = 8 },
     aoe_self_meets = function(count, radius, context, state) return true end,
@@ -158,20 +158,36 @@ test("BattleShout: matches OOC without shout", function()
     assert_true(lv.strategies[3].matches(ctx, state), "BattleShout should match OOC without shout")
 end)
 
--- Charge (4): not in_combat
-test("Charge: matches OOC", function()
+-- Charge (4): not in combat + 8-25 yd range (W3.3: range-gated like arms)
+test("Charge: matches OOC in range", function()
     local state = lv.build_state(ctx)
     state.in_combat = false
-    assert_true(lv.strategies[4].matches(ctx, state), "Charge should match OOC")
+    state.target_distance = 15
+    assert_true(lv.strategies[4].matches(ctx, state), "Charge should match OOC at 8-25 yd")
 end)
 
--- Execute (6): in_combat and target_hp < 20 and rage >= 10
+test("Charge: does not match at melee range", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = false
+    state.target_distance = 5
+    assert_false(lv.strategies[4].matches(ctx, state), "Charge must not fire at melee range")
+end)
+
+-- Execute (6): in_combat and target_hp < 20 and rage >= 15 (WotLK cost)
 test("Execute: matches on low target with rage", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.target_hp = 15
-    state.rage = 10
+    state.rage = 15
     assert_true(lv.strategies[6].matches(ctx, state), "Execute should match on low target")
+end)
+
+test("Execute: does not match below 15 rage", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.target_hp = 15
+    state.rage = 10
+    assert_false(lv.strategies[6].matches(ctx, state), "Execute needs 15 rage in WotLK")
 end)
 
 test("Execute: does not match on healthy target", function()
@@ -213,10 +229,11 @@ test("Cleave: matches when AoE meets", function()
     assert_true(lv.strategies[10].matches(ctx, state), "Cleave should match when AoE meets")
 end)
 
--- Rend (11): in_combat and rend_remains < 3
+-- Rend (11): in_combat, rage >= 10 (W3.3 cost gate) and rend_remains < 3
 test("Rend: matches when dot missing", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
+    state.rage = 10
     state.rend_remains = 0
     assert_true(lv.strategies[11].matches(ctx, state), "Rend should match when dot missing")
 end)

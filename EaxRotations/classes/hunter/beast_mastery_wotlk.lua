@@ -3,7 +3,9 @@
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
---          imperative match functions; no on_update() allocs.
+--          imperative match functions; cooldown readiness via NS.cooldown_remains
+--          (real API — never action:cooldown_remaining(), which is mock-only);
+--          no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -34,6 +36,22 @@ local SERPENT_STING_DEBUFF = { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 
 local EXPLOSIVE_TRAP_DEBUFF = { 49067 }
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 
+-- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
+-- 0 when unknown). The old action:cooldown_remaining() call returned nil in
+-- production (spell_action exposes no such method), making the BestialWrath
+-- lane a silent never-fire (W3.1 audit, wave 3.3 fix).
+local function cd_remaining(action)
+    if NS.cooldown_remains then
+        local v = NS.cooldown_remains(action)
+        if type(v) == "number" then return v end
+    end
+    if NS.get_spell_cooldown then
+        local v = NS.get_spell_cooldown(action)
+        if type(v) == "number" then return v end
+    end
+    return 0
+end
+
 local bm_state = {
     target_hp = 100,
     mana_pct = 100,
@@ -52,7 +70,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(bm_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
@@ -70,7 +88,7 @@ local function build_state(context)
     else
         state.dragonhawk_up = (me and NS.buff_up and NS.buff_up(me, ASPECT_DRAGONHAWK_BUFF)) or false
     end
-    state.bestial_wrath_ready = (ACTION.BestialWrath and ACTION.BestialWrath.cooldown_remaining and ACTION.BestialWrath:cooldown_remaining() <= 0) or false
+    state.bestial_wrath_ready = cd_remaining(ACTION.BestialWrath) <= 0
     return state
 end
 

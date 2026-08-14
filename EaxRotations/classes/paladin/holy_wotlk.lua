@@ -1,17 +1,25 @@
 -- holy_wotlk.lua — Paladin Holy rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Holy paladin.
+-- WHAT:  priority-list strategies for Holy paladin: Beacon of Light on a stable
+--          tank/self target, Sacred Shield self-cast, then Holy Shock / Holy
+--          Light / Flash of Light on the lowest-HP friendly.
 -- WHEN:  combat with valid friendly target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); Beacon is checked
+--         on the DEDICATED beacon target (never the lowest-HP member — bouncing
+--         the Beacon churns it off the tank); Sacred Shield is a self-only buff
+--         in 3.3.5 (self-check + self-cast); declarative DSL strategies; no
+--         on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.PaladinSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): the WotLK client loads the
+-- TBC class_sylvanas.lua into NS.<Class>Spells, so the class-first resolver would
+-- shadow these WotLK rank ladders with TBC-era rank lists.
+local define = spec_kit.define_action
 
 local ACTION = {
     BeaconOfLight = define("BeaconOfLight", 53563, "BeaconOfLight"),
@@ -33,18 +41,47 @@ local holy_state = {
     in_combat = false,
     beacon_up = false,
     sacred_shield_up = false,
+    beacon_target = nil,
 }
+
+-- Dedicated Beacon target: first party/group member flagged as tank, else self.
+-- Keeps the Beacon on a STABLE target instead of following the lowest-HP member
+-- (which churns the buff and starves the tank of its 50% heal copy).
+local function pick_beacon_target(context)
+    local members = (context and (context.party_members or context.group_members)) or nil
+    if type(members) == "table" then
+        for i = 1, #members do
+            local member = members[i]
+            if member and type(member.get_group_role) == "function" then
+                local ok, role = pcall(member.get_group_role, member)
+                if ok and role == "tank" then return member end
+            end
+        end
+    end
+    return NS.me or (NS.GetPlayer and NS.GetPlayer())
+end
 
 local function build_state(context)
     local state = spec_kit.safe_state(holy_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = (context and context.lowest and context.lowest.unit) or me
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    local beacon_target = pick_beacon_target(context)
+    -- context.mana_pct is dispatcher-set (main_sylvanas.lua:795); me:mana_pct()
+    -- is the IZI SDK unit method. me:get_mana_percentage() is mock-only (W3.4).
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
-    state.beacon_up = (target and NS.buff_up and NS.buff_up(target, BEACON_OF_LIGHT_BUFF)) or false
-    state.sacred_shield_up = (target and NS.buff_up and NS.buff_up(target, SACRED_SHIELD_BUFF)) or false
+    state.beacon_target = beacon_target
+    -- Beacon checked on the DEDICATED tank/self target (never the lowest-HP
+    -- member), so the buff reads true while the tank is alive and healthy.
+    state.beacon_up = (beacon_target and NS.buff_up and NS.buff_up(beacon_target, BEACON_OF_LIGHT_BUFF)) or false
+    -- Sacred Shield is a SELF-ONLY buff in 3.3.5 — checked and cast on self,
+    -- never on the lowest-HP ally (the old code bounced it between members).
+    state.sacred_shield_up = (me and NS.buff_up and NS.buff_up(me, SACRED_SHIELD_BUFF)) or false
     return state
 end
 
@@ -54,14 +91,22 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "beacon_up", op = "falsy" },
         },
-        action = { type = "cast", spell = ACTION.BeaconOfLight, target = "friendly" },
+        -- Cast on the dedicated beacon target (tank or self), NOT the
+        -- lowest-HP member — the old "friendly" resolution bounced the
+        -- Beacon every tick and never settled on the tank.
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.BeaconOfLight, state.beacon_target, "[HOLY] BeaconOfLight") == true
+        end },
     },
     {
         name = "SacredShield",
         conditions = {
             { type = "state", field = "sacred_shield_up", op = "falsy" },
         },
-        action = { type = "cast", spell = ACTION.SacredShield, target = "friendly" },
+        -- Self-cast (nil target): Sacred Shield only ever lands on the paladin.
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.SacredShield, nil, "[HOLY] SacredShield") == true
+        end },
     },
     {
         name = "HolyShock",

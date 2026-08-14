@@ -1,5 +1,5 @@
 -- test_fury_wotlk_dsl_priority.lua — WotLK Fury warrior DSL priority order tests.
--- WHAT:  Validates that the 7 fury_wotlk strategies are compiled correctly by the DSL
+-- WHAT:  Validates that the 8 fury_wotlk strategies are compiled correctly by the DSL
 --        and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
@@ -54,12 +54,12 @@ _G.EaxRotations = {
     PLAYER_UNIT = {},
     GetPlayer = function() return {
         get_class = function() return 1 end,
-        get_rage = function() return 50 end,
+        get_power = function(self, p) return 50 end, -- W3.4: real member (me:get_rage is mock-only)
         get_health_percentage = function() return 80 end,
         get_stance = function() return 3 end,
     } end,
     me = {
-        get_rage = function() return 50 end,
+        get_power = function(self, p) return 50 end, -- W3.4: real member (me:get_rage is mock-only)
         get_health_percentage = function() return 80 end,
         get_stance = function() return 3 end,
     },
@@ -77,6 +77,7 @@ _G.EaxRotations = {
     debuff_stacks = function() return 0 end,
     get_debuff_stacks = function() return 0 end,
     cooldown_remains = function() return 0 end,
+    is_interruptible = function() return true end,
     is_item_ready = function() return false end,
     use_item_by_id = function() return true end,
     gate_cooldown_boss_only = function() return false end,
@@ -102,7 +103,7 @@ print("=== test_fury_wotlk_dsl_priority ===")
 local fury = dofile("EaxRotations/classes/warrior/fury_wotlk.lua")
 assert_true(type(fury) == "table", "fury_wotlk should return a table")
 assert_true(type(fury.strategies) == "table", "fury_wotlk should expose strategies")
-assert_true(#fury.strategies == 7, "fury_wotlk should have 7 strategies")
+assert_true(#fury.strategies == 8, "fury_wotlk should have 8 strategies")
 
 local registered = _G.EaxRotations._registered_fury
 assert_true(registered ~= nil, "fury_wotlk should register under 'fury'")
@@ -118,6 +119,7 @@ local expected_order = {
     "Bloodthirst",
     "Whirlwind",
     "Slam",
+    "BerserkerStance",
 }
 
 test("priority order: 7 strategies match expected order", function()
@@ -209,11 +211,11 @@ end)
 
 -- Bloodthirst: should NOT match when rage < 30
 test("Bloodthirst: does not match when rage < 30", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 20 end
+    local orig_rage = _G.EaxRotations.me.get_power
+    _G.EaxRotations.me.get_power = function() return 20 end
     local state = fury.build_state(ctx)
     local ok = fury.strategies[5].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
+    _G.EaxRotations.me.get_power = orig_rage
     assert_false(ok, "Bloodthirst should not match when rage < 30")
 end)
 
@@ -223,20 +225,49 @@ test("Whirlwind: matches when rage >= 25", function()
     assert_true(fury.strategies[6].matches(ctx, state), "Whirlwind should match when rage >= 25")
 end)
 
--- Slam (7): should match when rage >= 15
-test("Slam: matches when rage >= 15", function()
-    local state = fury.build_state(ctx)
-    assert_true(fury.strategies[7].matches(ctx, state), "Slam should match when rage >= 15")
-end)
-
--- Slam: should NOT match when rage < 15
-test("Slam: does not match when rage < 15", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 10 end
+-- Slam (7): Bloodsurge-proc-gated (wowsims fury APL: auraIsActive 46916/70847);
+-- should match when rage >= 15 AND the proc is up
+test("Slam: matches when rage >= 15 with Bloodsurge proc", function()
+    local orig_buff_up = _G.EaxRotations.buff_up
+    _G.EaxRotations.buff_up = function(unit, ids) return true end -- Bloodsurge proc up
     local state = fury.build_state(ctx)
     local ok = fury.strategies[7].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
+    _G.EaxRotations.buff_up = orig_buff_up
+    assert_true(ok, "Slam should match when rage >= 15 and Bloodsurge is up")
+end)
+
+-- Slam: should NOT match when the Bloodsurge proc is down (no free-cast spam)
+test("Slam: does not match without Bloodsurge proc", function()
+    local state = fury.build_state(ctx)
+    assert_false(fury.strategies[7].matches(ctx, state), "Slam must not fire without Bloodsurge (proc gate)")
+end)
+
+-- Slam: should NOT match when rage < 15 even with the proc
+test("Slam: does not match when rage < 15", function()
+    local orig_buff_up = _G.EaxRotations.buff_up
+    local orig_rage = _G.EaxRotations.me.get_power
+    _G.EaxRotations.buff_up = function(unit, ids) return true end
+    _G.EaxRotations.me.get_power = function() return 10 end
+    local state = fury.build_state(ctx)
+    local ok = fury.strategies[7].matches(ctx, state)
+    _G.EaxRotations.buff_up = orig_buff_up
+    _G.EaxRotations.me.get_power = orig_rage
     assert_false(ok, "Slam should not match when rage < 15")
+end)
+
+-- BerserkerStance (8): the APL's final lane — dance when not in Berserker
+test("BerserkerStance: matches when not in Berserker stance", function()
+    local orig_stance = _G.EaxRotations.me.get_stance
+    _G.EaxRotations.me.get_stance = function() return 1 end
+    local state = fury.build_state(ctx)
+    local ok = fury.strategies[8].matches(ctx, state)
+    _G.EaxRotations.me.get_stance = orig_stance
+    assert_true(ok, "BerserkerStance should match from Battle stance in combat")
+end)
+
+test("BerserkerStance: does not match when already in Berserker", function()
+    local state = fury.build_state(ctx)
+    assert_false(fury.strategies[8].matches(ctx, state), "BerserkerStance should not match when already Berserker")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

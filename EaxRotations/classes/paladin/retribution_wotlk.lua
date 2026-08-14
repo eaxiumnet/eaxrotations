@@ -1,11 +1,14 @@
 -- retribution_wotlk.lua — Paladin Retribution DPS rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies: seal maintenance (SoV/SoC), Judgement, Crusader Strike,
---          Divine Storm, Hammer of Wrath execute, Consecration AoE, Exorcism (Art of War),
---          Avenging Wrath burst, Divine Plea mana management.
+-- WHAT:  priority-list strategies: seal maintenance (SoV/SoC + enemy-count-driven
+--          seal switching via cancel+recast), Judgement, Crusader Strike,
+--          Divine Storm, Hammer of Wrath execute, Consecration AoE, Exorcism
+--          (Art of War), Avenging Wrath burst, Divine Plea mana management.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK 3.3.5a mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
---         imperative match functions; no on_update() allocs.
+--         imperative match functions; cooldown reads via NS.cooldown_remains (never
+--         a 99 fallback); seal-switch lane is opt-in (ret_seal_switch) with a 3s
+--         anti-loop throttle; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -18,9 +21,11 @@ end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.PaladinSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): the WotLK client loads the
+-- TBC class_sylvanas.lua into NS.<Class>Spells, so the class-first resolver would
+-- shadow these WotLK rank ladders with TBC-era rank lists.
+local define = spec_kit.define_action
 
 local ACTION = {
     Judgement       = define("Judgement",       { 20271, 53407, 53408 }, "Judgement"),
@@ -37,7 +42,10 @@ local ACTION = {
 
 local SEAL_OF_VENGEANCE_BUFF = { 31801 }
 local SEAL_OF_COMMAND_BUFF   = { 27170, 20920, 20919, 20918, 20915, 20375 }
-local ART_OF_WAR_BUFF        = { 59578, 59579 }
+-- 59578 = The Art of War (proc), 53486 = rank-1 Art of War (59579 is "Burst at
+-- the Seams" — a fishing/daily reward buff, NOT the proc; removing it fixes the
+-- Exorcism lane reading a wrong-aura table).
+local ART_OF_WAR_BUFF = { 59578, 53486 }
 local DIVINE_PLEA_BUFF       = { 54428 }
 
 local ret_state = {
@@ -60,17 +68,38 @@ local ret_state = {
     divine_plea_cd = 99,
 }
 
+-- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
+-- 0 when unknown). The old action:cooldown_remaining() call returned nil in
+-- production (spell_action exposes no such method), making every caller fall
+-- back to 99 and silently never-firing 7 of 10 lanes.
 local function cd_remaining(action)
-    if action and action.cooldown_remaining then return action:cooldown_remaining() end
-    return 99
+    if NS.cooldown_remains then
+        local v = NS.cooldown_remains(action)
+        if type(v) == "number" then return v end
+    end
+    if NS.get_spell_cooldown then
+        local v = NS.get_spell_cooldown(action)
+        if type(v) == "number" then return v end
+    end
+    return 0
 end
+
+-- Seal-switch anti-loop throttle (mirrors protection_sylvanas.lua): after the
+-- cancel-cast is matched, hold the lane for 3s so buff-state lag can't re-fire
+-- the cancel every tick.
+local _last_seal_switch_match_time = -999
 
 local function build_state(context)
     local state = spec_kit.safe_state(ret_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
 
-    state.mana_pct   = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    -- context.mana_pct is dispatcher-set (main_sylvanas.lua:795); me:mana_pct()
+    -- is the IZI SDK unit method. me:get_mana_percentage() is mock-only (W3.4).
+    state.mana_pct   = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
     state.target_hp  = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat  = (context and context.in_combat) or false
@@ -183,6 +212,38 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Consecration, target = "target" },
     },
+    -- Seal ST/AoE switching (Phase-3 paladin sweep): SoV cannot be replaced by
+    -- SoC while adds are up (the seal lanes only cast when NO seal is active).
+    -- WotLK seal mechanic: re-casting the active seal removes it (no GCD), so
+    -- this lane cancels the wrong seal; the SealOfCommand/SealOfVengeance lane
+    -- then applies the right one on the next GCD. Opt-in (ret_seal_switch,
+    -- default ON), 3s anti-loop throttle, combat-only.
+    {
+        name = "SealSwitch",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "ret_seal_switch", true) then return false end
+                local switch_needed = false
+                if state.seal_of_vengeance_up and (state.enemy_count or 0) >= 2 then
+                    switch_needed = true -- adds arrived: drop SoV so SoC applies
+                elseif state.seal_of_command_up and (state.enemy_count or 0) < 2 then
+                    switch_needed = true -- back to single target: drop SoC so SoV applies
+                end
+                if not switch_needed then return false end
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_seal_switch_match_time) < 3.0 then return false end
+                _last_seal_switch_match_time = now
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if state.seal_of_vengeance_up then
+                return NS.try_cast(ACTION.SealOfVengeance, nil, "[RET] SealSwitch cancel SoV") == true
+            end
+            return NS.try_cast(ACTION.SealOfCommand, nil, "[RET] SealSwitch cancel SoC") == true
+        end },
+    },
 }
 
 -- -----------------------------------------------------------------------------
@@ -199,6 +260,7 @@ local strategies = {
     { name = "DivineStorm" },
     { name = "Exorcism" },
     { name = "Consecration" },
+    { name = "SealSwitch" },
 }
 
 -- Name-based substitution preserves the existing priority order.

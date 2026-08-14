@@ -126,12 +126,13 @@ test("MoonkinForm: does not match when already up", function()
     assert_false(balance.strategies[1].matches(ctx, state), "MoonkinForm should not match when already up")
 end)
 
--- Starfall: matches in combat, enemy_count >= 2, long cd allowed
-test("Starfall: matches when in combat, 2+ enemies, long cd allowed", function()
+-- Starfall: matches in combat with long cd allowed (W3.3: enemy_count gate
+-- removed — Starfall fires single-target, its primary use)
+test("Starfall: matches when in combat, long cd allowed", function()
     local state = balance.build_state(ctx)
     state.in_combat = true
     state.enemy_count = 2
-    assert_true(balance.strategies[2].matches(ctx, state), "Starfall should match in AoE combat")
+    assert_true(balance.strategies[2].matches(ctx, state), "Starfall should match in combat")
 end)
 
 test("Starfall: does not match out of combat", function()
@@ -141,11 +142,11 @@ test("Starfall: does not match out of combat", function()
     assert_false(balance.strategies[2].matches(ctx, state), "Starfall should not match out of combat")
 end)
 
-test("Starfall: does not match with fewer than 2 enemies", function()
+test("Starfall: matches on a single target (ST gate fix)", function()
     local state = balance.build_state(ctx)
     state.in_combat = true
     state.enemy_count = 1
-    assert_false(balance.strategies[2].matches(ctx, state), "Starfall should not match with < 2 enemies")
+    assert_true(balance.strategies[2].matches(ctx, state), "Starfall should match with 1 enemy (was gated >= 2)")
 end)
 
 test("Starfall: does not match when long cd blocked", function()
@@ -185,17 +186,27 @@ test("Moonfire: does not match when debuff remains >= 3", function()
     assert_false(balance.strategies[3].matches(ctx, state), "Moonfire should not match when debuff >= 3")
 end)
 
--- Wrath: matches when mana >= 15
-test("Wrath: matches when mana >= 15", function()
+-- Wrath: matches when mana >= 15 during solar eclipse (W3.3: Wrath is the
+-- solar-eclipse filler; without solar it defers to Starfire)
+test("Wrath: matches when mana >= 15 during solar eclipse", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
-    assert_true(balance.strategies[5].matches(ctx, state), "Wrath should match when mana >= 15")
+    state.eclipse_solar = true
+    assert_true(balance.strategies[5].matches(ctx, state), "Wrath should match when mana >= 15 in solar eclipse")
 end)
 
 test("Wrath: does not match when mana < 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 10
+    state.eclipse_solar = true
     assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match when mana < 15")
+end)
+
+test("Wrath: does not match without solar eclipse (Starfire is the filler)", function()
+    local state = balance.build_state(ctx)
+    state.mana_pct = 80
+    state.eclipse_solar = false
+    assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match without solar eclipse")
 end)
 
 -- Starfire: matches when mana >= 15 (same condition, lower priority)
@@ -209,6 +220,37 @@ test("Starfire: does not match when mana < 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 10
     assert_false(balance.strategies[4].matches(ctx, state), "Starfire should not match when mana < 15")
+end)
+
+test("Starfire: does not match during solar eclipse (Wrath is buffed instead)", function()
+    local state = balance.build_state(ctx)
+    state.mana_pct = 80
+    state.eclipse_solar = true
+    assert_false(balance.strategies[4].matches(ctx, state), "Starfire should not match during solar eclipse")
+end)
+
+-- W3.4 lunar-phase mirror (2026-08-13): lunar eclipse (48518) buffs Starfire —
+-- the Starfire lane's explicit eclipse_lunar branch (mirror of the Wrath-on-
+-- solar test above; the pinned wowsims APL gates Starfire on 48518).
+test("Starfire: matches during lunar eclipse (eclipse_lunar up)", function()
+    local state = balance.build_state(ctx)
+    state.mana_pct = 80
+    state.eclipse_lunar = true
+    assert_true(balance.strategies[4].matches(ctx, state), "Starfire should match during lunar eclipse")
+end)
+
+test("Wrath: does not match during lunar eclipse (Wrath is solar-buffed only)", function()
+    local state = balance.build_state(ctx)
+    state.mana_pct = 80
+    state.eclipse_lunar = true
+    assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match during lunar eclipse")
+end)
+
+-- Eclipse state (W3.3): build_state must read both eclipse buffs from NS.buff_up
+test("build_state: eclipse_solar/lunar tracked from buffs", function()
+    local state = balance.build_state(ctx)
+    assert_true(state.eclipse_solar == false and state.eclipse_lunar == false,
+        "no buffs -> both eclipse flags false")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

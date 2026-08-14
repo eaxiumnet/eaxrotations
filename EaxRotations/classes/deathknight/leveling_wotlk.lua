@@ -16,19 +16,27 @@ end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
+local RuneManager = require("shared/rune_manager_sylvanas")
 local SPELLS = NS.DeathKnightSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
 
+-- Rank lists mirror classes/deathknight/class_sylvanas.lua (the authoritative
+-- WotLK table). W3.1 audit: the old lists carried cross-contaminated IDs —
+-- IcyTouch had 49802 (Maim/druid), 49905/49906 (Summon Infinite Timerender /
+-- Ice Lance); HowlingBlast had 51209-51212 (Hungering Cold / Soo-rahm's
+-- Incense / Blade Flurry / Despawn Sanguine Spirits). Masked in production
+-- only because define_action_for_class prefers the class table. Multi-ID
+-- ladder tops keep the pinned WotLK max rank FIRST (audit STALE_TOP rule).
 local ACTION = {
-    IcyTouch = define("IcyTouch", { 49909, 49802, 49903, 49904, 49905, 49906 }, "IcyTouch"),
+    IcyTouch = define("IcyTouch", { 49909, 45477, 49903, 49904 }, "IcyTouch"),
     PlagueStrike = define("PlagueStrike", { 49921, 49917, 49918, 49919, 49920 }, "PlagueStrike"),
     -- Blood Strike ranks (lexxer): 45902 r1 … 49930 max. Removed invalid 49932/49931.
     BloodStrike = define("BloodStrike", { 49930, 49929, 49928, 49927, 49926, 45902 }, "BloodStrike"),
     DeathStrike = define("DeathStrike", { 49999, 49998, 45463, 49924 }, "DeathStrike"),
     HeartStrike = define("HeartStrike", { 55262, 55050, 55258, 55259, 55260, 55261 }, "HeartStrike"),
     Obliterate = define("Obliterate", { 51425, 49020, 51423, 51424 }, "Obliterate"),
-    HowlingBlast = define("HowlingBlast", { 51411, 49184, 51209, 51210, 51211, 51212, 51409, 51410 }, "HowlingBlast"),
+    HowlingBlast = define("HowlingBlast", { 51411, 49184, 51409, 51410 }, "HowlingBlast"),
     ScourgeStrike = define("ScourgeStrike", { 55271, 55090, 55265, 55270 }, "ScourgeStrike"),
     DeathCoil = define("DeathCoil", { 49895, 47541, 49892, 49893, 49894 }, "DeathCoil"),
     HornOfWinter = define("HornOfWinter", { 57623, 57330 }, "HornOfWinter"),
@@ -38,7 +46,10 @@ local ACTION = {
     Pestilence = define("Pestilence", { 50842 }, "Pestilence"),
     DeathAndDecay = define("DeathAndDecay", { 49938, 43265, 49936, 49937 }, "DeathAndDecay"),
     BloodBoil = define("BloodBoil", { 49941, 48721, 49939, 49940 }, "BloodBoil"),
-    RuneStrike = define("RuneStrike", { 56815 }, "RuneStrike"),
+    -- RuneStrike (56815) deliberately NOT defined: it is REACTIVE in 3.3.5
+    -- (usable only after dodging/parrying in the last 5s — wowhead WotLK
+    -- spell=56815), so an unconditional RP>=30 lane could never succeed.
+    -- DeathCoil remains the leveling RP dump. (W3.3 register decision.)
     EmpowerRuneWeapon = define("EmpowerRuneWeapon", 47568, "EmpowerRuneWeapon"),
 }
 
@@ -65,18 +76,25 @@ local dk_state = {
 local function build_state(context)
     local state = spec_kit.safe_state(dk_state)
     local target = context and context.target
-    state.hp = (NS.me and NS.me.get_health_percentage and NS.me:get_health_percentage()) or 100
-    state.runic_power = (NS.me and NS.me.get_runic_power and NS.me:get_runic_power()) or 0
+    local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
+    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    -- Runic power via RuneManager (primary unit:get_power(6) path). The old
+    -- NS.me:get_runic_power() read is a legacy synthetic fallback
+    -- (rune_manager_sylvanas.lua:136-140) — absent on real clients, so RP
+    -- pinned 0 and DeathCoil never fired.
+    state.runic_power = RuneManager.get_runic_power(me)
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.frost_fever_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROST_FEVER)) or 0
     state.blood_plague_remains = (target and NS.debuff_remains and NS.debuff_remains(target, BLOOD_PLAGUE)) or 0
     state.diseases_up = (state.frost_fever_remains > 0) or (state.blood_plague_remains > 0)
-    state.horn_of_winter_up = (NS.me and NS.buff_up and NS.buff_up(NS.me, HORN_OF_WINTER_BUFF)) or false
+    state.horn_of_winter_up = (me and NS.buff_up and NS.buff_up(me, HORN_OF_WINTER_BUFF)) or false
     state.target_casting = helpers.should_interrupt(target)
-    state.blood_presence_up = (NS.me and NS.buff_up and NS.buff_up(NS.me, BLOOD_PRESENCE_BUFF)) or false
-    state.empower_rune_weapon_ready = (ACTION.EmpowerRuneWeapon and ACTION.EmpowerRuneWeapon.cooldown_remaining
-        and ACTION.EmpowerRuneWeapon:cooldown_remaining() <= 0) or false
+    state.blood_presence_up = (me and NS.buff_up and NS.buff_up(me, BLOOD_PRESENCE_BUFF)) or false
+    -- ERW readiness via REAL NS API: action:cooldown_remaining() is mock-only
+    -- (production NS.spell_action tables expose IsReady/IsInRange/Cast, not
+    -- cooldown_remaining — core_sylvanas.lua:1410-1454).
+    state.empower_rune_weapon_ready = (NS.cooldown_remains and NS.cooldown_remains(ACTION.EmpowerRuneWeapon) <= 0) or false
     return state
 end
 
@@ -208,15 +226,6 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.BloodStrike, target = "target" },
     },
     {
-        name = "RuneStrike",
-        -- Runic-power dump that hits harder than Death Coil; fire before it.
-        conditions = {
-            { type = "state", field = "in_combat", op = "truthy" },
-            { type = "state", field = "runic_power", op = ">=", value = 30 },
-        },
-        action = { type = "cast", spell = ACTION.RuneStrike, target = "target" },
-    },
-    {
         name = "DeathCoil",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -230,8 +239,9 @@ local DSL_DEFS = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "empower_rune_weapon_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
+                -- ERW is a 5-minute CD (class_sylvanas.lua cooldown 300).
                 if not NS.should_use_long_cd then return true end
-                return NS.should_use_long_cd(context, 120) and true or false
+                return NS.should_use_long_cd(context, 300) and true or false
             end },
         },
         action = { type = "cast", spell = ACTION.EmpowerRuneWeapon, target = "self" },
@@ -239,6 +249,9 @@ local DSL_DEFS = {
 }
 
 -- Placeholder priority order (compiled in place from DSL_DEFS below).
+-- NOTE: RuneStrike was REMOVED (2026-08-13, W3.3 register): it is reactive in
+-- 3.3.5 (usable only after dodging/parrying within 5s), so an unconditional
+-- RP>=30 lane could never succeed — DeathCoil is the leveling RP dump.
 local strategies = {
     { name = "MindFreeze" },
     { name = "BloodPresence" },
@@ -254,7 +267,6 @@ local strategies = {
     { name = "HeartStrike" },
     { name = "HowlingBlast" },
     { name = "BloodStrike" },
-    { name = "RuneStrike" },
     { name = "DeathCoil" },
     { name = "EmpowerRuneWeapon" },
 }

@@ -2,7 +2,10 @@
 -- WHAT:  priority-list strategies for hunter leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple shot rotation with pet cooldowns.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies;
+--          cooldown readiness via NS.cooldown_remains (never action:cooldown_remaining());
+--          plain define_action so WotLK max-rank ladders are not shadowed by TBC HunterSpells;
+--          no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -17,14 +20,18 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
-local SPELLS = NS.HunterSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action: the WotLK rank lists below carry the WotLK max ranks
+-- FIRST (49001 Serpent Sting, 49048 Multi-Shot, 49052 Steady Shot, 58434
+-- Volley, 48990 Mend Pet), while NS.HunterSpells is the TBC-era table.
+-- define_action_for_class(SPELLS) would shadow these file-local ladders with
+-- the TBC ranks (systemic #4) — the file would silently cast TBC downranks.
+local define = spec_kit.define_action
 
 local ACTION = {
     HuntersMark = define("HuntersMark", { 14325, 14324, 14323, 1130 }, "HuntersMark"),
     SerpentSting = define("SerpentSting", { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
-    SteadyShot = define("SteadyShot", 34120, "SteadyShot"),
+    SteadyShot = define("SteadyShot", { 49052, 34120 }, "SteadyShot"),
     ArcaneShot = define("ArcaneShot", { 49045, 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044 }, "ArcaneShot"),
     KillCommand = define("KillCommand", 34026, "KillCommand"),
     BestialWrath = define("BestialWrath", 19574, "BestialWrath"),
@@ -47,6 +54,22 @@ local VIPER_BUFF = { 34074 }
 local SERPENT_STING_DEBUFF = { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 
+-- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
+-- 0 when unknown). The old action:cooldown_remaining() call returned nil in
+-- production (spell_action exposes no such method), making the BestialWrath
+-- lane a silent never-fire (W3.1 audit, wave 3.3 fix).
+local function cd_remaining(action)
+    if NS.cooldown_remains then
+        local v = NS.cooldown_remains(action)
+        if type(v) == "number" then return v end
+    end
+    if NS.get_spell_cooldown then
+        local v = NS.get_spell_cooldown(action)
+        if type(v) == "number" then return v end
+    end
+    return 0
+end
+
 local hunter_state = {
     mana_pct = 100,
     enemy_count = 1,
@@ -66,12 +89,12 @@ local function build_state(context)
     local state = spec_kit.safe_state(hunter_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.serpent_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SERPENT_STING_DEBUFF)) or 0
     state.mark_remains = (target and NS.debuff_remains and NS.debuff_remains(target, HUNTERS_MARK_DEBUFF)) or 0
-    state.bestial_wrath_ready = (ACTION.BestialWrath and ACTION.BestialWrath.cooldown_remaining and ACTION.BestialWrath:cooldown_remaining() <= 0) or false
+    state.bestial_wrath_ready = cd_remaining(ACTION.BestialWrath) <= 0
     state.target_casting = helpers.should_interrupt(target)
     state.dps_aspect_up = (me and NS.buff_up and (NS.buff_up(me, DRAGONHAWK_BUFF) or NS.buff_up(me, HAWK_BUFF))) or false
     state.viper_up = (me and NS.buff_up and NS.buff_up(me, VIPER_BUFF)) or false

@@ -1,5 +1,10 @@
 -- elemental_wotlk.lua — Shaman Elemental rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Elemental shaman.
+-- WHAT:  priority-list strategies for Elemental shaman: Wind Shear interrupt,
+--        Earth Shock instant damage while the target casts (WotLK: Earth Shock
+--        lost its kick in 3.0.2), Flame Shock -> Lava Burst crit synergy, Chain
+--        Lightning cleave, CD windows computed from NS.spell_ready, and totem
+--        slot-occupancy maintenance (Searing Totem re-drop, Totem of Wrath
+--        re-drop mid-fight when destroyed).
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
@@ -13,6 +18,12 @@ local dsl      = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action
 
 local ACTION = {
+    WindShear = define("WindShear", 57994, "WindShear"),
+    -- WotLK-era note: Earth Shock no longer interrupts (kick removed 3.0.2;
+    -- Wind Shear 57994 is the WotLK interrupt). Kept as an instant-damage
+    -- filler that fires while the target casts (no pushback), outside the
+    -- pinned wowsims order like the rogue Kick template.
+    EarthShock = define("EarthShock", 49231, "EarthShock"),
     Bloodlust = define("Bloodlust", 2825, "Bloodlust"),
     FireElemental = define("FireElemental", 2894, "FireElemental"),
     ElementalMastery = define("ElementalMastery", 16166, "ElementalMastery"),
@@ -23,16 +34,14 @@ local ACTION = {
     LavaBurst = define("LavaBurst", 60043, "LavaBurst"),
     LightningBolt = define("LightningBolt", 49238, "LightningBolt"),
     Thunderstorm = define("Thunderstorm", 59159, "Thunderstorm"),
-    -- Baseline shaman interrupt (3.3.5): Earth Shock interrupts spellcasting;
-    -- Wind Shear only arrives in Cataclysm. Not in the wowsims elemental APL,
-    -- so it sits outside the pinned order (first, like the rogue Kick template).
-    EarthShock = define("EarthShock", 49231, "EarthShock"),
 }
 
 local FLAME_SHOCK_DEBUFF = { 49233, 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local FIRE_ELEMENTAL_BUFF = { 2894 }
 local TOTEM_OF_WRATH_BUFF = { 57722 }
-local SEARING_TOTEM_DEBUFF = { 58704 }
+-- Totem slots (player:get_totem_info): 1 = fire, 2 = earth, 3 = water, 4 = air.
+local FIRE_SLOT = 1
+local AIR_SLOT = 4
 
 local elemental_state = {
     mana_pct = 100,
@@ -45,40 +54,46 @@ local elemental_state = {
     elemental_mastery_ready = false,
     fire_elemental_active = false,
     totem_of_wrath_up = false,
-    searing_totem_up = false,
+    fire_slot_free = true,
+    air_slot_free = true,
 }
+
+local function slot_free(slot)
+    local info = NS.get_totem_info and NS.get_totem_info(slot) or nil
+    return not (type(info) == "table" and info.have_totem == true)
+end
 
 local function build_state(context)
     local state = spec_kit.safe_state(elemental_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0
-    state.bloodlust_ready = (context and context.bloodlust_ready) or false
-    state.fire_elemental_ready = (context and context.fire_elemental_ready) or false
-    state.elemental_mastery_ready = (context and context.elemental_mastery_ready) or false
-    if context and context.fire_elemental_active ~= nil then
-        state.fire_elemental_active = context.fire_elemental_active
-    else
-        state.fire_elemental_active = (me and NS.buff_up and NS.buff_up(me, FIRE_ELEMENTAL_BUFF)) or false
-    end
-    if context and context.totem_of_wrath_up ~= nil then
-        state.totem_of_wrath_up = context.totem_of_wrath_up
-    else
-        state.totem_of_wrath_up = (me and NS.buff_up and NS.buff_up(me, TOTEM_OF_WRATH_BUFF)) or false
-    end
-    if context and context.searing_totem_up ~= nil then
-        state.searing_totem_up = context.searing_totem_up
-    else
-        state.searing_totem_up = (target and NS.debuff_up and NS.debuff_up(target, SEARING_TOTEM_DEBUFF)) or false
-    end
+    -- CD windows from REAL cooldown API (production never exposes the phantom
+    -- context.bloodlust_ready / fire_elemental_ready / elemental_mastery_ready
+    -- flags the old build_state read — every one of these lanes was dead).
+    state.bloodlust_ready = (NS.spell_ready and NS.spell_ready(ACTION.Bloodlust, me, { skip_range = true })) or false
+    state.fire_elemental_ready = (NS.spell_ready and NS.spell_ready(ACTION.FireElemental, me, { skip_range = true })) or false
+    state.elemental_mastery_ready = (NS.spell_ready and NS.spell_ready(ACTION.ElementalMastery, me, { skip_range = true })) or false
+    state.fire_elemental_active = (me and NS.buff_up and NS.buff_up(me, FIRE_ELEMENTAL_BUFF)) or false
+    state.totem_of_wrath_up = (me and NS.buff_up and NS.buff_up(me, TOTEM_OF_WRATH_BUFF)) or false
+    state.fire_slot_free = slot_free(FIRE_SLOT)
+    state.air_slot_free = slot_free(AIR_SLOT)
     return state
 end
 
 local DSL_DEFS = {
+    {
+        name = "WindShear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.WindShear, target = "target" },
+    },
     {
         name = "EarthShock",
         conditions = {
@@ -108,11 +123,14 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.ElementalMastery, target = "self" },
     },
+    -- Totem of Wrath re-drop: buff down AND air slot free — fires pre-pull AND
+    -- mid-fight when the totem is destroyed (the old OOC-only gate never
+    -- re-dropped a totem that died during a fight).
     {
         name = "TotemOfWrath",
         conditions = {
-            { type = "state", field = "in_combat", op = "falsy" },
             { type = "state", field = "totem_of_wrath_up", op = "falsy" },
+            { type = "state", field = "air_slot_free", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.TotemOfWrath, target = "self" },
     },
@@ -121,14 +139,16 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "fire_elemental_active", op = "falsy" },
-            { type = "state", field = "searing_totem_up", op = "falsy" },
+            { type = "state", field = "fire_slot_free", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.SearingTotem, target = "self" },
     },
     {
         name = "FlameShock",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "flame_shock_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
         },
         action = { type = "cast", spell = ACTION.FlameShock, target = "target" },
     },
@@ -164,7 +184,11 @@ local DSL_DEFS = {
     },
 }
 
+-- Pinned wowsims elemental APL order (LavaBurst before ChainLightning); the
+-- two kick-position lanes (WindShear + EarthShock) sit outside the fixture,
+-- first, like the rogue Kick template.
 local strategies = {
+    { name = "WindShear" },
     { name = "EarthShock" },
     { name = "Bloodlust" },
     { name = "FireElemental" },

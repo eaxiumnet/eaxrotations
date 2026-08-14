@@ -49,7 +49,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(mm_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false

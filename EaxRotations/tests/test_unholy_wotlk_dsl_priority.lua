@@ -145,8 +145,11 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    -- Verify strategy order: interrupt -> HornOfWinter -> BoneShield -> Presence -> RaiseDead -> SummonGargoyle -> EmpowerRuneWeapon -> IcyTouch -> PlagueStrike -> Pestilence -> DeathCoil -> DeathAndDecay -> ScourgeStrike -> BloodStrike -> DeathCoilDump
-    local expected = { "MindFreeze", "HornOfWinter", "BoneShield", "Presence", "RaiseDead", "SummonGargoyle", "EmpowerRuneWeapon", "IcyTouch", "PlagueStrike", "Pestilence", "DeathCoil", "DeathAndDecay", "ScourgeStrike", "BloodStrike", "DeathCoilDump" }
+    -- Verify strategy order: interrupt -> HornOfWinter -> BoneShield -> Presence -> RaiseDead -> SummonGargoyle -> EmpowerRuneWeapon -> IcyTouch -> PlagueStrike -> Pestilence -> DeathCoil -> DeathAndDecay -> ScourgeStrike -> BloodStrike -> DeathCoilDump -> GhoulGnaw -> GhoulLeap
+    -- (GhoulGnaw/GhoulLeap appended 2026-08-13 after DeathCoilDump — pin-safe:
+    -- unholy is pinned only for PlagueStrike < ScourgeStrike < BloodStrike(occ2)
+    -- < DeathCoilDump; the pet lanes sit below the resolved strategies.)
+    local expected = { "MindFreeze", "HornOfWinter", "BoneShield", "Presence", "RaiseDead", "SummonGargoyle", "EmpowerRuneWeapon", "IcyTouch", "PlagueStrike", "Pestilence", "DeathCoil", "DeathAndDecay", "ScourgeStrike", "BloodStrike", "DeathCoilDump", "GhoulGnaw", "GhoulLeap" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

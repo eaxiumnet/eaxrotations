@@ -17,9 +17,11 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
-local SPELLS = NS.WarlockSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- WotLK file-local rank ladders are authoritative: plain define_action (not
+-- define_action_for_class) so the TBC-era NS.WarlockSpells table can never
+-- shadow the WotLK max-rank ids (Corruption 47813 etc.).
+local define = spec_kit.define_action
 
 local ACTION = {
     Haunt = define("Haunt", { 59164, 48181 }, "Haunt"),
@@ -48,11 +50,13 @@ local ACTION = {
     Shoot = define("Shoot", 5019, "Shoot"),
 }
 
-local UNSTABLE_AFFLICTION_DEBUFF = { 30405, 30404, 30108 }
+-- WotLK max-rank ids FIRST (literal id matching — without 47843/47864 the
+-- UA/CoA remains reads are always 0 and both DoTs are re-cast every GCD).
+local UNSTABLE_AFFLICTION_DEBUFF = { 47843, 30405, 30404, 30108 }
 local CORRUPTION_DEBUFF = { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
-local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
+local CURSE_OF_AGONY_DEBUFF = { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local IMMOLATE_DEBUFF = { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
-local HAUNT_DEBUFF = { 48181, 59164 }
+local HAUNT_DEBUFF = { 59164, 48181 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 local DEMON_ARMOR_BUFF = { 27260, 11735, 11734, 11733, 1086, 706 }
 
@@ -78,9 +82,11 @@ local function build_state(context)
     local state = spec_kit.safe_state(warlock_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
+    -- Engine-populated context fields first (production API); unit-method
+    -- reads kept only as fallback for harnesses without a context.
+    state.hp = (context and context.hp) or (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.target_hp = (context and context.target_hp) or (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.corruption_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CORRUPTION_DEBUFF)) or 0

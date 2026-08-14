@@ -17,9 +17,11 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
-local SPELLS = NS.MageSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): NS.MageSpells is TBC-era,
+-- so the class-bound resolver would shadow these WotLK rank ladders with TBC
+-- ranks (systemic W3.3 fix — fire_wotlk.lua is the clean precedent).
+local define = spec_kit.define_action
 
 local ACTION = {
     ArcaneMissiles = define("ArcaneMissiles", { 42846, 42845, 42844, 42843, 38704, 38699, 25346, 10212, 10211, 5143, 5144, 5145, 8417, 8418, 8419 }, "ArcaneMissiles"),
@@ -27,11 +29,11 @@ local ACTION = {
     Fireball = define("Fireball", { 42833, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Pyroblast = define("Pyroblast", { 42891, 33938, 27132, 18809, 12526, 12525, 12524, 12523, 12522, 12505, 11366 }, "Pyroblast"),
     FireBlast = define("FireBlast", { 42873, 27079, 27078, 10199, 10197, 8413, 8412, 2138, 2137, 2136 }, "FireBlast"),
-    LivingBomb = define("LivingBomb", 55360, "LivingBomb"),
+    LivingBomb = define("LivingBomb", 55360, "LivingBomb"), -- 55360 = WotLK max (44457-family is TBC)
     Scorch = define("Scorch", { 42859, 27074, 27073, 10207, 10206, 10205, 8446, 8445, 8444, 2948 }, "Scorch"),
-    Frostbolt = define("Frostbolt", { 42842, 27072, 27071, 25304, 10181, 10180, 10179, 10177, 10176, 10175, 116, 205 }, "Frostbolt"),
+    Frostbolt = define("Frostbolt", { 42842, 27072, 27071, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }, "Frostbolt"),
     IceLance = define("IceLance", { 42914, 30455 }, "IceLance"),
-    FrostfireBolt = define("FrostfireBolt", 44614, "FrostfireBolt"),
+    FrostfireBolt = define("FrostfireBolt", { 47610, 44614 }, "FrostfireBolt"), -- 47610 = WotLK max (was R1 44614)
     DeepFreeze = define("DeepFreeze", 44572, "DeepFreeze"),
     ConeOfCold = define("ConeOfCold", { 42931, 27087, 10161, 10160, 10159, 8492, 120 }, "ConeOfCold"),
     Blink = define("Blink", 1953, "Blink"),
@@ -44,11 +46,15 @@ local ACTION = {
     MageArmor = define("MageArmor", { 43024, 43023, 27125, 22783, 22782, 6117 }, "MageArmor"),
     ArcaneExplosion = define("ArcaneExplosion", { 42921, 42920, 27082, 10202, 10201, 8439, 8438, 8437, 1449 }, "ArcaneExplosion"),
     SummonWaterElemental = define("SummonWaterElemental", 31687, "SummonWaterElemental"),
-    Blizzard = define("Blizzard", { 42940, 42939, 27085, 10187, 10186, 10185, 8427, 8426, 10, 1449 }, "Blizzard"),
+    -- Blizzard ladder: 8426 = Flamestrike and 1449 = Arcane Explosion (wrong
+    -- family); 6141 is the real Blizzard R4 (lvl 28).
+    Blizzard = define("Blizzard", { 42940, 42939, 27085, 10187, 10186, 10185, 8427, 6141, 10 }, "Blizzard"),
     Shoot = define("Shoot", 5019, "Shoot"),
 }
 
-local LIVING_BOMB_DEBUFF = { 44457 }
+-- WotLK Living Bomb DoT family (55360 = max-rank DoT; 55362 = DoT component).
+-- 44457 is the TBC-era Living Bomb — never matches a 55360 cast (W3.3 fix).
+local LIVING_BOMB_DEBUFF = { 55360, 55362 }
 local ICE_BARRIER_BUFF = { 33405, 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 42995, 27126, 10157, 10156, 1461, 1460, 1459 }
@@ -72,8 +78,15 @@ local function build_state(context)
     local state = spec_kit.safe_state(mage_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    -- context.hp / context.mana_pct are dispatcher-set; me:mana_pct() is the
+    -- IZI SDK unit method (me:get_mana_percentage() is mock-only, W3.3).
+    state.hp = (context and context.hp)
+        or (me and me.get_health_percentage and me:get_health_percentage())
+        or 100
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.living_bomb_remains = (target and NS.debuff_remains and NS.debuff_remains(target, LIVING_BOMB_DEBUFF)) or 0

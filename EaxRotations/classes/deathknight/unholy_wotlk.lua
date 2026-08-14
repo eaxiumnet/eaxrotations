@@ -1,7 +1,8 @@
 -- unholy_wotlk.lua — Death Knight Unholy DPS rotation for Wrath of the Lich King (3.3.5).
 -- WHAT:  priority-list strategies for Unholy death knight with disease maintenance,
---        Scourge Strike, Summon Gargoyle, Death and Decay AoE, pet management, and
---        buff upkeep via rune_manager, presence_manager, and interrupt_manager.
+--        Scourge Strike, Summon Gargoyle, Death and Decay AoE, pet commands
+--        (Ghoul Gnaw on casting targets, Ghoul Leap gap close), and buff upkeep
+--        via rune_manager, presence_manager, and interrupt_manager.
 -- WHEN:  combat with valid enemy target on WotLK 3.3.5a clients.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
@@ -41,6 +42,10 @@ local ACTION = {
     BloodPresence     = define("BloodPresence",     48266, "BloodPresence"),
     FrostPresence     = define("FrostPresence",     48263, "FrostPresence"),
     UnholyPresence    = define("UnholyPresence",    48265, "UnholyPresence"),
+    -- Ghoul pet commands (wowhead WotLK Classic spell=47481 / =47482):
+    -- Gnaw = 3s stun (1 min CD, 30 energy); Leap = gap close (20s CD).
+    GhoulGnaw         = define("GhoulGnaw",         47481, "GhoulGnaw"),
+    GhoulLeap         = define("GhoulLeap",         47482, "GhoulLeap"),
 }
 
 local FROST_FEVER         = { 55095 }
@@ -63,10 +68,29 @@ local unholy_state = {
     role                 = "dps",
 }
 
+-- Static 2s-TTL rune snapshot (read-only for strategies). build_state must not
+-- allocate a fresh table every frame; the OLD code did (12 pcalls + 2 allocs
+-- per frame via get_rune_state() + table literal). rune_ready is only read by
+-- the EmpowerRuneWeapon strategy, so a 2s cache is imperceptible in play.
+local _rune_snapshot = { blood = 0, frost = 0, unholy = 0, death = 0 }
+local _rune_snapshot_time = -1
+local function get_rune_snapshot()
+    local now = NS.time_now and NS.time_now() or 0
+    if now - _rune_snapshot_time < 2 then return _rune_snapshot end
+    _rune_snapshot_time = now
+    local runes = rune_manager and rune_manager.get_rune_state and rune_manager.get_rune_state()
+    local ready = (runes and runes.ready) or {}
+    _rune_snapshot.blood = ready.blood or 0
+    _rune_snapshot.frost = ready.frost or 0
+    _rune_snapshot.unholy = ready.unholy or 0
+    _rune_snapshot.death = ready.death or 0
+    return _rune_snapshot
+end
+
 local function build_state(context)
     local state = spec_kit.safe_state(unholy_state)
     local target = context and context.target
-    local me = NS.me
+    local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
 
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
@@ -82,13 +106,11 @@ local function build_state(context)
         state.runic_power = rune_manager.get_runic_power(me) or 0
     end
 
-    state.rune_ready = { blood = 0, frost = 0, unholy = 0, death = 0 }
-    if rune_manager then
-        local runes = rune_manager.get_rune_state()
-        if runes and runes.ready then
-            state.rune_ready = runes.ready
-        end
-    end
+    -- Rune snapshot: ONE get_rune_state() call, cached with a 2s TTL (the old
+    -- code rebuilt a fresh {blood=0,...} table + get_rune_state() every frame:
+    -- 12 pcalls + 2 allocs). Only EmpowerRuneWeapon reads rune_ready. The
+    -- static snapshot table is READ-ONLY for strategies (never mutated).
+    state.rune_ready = get_rune_snapshot()
 
     state.pet_present = false
     if NS.has_pet then
@@ -96,7 +118,15 @@ local function build_state(context)
         if ok then state.pet_present = has or false end
     end
 
-    state.is_boss = (context and context.is_boss) or false
+    -- Boss flag: the dispatcher sets context.target_is_boss (main_sylvanas.lua
+    -- :1287); the old context.is_boss read was a phantom field and made
+    -- SummonGargoyle a production never-lane. Fall back to NS.unit_is_boss on
+    -- the target; the legacy context.is_boss compat read was DELETED (W3.5):
+    -- no production writer ever sets it (main_sylvanas writes target_is_boss;
+    -- the battery drives target_is_boss), mirroring arms_wotlk.lua:143.
+    state.is_boss = (context and context.target_is_boss == true)
+        or (target and NS.unit_is_boss and NS.unit_is_boss(target) == true)
+        or false
 
     return state
 end
@@ -145,6 +175,12 @@ local DSL_DEFS = {
                 local ready = state.rune_ready or { blood = 0, frost = 0, unholy = 0, death = 0 }
                 local total = (ready.blood or 0) + (ready.frost or 0) + (ready.unholy or 0) + (ready.death or 0)
                 return total == 0
+            end },
+            -- ERW is a 5-minute CD (class_sylvanas.lua cooldown 300) — same
+            -- forecast gate frost uses.
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
+                return true
             end },
         },
         action = { type = "cast", spell = ACTION.EmpowerRuneWeapon, target = "self" },
@@ -212,22 +248,57 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.DeathCoil, target = "target" },
     },
+    {
+        -- Ghoul command lanes (pet-control rubric close-out): Gnaw is a 3s
+        -- stun (1 min CD) — cast it on a casting target to interrupt hard
+        -- casts. context.target_casting is the REAL dispatcher field
+        -- (main_sylvanas.lua:759). Casts via NS.try_cast (DSL cast handler).
+        name = "GhoulGnaw",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pet_present", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return (context and context.target_casting) == true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.GhoulGnaw, target = "target" },
+    },
+    {
+        -- Ghoul Leap (20s CD) gap closer: cast when the target is out of
+        -- melee range (context.target_distance is the real dispatcher field,
+        -- main_sylvanas.lua:877).
+        name = "GhoulLeap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pet_present", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return (context and context.target_distance or 0) >= 8
+            end },
+        },
+        action = { type = "cast", spell = ACTION.GhoulLeap, target = "target" },
+    },
 }
 
 -- ---------------------------------------------------------------------------
 -- Presence execute helper
 -- ---------------------------------------------------------------------------
 
-local function presence_execute(ctx)
+local function presence_execute(ctx, state)
     if not presence_manager then return false end
-    local desired = presence_manager.get_optimal_presence(ctx, {})
+    local desired = presence_manager.get_optimal_presence(ctx, state or {})
     if not desired then return false end
     local action = nil
     if desired == "blood" then action = ACTION.BloodPresence
     elseif desired == "frost" then action = ACTION.FrostPresence
     elseif desired == "unholy" then action = ACTION.UnholyPresence end
-    if action and action.cast_safe then return action:cast_safe() end
-    return false
+    if not action then return false end
+    local me = (ctx and ctx.me) or (NS.GetPlayer and NS.GetPlayer())
+    if not me then return false end
+    -- REAL cast path: action:cast_safe() exists only on izi.spell() objects
+    -- (core_sylvanas.lua:2165-2166); the old `if action and action.cast_safe`
+    -- silently no-oped on production NS.spell_action tables, so unholy never
+    -- entered Unholy Presence. NS.try_cast is the production entrypoint.
+    return NS.try_cast and NS.try_cast(action, me, "Presence") == true or false
 end
 
 -- ---------------------------------------------------------------------------
@@ -273,6 +344,11 @@ strategies[#strategies + 1] = { name = "DeathAndDecay" }
 strategies[#strategies + 1] = { name = "ScourgeStrike" }
 strategies[#strategies + 1] = { name = "BloodStrike" }
 strategies[#strategies + 1] = { name = "DeathCoilDump" }
+-- Pet command lanes appended AFTER DeathCoilDump (pin-safe: unholy is pinned
+-- only for the 4 resolved strategies PlagueStrike < ScourgeStrike <
+-- BloodStrike(occ2) < DeathCoilDump; conditions/actions are free).
+strategies[#strategies + 1] = { name = "GhoulGnaw" }
+strategies[#strategies + 1] = { name = "GhoulLeap" }
 
 -- Name-based substitution preserves the existing priority order.
 -- interrupt_strategy and Presence (position 4) have no DSL_DEFS name match, so they remain as-is.

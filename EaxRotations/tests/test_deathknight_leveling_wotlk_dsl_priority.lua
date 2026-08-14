@@ -96,7 +96,7 @@ print("=== test_deathknight_leveling_wotlk_dsl_priority ===")
 local lv = dofile("EaxRotations/classes/deathknight/leveling_wotlk.lua")
 assert_true(type(lv) == "table", "leveling_wotlk should return a table")
 assert_true(type(lv.strategies) == "table", "leveling_wotlk should expose strategies")
-assert_true(#lv.strategies == 17, "leveling_wotlk should have 17 strategies")
+assert_true(#lv.strategies == 16, "leveling_wotlk should have 16 strategies (RuneStrike removed 2026-08-13 — reactive in 3.3.5)")
 
 local registered = _G.EaxRotations._registered_leveling
 assert_true(registered ~= nil and registered.name == "leveling", "leveling_wotlk should register under 'leveling'")
@@ -119,12 +119,11 @@ local expected_order = {
     "HeartStrike",
     "HowlingBlast",
     "BloodStrike",
-    "RuneStrike",
     "DeathCoil",
     "EmpowerRuneWeapon",
 }
 
-test("priority order: 17 strategies match expected order", function()
+test("priority order: 16 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(lv.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], lv.strategies[i].name))
@@ -251,42 +250,31 @@ test("Obliterate: does not match out of combat", function()
     assert_false(lv.strategies[10].matches(ctx, state), "Obliterate should not match out of combat")
 end)
 
--- RuneStrike (15): in_combat and runic_power >= 30
-test("RuneStrike: matches with runic power", function()
-    local state = lv.build_state(ctx)
-    state.in_combat = true
-    state.runic_power = 30
-    assert_true(lv.strategies[15].matches(ctx, state), "RuneStrike should match with 30 runic power")
-end)
+-- RuneStrike lane removed (2026-08-13, W3.3 register): the ability is
+-- REACTIVE in 3.3.5 (usable only after dodging/parrying within 5s), so an
+-- unconditional RP>=30 lane could never succeed. DeathCoil is the RP dump.
 
-test("RuneStrike: does not match below threshold", function()
-    local state = lv.build_state(ctx)
-    state.in_combat = true
-    state.runic_power = 20
-    assert_false(lv.strategies[15].matches(ctx, state), "RuneStrike should not match below 30 runic power")
-end)
-
--- DeathCoil (16): in_combat and runic_power >= 40
+-- DeathCoil (15): in_combat and runic_power >= 40
 test("DeathCoil: matches with high runic power", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.runic_power = 40
-    assert_true(lv.strategies[16].matches(ctx, state), "DeathCoil should match with 40 runic power")
+    assert_true(lv.strategies[15].matches(ctx, state), "DeathCoil should match with 40 runic power")
 end)
 
--- EmpowerRuneWeapon (17): in_combat and ready and long-CD gate
+-- EmpowerRuneWeapon (16): in_combat and ready and long-CD gate
 test("EmpowerRuneWeapon: matches when ready", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.empower_rune_weapon_ready = true
-    assert_true(lv.strategies[17].matches(ctx, state), "EmpowerRuneWeapon should match when ready")
+    assert_true(lv.strategies[16].matches(ctx, state), "EmpowerRuneWeapon should match when ready")
 end)
 
 test("EmpowerRuneWeapon: does not match when not ready", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.empower_rune_weapon_ready = false
-    assert_false(lv.strategies[17].matches(ctx, state), "EmpowerRuneWeapon should not match when not ready")
+    assert_false(lv.strategies[16].matches(ctx, state), "EmpowerRuneWeapon should not match when not ready")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

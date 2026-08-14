@@ -183,7 +183,9 @@ local SPELLS = {
         ids = {49028},
         levels = {60},
         cast_time = 0,
-        cooldown = 180,
+        -- 90s in 3.3.5 (WotLK classic value; corrected from 180 — the
+        -- blood_wotlk long-CD gate arg (90) must agree with this field).
+        cooldown = 90,
         power_cost = 60,
         power_type = "runicpower",
         school = "physical",
@@ -273,7 +275,9 @@ local SPELLS = {
         ids = {51271},
         levels = {55},
         cast_time = 0,
-        cooldown = 120,
+        -- 60s in 3.3.5 (corrected from 120 — the frost_wotlk long-CD gate
+        -- arg (60) must agree with this field).
+        cooldown = 60,
         power_cost = 0,
         power_type = "none",
         school = "frost",

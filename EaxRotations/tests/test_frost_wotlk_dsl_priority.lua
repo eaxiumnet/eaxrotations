@@ -41,11 +41,11 @@ _G.EaxRotations = {
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     } end,
     me = {
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     },
     spell_action = make_action,
     spell_ready = function() return true end,
@@ -195,11 +195,11 @@ end)
 
 -- FrostfireBolt: should NOT match when mana < 20
 test("FrostfireBolt: does not match when mana < 20", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 15 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 15 end
     local state = frost.build_state(ctx)
     local ok = frost.strategies[4].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "FrostfireBolt should not match when mana < 20")
 end)
 
@@ -227,11 +227,11 @@ end)
 
 -- Frostbolt: should NOT match when mana < 15
 test("Frostbolt: does not match when mana < 15", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 10 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 10 end
     local state = frost.build_state(ctx)
     local ok = frost.strategies[6].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "Frostbolt should not match when mana < 15")
 end)
 

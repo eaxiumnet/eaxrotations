@@ -190,6 +190,11 @@ local CROSS_FILE_READS = {
     --     (healers score the LOWEST FRIENDLY unit as their target, so
     --     state.target_hp is the lowest friendly's hp — a healer-only semantic).
     ["EaxRotations/classes/priest/discipline_wotlk.lua"] = { target_hp = true },
+    --   restoration_wotlk tidal_waves_stacks: test_shaman_wotlk_live_fixes.lua:394
+    --     (WotLK resto mechanic — Riptide-proc Tidal Waves stacks 53390 tracked
+    --     on the real build_state; the field documents the mechanic and pins
+    --     the single-max-rank buff table that survived the W3.3 ID audit).
+    ["EaxRotations/classes/shaman/restoration_wotlk.lua"] = { tidal_waves_stacks = true },
     -- Warlock item-state fields: read by the shared helpers that receive the
     -- real build_state output — warlock_healthstone_sylvanas.lua:62/99
     -- (`state.healthstone_ready`, `state.healthstone_id`) and

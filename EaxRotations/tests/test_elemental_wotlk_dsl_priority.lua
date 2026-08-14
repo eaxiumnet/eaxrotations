@@ -102,8 +102,10 @@ local failed = 0
 
 function tests.priority_order()
     -- wowsims elemental APL order (ui/elemental_shaman/apls/advanced.apl.json): LavaBurst before ChainLightning.
-    -- EarthShock is a baseline interrupt NOT in the fixture — first, outside the pinned order.
-    local expected = { "EarthShock", "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
+    -- WindShear + EarthShock are baseline kick-position lanes NOT in the fixture —
+    -- first, outside the pinned order (Earth Shock no longer interrupts in WotLK;
+    -- it fires as instant damage while the target casts).
+    local expected = { "WindShear", "EarthShock", "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
         "FlameShock", "LavaBurst", "ChainLightning", "LightningBolt", "Thunderstorm" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
@@ -118,7 +120,7 @@ local function make_state(overrides)
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
         flame_shock_remains = 0, totem_of_wrath_up = false,
-        fire_elemental_active = false, searing_totem_up = false,
+        fire_elemental_active = false, fire_slot_free = true, air_slot_free = true,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -141,21 +143,27 @@ local function test_match(name, state_overrides, expected)
     end
 end
 
+-- Totem of Wrath: buff down + air slot free — fires pre-pull AND re-drops
+-- mid-fight when the totem is destroyed (slot-occupancy re-drop fix).
 tests.test_TotemOfWrath_matches_pre_pull_when_missing = test_match("TotemOfWrath",
     { in_combat = false, totem_of_wrath_up = false }, true)
-tests.test_TotemOfWrath_does_not_match_in_combat = test_match("TotemOfWrath",
-    { in_combat = true, totem_of_wrath_up = false }, false)
+tests.test_TotemOfWrath_matches_in_combat_when_missing = test_match("TotemOfWrath",
+    { in_combat = true, totem_of_wrath_up = false }, true)
 tests.test_TotemOfWrath_does_not_match_when_active = test_match("TotemOfWrath",
     { in_combat = false, totem_of_wrath_up = true }, false)
+tests.test_TotemOfWrath_does_not_match_when_air_slot_occupied = test_match("TotemOfWrath",
+    { in_combat = true, totem_of_wrath_up = false, air_slot_free = false }, false)
 
+-- Searing Totem: in combat + no Fire Elemental + fire slot FREE (slot-occupancy
+-- gate — the old debuff-based searing_totem_up check never matched in game).
 tests.test_SearingTotem_matches_in_combat_when_available = test_match("SearingTotem",
-    { in_combat = true, fire_elemental_active = false, searing_totem_up = false }, true)
+    { in_combat = true, fire_elemental_active = false, fire_slot_free = true }, true)
 tests.test_SearingTotem_does_not_match_out_of_combat = test_match("SearingTotem",
-    { in_combat = false, fire_elemental_active = false, searing_totem_up = false }, false)
+    { in_combat = false, fire_elemental_active = false, fire_slot_free = true }, false)
 tests.test_SearingTotem_does_not_match_during_fire_elemental = test_match("SearingTotem",
-    { in_combat = true, fire_elemental_active = true, searing_totem_up = false }, false)
-tests.test_SearingTotem_does_not_match_when_active = test_match("SearingTotem",
-    { in_combat = true, fire_elemental_active = false, searing_totem_up = true }, false)
+    { in_combat = true, fire_elemental_active = true, fire_slot_free = true }, false)
+tests.test_SearingTotem_does_not_match_when_fire_slot_occupied = test_match("SearingTotem",
+    { in_combat = true, fire_elemental_active = false, fire_slot_free = false }, false)
 
 -- FlameShock: matches when flame_shock_remains < 3
 tests.test_FlameShock_matches_when_expiring = test_match("FlameShock", { flame_shock_remains = 2 }, true)
@@ -179,10 +187,17 @@ tests.test_Thunderstorm_does_not_match_when_high_mana = test_match("Thunderstorm
 tests.test_LightningBolt_matches_when_mana_ok = test_match("LightningBolt", { mana_pct = 50 }, true)
 tests.test_LightningBolt_does_not_match_when_low_mana = test_match("LightningBolt", { mana_pct = 10 }, false)
 
--- EarthShock: baseline interrupt — matches only when in combat AND target is casting
+-- EarthShock: kick-position lane — instant damage while the target casts
+-- (WotLK: Earth Shock lost its interrupt in 3.0.2; Wind Shear owns the kick).
 tests.test_EarthShock_matches_when_target_casting = test_match("EarthShock", { target_is_casting = true }, true)
 tests.test_EarthShock_does_not_match_when_not_casting = test_match("EarthShock", { target_is_casting = false }, false)
 tests.test_EarthShock_does_not_match_out_of_combat = test_match("EarthShock",
+    { in_combat = false, target_is_casting = true }, false)
+
+-- WindShear: the WotLK interrupt — in combat AND target casting.
+tests.test_WindShear_matches_when_target_casting = test_match("WindShear", { target_is_casting = true }, true)
+tests.test_WindShear_does_not_match_when_not_casting = test_match("WindShear", { target_is_casting = false }, false)
+tests.test_WindShear_does_not_match_out_of_combat = test_match("WindShear",
     { in_combat = false, target_is_casting = true }, false)
 
 for name, fn in pairs(tests) do

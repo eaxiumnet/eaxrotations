@@ -81,7 +81,7 @@ print("=== test_shadow_wotlk_dsl_priority ===")
 local shadow = dofile("EaxRotations/classes/priest/shadow_wotlk.lua")
 assert_true(type(shadow) == "table", "shadow_wotlk should return a table")
 assert_true(type(shadow.strategies) == "table", "shadow_wotlk should expose strategies")
-assert_true(#shadow.strategies == 6, "shadow_wotlk should have 6 strategies")
+assert_true(#shadow.strategies == 7, "shadow_wotlk should have 7 strategies")
 
 local registered = _G.EaxRotations._registered_shadow
 assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
@@ -91,6 +91,8 @@ assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
 -- ============================================================================
 -- wowsims shadow APL order (ui/shadow_priest/apls/default.apl.json): DP > SWP > VT > MindBlast > MindFlay.
 -- Silence is a baseline interrupt NOT in the fixture — first, outside the pinned order.
+-- Shadowfiend (W3.3) is the APL priority-1 mana-return CD — appended last,
+-- outside the pinned order (the fixture has no CD budget in the battery).
 local expected_order = {
     "Silence",
     "DevouringPlague",
@@ -98,9 +100,10 @@ local expected_order = {
     "VampiricTouch",
     "MindBlast",
     "MindFlay",
+    "Shadowfiend",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 7 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(shadow.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], shadow.strategies[i].name))
@@ -206,6 +209,19 @@ test("MindFlay: does not match when mana < 20", function()
     local ok = shadow.strategies[6].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_false(ok, "MindFlay should not match when mana < 20")
+end)
+
+-- Shadowfiend (7): matches when in combat and mana < 60
+test("Shadowfiend: matches when mana < 60", function()
+    local state = shadow.build_state(ctx)
+    state.mana_pct = 45
+    assert_true(shadow.strategies[7].matches(ctx, state), "Shadowfiend should match when mana < 60")
+end)
+
+test("Shadowfiend: does not match at high mana", function()
+    local state = shadow.build_state(ctx)
+    state.mana_pct = 80
+    assert_false(shadow.strategies[7].matches(ctx, state), "Shadowfiend should not match at high mana")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

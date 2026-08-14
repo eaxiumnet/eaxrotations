@@ -31,6 +31,10 @@ _G.EaxRotations = mock_ns
 
 local _mock_spec_kit = {
     merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
+    define_action = function(name, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id }
+    end,
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids

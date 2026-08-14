@@ -138,6 +138,19 @@ local WOTLK_REFERENCE_ALIASES = {
     [42873] = { kind = "VALID_RANK_ALIAS", family = "Fire Blast", source = "wowhead WotLK Classic spell=42873" },
     [42914] = { kind = "VALID_RANK_ALIAS", family = "Ice Lance", source = "wowhead WotLK Classic spell=42914" },
     [47610] = { kind = "VALID_RANK_ALIAS", family = "Frostfire Bolt", source = "wowhead WotLK Classic spell=47610 (max rank, 722-838 dmg; 44614 = rank 1) + ui/mage/apls/frost.apl.json" },
+    -- W3.3 mage live-fixes (2026-08-13): the four mage *_wotlk.lua files were
+    -- re-audited against the pinned wowsims APL fixtures (tools/evidence/apl/
+    -- fire_wotlk.apl.json + frost_wotlk.apl.json) and the W3.1 audit register.
+    -- These IDs are the WotLK-era aura/debuff/rank members the bridge omits.
+    [42917] = { kind = "VALID_RANK_ALIAS", family = "Frost Nova", source = "wowhead WotLK Classic spell=42917 (Frost Nova 3.3.5 max rank) + W3.1 mage audit register (FROST_NOVA_DEBUFF family)" },
+    [55362] = { kind = "VALID_RANK_ALIAS", family = "Living Bomb", source = "W3.1 mage audit register (WotLK Living Bomb DoT family 55360 + 55362)" },
+    [44549] = { kind = "VALID_AURA_ALIAS", family = "Frostfire Bolt (debuff)", source = "tools/evidence/apl/frost_wotlk.apl.json (auraIsActiveWithReactionTime 44549 before Frostfire Bolt 47610)" },
+    [44545] = { kind = "VALID_AURA_ALIAS", family = "Fingers of Frost", source = "tools/evidence/apl/frost_wotlk.apl.json (auraIsActive 44545 before Deep Freeze 44572)" },
+    [8406] = { kind = "VALID_RANK_ALIAS", family = "Frostbolt", source = "wowhead WotLK Classic spell=8406 (Frostbolt, era-stable rank, lvl 26) — ladder completeness for leveling" },
+    [8407] = { kind = "VALID_RANK_ALIAS", family = "Frostbolt", source = "wowhead WotLK Classic spell=8407 (Frostbolt, era-stable rank, lvl 32) — ladder completeness for leveling" },
+    [8408] = { kind = "VALID_RANK_ALIAS", family = "Frostbolt", source = "wowhead WotLK Classic spell=8408 (Frostbolt, era-stable rank, lvl 38) — ladder completeness for leveling" },
+    [7322] = { kind = "VALID_RANK_ALIAS", family = "Frostbolt", source = "wowhead WotLK Classic spell=7322 (Frostbolt, era-stable rank, lvl 20) — ladder completeness for leveling" },
+    [6141] = { kind = "VALID_RANK_ALIAS", family = "Blizzard", source = "wowhead WotLK Classic spell=6141 (Blizzard R4, lvl 28) — ladder completeness for leveling" },
     [42931] = { kind = "VALID_RANK_ALIAS", family = "Cone of Cold", source = "wowhead WotLK Classic spell=42931" },
     [47838] = { kind = "VALID_RANK_ALIAS", family = "Incinerate", source = "ui/warlock/apls/destro.apl.json" },
     [47825] = { kind = "VALID_RANK_ALIAS", family = "Soul Fire", source = "wowhead WotLK Classic spell=47825" },
@@ -152,6 +165,29 @@ local WOTLK_REFERENCE_ALIASES = {
     [48068] = { kind = "VALID_RANK_ALIAS", family = "Renew", source = "wowhead WotLK Classic spell=48068" },
     [48300] = { kind = "VALID_RANK_ALIAS", family = "Devouring Plague", source = "ui/shadow_priest/apls/default.apl.json" },
     [48160] = { kind = "VALID_RANK_ALIAS", family = "Vampiric Touch", source = "wowhead WotLK Classic spell=48160 + ui/shadow_priest/apls/default.apl.json" },
+    -- W3.3 priest sweep (2026-08-13): full WotLK trainer ladders for the four
+    -- priest WotLK files. Penance is a 4-rank ladder (47540 r1 -> 53005 r2 ->
+    -- 53006 r3 -> 53007 r4 max); Prayer of Mending a 3-rank ladder (33076 r1
+    -- -> 48112 r2 -> 48113 r3 max, cast as 48113 in the pinned disc/holy
+    -- healer APLs); Shadowfiend (34433) is the APL priority-1 mana-return pet
+    -- (single rank, unchanged since TBC, bridge-omitted); Circle of Healing is
+    -- an 8-rank ladder whose TBC-era ranks 34861 r1 .. 34866 r6 plus 48088 r7
+    -- and the pinned max 48089 r8 (holy APL fixture id) are all bridge-omitted.
+    -- The bridge omits all of these; the sim APLs + wowhead WotLK Classic
+    -- verify them.
+    [53005] = { kind = "VALID_RANK_ALIAS", family = "Penance", source = "wowhead WotLK Classic spell=53005 (Penance rank 2, trainer ladder 47540/53005/53006/53007)" },
+    [53006] = { kind = "VALID_RANK_ALIAS", family = "Penance", source = "wowhead WotLK Classic spell=53006 (Penance rank 3, trainer ladder 47540/53005/53006/53007)" },
+    [53007] = { kind = "VALID_RANK_ALIAS", family = "Penance", source = "ui/healing_priest/apls/disc.apl.json castSpell 53007 + tools/evidence/apl/disc_priest_wotlk.apl.json (sim max rank; 47540 disproven as the only rank)" },
+    [48112] = { kind = "VALID_RANK_ALIAS", family = "Prayer of Mending", source = "wowhead WotLK Classic spell=48112 (Prayer of Mending rank 2, ladder 33076/48112/48113)" },
+    [48113] = { kind = "VALID_RANK_ALIAS", family = "Prayer of Mending", source = "ui/healing_priest/apls/disc.apl.json + holy.apl.json castSpell 48113 (sim max rank; 33076 is TBC-era rank 1)" },
+    [34433] = { kind = "VALID_RANK_ALIAS", family = "Shadowfiend", source = "ui/shadow_priest/apls/default.apl.json priority-1 castSpell 34433 + wowhead WotLK Classic spell=34433 (single rank, unchanged since TBC; bridge omits it)" },
+    [48088] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=48088 (Circle of Healing rank 7, ladder 34861..34866/48088/48089)" },
+    [34866] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34866 (CoH rank 6, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
+    [34865] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34865 (CoH rank 5, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
+    [34864] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34864 (CoH rank 4, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
+    [34863] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34863 (CoH rank 3, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
+    [34862] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34862 (CoH rank 2, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
+    [34861] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "wowhead WotLK Classic spell=34861 (CoH rank 1, ladder 34861..34866/48088/48089; bridge omits the TBC-era ranks)" },
     [48638] = { kind = "VALID_RANK_ALIAS", family = "Sinister Strike", source = "ui/rogue/apls/combat.apl.json" },
     [48668] = { kind = "VALID_RANK_ALIAS", family = "Eviscerate", source = "ui/rogue/apls/combat.apl.json" },
     [48691] = { kind = "VALID_RANK_ALIAS", family = "Ambush", source = "sim/rogue/ambush.go" },
@@ -174,15 +210,55 @@ local WOTLK_REFERENCE_ALIASES = {
     [48562] = { kind = "VALID_RANK_ALIAS", family = "Swipe (Bear)", source = "wowhead WotLK Classic spell=48562 + sim/druid/swipe.go" },
     [48579] = { kind = "VALID_RANK_ALIAS", family = "Ravage", source = "wowhead WotLK Classic spell=48579" },
     [48378] = { kind = "VALID_RANK_ALIAS", family = "Healing Touch", source = "wowhead WotLK Classic spell=48378" },
+    -- W3.3 druid wotlk pins (2026-08-13): new lanes/ranks for the druid WotLK
+    -- rotation fix wave. All verified on wowhead WotLK Classic + wowsims/wotlk
+    -- sim source; the bridge (file-derived) omits them.
+    [48479] = { kind = "VALID_RANK_ALIAS", family = "Tiger's Fury", source = "wowhead WotLK Classic spell=48479 + sim/druid/feral/rotation.go (rank 2, 60 energy)" },
+    [5217] = { kind = "VALID_RANK_ALIAS", family = "Tiger's Fury", source = "wowhead WotLK Classic spell=5217 (rank 1)" },
+    [50334] = { kind = "VALID_RANK_ALIAS", family = "Berserk", source = "wowhead WotLK Classic spell=50334 + sim/druid/feral/rotation.go" },
+    [16864] = { kind = "VALID_AURA_ALIAS", family = "Omen of Clarity", source = "wowhead WotLK Classic spell=16864 + sim/druid/feral/rotation.go (proc aura)" },
+    [50464] = { kind = "VALID_RANK_ALIAS", family = "Nourish", source = "wowhead WotLK Classic spell=50464 + sim/druid/resto/nourish.go" },
+    [29166] = { kind = "VALID_RANK_ALIAS", family = "Innervate", source = "wowhead WotLK Classic spell=29166 + sim/druid/innervate.go (single rank, unchanged since vanilla)" },
+    [53251] = { kind = "VALID_RANK_ALIAS", family = "Wild Growth", source = "wowhead WotLK Classic spell=53251 (rank 2)" },
+    [26999] = { kind = "VALID_RANK_ALIAS", family = "Frenzied Regeneration", source = "wowhead WotLK Classic spell=26999 (max rank, unchanged from TBC)" },
+    [22896] = { kind = "VALID_RANK_ALIAS", family = "Frenzied Regeneration", source = "wowhead WotLK Classic spell=22896 (rank 3)" },
+    [22895] = { kind = "VALID_RANK_ALIAS", family = "Frenzied Regeneration", source = "wowhead WotLK Classic spell=22895 (rank 2)" },
+    [22842] = { kind = "VALID_RANK_ALIAS", family = "Frenzied Regeneration", source = "wowhead WotLK Classic spell=22842 (rank 1)" },
     [57946] = { kind = "VALID_RANK_ALIAS", family = "Life Tap", source = "wowhead WotLK Classic spell=57946" },
     [48821] = { kind = "VALID_RANK_ALIAS", family = "Holy Shock", source = "wowhead WotLK Classic spell=48821 (33074 disproven: TBC-era top)" },
     [25742] = { kind = "VALID_RANK_ALIAS", family = "Seal of Righteousness", source = "wowhead WotLK Classic spell=25742 (21084 disproven: rank 2)" },
+    -- WotLK Phase-3 paladin sweep (2026-08-13): Art of War rank-1 aura, Righteous
+    -- Fury upkeep, and the Holy Shield rank ladder all verified against wowhead
+    -- WotLK Classic + wowsims/wotlk sim source; the bridge omits them (file-derived).
+    [53486] = { kind = "VALID_RANK_ALIAS", family = "The Art of War", source = "wowhead WotLK Classic spell=53486 + sim/paladin/retribution.go (59579 disproven: Burst at the Seams)" },
+    [25780] = { kind = "VALID_RANK_ALIAS", family = "Righteous Fury", source = "wowhead WotLK Classic spell=25780 (single rank, unchanged since vanilla)" },
+    [48927] = { kind = "VALID_RANK_ALIAS", family = "Holy Shield", source = "wowhead WotLK Classic spell=48927 (3.3.5 max rank)" },
+    [27179] = { kind = "VALID_RANK_ALIAS", family = "Holy Shield", source = "wowhead WotLK Classic spell=27179 + sim/paladin/protection.go (TBC-era rank 8)" },
+    [20925] = { kind = "VALID_RANK_ALIAS", family = "Holy Shield", source = "wowhead WotLK Classic spell=20925 (TBC-era rank 4)" },
+    -- WotLK Phase-3 warrior sweep (2026-08-13): protection Revenge max rank,
+    -- fury Bloodsurge proc auras, and Last Stand verified against wowhead
+    -- WotLK Classic + the pinned wowsims APL fixtures (war_prot_wotlk.apl.json
+    -- casts 57823 and 12975; war_fury_wotlk.apl.json gates Slam on 46916/70847).
+    [57823] = { kind = "VALID_RANK_ALIAS", family = "Revenge", source = "wowhead WotLK Classic spell=57823/revenge (3.3.5 max rank; 30357 is TBC-era rank 8) + ui/protection_warrior/apls/default.apl.json" },
+    [46916] = { kind = "VALID_RANK_ALIAS", family = "Bloodsurge", source = "sim/warrior/fury (talent proc rank 1) + ui/warrior/apls/fury.apl.json (auraIsActive 46916)" },
+    [70847] = { kind = "VALID_RANK_ALIAS", family = "Bloodsurge", source = "sim/warrior/fury (talent proc rank 2) + ui/warrior/apls/fury.apl.json (auraIsActive 70847)" },
+    [12975] = { kind = "VALID_RANK_ALIAS", family = "Last Stand", source = "wowhead WotLK Classic spell=12975/last-stand (single rank, unchanged) + ui/protection_warrior/apls/default.apl.json (first priority)" },
     -- Single-ID defines surfaced by the rank-top enforcement pass (Pattern 1 was
     -- previously dead code, so scalar defines like define("KillShot", 61006, ...)
     -- were never validated). All verified on wowhead WotLK Classic 2026-08-08.
     [61006] = { kind = "VALID_RANK_ALIAS", family = "Kill Shot", source = "wowhead WotLK Classic spell=61006/kill-shot" },
     [60053] = { kind = "VALID_RANK_ALIAS", family = "Explosive Shot", source = "wowhead WotLK Classic spell=60053/explosive-shot" },
     [60052] = { kind = "VALID_RANK_ALIAS", family = "Explosive Shot (rank 2 / proc trigger)", source = "wowhead WotLK Classic spell=60052 (Explosive Shot rank 2)" },
+    -- WotLK Phase-3 hunter sweep (2026-08-13): Explosive Shot rank 4 (the
+    -- 3.3.5 max rank — the survival ladder now casts 60051 first; 60053 is
+    -- rank 3) and the Lock and Load talent auras (56342/56343/56344 = 1-3
+    -- points; the max-rank buff 56344 is what a fully-talented survival hunter
+    -- carries). Both verified on wowhead WotLK Classic; the bridge (file-
+    -- derived) omits them.
+    [60051] = { kind = "VALID_RANK_ALIAS", family = "Explosive Shot (rank 4, 3.3.5 max)", source = "wowhead WotLK Classic spell=60051/explosive-shot" },
+    [56344] = { kind = "VALID_AURA_ALIAS", family = "Lock and Load (rank 3)", source = "wowhead WotLK Classic spell=56344/lock-and-load" },
+    [56343] = { kind = "VALID_AURA_ALIAS", family = "Lock and Load (rank 2)", source = "wowhead WotLK Classic spell=56343/lock-and-load" },
+    [56342] = { kind = "VALID_AURA_ALIAS", family = "Lock and Load (rank 1)", source = "wowhead WotLK Classic spell=56342/lock-and-load" },
     [2825] = { kind = "VALID_RANK_ALIAS", family = "Bloodlust", source = "wowhead WotLK Classic spell=2825/bloodlust" },
     [16166] = { kind = "VALID_RANK_ALIAS", family = "Elemental Mastery", source = "wowhead WotLK Classic spell=16166/elemental-mastery" },
     [60043] = { kind = "VALID_RANK_ALIAS", family = "Lava Burst", source = "wowhead WotLK Classic spell=60043/lava-burst" },
@@ -192,6 +268,27 @@ local WOTLK_REFERENCE_ALIASES = {
     [16190] = { kind = "VALID_RANK_ALIAS", family = "Mana Tide Totem", source = "wowhead WotLK Classic spell=16190/mana-tide-totem" },
     [55459] = { kind = "VALID_RANK_ALIAS", family = "Chain Heal", source = "wowhead WotLK Classic spell=55459/chain-heal" },
     [49276] = { kind = "VALID_RANK_ALIAS", family = "Lesser Healing Wave", source = "wowhead WotLK Classic spell=49276/lesser-healing-wave" },
+    -- W3.3 shaman live-fix pins (2026-08-13): Windfury Weapon (WotLK max
+    -- rank — the wowsims enhancement APL variant is literally "default_wf"),
+    -- Water Shield (WotLK max rank, resto mana sustain), Tidal Waves (Riptide
+    -- proc aura, resto). All verified on wowhead WotLK Classic; the
+    -- file-derived bridge omits them.
+    [58804] = { kind = "VALID_RANK_ALIAS", family = "Windfury Weapon", source = "wowhead WotLK Classic spell=58804/windfury-weapon" },
+    [52127] = { kind = "VALID_RANK_ALIAS", family = "Water Shield", source = "wowhead WotLK Classic spell=52127/water-shield" },
+    [53390] = { kind = "VALID_RANK_ALIAS", family = "Tidal Waves", source = "wowhead WotLK Classic spell=53390/tidal-waves + sim/shaman/shaman.go Tidal Wave Proc" },
+    -- W3.3 deathknight pins (2026-08-13): ghoul pet commands added to
+    -- unholy_wotlk (pet-control rubric close-out). Pet-book spells never enter
+    -- the player-spell bridge; verified on wowhead WotLK Classic.
+    [47481] = { kind = "VALID_RANK_ALIAS", family = "Pet: Gnaw (ghoul stun)", source = "wowhead WotLK Classic spell=47481 (3s stun, 30 energy, 1min CD)" },
+    [47482] = { kind = "VALID_RANK_ALIAS", family = "Pet: Leap (ghoul gap close)", source = "wowhead WotLK Classic spell=47482 (5-30 yd, 10 energy, 20s CD)" },
+    -- W3.3 rogue pins (2026-08-13): Deadly Poison IX/VIII application ids
+    -- tracked by assassination_wotlk for Envenom stack management. Verified on
+    -- wowhead WotLK Classic: 57970 = Deadly Poison IX (12s DoT stacking
+    -- debuff, the parse-relevant max-rank application; 57975 disproven: Wound
+    -- Poison VII), 57969 = Deadly Poison VIII (same DoT shape). The bridge
+    -- omits both (file-derived; no poison ids were used in _wotlk.lua files).
+    [57970] = { kind = "VALID_RANK_ALIAS", family = "Deadly Poison IX (apply/DoT debuff)", source = "wowhead WotLK Classic spell=57970/deadly-poison (rank IX, DoT stacking rule, 12s) — 57975 disproven (Wound Poison VII)" },
+    [57969] = { kind = "VALID_RANK_ALIAS", family = "Deadly Poison VIII (apply/DoT debuff)", source = "wowhead WotLK Classic spell=57969/deadly-poison (rank VIII, DoT stacking rule, 12s)" },
 }
 
 -- Resolved 2026-08-08: 48785/48782/48826 verified as real WotLK ranks (now
@@ -358,7 +455,10 @@ local WOTLK_BRIDGE_MAX_RANKS = {
     [30335] = "Bloodthirst", [12292] = "Death Wish", [47520] = "Cleave",
     -- 30356 removed 2026-08-08: wowhead + wowsims confirm 47488 is the real
     -- WotLK Shield Slam max (30356 is TBC-era rank 6, pinned via alias above).
-    [30357] = "Revenge", [30022] = "Devastate",
+    -- 30357 removed 2026-08-13: wowhead + the pinned protection APL confirm
+    -- 57823 is the real WotLK Revenge max (30357 is TBC-era rank 8, pinned via
+    -- alias above).
+    [47488] = "Shield Slam", [57823] = "Revenge", [30022] = "Devastate",
     -- deathknight
     [49909] = "Icy Touch", [49921] = "Plague Strike", [51425] = "Obliterate",
     [51411] = "Howling Blast", [55268] = "Frost Strike", [49930] = "Blood Strike",
@@ -843,8 +943,8 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 131, "pinned allowlist size") -- +15487 Silence 2026-08-10 (era-coverage interrupts)
-    expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 93, "bridge max rank count")
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 184, "pinned allowlist size") -- +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")
     expect(WOTLK_REJECTED_IDS[48999], true, "disproven Counterattack ID rejected")

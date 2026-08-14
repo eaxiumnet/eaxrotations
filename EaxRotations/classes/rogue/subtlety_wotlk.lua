@@ -2,16 +2,25 @@
 -- WHAT:  priority-list strategies for Subtlety rogue.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); Backstab gated to
+--         dagger + behind, Ambush gated to behind (TBC sibling convention);
+--         energy/combo read context first; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.RogueSpells or {}
+local read_combo_points = require("shared/combo_points_reader_sylvanas")
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Dagger set for the Backstab eligibility check (mirrors the TBC siblings).
+local _dagger_set_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
+if not _dagger_set_ok then dagger_set = nil end
+
+-- Plain define_action (fire_wotlk precedent): define_action_for_class would
+-- shadow the file-local WotLK rank lists with the TBC-era NS.RogueSpells
+-- entries, so the WotLK max-rank ids (48691/48657) would never be cast.
+local define = spec_kit.define_action
 
 local ACTION = {
     Premeditation = define("Premeditation", 14183, "Premeditation"),
@@ -31,6 +40,8 @@ local subtlety_state = {
     enemy_count = 1,
     in_combat = false,
     shadow_dance_up = false,
+    has_daggers = false,
+    is_behind = false,
     target_is_casting = false,
 }
 
@@ -38,12 +49,33 @@ local function build_state(context)
     local state = spec_kit.safe_state(subtlety_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.energy = (me and me.get_energy and me:get_energy()) or 0
-    state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
+    -- context.energy / context.combo_points are engine-populated real fields
+    -- (main_sylvanas.lua:816/878); me:get_energy()/get_combo_points() are
+    -- mock-only unit methods and collapse to 0 in live play.
+    state.energy = (context and context.energy) or (me and me.get_power and me:get_power(NS.POWER_ENERGY or 3)) or 0
+    state.combo_points = (context and context.combo_points) or (me and read_combo_points and read_combo_points(me, NS.POWER_COMBO or 4)) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.shadow_dance_up = (me and NS.buff_up and NS.buff_up(me, SHADOW_DANCE_BUFF)) or false
+    -- Dagger check: Backstab requires a dagger main-hand (TBC sibling
+    -- convention — dagger_set.is_dagger map over equipped item ids).
+    local main_id, off_id
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        main_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
+        off_id  = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.OFF_HAND)
+    end
+    local is_dagger = dagger_set and dagger_set.is_dagger or {}
+    state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
+        and (off_id and off_id ~= 0 and is_dagger[off_id])
+    -- Strict behind check (real API — NS.is_behind_target, core_sylvanas.lua).
+    if context and context.is_behind ~= nil then
+        state.is_behind = context.is_behind == true
+    elseif NS.is_behind_target and target then
+        state.is_behind = NS.is_behind_target(target) == true
+    else
+        state.is_behind = false
+    end
     return state
 end
 
@@ -72,6 +104,9 @@ local DSL_DEFS = {
         name = "Ambush",
         conditions = {
             { type = "state", field = "shadow_dance_up", op = "truthy" },
+            -- Ambush requires being behind the target; without the gate the
+            -- lane queues failed casts in front (TBC sibling convention).
+            { type = "state", field = "is_behind", op = "truthy" },
             { type = "state", field = "energy", op = ">=", value = 60 },
         },
         action = { type = "cast", spell = ACTION.Ambush, target = "target" },
@@ -86,6 +121,12 @@ local DSL_DEFS = {
     {
         name = "Backstab",
         conditions = {
+            -- Backstab requires a dagger in the main hand AND being behind the
+            -- target; without the gates the lane queues failed casts (TBC
+            -- sibling convention). When blocked the rotation degrades to the
+            -- fallback builder.
+            { type = "state", field = "is_behind", op = "truthy" },
+            { type = "state", field = "has_daggers", op = "truthy" },
             { type = "state", field = "energy", op = ">=", value = 60 },
         },
         action = { type = "cast", spell = ACTION.Backstab, target = "target" },

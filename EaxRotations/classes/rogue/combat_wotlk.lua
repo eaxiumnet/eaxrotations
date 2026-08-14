@@ -2,16 +2,22 @@
 -- WHAT:  priority-list strategies for Combat rogue.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); CD gates use real
+--         NS.cooldown_remains (not mock-only action:cooldown_remaining); energy/
+--         combo read context first (main_sylvanas) with me:get_power fallback;
+--         no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.RogueSpells or {}
+local read_combo_points = require("shared/combo_points_reader_sylvanas")
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (fire_wotlk precedent): define_action_for_class would
+-- shadow the file-local WotLK rank lists with the TBC-era NS.RogueSpells
+-- entries, so the WotLK max-rank ids (48638/48668) would never be cast.
+local define = spec_kit.define_action
 
 local ACTION = {
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
@@ -32,6 +38,7 @@ local combat_state = {
     enemy_count = 1,
     in_combat = false,
     snd_remains = 0,
+    snd_active = false,
     blade_flurry_ready = false,
     killing_spree_ready = false,
     target_is_casting = false,
@@ -41,14 +48,20 @@ local function build_state(context)
     local state = spec_kit.safe_state(combat_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.energy = (me and me.get_energy and me:get_energy()) or 0
-    state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
+    -- context.energy / context.combo_points are engine-populated real fields
+    -- (main_sylvanas.lua:816/878); me:get_energy()/get_combo_points() are
+    -- mock-only unit methods and collapse to 0 in live play.
+    state.energy = (context and context.energy) or (me and me.get_power and me:get_power(NS.POWER_ENERGY or 3)) or 0
+    state.combo_points = (context and context.combo_points) or (me and read_combo_points and read_combo_points(me, NS.POWER_COMBO or 4)) or 0
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0
-    state.blade_flurry_ready = (ACTION.BladeFlurry and ACTION.BladeFlurry.cooldown_remaining and ACTION.BladeFlurry:cooldown_remaining() <= 0) or false
-    state.killing_spree_ready = (ACTION.KillingSpree and ACTION.KillingSpree.cooldown_remaining and ACTION.KillingSpree:cooldown_remaining() <= 0) or false
+    state.snd_active = (me and NS.buff_up and NS.buff_up(me, SLICE_AND_DICE_BUFF)) or false
+    -- Real cooldown reads: production spell_action objects expose no
+    -- cooldown_remaining() method (mock-only), so the lanes were dead live.
+    state.blade_flurry_ready = (ACTION.BladeFlurry and NS.cooldown_remains and NS.cooldown_remains(ACTION.BladeFlurry) <= 0) or false
+    state.killing_spree_ready = (ACTION.KillingSpree and NS.cooldown_remains and NS.cooldown_remains(ACTION.KillingSpree) <= 0) or false
     return state
 end
 
@@ -74,6 +87,9 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "blade_flurry_ready", op = "truthy" },
+            -- APL alignment (combat.apl.json): Blade Flurry is cast while
+            -- Slice and Dice is up (attack-speed synergy).
+            { type = "state", field = "snd_active", op = "truthy" },
             { type = "state", field = "enemy_count", op = ">=", value = 2 },
             { type = "custom", fn = function(context, state)
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
@@ -87,6 +103,9 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "killing_spree_ready", op = "truthy" },
+            -- APL gate (combat.apl.json): Killing Spree is used at <= 50
+            -- energy so it never wastes a builder GCD's worth of energy.
+            { type = "state", field = "energy", op = "<=", value = 50 },
             { type = "custom", fn = function(context, state)
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
                 return true

@@ -3,15 +3,22 @@
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple shadow/holy damage rotation with emergency heal.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
+-- DECISION (W3.3): plain spec_kit.define_action with file-local WotLK rank
+--         ladders (define_action_for_class resolves through the TBC-capped
+--         class table — precedent classes/mage/fire_wotlk.lua:20). Penance is
+--         the full 4-rank WotLK trainer ladder (47540 -> 53005 -> 53006 ->
+--         53007) — the old single 47540 could never resolve for a max-level
+--         disciple (trainer ranks replace lower ranks), a production
+--         never-lane. Mana/HP state reads come from the engine context
+--         (context.mana_pct / context.hp) before raw unit methods.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.PriestSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+local define = spec_kit.define_action
 
 local ACTION = {
     PowerWordFortitude = define("PowerWordFortitude", { 48161, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, "PowerWordFortitude"),
@@ -22,7 +29,10 @@ local ACTION = {
     MindBlast = define("MindBlast", { 48127, 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
     MindFlay = define("MindFlay", { 48156, 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
     Smite = define("Smite", { 48123, 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
-    Penance = define("Penance", 47540, "Penance"),
+    -- Full WotLK Penance ladder (47540 r1 -> 53005 r2 -> 53006 r3 -> 53007 r4
+    -- max): first-known-wins resolution needs every rank — a single 47540 can
+    -- never resolve for a character whose trainer has replaced it.
+    Penance = define("Penance", { 53007, 53006, 53005, 47540 }, "Penance"),
     FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
     Shoot = define("Shoot", 5019, "Shoot"),
 }
@@ -51,8 +61,11 @@ local function build_state(context)
     local state = spec_kit.safe_state(priest_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.hp = (context and context.hp) or (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct)
+        or (me and NS.mana_pct and NS.mana_pct(me))
+        or (me and me.get_mana_percentage and me:get_mana_percentage())
+        or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.swp_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF)) or 0

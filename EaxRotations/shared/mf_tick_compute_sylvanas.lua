@@ -17,7 +17,7 @@
 --
 --   local mf_tick = require("shared/mf_tick_compute_sylvanas")  -- or NS.compute_mf_channel_state
 --   local mf_channeling, mf_ticks = mf_tick.compute_channel_state(me, NS.game_time_ms(), mf_ids)
---   local should_clip = mf_tick.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, swd_ready, vt_remaining, swp_remaining)
+--   local should_clip = mf_tick.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, swd_ready, vt_remaining, swp_remaining, swp_clip_threshold)
 --
 -- Usage (unit test — dofile pattern):
 --   dofile("EaxRotations/shared/mf_tick_compute_sylvanas.lua")
@@ -82,19 +82,24 @@ end
 
 --- Determine whether MF should be clipped at 2 ticks.
 -- APL: spellChanneledTicks == 2 — clip exactly at 2 ticks, not at 3.
--- @param mf_channeling     boolean — are we channeling MF?
--- @param mf_ticks          number — ticks landed so far
--- @param vt_clip_threshold number — haste-aware VT cast time (from spell_cast_time)
--- @param mb_ready          boolean — is Mind Blast ready?
--- @param swd_ready         boolean — is SW:D ready?
--- @param vt_remaining      number — VT debuff remaining seconds
--- @param swp_remaining     number — SW:P debuff remaining seconds
--- @return should_clip_mf   boolean — should we interrupt MF for a higher-priority spell?
-function M.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, swd_ready, vt_remaining, swp_remaining)
+-- @param mf_channeling       boolean — are we channeling MF?
+-- @param mf_ticks            number — ticks landed so far
+-- @param vt_clip_threshold   number — haste-aware VT cast time (from spell_cast_time)
+-- @param mb_ready            boolean — is Mind Blast ready?
+-- @param swd_ready           boolean — is SW:D ready?
+-- @param vt_remaining        number — VT debuff remaining seconds
+-- @param swp_remaining       number — SW:P debuff remaining seconds
+-- @param swp_clip_threshold  number (optional) — SW:P remaining window that
+--                             justifies clipping MF (defaults to 0.7 for
+--                             backward compat with 7-arg callers; live
+--                             shadow_sylvanas passes the configured
+--                             shadow_swp_refresh_window via swp_clip_threshold())
+-- @return should_clip_mf     boolean — should we interrupt MF for a higher-priority spell?
+function M.should_clip_mf(mf_channeling, mf_ticks, vt_clip_threshold, mb_ready, swd_ready, vt_remaining, swp_remaining, swp_clip_threshold)
     return mf_channeling
         and mf_ticks >= 2
         and mf_ticks < 3
-        and (mb_ready or swd_ready or vt_remaining < vt_clip_threshold or swp_remaining < 0.7)
+        and (mb_ready or swd_ready or vt_remaining < vt_clip_threshold or swp_remaining < (swp_clip_threshold or 0.7))
 end
 
 -- Export to NS namespace (Sylvanas production path). Mock-NS guard (survey

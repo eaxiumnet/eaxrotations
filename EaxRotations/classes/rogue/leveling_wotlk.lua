@@ -16,9 +16,12 @@ end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
-local SPELLS = NS.RogueSpells or {}
+local read_combo_points = require("shared/combo_points_reader_sylvanas")
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (fire_wotlk precedent): define_action_for_class would
+-- shadow the file-local WotLK rank lists with the TBC-era NS.RogueSpells
+-- entries, so the WotLK max-rank ids (48638/48668/48672) would never be cast.
+local define = spec_kit.define_action
 
 local ACTION = {
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
@@ -55,8 +58,11 @@ local function build_state(context)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
-    state.energy = (me and me.get_energy and me:get_energy()) or 0
-    state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
+    -- context.energy / context.combo_points are engine-populated real fields
+    -- (main_sylvanas.lua:816/878); me:get_energy()/get_combo_points() are
+    -- mock-only unit methods and collapse to 0 in live play.
+    state.energy = (context and context.energy) or (me and me.get_power and me:get_power(NS.POWER_ENERGY or 3)) or 0
+    state.combo_points = (context and context.combo_points) or (me and read_combo_points and read_combo_points(me, NS.POWER_COMBO or 4)) or 0
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
     state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0

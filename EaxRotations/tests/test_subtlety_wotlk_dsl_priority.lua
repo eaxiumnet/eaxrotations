@@ -143,17 +143,19 @@ test("ShadowDance: does not match when buff up", function()
     assert_false(sub.strategies[3].matches(ctx, state), "ShadowDance should not match when buff up")
 end)
 
--- Ambush (3): shadow_dance_up truthy AND energy >= 60
-test("Ambush: matches when dance up and energy >= 60", function()
+-- Ambush (3): shadow_dance_up truthy AND is_behind AND energy >= 60
+test("Ambush: matches when dance up, behind, energy >= 60", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = true
+    state.is_behind = true
     state.energy = 60
-    assert_true(sub.strategies[4].matches(ctx, state), "Ambush should match with dance up and energy >= 60")
+    assert_true(sub.strategies[4].matches(ctx, state), "Ambush should match with dance up, behind and energy >= 60")
 end)
 
 test("Ambush: does not match when dance down", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = false
+    state.is_behind = true
     state.energy = 100
     assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when dance down")
 end)
@@ -161,8 +163,17 @@ end)
 test("Ambush: does not match when energy < 60", function()
     local state = sub.build_state(ctx)
     state.shadow_dance_up = true
+    state.is_behind = true
     state.energy = 45
     assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when energy < 60")
+end)
+
+test("Ambush: does not match in front of the target", function()
+    local state = sub.build_state(ctx)
+    state.shadow_dance_up = true
+    state.is_behind = false
+    state.energy = 100
+    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match in front (behind gate)")
 end)
 
 -- Eviscerate (4): combo_points >= 4
@@ -178,17 +189,37 @@ test("Eviscerate: does not match with combo < 4", function()
     assert_false(sub.strategies[5].matches(ctx, state), "Eviscerate should not match with combo < 4")
 end)
 
--- Backstab (5): energy >= 60
-test("Backstab: matches when energy >= 60", function()
+-- Backstab (5): is_behind AND daggers AND energy >= 60
+test("Backstab: matches when behind with daggers and energy >= 60", function()
     local state = sub.build_state(ctx)
     state.energy = 60
-    assert_true(sub.strategies[6].matches(ctx, state), "Backstab should match when energy >= 60")
+    state.is_behind = true
+    state.has_daggers = true
+    assert_true(sub.strategies[6].matches(ctx, state), "Backstab should match when behind with daggers and energy >= 60")
 end)
 
 test("Backstab: does not match when energy < 60", function()
     local state = sub.build_state(ctx)
     state.energy = 45
+    state.is_behind = true
+    state.has_daggers = true
     assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match when energy < 60")
+end)
+
+test("Backstab: does not match in front of the target", function()
+    local state = sub.build_state(ctx)
+    state.energy = 100
+    state.is_behind = false
+    state.has_daggers = true
+    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match in front (behind gate)")
+end)
+
+test("Backstab: does not match without daggers", function()
+    local state = sub.build_state(ctx)
+    state.energy = 100
+    state.is_behind = true
+    state.has_daggers = false
+    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match without daggers (dagger gate)")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

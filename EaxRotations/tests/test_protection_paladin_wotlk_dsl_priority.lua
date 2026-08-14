@@ -1,5 +1,5 @@
 -- test_protection_paladin_wotlk_dsl_priority.lua — WotLK Protection Paladin DSL priority order tests.
--- WHAT:  Validates that the 5 protection_paladin_wotlk strategies are compiled correctly
+-- WHAT:  Validates that the 7 protection_paladin_wotlk strategies are compiled correctly
 --        by the DSL and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
@@ -42,17 +42,18 @@ _G.EaxRotations = {
     GetPlayer = function() return {
         get_class = function() return 2 end,
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     } end,
     me = {
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     },
     spell_action = make_action,
     spell_ready = function() return true end,
     spell_exists = function() return true end,
     try_cast = function() return true end,
     buff_up = function() return false end,
+    buff_points = function() return nil end,
     buff_remains = function() return 0 end,
     debuff_up = function() return false end,
     debuff_remains = function(unit, ids) return 0 end,
@@ -79,7 +80,7 @@ print("=== test_protection_paladin_wotlk_dsl_priority ===")
 local prot = dofile("EaxRotations/classes/paladin/protection_wotlk.lua")
 assert_true(type(prot) == "table", "protection_paladin_wotlk should return a table")
 assert_true(type(prot.strategies) == "table", "protection_paladin_wotlk should expose strategies")
-assert_true(#prot.strategies == 5, "protection_paladin_wotlk should have 5 strategies")
+assert_true(#prot.strategies == 7, "protection_paladin_wotlk should have 7 strategies")
 
 local registered = _G.EaxRotations._registered_protection
 assert_true(registered ~= nil, "protection_paladin_wotlk should register under 'protection'")
@@ -93,9 +94,11 @@ local expected_order = {
     "HammerOfTheRighteous",
     "Consecration",
     "Judgement",
+    "RighteousFury",
+    "HolyShield",
 }
 
-test("priority order: 5 strategies match expected order", function()
+test("priority order: 7 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(prot.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], prot.strategies[i].name))
@@ -151,11 +154,11 @@ end)
 
 -- Consecration: should NOT match when mana < 25
 test("Consecration: does not match when mana < 25", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 20 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 20 end
     local state = prot.build_state({ in_combat = true, target = {}, settings = {} })
     local ok = prot.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "Consecration should not match when mana < 25")
 end)
 
@@ -163,6 +166,53 @@ end)
 test("Judgement: matches when in combat", function()
     local state = prot.build_state(ctx)
     assert_true(prot.strategies[5].matches(ctx, state), "Judgement should match when in combat")
+end)
+
+-- RighteousFury (6): upkeep lane — fires when the buff is down (first match at
+-- the -999 initial stamp; the throttle then holds for 3s at the fixed clock).
+test("RighteousFury: matches when buff down", function()
+    local state = prot.build_state(ctx)
+    assert_true(prot.strategies[6].matches(ctx, state), "RighteousFury should match when the buff is down")
+end)
+
+test("RighteousFury: does not match when buff up", function()
+    local orig_buff = _G.EaxRotations.buff_up
+    _G.EaxRotations.buff_up = function(unit, ids) return true end
+    local state = prot.build_state(ctx)
+    local ok = prot.strategies[6].matches(ctx, state)
+    _G.EaxRotations.buff_up = orig_buff
+    assert_false(ok, "RighteousFury should not match when the buff is up")
+end)
+
+-- HolyShield (7): charge management — refresh when down, when charges <= the
+-- configured floor (default 2), and hold while charges are above it.
+test("HolyShield: matches when buff down", function()
+    local state = prot.build_state(ctx)
+    assert_true(prot.strategies[7].matches(ctx, state), "HolyShield should match when the buff is down")
+end)
+
+test("HolyShield: matches when charges at the refresh floor", function()
+    local orig_buff = _G.EaxRotations.buff_up
+    local orig_points = _G.EaxRotations.buff_points
+    _G.EaxRotations.buff_up = function(unit, ids) return true end
+    _G.EaxRotations.buff_points = function(unit, ids) return { 2 } end
+    local state = prot.build_state(ctx)
+    local ok = prot.strategies[7].matches(ctx, state)
+    _G.EaxRotations.buff_points = orig_points
+    _G.EaxRotations.buff_up = orig_buff
+    assert_true(ok, "HolyShield should refresh when charges are at the floor (2)")
+end)
+
+test("HolyShield: does not match when charges above the floor", function()
+    local orig_buff = _G.EaxRotations.buff_up
+    local orig_points = _G.EaxRotations.buff_points
+    _G.EaxRotations.buff_up = function(unit, ids) return true end
+    _G.EaxRotations.buff_points = function(unit, ids) return { 5 } end
+    local state = prot.build_state(ctx)
+    local ok = prot.strategies[7].matches(ctx, state)
+    _G.EaxRotations.buff_points = orig_points
+    _G.EaxRotations.buff_up = orig_buff
+    assert_false(ok, "HolyShield should hold while 5 charges remain (> floor 2)")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

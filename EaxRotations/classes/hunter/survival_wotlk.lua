@@ -3,6 +3,8 @@
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+--          Lock and Load proc (56344-family) read via NS.buff_up (real API);
+--          Explosive Shot ladder casts the WotLK max rank 60051 (not 60053/60052).
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -16,8 +18,11 @@ local ACTION = {
     AspectOfTheViper = define("AspectOfTheViper", 34074, "AspectOfTheViper"),
     AspectOfTheDragonhawk = define("AspectOfTheDragonhawk", 61847, "AspectOfTheDragonhawk"),
     KillShot = define("KillShot", 61006, "KillShot"),
-    ExplosiveShot = define("ExplosiveShot", 60053, "ExplosiveShot"),
-    ExplosiveShotProc = define("ExplosiveShotProc", 60052, "ExplosiveShotProc"),
+    -- WotLK 3.3.5 Explosive Shot ladder, max rank first: 60051 (r4) > 60053
+    -- (r3) > 60052 (r2) > 53301 (r1). 60051 verified on wowhead WotLK Classic
+    -- (spell=60051, Hunter Explosive Shot). The old single-ID define used the
+    -- rank-3 downrank 60053 — max-level hunters cast 60051 (W3.1 audit).
+    ExplosiveShot = define("ExplosiveShot", { 60051, 60053, 60052, 53301 }, "ExplosiveShot"),
     ExplosiveTrap = define("ExplosiveTrap", 49067, "ExplosiveTrap"),
     BlackArrow = define("BlackArrow", 63672, "BlackArrow"),
     SerpentSting = define("SerpentSting", { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
@@ -33,6 +38,10 @@ local SERPENT_STING_DEBUFF = { 49001, 27016, 25295, 13555, 13554, 13553, 13552, 
 local EXPLOSIVE_TRAP_DEBUFF = { 49067 }
 local BLACK_ARROW_DEBUFF = { 63672, 3674, 63668, 63669, 63670, 63671 }
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
+-- Lock and Load talent ranks (56342/56343/56344, 1-3 points). The max-rank
+-- aura 56344 is what a fully-talented survival hunter carries; the lower ranks
+-- are included for literal-ID matching. Verified on wowhead WotLK Classic.
+local LOCK_AND_LOAD_BUFF = { 56344, 56343, 56342 }
 
 local survival_state = {
     target_hp = 100,
@@ -53,7 +62,7 @@ local function build_state(context)
     local state = spec_kit.safe_state(survival_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.mana_pct = (context and context.mana_pct) or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
@@ -71,7 +80,9 @@ local function build_state(context)
     else
         state.dragonhawk_up = (me and NS.buff_up and NS.buff_up(me, ASPECT_DRAGONHAWK_BUFF)) or false
     end
-    state.lock_and_load = (context and context.lock_and_load) or false
+    -- Lock and Load proc (makes Explosive Shot instant + free): read via the
+    -- real buff API. context.lock_and_load is never set by production.
+    state.lock_and_load = (me and NS.buff_up and NS.buff_up(me, LOCK_AND_LOAD_BUFF)) or false
     state.target_remaining_time = (context and context.target_remaining_time) or 100
     return state
 end
@@ -112,7 +123,11 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "lock_and_load", op = "truthy" },
         },
-        action = { type = "cast", spell = ACTION.ExplosiveShotProc, target = "target" },
+        -- Lock and Load makes Explosive Shot instant + free: cast the MAX-rank
+        -- Explosive Shot (the client applies the free/instant via the proc
+        -- aura). The old lane cast the rank-2 downrank 60052 as a separate
+        -- action — a silent DPS loss on every proc window.
+        action = { type = "cast", spell = ACTION.ExplosiveShot, target = "target" },
     },
     {
         name = "ExplosiveTrap",
@@ -138,7 +153,13 @@ local DSL_DEFS = {
     },
     {
         name = "ExplosiveShot",
-        conditions = {},
+        conditions = {
+            -- Outside the Lock and Load proc window the plain lane handles the
+            -- normal (costed, cast-time) shot; during the proc window the
+            -- ExplosiveShotProc lane above fires the instant/free cast. Keeps
+            -- the proc lane reachable in the production dispatcher.
+            { type = "state", field = "lock_and_load", op = "falsy" },
+        },
         action = { type = "cast", spell = ACTION.ExplosiveShot, target = "target" },
     },
     {

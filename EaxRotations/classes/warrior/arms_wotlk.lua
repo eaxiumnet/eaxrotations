@@ -1,11 +1,16 @@
 -- arms_wotlk.lua — Warrior Arms rotation for Wrath of the Lich King (3.3.5a).
 -- WHAT:  priority-list strategies for Arms warrior DPS: Rend maintenance, Mortal Strike,
 --        Overpower (Taste for Blood), Execute, Bladestorm, Sweeping Strikes, Slam filler,
---        Hamstring PvP root, stance management, Shield Wall/Retaliation defensives.
+--        swing-QUEUED Heroic Strike / Cleave (the signature WotLK mechanic), Hamstring PvP
+--        root, stance management (Battle default; Berserker for Intercept/Pummel; Defensive
+--        dance for Shield Wall / Retaliation — both are Defensive-only in WotLK), and
+--        Shield Wall/Retaliation defensives.
 -- WHEN:  combat with a valid enemy target; Battle Stance default, Berserker for Intercept/Pummel.
 -- WHY:   mirrors SimulationCraft / wowsims WotLK Arms APL with 3.3.5a-era mechanics.
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace imperative
---         match functions; no on_update() allocations; cooldown reads guarded for raw-ID fallbacks.
+--         match functions; no on_update() allocations; cooldown reads via NS.cooldown_remains
+--         (never a 99 fallback — action:cooldown_remaining() is mock-only and silently
+--         never-fired 8 lanes in production).
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -22,12 +27,15 @@ local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 
--- Centralized spell resolver via spec_kit (replaces per-spec spell() helper).
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): the WotLK client loads the
+-- TBC class_sylvanas.lua into NS.WarriorSpells, so the class-first resolver would
+-- shadow these WotLK rank ladders with TBC-era rank lists.
+local define = spec_kit.define_action
 
 local ACTION = {
     BattleStance      = define("BattleStance", 2457, "BattleStance"),
     BerserkerStance   = define("BerserkerStance", 2458, "BerserkerStance"),
+    DefensiveStance   = define("DefensiveStance", 71, "DefensiveStance"),
     BattleShout       = define("BattleShout", { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     CommandingShout   = define("CommandingShout", { 47439, 469 }, "CommandingShout"),
     Charge            = define("Charge", { 11578, 6178, 100 }, "Charge"),
@@ -40,6 +48,7 @@ local ACTION = {
     SweepingStrikes   = define("SweepingStrikes", 12328, "SweepingStrikes"),
     Slam              = define("Slam", { 47475, 25242, 25241, 11605, 11604, 8820, 1464 }, "Slam"),
     HeroicStrike      = define("HeroicStrike", { 47450, 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+    Cleave            = define("Cleave", { 47520, 25231, 20569, 11609, 11608, 7369, 845 }, "Cleave"),
     ThunderClap       = define("ThunderClap", { 47502, 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
     DemoralizingShout = define("DemoralizingShout", { 47437, 25203, 25202, 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
     Hamstring         = define("Hamstring", { 25212, 7373, 7372, 1715 }, "Hamstring"),
@@ -58,9 +67,11 @@ local HAMSTRING_DEBUFF    = { 25212, 7373, 7372, 1715 }
 local TASTE_FOR_BLOOD_BUFF = { 60503, 56636 }
 
 local REND_REFRESH_SECONDS = 5     -- refresh Rend when remaining < 5s
-local EXECUTE_RAGE_MIN     = 10    -- Execute minimum rage cost
+local EXECUTE_RAGE_MIN     = 15    -- WotLK Execute costs 15 rage
 local SLAM_RAGE_MIN        = 15    -- Slam minimum rage
-local HEROIC_RAGE_MIN      = 60    -- Heroic Strike rage dump threshold
+local HEROIC_RAGE_MIN      = 40    -- queued Heroic Strike threshold (wowsims arms APL: rage >= 40)
+local CLEAVE_RAGE_MIN      = 35    -- queued Cleave threshold (wowsims arms APL: rage >= 35)
+local HEROIC_SWING_WINDOW  = 1.0   -- queue HS/Cleave when the next auto swing lands within 1s
 
 -- -----------------------------------------------------------------------------
 -- State table (raw; safe_state proxy applied in build_state)
@@ -80,7 +91,6 @@ local arms_state = {
     rend_remains = 0,
     ms_cd = 99,
     overpower_ready = false,
-    overpower_cd = 99,
     execute_ready = false,
     bladestorm_ready = false,
     sweeping_ready = false,
@@ -89,6 +99,7 @@ local arms_state = {
     charge_ready = false,
     shieldwall_ready = false,
     retaliation_ready = false,
+    swing_imminent = false,
     battle_shout_up = false,
     demo_remains = 0,
     tclap_remains = 0,
@@ -99,17 +110,40 @@ local arms_state = {
 -- Helpers (nil-guarded against missing NS APIs / raw-ID action fallbacks)
 -- -----------------------------------------------------------------------------
 
--- Cooldown helper: returns remaining seconds, or `fallback` when the action is a
--- raw spell ID (no method) or the method is unavailable. Never errors.
-local function cd_remaining(action, fallback)
-    if action and type(action.cooldown_remaining) == "function" then
-        local ok, val = pcall(action.cooldown_remaining, action)
-        if ok and type(val) == "number" then return val end
+-- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
+-- 0 when unknown). The old action:cooldown_remaining() call returned nil in
+-- production (spell_action exposes no such method), making every caller fall
+-- back to 99 and silently never-firing 8 lanes.
+local function cd_remaining(action)
+    if NS.cooldown_remains then
+        local v = NS.cooldown_remains(action)
+        if type(v) == "number" then return v end
     end
-    return fallback or 99
+    if NS.get_spell_cooldown then
+        local v = NS.get_spell_cooldown(action)
+        if type(v) == "number" then return v end
+    end
+    return 0
+end
+
+-- Seconds until the main-hand auto swing lands (999 when unknown: gate fails
+-- closed so queued HS/Cleave never fire without a real swing clock).
+local function swing_time_until(me)
+    if me and NS and type(NS.swing_time_until) == "function" then
+        local ok, v = pcall(NS.swing_time_until, me)
+        if ok and type(v) == "number" then return v end
+    end
+    return 999
 end
 
 local function is_boss(context)
+    -- Production sets context.target_is_boss (main_sylvanas.lua:1287); the
+    -- menu gate_cooldown_boss_only toggle is an additional opt-in guard. The
+    -- legacy context.is_boss compat read was DELETED (W3.4): no production
+    -- writer ever sets it (main_sylvanas writes target_is_boss; the battery
+    -- drives target_is_boss) — the read was inert live and inert in the
+    -- battery, so it could only mask future field drift.
+    if context and context.target_is_boss == true then return true end
     if NS and type(NS.gate_cooldown_boss_only) == "function" then
         return NS.gate_cooldown_boss_only() == true
     end
@@ -142,7 +176,14 @@ local function build_state(context)
     local target = context.target
 
     -- Player resources
-    state.rage = (me and type(me.get_rage) == "function" and me:get_rage()) or 0
+    -- Rage via the REAL chain: context.rage (main_sylvanas.lua:814,
+    -- power_current(NS.POWER_RAGE)) first, then me:get_power(NS.POWER_RAGE) —
+    -- me:get_rage() is mock-only and pinned state.rage at 0 live (W3.4 audit),
+    -- collapsing every rage-gated lane into a production never-lane. Mirrors
+    -- bear_wotlk.lua:57-59.
+    state.rage = (context and context.rage)
+        or (me and me.get_power and me:get_power(NS.POWER_RAGE))
+        or 0
     state.hp = (me and type(me.get_health_percentage) == "function" and me:get_health_percentage()) or 100
     state.stance = (me and type(me.get_stance) == "function" and me:get_stance()) or STANCE.BATTLE
     state.is_moving = (context.is_moving == true)
@@ -168,17 +209,19 @@ local function build_state(context)
     state.battle_shout_up = (me and NS.buff_up and NS.buff_up(me, BATTLE_SHOUT_BUFF)) or false
     state.overpower_ready = (me and NS.buff_up and NS.buff_up(me, TASTE_FOR_BLOOD_BUFF)) or false
 
-    -- Cooldown / availability tracking (guarded for raw-ID fallbacks)
-    state.ms_cd = cd_remaining(ACTION.MortalStrike, 99)
-    state.overpower_cd = cd_remaining(ACTION.Overpower, 99)
+    -- Cooldown / availability tracking (real API: NS.cooldown_remains, 0 = ready)
+    state.ms_cd = cd_remaining(ACTION.MortalStrike)
     state.execute_ready = ((state.target_hp or 100) < 20)
-    state.bladestorm_ready = (cd_remaining(ACTION.Bladestorm, 99) <= 0)
-    state.sweeping_ready = (cd_remaining(ACTION.SweepingStrikes, 99) <= 0)
-    state.intercept_ready = (cd_remaining(ACTION.Intercept, 99) <= 0)
-    state.pummel_ready = (cd_remaining(ACTION.Pummel, 99) <= 0)
-    state.charge_ready = (cd_remaining(ACTION.Charge, 99) <= 0)
-    state.shieldwall_ready = (cd_remaining(ACTION.ShieldWall, 99) <= 0)
-    state.retaliation_ready = (cd_remaining(ACTION.Retaliation, 99) <= 0)
+    state.bladestorm_ready = (cd_remaining(ACTION.Bladestorm) <= 0)
+    state.sweeping_ready = (cd_remaining(ACTION.SweepingStrikes) <= 0)
+    state.intercept_ready = (cd_remaining(ACTION.Intercept) <= 0)
+    state.pummel_ready = (cd_remaining(ACTION.Pummel) <= 0)
+    state.charge_ready = (cd_remaining(ACTION.Charge) <= 0)
+    state.shieldwall_ready = (cd_remaining(ACTION.ShieldWall) <= 0)
+    state.retaliation_ready = (cd_remaining(ACTION.Retaliation) <= 0)
+    -- WotLK queued-swing mechanic: HS/Cleave modify the next auto attack, so
+    -- only queue them when the swing is imminent (fixture: autoTimeToNext <= 1ms).
+    state.swing_imminent = swing_time_until(me) <= HEROIC_SWING_WINDOW
 
     return state
 end
@@ -187,11 +230,28 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
+    -- WotLK Shield Wall + Retaliation are Defensive-stance-only; dance there
+    -- before the defensives so they are actually castable (previously the file
+    -- defined only Battle/Berserker stances and never entered Defensive).
+    {
+        name = "DefensiveStance",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if (state.stance or 0) == STANCE.DEFENSIVE then return false end
+                local need_wall = state.shieldwall_ready and (state.hp or 100) < 30
+                local need_ret = state.retaliation_ready and state.is_boss and (state.rage or 0) >= 10
+                return need_wall or need_ret
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DefensiveStance, target = "self" },
+    },
     {
         name = "ShieldWall",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "shieldwall_ready", op = "truthy" },
+            { type = "state", field = "stance", op = "==", value = STANCE.DEFENSIVE },
             { type = "state", field = "hp", op = "<", value = 30 },
         },
         action = { type = "cast", spell = ACTION.ShieldWall, target = "self" },
@@ -201,6 +261,7 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "retaliation_ready", op = "truthy" },
+            { type = "state", field = "stance", op = "==", value = STANCE.DEFENSIVE },
             { type = "state", field = "is_boss", op = "truthy" },
             { type = "state", field = "rage", op = ">=", value = 10 },
         },
@@ -210,8 +271,36 @@ local DSL_DEFS = {
         name = "BattleShout",
         conditions = {
             { type = "state", field = "battle_shout_up", op = "falsy" },
+            { type = "state", field = "rage", op = ">=", value = 10 },
         },
         action = { type = "cast", spell = ACTION.BattleShout, target = "self" },
+    },
+    -- WotLK queued-swing mechanic (wowsims arms APL pos 4): Cleave queues on the
+    -- next auto when 2+ targets are up and rage >= 35.
+    {
+        name = "Cleave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = CLEAVE_RAGE_MIN },
+            { type = "state", field = "swing_imminent", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Cleave, target = "target" },
+    },
+    -- WotLK queued-swing mechanic (wowsims arms APL pos 5): Heroic Strike queues
+    -- on the next auto at rage >= 40 on a single target. Previously an unqueued
+    -- rage >= 60 bottom dump (per-frame failed casts and no queue semantics).
+    {
+        name = "HeroicStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = HEROIC_RAGE_MIN },
+            { type = "state", field = "swing_imminent", op = "truthy" },
+            { type = "enemy_count", op = "==", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
     },
     {
         name = "Charge",
@@ -245,6 +334,11 @@ local DSL_DEFS = {
                 if (state.stance or STANCE.BATTLE) == STANCE.BATTLE then return false end
                 if (state.rend_remains or 0) < REND_REFRESH_SECONDS then return true end
                 if state.overpower_ready then return true end
+                -- Sweeping Strikes + Thunder Clap are Battle-stance-only in WotLK:
+                -- dance back so those lanes stay reachable from Berserker.
+                if state.sweeping_ready and (state.rage or 0) >= 30 then return true end
+                local aoe = NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
+                if aoe and (state.tclap_remains or 0) < 3 and (state.rage or 0) >= 20 then return true end
                 return false
             end },
         },
@@ -287,11 +381,7 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "rage", op = ">=", value = 5 },
-            { type = "custom", fn = function(context, state)
-                if state.overpower_ready then return true end
-                if (state.overpower_cd or 99) <= 0 then return true end
-                return false
-            end },
+            { type = "state", field = "overpower_ready", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.Overpower, target = "target" },
     },
@@ -318,6 +408,7 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "sweeping_ready", op = "truthy" },
+            { type = "state", field = "stance", op = "==", value = STANCE.BATTLE },
             { type = "custom", fn = function(context, state)
                 if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
                     return false
@@ -346,6 +437,7 @@ local DSL_DEFS = {
         name = "ThunderClap",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "stance", op = "==", value = STANCE.BATTLE },
             { type = "custom", fn = function(context, state)
                 if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
                     return false
@@ -384,23 +476,18 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Slam, target = "target" },
     },
-    {
-        name = "HeroicStrike",
-        conditions = {
-            { type = "state", field = "in_combat", op = "truthy" },
-            { type = "state", field = "rage", op = ">=", value = HEROIC_RAGE_MIN },
-        },
-        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
-    },
 }
 
 -- -----------------------------------------------------------------------------
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "DefensiveStance" },
     { name = "ShieldWall" },
     { name = "Retaliation" },
     { name = "BattleShout" },
+    { name = "Cleave" },
+    { name = "HeroicStrike" },
     { name = "Charge" },
     { name = "BerserkerStance" },
     { name = "BattleStance" },
@@ -416,7 +503,6 @@ local strategies = {
     { name = "DemoralizingShout" },
     { name = "Hamstring" },
     { name = "Slam" },
-    { name = "HeroicStrike" },
 }
 
 -- Name-based substitution preserves the existing priority order.

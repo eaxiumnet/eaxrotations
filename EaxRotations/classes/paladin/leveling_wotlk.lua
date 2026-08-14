@@ -1,7 +1,13 @@
 -- leveling_wotlk.lua — Paladin leveling rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for paladin leveling in WotLK.
+-- WHAT:  priority-list strategies for paladin leveling: seal upkeep (SoV → SoC →
+--          SoR full rank ladder), Blessing of Might / Devotion Aura OOC upkeep,
+--          Judgement, Hammer of Wrath execute, Divine Storm / Consecration AoE,
+--          Crusader Strike.
 -- WHEN:  combat with valid enemy target.
--- WHY:   simple seal/judgement rotation for leveling.
+-- WHY:   simple seal/judgement rotation for leveling; the SoR action ladder
+--         { 25742, 21084 } + matching buff list close the low-level never-zone
+--         (21084 = rank 1, learnable at level 1) and the 60+ buff-mismatch
+--         (25742 = the rank a 60+ cast applies).
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
@@ -15,14 +21,18 @@ end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.PaladinSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): the WotLK client loads the
+-- TBC class_sylvanas.lua into NS.<Class>Spells, so the class-first resolver would
+-- shadow these WotLK rank ladders with TBC-era rank lists.
+local define = spec_kit.define_action
 
 local ACTION = {
     SealOfCommand = define("SealOfCommand", { 27170, 20920, 20919, 20918, 20915, 20375 }, "SealOfCommand"),
     SealOfVengeance = define("SealOfVengeance", 31801, "SealOfVengeance"),
-    SealOfRighteousness = define("SealOfRighteousness", 25742, "SealOfRighteousness"),
+    -- Full SoR ladder: 25742 (60+ cast applies this buff) + 21084 (rank 1,
+    -- learnable at level 1). First-known-wins resolution picks the right rank.
+    SealOfRighteousness = define("SealOfRighteousness", { 25742, 21084 }, "SealOfRighteousness"),
     BlessingOfMight = define("BlessingOfMight", { 48932, 48931, 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }, "BlessingOfMight"),
     DevotionAura = define("DevotionAura", { 48942, 48941, 27149, 10293, 10292, 10291, 10290, 643, 465 }, "DevotionAura"),
     Judgement = define("Judgement", { 20271, 53407, 53408 }, "Judgement"),
@@ -34,7 +44,9 @@ local ACTION = {
 
 local SEAL_OF_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
 local SEAL_OF_VENGEANCE_BUFF = { 31801 }
-local SEAL_OF_RIGHTEOUSNESS_BUFF = { 21084 }
+-- Buff list must mirror the action ladder: a 60+ cast applies 25742, a low-level
+-- cast applies 21084 — checking only one id leaves the seal perpetually "down".
+local SEAL_OF_RIGHTEOUSNESS_BUFF = { 25742, 21084 }
 local BLESSING_OF_MIGHT_BUFF = { 48932, 48931, 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
 local DEVOTION_AURA_BUFF = { 48942, 48941, 27149, 10293, 10292, 10291, 10290, 643, 465 }
 
@@ -52,7 +64,12 @@ local function build_state(context)
     local state = spec_kit.safe_state(paladin_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    -- context.mana_pct is dispatcher-set (main_sylvanas.lua:795); me:mana_pct()
+    -- is the IZI SDK unit method. me:get_mana_percentage() is mock-only (W3.4).
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and (context.enemies_count or context.enemy_count)) or 1
     state.in_combat = (context and context.in_combat) or false
@@ -63,8 +80,10 @@ local function build_state(context)
 end
 
 local DSL_DEFS = {
-    -- Keep a seal up in and out of combat. Seal of Righteousness (rank 1, level 3)
-    -- covers the 1-19 dead zone before Seal of Command/Vengeance are learnable.
+    -- Keep a seal up in and out of combat. The SoR ladder { 25742, 21084 }
+    -- covers the 1-19 dead zone (21084 = rank 1, learnable at level 1) through
+    -- 60+ (25742), and SEAL_OF_RIGHTEOUSNESS_BUFF mirrors both ids so the seal
+    -- registers as up after EITHER rank is cast.
     {
         name = "Seal",
         conditions = {

@@ -224,14 +224,29 @@ test("PlagueStrike: does not match when blood plague remains >= 3", function()
     assert_false(ok, "PlagueStrike should not match when blood plague >= 3")
 end)
 
--- DeathStrike: matches when HP < 80
-test("DeathStrike: matches when HP < 80", function()
+-- DeathStrike: matches when HP < 80 AND Frost Fever is up (>3s — the W3.3
+-- disease-uptime guard: DeathStrike burns the frost rune IcyTouch needs, so
+-- the self-heal must not steal it from the disease refresh).
+test("DeathStrike: matches when HP < 80 with Frost Fever up", function()
+    local orig_hp = _G.EaxRotations.me.get_health_percentage
+    local orig_debuff = _G.EaxRotations.debuff_remains
+    _G.EaxRotations.me.get_health_percentage = function() return 70 end
+    _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
+    local state = blood.build_state(ctx)
+    local ok = blood.strategies[8].matches(ctx, state)
+    _G.EaxRotations.me.get_health_percentage = orig_hp
+    _G.EaxRotations.debuff_remains = orig_debuff
+    assert_true(ok, "DeathStrike should match when HP < 80 and Frost Fever is up")
+end)
+
+-- DeathStrike: does NOT match at HP < 80 while Frost Fever is down (the guard)
+test("DeathStrike: does not match when HP < 80 with Frost Fever down", function()
     local orig_hp = _G.EaxRotations.me.get_health_percentage
     _G.EaxRotations.me.get_health_percentage = function() return 70 end
     local state = blood.build_state(ctx)
     local ok = blood.strategies[8].matches(ctx, state)
     _G.EaxRotations.me.get_health_percentage = orig_hp
-    assert_true(ok, "DeathStrike should match when HP < 80")
+    assert_false(ok, "DeathStrike should not match when HP < 80 but Frost Fever is down")
 end)
 
 -- DeathStrike: does NOT match when HP >= 80

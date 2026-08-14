@@ -9,9 +9,11 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.WarlockSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- WotLK file-local rank ladders are authoritative: plain define_action (not
+-- define_action_for_class) so the TBC-era NS.WarlockSpells table can never
+-- shadow the WotLK max-rank ids (Corruption 47813 etc.) — see fire_wotlk.lua.
+local define = spec_kit.define_action
 
 local ACTION = {
     UnstableAffliction = define("UnstableAffliction", { 47843, 30405, 30404, 30108 }, "UnstableAffliction"),
@@ -20,15 +22,20 @@ local ACTION = {
     CurseOfAgony = define("CurseOfAgony", { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     DrainSoul = define("DrainSoul", { 47855, 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
     ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
 }
 
-local UNSTABLE_AFFLICTION_DEBUFF = { 30405, 30404, 30108 }
-local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
-local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
-local HAUNT_DEBUFF = { 48181, 59164 }
+-- WotLK max-rank ids FIRST (literal id matching — the client applies the
+-- max-rank aura; without 47843/47813/47864 the DoT-remains reads are always 0
+-- and every DoT is re-cast every GCD).
+local UNSTABLE_AFFLICTION_DEBUFF = { 47843, 30405, 30404, 30108 }
+local CORRUPTION_DEBUFF = { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+local CURSE_OF_AGONY_DEBUFF = { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }
+local HAUNT_DEBUFF = { 59164, 48181 }
 
 local affliction_state = {
     target_hp = 100,
+    hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -42,8 +49,11 @@ local function build_state(context)
     local state = spec_kit.safe_state(affliction_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
+    -- Engine-populated context fields first (production API); unit-method
+    -- reads kept only as fallback for harnesses without a context.
+    state.mana_pct = (context and context.mana_pct) or (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    state.hp = (context and context.hp) or (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.target_hp = (context and context.target_hp) or (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.unstable_remains = (target and NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFLICTION_DEBUFF)) or 0
@@ -96,6 +106,20 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.ShadowBolt, target = "target" },
     },
+    -- Mana sustain (rubric): tap HP for mana when the pool runs dry and the
+    -- player is healthy enough. Mirrors the TBC affliction LifeTap gates
+    -- (mana <= threshold, hp >= safety floor). Appended AFTER ShadowBolt so
+    -- the pinned APL order (Haunt < Corruption < UA < CoA < DrainSoul <
+    -- ShadowBolt) is untouched.
+    {
+        name = "LifeTap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "state", field = "hp", op = ">", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.LifeTap, target = "self", label = "[AFFL WOTLK] Life Tap" },
+    },
 }
 
 local strategies = {
@@ -105,6 +129,7 @@ local strategies = {
     { name = "CurseOfAgony" },
     { name = "DrainSoul" },
     { name = "ShadowBolt" },
+    { name = "LifeTap" },
 }
 
 for i = 1, #strategies do

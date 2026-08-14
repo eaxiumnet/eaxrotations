@@ -99,12 +99,25 @@ local function build_state(context)
         state.runic_power = (me and me.get_runic_power and me:get_runic_power()) or 0
     end
 
-    -- Rune availability via rune_manager (falls back to 0 when rune APIs are absent).
+    -- Rune availability via rune_manager: ONE get_rune_state() call per frame
+    -- (6 slots x 2 pcall + 2 table allocs), sliced into per-type ready counts.
+    -- The old per-type getter fan-out called get_rune_state() four times (48
+    -- pcalls + 8 allocs per frame, unthrottled). The ready-map fallback keeps
+    -- older stubs (per-type getters, no ready map) working.
     if rune_manager then
-        state.blood_runes_ready = (rune_manager.get_blood_runes_ready and rune_manager.get_blood_runes_ready()) or 0
-        state.frost_runes_ready = (rune_manager.get_frost_runes_ready and rune_manager.get_frost_runes_ready()) or 0
-        state.unholy_runes_ready = (rune_manager.get_unholy_runes_ready and rune_manager.get_unholy_runes_ready()) or 0
-        state.death_runes_ready = (rune_manager.get_death_runes_ready and rune_manager.get_death_runes_ready()) or 0
+        local runes = rune_manager.get_rune_state and rune_manager.get_rune_state()
+        local ready = runes and runes.ready
+        if ready then
+            state.blood_runes_ready = ready.blood or 0
+            state.frost_runes_ready = ready.frost or 0
+            state.unholy_runes_ready = ready.unholy or 0
+            state.death_runes_ready = ready.death or 0
+        else
+            state.blood_runes_ready = (rune_manager.get_blood_runes_ready and rune_manager.get_blood_runes_ready()) or 0
+            state.frost_runes_ready = (rune_manager.get_frost_runes_ready and rune_manager.get_frost_runes_ready()) or 0
+            state.unholy_runes_ready = (rune_manager.get_unholy_runes_ready and rune_manager.get_unholy_runes_ready()) or 0
+            state.death_runes_ready = (rune_manager.get_death_runes_ready and rune_manager.get_death_runes_ready()) or 0
+        end
     else
         state.blood_runes_ready = 0
         state.frost_runes_ready = 0
@@ -114,10 +127,13 @@ local function build_state(context)
     state.total_runes_ready = (state.blood_runes_ready + state.frost_runes_ready
         + state.unholy_runes_ready + state.death_runes_ready)
 
-    state.unbreakable_armor_ready = (ACTION.UnbreakableArmor and ACTION.UnbreakableArmor.cooldown_remaining
-        and ACTION.UnbreakableArmor:cooldown_remaining() <= 0) or false
-    state.empower_rune_weapon_ready = (ACTION.EmpowerRuneWeapon and ACTION.EmpowerRuneWeapon.cooldown_remaining
-        and ACTION.EmpowerRuneWeapon:cooldown_remaining() <= 0) or false
+    -- Long-CD readiness via REAL NS API: production NS.spell_action tables
+    -- expose only id/GetSpellPowerCost/GetSpellRank/GetSpellLevel/IsExists/
+    -- IsReady/IsInRange/Cast (core_sylvanas.lua:1410-1454) — the mock-only
+    -- action:cooldown_remaining() used here made both lanes production
+    -- never-lanes. NS.cooldown_remains accepts spell_action tables.
+    state.unbreakable_armor_ready = (NS.cooldown_remains and NS.cooldown_remains(ACTION.UnbreakableArmor) <= 0) or false
+    state.empower_rune_weapon_ready = (NS.cooldown_remains and NS.cooldown_remains(ACTION.EmpowerRuneWeapon) <= 0) or false
 
     return state
 end
@@ -155,7 +171,8 @@ local DSL_DEFS = {
                 return (state.total_runes_ready or 0) == 0
             end },
             { type = "custom", fn = function(context, state)
-                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                -- ERW is a 5-minute CD (class_sylvanas.lua cooldown 300).
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
                 return true
             end },
         },
@@ -246,7 +263,13 @@ local function frost_presence_matches(context, state)
 end
 
 local function frost_presence_execute(ctx)
-    return ACTION.FrostPresence and ACTION.FrostPresence:cast_safe() and true or false
+    local me = (ctx and ctx.me) or (NS.GetPlayer and NS.GetPlayer())
+    if not me or not ACTION.FrostPresence then return false end
+    -- REAL cast path: action:cast_safe() exists only on izi.spell() objects,
+    -- never on NS.spell_action tables (core_sylvanas.lua:2165-2166) — the old
+    -- call errored every match and the dispatcher pcall swallowed it, so Frost
+    -- Presence was never applied. NS.try_cast is the production entrypoint.
+    return NS.try_cast and NS.try_cast(ACTION.FrostPresence, me, "FrostPresence") == true or false
 end
 
 -- -----------------------------------------------------------------------------

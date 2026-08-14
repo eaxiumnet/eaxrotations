@@ -82,7 +82,7 @@ print("=== test_enhancement_wotlk_dsl_priority ===")
 local enh = dofile("EaxRotations/classes/shaman/enhancement_wotlk.lua")
 assert_true(type(enh) == "table", "enhancement_wotlk should return a table")
 assert_true(type(enh.strategies) == "table", "enhancement_wotlk should expose strategies")
-    assert_true(#enh.strategies == 11, "enhancement_wotlk should have 11 strategies")
+    assert_true(#enh.strategies == 14, "enhancement_wotlk should have 14 strategies")
 
 local registered = _G.EaxRotations._registered_enhancement
 assert_true(registered ~= nil, "enhancement_wotlk should register under 'enhancement'")
@@ -90,9 +90,13 @@ assert_true(registered ~= nil, "enhancement_wotlk should register under 'enhance
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- The 11 pinned wowsims APL lanes keep their exact order; the W3.3 lanes
+-- (ShamanisticRage + WindfuryWeapon/FlametongueWeapon imbue upkeep) append
+-- at the end (pin-safe).
 local expected_order = {
     "FeralSpirit", "Bloodlust", "LightningBolt", "Stormstrike", "FlameShock",
     "EarthShock", "CallOfTheElements", "MagmaTotem", "FireNova", "LightningShield", "LavaLash",
+    "ShamanisticRage", "WindfuryWeapon", "FlametongueWeapon",
 }
 
 test("priority order: 4 strategies match expected order", function()
@@ -162,6 +166,55 @@ end)
 test("LavaLash: always matches", function()
     local state = enh.build_state(ctx)
     assert_true(enh.strategies[11].matches(ctx, state), "LavaLash should always match")
+end)
+
+-- ShamanisticRage (W3.3): in combat + mana < 40 + ready
+test("ShamanisticRage: matches at low mana in combat", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 30
+    state.shamanistic_rage_ready = true
+    assert_true(enh.strategies[12].matches(ctx, state), "ShamanisticRage should match at low mana")
+end)
+
+test("ShamanisticRage: does not match at full mana", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 100
+    state.shamanistic_rage_ready = true
+    assert_false(enh.strategies[12].matches(ctx, state), "ShamanisticRage should not match at full mana")
+end)
+
+test("ShamanisticRage: does not match when not ready", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 30
+    state.shamanistic_rage_ready = false
+    assert_false(enh.strategies[12].matches(ctx, state), "ShamanisticRage should not match when not ready")
+end)
+
+-- Weapon-imbue upkeep (W3.3): OOC + imbue window stale (fresh window is 29.8 min)
+test("WindfuryWeapon: matches OOC when imbue stale", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = false
+    state.has_windfury = false
+    state.mana_pct = 100
+    assert_true(enh.strategies[13].matches(ctx, state), "WindfuryWeapon should match OOC when stale")
+end)
+
+test("WindfuryWeapon: does not match in combat", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.has_windfury = false
+    assert_false(enh.strategies[13].matches(ctx, state), "WindfuryWeapon should not match in combat")
+end)
+
+test("FlametongueWeapon: matches OOC when imbue stale", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = false
+    state.has_flametongue = false
+    state.mana_pct = 100
+    assert_true(enh.strategies[14].matches(ctx, state), "FlametongueWeapon should match OOC when stale")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

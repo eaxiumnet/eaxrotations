@@ -1,7 +1,10 @@
 -- arcane_wotlk.lua — Mage Arcane rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  Arcane Blast stacking (0-3), Missile Barrage procs, PoM/AP/IV burst, mana management.
+-- WHAT:  Arcane Blast stacking (0-4), Missile Barrage proc consumer, PoM/AP/IV
+--        burst, ABarrage 4-stack dump, mana management.
 -- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
+-- WHY:   mirrors wowsims APL (ui/mage/apls/arcane.apl.json — pinned fixture):
+--        AB while stacks < 4, AM on Missile Barrage proc (44401), Evocation at
+--        low mana. Arcane Barrage dumps the 4-stack cap (distinct from AM).
 -- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
 --         imperative match functions; no on_update() allocs.
 
@@ -10,13 +13,16 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
-local SPELLS = NS.MageSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+-- Plain define_action (NOT define_action_for_class): NS.MageSpells is TBC-era,
+-- so the class-bound resolver would shadow these WotLK rank ladders with TBC
+-- ranks (systemic W3.3 fix — fire_wotlk.lua is the clean precedent).
+local define = spec_kit.define_action
 
 local ACTION = {
-    -- Arcane Blast: WotLK max 42897 + TBC 30451 (lexxer). Removed invalid 30450/30449/25376/25375/42891.
-    ArcaneBlast = define("ArcaneBlast", { 42897, 42896, 42895, 42894, 30451 }, "ArcaneBlast"),
+    -- Arcane Blast: WotLK max 42897 + TBC 30451 (bridge-verified; 42895 is a
+    -- cosmetic spell, not an AB rank — removed).
+    ArcaneBlast = define("ArcaneBlast", { 42897, 42896, 42894, 30451 }, "ArcaneBlast"),
     ArcaneMissiles = define("ArcaneMissiles", { 42846, 42845, 42844, 42843, 38704, 38699, 25346, 10212, 10211, 5143, 5144, 5145, 8417, 8418, 8419 }, "ArcaneMissiles"),
     ArcaneBarrage = define("ArcaneBarrage", { 44425, 44780, 44781 }, "ArcaneBarrage"),
     Evocation = define("Evocation", { 12051 }, "Evocation"),
@@ -26,11 +32,14 @@ local ACTION = {
     PresenceOfMind = define("PresenceOfMind", { 12043 }, "PresenceOfMind"),
     Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
     ConjureManaEmerald = define("ConjureManaEmerald", { 27101, 10054, 10053, 3552, 759 }, "ConjureManaEmerald"),
-    MageArmor = define("MageArmor", { 43024, 43023, 27130, 22783, 22782, 1008 }, "MageArmor"),
+    -- 27125 = Mage Armor TBC max (not 27130 = Amplify Magic); 6117 = R1 (1008 = Amplify Magic).
+    MageArmor = define("MageArmor", { 43024, 43023, 27125, 22783, 22782, 6117 }, "MageArmor"),
 }
 
-local ARCANE_BLAST_BUFF = { 36032, 36033, 36034, 40057 }
-local MAGE_ARMOR_BUFF = { 43024, 43023, 27130, 22783, 22782, 1008 }
+-- Arcane Blast stack aura: ONE stacking buff (36032) in WotLK (wowsims APL
+-- counts stacks of 36032); 36033/36034/40057 are unrelated spells, not AB ranks.
+local ARCANE_BLAST_BUFF = { 36032 }
+local MAGE_ARMOR_BUFF = { 43024, 43023, 27125, 22783, 22782, 6117 }
 -- Missile Barrage proc buff is 44401 (lexxer wotlk). 54490+ are talent ranks, not the proc aura.
 local MISSILE_BARRAGE_PROC = { 44401 }
 local ARCANE_POWER_BUFF = { 12042 }
@@ -53,7 +62,12 @@ local function build_state(context)
     local state = spec_kit.safe_state(arcane_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
-    state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
+    -- context.mana_pct is dispatcher-set (main_sylvanas.lua:795); me:mana_pct()
+    -- is the IZI SDK unit method. me:get_mana_percentage() is mock-only (W3.3).
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.arcane_blast_stacks = (me and NS.buff_stacks and NS.buff_stacks(me, ARCANE_BLAST_BUFF)) or 0
@@ -61,7 +75,10 @@ local function build_state(context)
     state.arcane_power_up = (me and NS.buff_up and NS.buff_up(me, ARCANE_POWER_BUFF)) or false
     state.icy_veins_up = (me and NS.buff_up and NS.buff_up(me, ICY_VEINS_BUFF)) or false
     state.mage_armor_up = (me and NS.buff_up and NS.buff_up(me, MAGE_ARMOR_BUFF)) or false
-    state.pom_ready = (ACTION.PresenceOfMind and ACTION.PresenceOfMind.cooldown_remaining and ACTION.PresenceOfMind:cooldown_remaining() <= 0) or false
+    -- Real API only: spell_action objects expose id/IsReady/IsInRange/Cast, not
+    -- cooldown_remaining() (mock-only). NS.spell_ready is the production gate.
+    state.pom_ready = (ACTION.PresenceOfMind and NS.spell_ready
+        and NS.spell_ready(ACTION.PresenceOfMind, me, { skip_range = true })) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     return state
 end
@@ -146,20 +163,18 @@ local DSL_DEFS = {
     {
         name = "ArcaneMissiles",
         conditions = {
-            -- OR logic: proc OR stacks >= 3 (compound check inline via custom)
-            { type = "custom", fn = function(context, state)
-                return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
-            end },
+            -- Wowsims APL: AM is the Missile Barrage proc consumer (44401).
+            { type = "state", field = "missile_barrage_proc", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.ArcaneMissiles, target = "target" },
     },
     {
         name = "ArcaneBarrage",
         conditions = {
-            -- OR logic: proc OR stacks >= 3 (compound check inline via custom)
-            { type = "custom", fn = function(context, state)
-                return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
-            end },
+            -- Distinct lane (W3.3): instant 4-stack dump. AB builds to 4 per the
+            -- APL (stacks < 4), AM consumes procs — at the 4-stack cap with no
+            -- proc, ABarrage resets the stack burden instead of competing with AM.
+            { type = "state", field = "arcane_blast_stacks", op = ">=", value = 4 },
         },
         action = { type = "cast", spell = ACTION.ArcaneBarrage, target = "target" },
     },
@@ -167,7 +182,8 @@ local DSL_DEFS = {
         name = "ArcaneBlast",
         conditions = {
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
-            { type = "state", field = "arcane_blast_stacks", op = "<", value = 3 },
+            -- Wowsims APL: keep AB while the stack cap (4) is not reached.
+            { type = "state", field = "arcane_blast_stacks", op = "<", value = 4 },
         },
         action = { type = "cast", spell = ACTION.ArcaneBlast, target = "target" },
     },

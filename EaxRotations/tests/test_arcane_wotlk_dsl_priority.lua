@@ -46,11 +46,11 @@ _G.EaxRotations = {
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     } end,
     me = {
         get_health_percentage = function() return 80 end,
-        get_mana_percentage = function() return 80 end,
+        mana_pct = function() return 80 end,
     },
     spell_action = make_action,
     spell_ready = function() return true end,
@@ -165,28 +165,35 @@ test("MageArmor: does not match when already up", function()
     assert_false(ok, "MageArmor should not match when already up")
 end)
 
--- ArcaneBlast (3): matches when mana >= 20 and stacks < 3
-test("ArcaneBlast: matches when mana >= 20 and stacks < 3", function()
+-- ArcaneBlast (3): matches when mana >= 20 and stacks < 4 (WotLK AB cap is 4)
+test("ArcaneBlast: matches when mana >= 20 and stacks < 4", function()
     local state = arcane.build_state(ctx)  -- default mana 80, stacks 0
-    assert_true(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should match when mana >= 20 and stacks < 3")
+    assert_true(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should match when mana >= 20 and stacks < 4")
 end)
 
 test("ArcaneBlast: does not match when mana < 20", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 10 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 10 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[3].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "ArcaneBlast should not match when mana < 20")
 end)
 
-test("ArcaneBlast: does not match at 3 stacks", function()
+test("ArcaneBlast: matches at 3 stacks (WotLK AB stacks to 4)", function()
     local state = arcane.build_state(ctx)
     state.arcane_blast_stacks = 3
-    assert_false(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should not match at 3 stacks")
+    assert_true(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should match at 3 stacks")
 end)
 
--- ArcaneMissiles (4): matches when missile_barrage_proc OR stacks >= 3
+test("ArcaneBlast: does not match at 4 stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 4
+    assert_false(arcane.strategies[3].matches(ctx, state), "ArcaneBlast should not match at 4 stacks")
+end)
+
+-- ArcaneMissiles (4): Missile Barrage proc consumer ONLY (W3.3 — was a
+-- duplicate of ArcaneBarrage's OR-gate; wowsims APL casts AM on proc 44401)
 test("ArcaneMissiles: matches when missile barrage procs", function()
     local orig_buff = _G.EaxRotations.buff_up
     _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
@@ -196,56 +203,56 @@ test("ArcaneMissiles: matches when missile barrage procs", function()
     assert_true(ok, "ArcaneMissiles should match when missile barrage procs")
 end)
 
-test("ArcaneMissiles: matches when 3 AB stacks", function()
+test("ArcaneMissiles: does not match at 3 AB stacks without proc", function()
     local state = arcane.build_state(ctx)
     state.arcane_blast_stacks = 3
-    assert_true(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should match at 3 stacks")
+    assert_false(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should not match at 3 stacks without the proc")
 end)
 
-test("ArcaneMissiles: does not match without proc and stacks < 3", function()
+test("ArcaneMissiles: does not match without proc and stacks < 4", function()
     local state = arcane.build_state(ctx)
     state.arcane_blast_stacks = 1
-    assert_false(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should not match without proc and < 3 stacks")
+    assert_false(arcane.strategies[4].matches(ctx, state), "ArcaneMissiles should not match without proc and < 4 stacks")
 end)
 
--- ArcaneBarrage (5): matches when missile_barrage_proc OR stacks >= 3
-test("ArcaneBarrage: matches when missile barrage procs", function()
+-- ArcaneBarrage (5): 4-stack instant dump (W3.3 — distinct from the AM proc lane)
+test("ArcaneBarrage: matches at 4 AB stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 4
+    assert_true(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should match at 4 stacks")
+end)
+
+test("ArcaneBarrage: does not match at 3 AB stacks", function()
+    local state = arcane.build_state(ctx)
+    state.arcane_blast_stacks = 3
+    assert_false(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should not match below the 4-stack cap")
+end)
+
+test("ArcaneBarrage: does not match on missile barrage proc alone", function()
     local orig_buff = _G.EaxRotations.buff_up
-    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up
+    _G.EaxRotations.buff_up = function(unit, ids) return true end  -- proc up, 0 stacks
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[5].matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff
-    assert_true(ok, "ArcaneBarrage should match when missile barrage procs")
-end)
-
-test("ArcaneBarrage: matches when 3 AB stacks", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 3
-    assert_true(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should match at 3 stacks")
-end)
-
-test("ArcaneBarrage: does not match without proc and stacks < 3", function()
-    local state = arcane.build_state(ctx)
-    state.arcane_blast_stacks = 1
-    assert_false(arcane.strategies[5].matches(ctx, state), "ArcaneBarrage should not match without proc and < 3 stacks")
+    assert_false(ok, "ArcaneBarrage should not match on the proc alone (that is ArcaneMissiles' lane)")
 end)
 
 -- ManaGem (6): matches when 20 <= mana < 40
 test("ManaGem: matches when 20 <= mana < 40", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 30 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 30 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[6].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_true(ok, "ManaGem should match when mana between 20 and 40")
 end)
 
 test("ManaGem: does not match when mana < 20", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 10 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 10 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[6].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "ManaGem should not match when mana < 20")
 end)
 
@@ -345,11 +352,11 @@ end)
 
 -- Evocation (11): matches when mana < 20
 test("Evocation: matches when mana < 20", function()
-    local orig_mana = _G.EaxRotations.me.get_mana_percentage
-    _G.EaxRotations.me.get_mana_percentage = function() return 15 end
+    local orig_mana = _G.EaxRotations.me.mana_pct
+    _G.EaxRotations.me.mana_pct = function() return 15 end
     local state = arcane.build_state(ctx)
     local ok = arcane.strategies[11].matches(ctx, state)
-    _G.EaxRotations.me.get_mana_percentage = orig_mana
+    _G.EaxRotations.me.mana_pct = orig_mana
     assert_true(ok, "Evocation should match when mana < 20")
 end)
 

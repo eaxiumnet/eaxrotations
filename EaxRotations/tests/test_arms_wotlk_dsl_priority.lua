@@ -1,5 +1,5 @@
 -- test_arms_wotlk_dsl_priority.lua — WotLK Arms warrior DSL priority order validation.
--- WHAT:  Asserts the 19 strategies appear in correct DSL-compiled priority order
+-- WHAT:  Asserts the 21 strategies appear in correct DSL-compiled priority order
 --        and that key match gates (Execute, Rend, MortalStrike, Pummel, ShieldWall)
 --        pass/fail correctly under mocked combat state.
 -- WHEN:  During WotLK test suite execution.
@@ -28,7 +28,9 @@ local function make_action(ids, label)
 end
 
 local me_mock = {
-    get_rage = function() return 50 end,
+    -- W3.4: me:get_rage() is mock-only — specs read context.rage first, then
+    -- me:get_power(NS.POWER_RAGE) (the real game_object member).
+    get_power = function(self, p) return 50 end,
     get_health_percentage = function() return 80 end,
     get_stance = function() return STANCE.BATTLE end,
 }
@@ -89,12 +91,18 @@ assert_true(strategies, "arms_wotlk strategies should load")
 -- ============================================================================
 -- Priority order assertions (must match DSL_DEFS order)
 -- ============================================================================
+-- W3.3 warrior sweep (2026-08-13): DefensiveStance added first (WotLK Shield
+-- Wall/Retaliation are Defensive-only and the file never entered Defensive),
+-- queued HeroicStrike + Cleave moved up per the wowsims arms APL (positions
+-- 4-5; both resolve nil in the APL pin, so relative order Rend < Overpower <
+-- MortalStrike < Execute < ThunderClap < Slam is untouched).
 local expected_order = {
-    "ShieldWall", "Retaliation", "BattleShout", "Charge",
+    "DefensiveStance", "ShieldWall", "Retaliation", "BattleShout",
+    "Cleave", "HeroicStrike", "Charge",
     "BerserkerStance", "BattleStance", "Intercept", "Pummel",
     "Rend", "Overpower", "MortalStrike", "Execute",
     "SweepingStrikes", "Bladestorm", "ThunderClap", "DemoralizingShout",
-    "Hamstring", "Slam", "HeroicStrike",
+    "Hamstring", "Slam",
 }
 assert_true(#strategies == #expected_order, "expected " .. #expected_order .. " strategies, got " .. #strategies)
 for i = 1, #expected_order do
@@ -124,16 +132,21 @@ end
 -- Match gate tests
 -- ============================================================================
 
--- ShieldWall: HP < 30, in combat, cooldown ready
+-- ShieldWall: HP < 30, in combat, cooldown ready, DEFENSIVE stance (WotLK)
 local sw = find_strategy("ShieldWall")
 assert_true(type(sw.matches) == "function", "ShieldWall should have matches")
 assert_false(sw.matches({}, make_state()), "ShieldWall should not match with no context")
--- Override HP to 20 via me mock for low-HP test
+-- Override HP to 20 + stance to Defensive via me mock for low-HP test
 local orig_hp = me_mock.get_health_percentage
+local orig_stance = me_mock.get_stance
 me_mock.get_health_percentage = function() return 20 end
+me_mock.get_stance = function() return STANCE.DEFENSIVE end
 local sw_low_ctx = { in_combat = true, target = {}, settings = {} }
-assert_true(sw.matches(sw_low_ctx, make_state(sw_low_ctx)), "ShieldWall should match when hp < 30")
+assert_true(sw.matches(sw_low_ctx, make_state(sw_low_ctx)), "ShieldWall should match when hp < 30 in Defensive stance")
+me_mock.get_stance = function() return STANCE.BATTLE end
+assert_false(sw.matches(sw_low_ctx, make_state(sw_low_ctx)), "ShieldWall must not match outside Defensive stance (WotLK)")
 me_mock.get_health_percentage = orig_hp
+me_mock.get_stance = orig_stance
 
 -- Execute: target HP < 20%, in combat, rage >= 10
 local ex = find_strategy("Execute")

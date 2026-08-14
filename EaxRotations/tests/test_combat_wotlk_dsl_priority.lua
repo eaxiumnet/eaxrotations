@@ -38,10 +38,17 @@ local _mock_spec_kit = {
             return { cast_safe = function(self, target) return true end, spell_id = id, cooldown_remaining = function() return 0 end }
         end
     end,
+    -- Plain define_action (fire_wotlk precedent): the wotlk spec files resolve
+    -- actions through this instead of define_action_for_class so the file-local
+    -- WotLK rank lists are not shadowed by the TBC-era class spell tables.
+    define_action = function(spell_field, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id, cooldown_remaining = function() return 0 end }
+    end,
     safe_state = function(tbl)
         local mt = {
             __index = function(_, key)
-                local defaults = { hp=100, energy=0, combo_points=0, target_hp=100, enemy_count=0, snd_remains=0, blade_flurry_ready=false, killing_spree_ready=false, in_combat=false }
+                local defaults = { hp=100, energy=0, combo_points=0, target_hp=100, enemy_count=0, snd_remains=0, snd_active=false, blade_flurry_ready=false, killing_spree_ready=false, in_combat=false }
                 return defaults[key] or 0
             end
         }
@@ -52,6 +59,11 @@ local _mock_spec_kit = {
 _G.EaxRotations.spec_kit = _mock_spec_kit
 
 package.preload["shared/spec_kit_sylvanas"] = function() return _mock_spec_kit end
+-- combat_wotlk requires the combo-point reader at load (real CD/energy reads
+-- via NS); the real module is dependency-free, so load the genuine file.
+package.preload["shared/combo_points_reader_sylvanas"] = function()
+    return dofile("EaxRotations/shared/combo_points_reader_sylvanas.lua")
+end
 package.preload["shared/strategy_dsl_sylvanas"] = function()
     local dsl = {
         compile_strategy = function(defn, opts)
@@ -113,7 +125,7 @@ local function make_state(overrides)
     local ctx = { in_combat = true, target = {}, enemy_count = 1 }
     local raw = {
         hp = 100, energy = 100, combo_points = 5, target_hp = 100, enemy_count = 1, in_combat = true,
-        snd_remains = 0, blade_flurry_ready = true, killing_spree_ready = true,
+        snd_remains = 0, snd_active = true, blade_flurry_ready = true, killing_spree_ready = true,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -142,16 +154,18 @@ tests.test_SliceAndDice_does_not_refresh_after_boundary = test_match("SliceAndDi
 tests.test_SliceAndDice_does_not_match_when_fresh = test_match("SliceAndDice", { snd_remains = 10, combo_points = 2 }, false)
 tests.test_SliceAndDice_does_not_match_no_cp = test_match("SliceAndDice", { snd_remains = 1, combo_points = 0 }, false)
 
--- BladeFlurry: matches when in_combat AND ready AND enemy_count >= 2 AND long_cd ok
-tests.test_BladeFlurry_matches = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, enemy_count = 2 }, true)
-tests.test_BladeFlurry_no_combat = test_match("BladeFlurry", { in_combat = false, blade_flurry_ready = true, enemy_count = 2 }, false)
-tests.test_BladeFlurry_not_ready = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = false, enemy_count = 2 }, false)
-tests.test_BladeFlurry_single_target = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, enemy_count = 1 }, false)
+-- BladeFlurry: matches when in_combat AND ready AND SnD up AND enemy_count >= 2 AND long_cd ok
+tests.test_BladeFlurry_matches = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, snd_active = true, enemy_count = 2 }, true)
+tests.test_BladeFlurry_no_combat = test_match("BladeFlurry", { in_combat = false, blade_flurry_ready = true, snd_active = true, enemy_count = 2 }, false)
+tests.test_BladeFlurry_not_ready = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = false, snd_active = true, enemy_count = 2 }, false)
+tests.test_BladeFlurry_single_target = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, snd_active = true, enemy_count = 1 }, false)
+tests.test_BladeFlurry_no_snd = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, snd_active = false, enemy_count = 2 }, false)
 
--- KillingSpree: matches when in_combat AND ready AND long_cd ok
-tests.test_KillingSpree_matches = test_match("KillingSpree", { in_combat = true, killing_spree_ready = true }, true)
-tests.test_KillingSpree_no_combat = test_match("KillingSpree", { in_combat = false, killing_spree_ready = true }, false)
-tests.test_KillingSpree_not_ready = test_match("KillingSpree", { in_combat = true, killing_spree_ready = false }, false)
+-- KillingSpree: matches when in_combat AND ready AND energy <= 50 AND long_cd ok
+tests.test_KillingSpree_matches = test_match("KillingSpree", { in_combat = true, killing_spree_ready = true, energy = 40 }, true)
+tests.test_KillingSpree_no_combat = test_match("KillingSpree", { in_combat = false, killing_spree_ready = true, energy = 40 }, false)
+tests.test_KillingSpree_not_ready = test_match("KillingSpree", { in_combat = true, killing_spree_ready = false, energy = 40 }, false)
+tests.test_KillingSpree_high_energy = test_match("KillingSpree", { in_combat = true, killing_spree_ready = true, energy = 60 }, false)
 
 -- Eviscerate: matches when combo_points >= 4
 tests.test_Eviscerate_matches_when_enough_cp = test_match("Eviscerate", { combo_points = 4 }, true)

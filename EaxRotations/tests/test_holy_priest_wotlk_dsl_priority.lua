@@ -33,6 +33,10 @@ local last_execute_target = nil
 
 local _mock_spec_kit = {
     merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
+    define_action = function(name, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id }
+    end,
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids
@@ -99,9 +103,10 @@ local passed = 0
 local failed = 0
 function tests.priority_order()
     -- Order matches the wowsims healing-priest APL evaluation order (2026-08-10
-    -- pure order move): GreaterHeal above Renew/PrayerOfMending per the pinned
-    -- holy.apl.json (GreaterHeal -> CircleOfHealing -> Renew -> PrayerOfMending).
-    local expected = { "GuardianSpirit", "GreaterHeal", "Renew", "PrayerOfMending", "FlashHeal" }
+    -- pure order move): GreaterHeal -> CircleOfHealing -> Renew -> PrayerOfMending
+    -- per the pinned holy.apl.json. W3.3 added CircleOfHealing at its exact APL
+    -- slot (index 3), gated on 2+ injured party members.
+    local expected = { "GuardianSpirit", "GreaterHeal", "CircleOfHealing", "Renew", "PrayerOfMending", "FlashHeal" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -114,7 +119,7 @@ local function make_state(overrides)
     local ctx = { in_combat = true, target = {}, enemy_count = 1 }
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
-        renew_remains = 0, guardian_spirit_up = false,
+        renew_remains = 0, guardian_spirit_up = false, injured_count = 0, lowest_hp = 100,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -148,6 +153,11 @@ tests.test_Renew_does_not_match_when_fresh = test_match("Renew", { renew_remains
 
 -- PrayerOfMending: unconditional (always matches)
 tests.test_PoM_always_matches = test_match("PrayerOfMending", {}, true)
+
+-- CircleOfHealing (3): matches when 2+ party members are injured
+tests.test_CoH_matches_when_two_injured = test_match("CircleOfHealing", { injured_count = 2, lowest_hp = 60, mana_pct = 90 }, true)
+tests.test_CoH_does_not_match_when_one_injured = test_match("CircleOfHealing", { injured_count = 1, lowest_hp = 60, mana_pct = 90 }, false)
+tests.test_CoH_does_not_match_when_healthy = test_match("CircleOfHealing", { injured_count = 3, lowest_hp = 95, mana_pct = 90 }, false)
 
 -- GreaterHeal: matches when target_hp < 50 AND mana_pct >= 30
 tests.test_GHeal_matches_when_hp_low = test_match("GreaterHeal", { target_hp = 40, mana_pct = 50 }, true)

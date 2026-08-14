@@ -163,42 +163,100 @@ test("Rupture: does not match with 0 combo points", function()
     assert_false(sin.strategies[3].matches(ctx, state), "Rupture should not match with 0 combo")
 end)
 
--- HungerForBlood (3): always matches (no conditions)
-test("HungerForBlood: always matches", function()
+-- HungerForBlood (3): upkeep-only — buff DOWN by default in the mock
+test("HungerForBlood: matches by default (buff down)", function()
     local state = sin.build_state(ctx)
-    assert_true(sin.strategies[4].matches(ctx, state), "HungerForBlood should always match")
+    assert_true(sin.strategies[4].matches(ctx, state), "HungerForBlood should match when the buff is down (default)")
 end)
 
--- TricksOfTheTrade (4): always matches (no conditions)
-test("TricksOfTheTrade: always matches", function()
+-- TricksOfTheTrade (4): APL energy gate — default state energy reads 0
+test("TricksOfTheTrade: matches by default (low energy)", function()
     local state = sin.build_state(ctx)
-    assert_true(sin.strategies[5].matches(ctx, state), "TricksOfTheTrade should always match")
+    assert_true(sin.strategies[5].matches(ctx, state), "TricksOfTheTrade should match at default low energy")
 end)
 
--- Envenom (5): combo_points >= 4
-test("Envenom: matches when combo >= 4", function()
+-- Envenom (5): combo_points >= 4 AND dp_stacks >= 3 AND (envenom buff down or energy >= 85)
+test("Envenom: matches when combo >= 4 with DP stacks", function()
     local state = sin.build_state(ctx)
     state.combo_points = 4
-    assert_true(sin.strategies[6].matches(ctx, state), "Envenom should match with combo >= 4")
+    state.dp_stacks = 5
+    state.envenom_buff_up = false
+    assert_true(sin.strategies[6].matches(ctx, state), "Envenom should match with combo >= 4 and DP stacks")
 end)
 
 test("Envenom: does not match with combo < 4", function()
     local state = sin.build_state(ctx)
     state.combo_points = 3
+    state.dp_stacks = 5
+    state.envenom_buff_up = false
     assert_false(sin.strategies[6].matches(ctx, state), "Envenom should not match with combo < 4")
 end)
 
--- Mutilate (6): energy >= 60
-test("Mutilate: matches when energy >= 60", function()
+test("Envenom: does not match without Deadly Poison stacks", function()
+    local state = sin.build_state(ctx)
+    state.combo_points = 5
+    state.dp_stacks = 0
+    state.envenom_buff_up = false
+    assert_false(sin.strategies[6].matches(ctx, state), "Envenom should not match with 0 DP stacks")
+end)
+
+test("Envenom: does not match while the Envenom buff is up (unless energy >= 85)", function()
+    local state = sin.build_state(ctx)
+    state.combo_points = 5
+    state.dp_stacks = 5
+    state.envenom_buff_up = true
+    state.energy = 60
+    assert_false(sin.strategies[6].matches(ctx, state), "Envenom should hold while the buff is up at 60 energy")
+    state.energy = 90
+    assert_true(sin.strategies[6].matches(ctx, state), "Envenom refreshes at energy >= 85 even with buff up")
+end)
+
+-- Mutilate (6): energy >= 60 AND daggers equipped
+test("Mutilate: matches when energy >= 60 with daggers", function()
     local state = sin.build_state(ctx)
     state.energy = 60
-    assert_true(sin.strategies[7].matches(ctx, state), "Mutilate should match when energy >= 60")
+    state.has_daggers = true
+    assert_true(sin.strategies[7].matches(ctx, state), "Mutilate should match when energy >= 60 and daggers equipped")
 end)
 
 test("Mutilate: does not match when energy < 60", function()
     local state = sin.build_state(ctx)
     state.energy = 45
+    state.has_daggers = true
     assert_false(sin.strategies[7].matches(ctx, state), "Mutilate should not match when energy < 60")
+end)
+
+test("Mutilate: does not match without daggers", function()
+    local state = sin.build_state(ctx)
+    state.energy = 60
+    state.has_daggers = false
+    assert_false(sin.strategies[7].matches(ctx, state), "Mutilate should not match without daggers")
+end)
+
+-- HungerForBlood (3): upkeep only — matches when the HfB buff is DOWN
+test("HungerForBlood: matches when buff down", function()
+    local state = sin.build_state(ctx)
+    state.hfb_up = false
+    assert_true(sin.strategies[4].matches(ctx, state), "HungerForBlood should match when the buff is down")
+end)
+
+test("HungerForBlood: does not match while buff up", function()
+    local state = sin.build_state(ctx)
+    state.hfb_up = true
+    assert_false(sin.strategies[4].matches(ctx, state), "HungerForBlood should not match while the buff is up")
+end)
+
+-- TricksOfTheTrade (4): APL energy gate — matches when energy <= 50
+test("TricksOfTheTrade: matches at low energy", function()
+    local state = sin.build_state(ctx)
+    state.energy = 40
+    assert_true(sin.strategies[5].matches(ctx, state), "TricksOfTheTrade should match at energy <= 50")
+end)
+
+test("TricksOfTheTrade: does not match at high energy", function()
+    local state = sin.build_state(ctx)
+    state.energy = 80
+    assert_false(sin.strategies[5].matches(ctx, state), "TricksOfTheTrade should not match at energy > 50")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

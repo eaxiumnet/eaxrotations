@@ -1,9 +1,13 @@
 -- test_bear_wotlk_dsl_priority.lua — WotLK Bear druid DSL priority order tests.
--- WHAT:  Validates that the 5 bear_wotlk strategies are compiled correctly by the DSL
+-- WHAT:  Validates that the 6 bear_wotlk strategies are compiled correctly by the DSL
 --        and that their match gates fire in the expected priority order.
 -- WHEN:  run_wotlk_tests.lua and run_rotation_tests.lua.
 -- WHY:   Regression guard for DSL-based strategy definitions.
 -- SAFETY: Standalone; mocks all NS dependencies.
+-- NOTE:   W3.3 (2026-08-13): build_state reads rage from context.rage /
+--         me:get_power(NS.POWER_RAGE) — the mock-only me:get_rage() read is
+--         gone — so gate tests pass rage via the context. MangleBear is now
+--         refresh-gated on the Mangle bleed debuff; FrenziedRegeneration added.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -37,15 +41,17 @@ _G.EaxRotations = {
         SwipeBear = make_action(26997, "SwipeBear"),
         Maul = make_action(26996, "Maul"),
         FaerieFireFeral = make_action(27011, "FeralFaerieFire"),
+        FrenziedRegeneration = make_action(26999, "FrenziedRegeneration"),
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
-        get_rage = function() return 50 end,
+        get_power = function() return 50 end,
     } end,
     me = {
         get_health_percentage = function() return 80 end,
-        get_rage = function() return 50 end,
+        get_power = function() return 50 end,
     },
+    POWER_RAGE = 1,
     spell_action = make_action,
     spell_ready = function() return true end,
     spell_exists = function() return true end,
@@ -80,7 +86,7 @@ print("=== test_bear_wotlk_dsl_priority ===")
 local bear = dofile("EaxRotations/classes/druid/bear_wotlk.lua")
 assert_true(type(bear) == "table", "bear_wotlk should return a table")
 assert_true(type(bear.strategies) == "table", "bear_wotlk should expose strategies")
-assert_true(#bear.strategies == 5, "bear_wotlk should have 5 strategies")
+assert_true(#bear.strategies == 6, "bear_wotlk should have 6 strategies")
 
 local registered = _G.EaxRotations._registered_bear
 assert_true(registered ~= nil, "bear_wotlk should register under 'bear'")
@@ -94,9 +100,10 @@ local expected_order = {
     "MangleBear",
     "FeralFaerieFire",
     "Maul",
+    "FrenziedRegeneration",
 }
 
-test("priority order: 5 strategies match expected order", function()
+test("priority order: 6 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(bear.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], bear.strategies[i].name))
@@ -107,7 +114,7 @@ end)
 -- Match gate tests
 -- ============================================================================
 
-local ctx = { in_combat = true, target = {}, settings = {} }
+local ctx = { in_combat = true, target = {}, settings = {}, rage = 50 }
 
 -- FeralFaerieFire: matches when debuff remains < 3
 test("FeralFaerieFire: matches when debuff remains < 3", function()
@@ -130,82 +137,100 @@ test("Lacerate: matches when debuff < 3 and rage >= 15", function()
 end)
 
 test("Lacerate: does not match when not in combat", function()
-    local state = bear.build_state({ in_combat = false, target = {}, settings = {} })
+    local ooc_ctx = { in_combat = false, target = {}, settings = {}, rage = 50 }
+    local state = bear.build_state(ooc_ctx)
     state.lacerate_remains = 1
-    assert_false(bear.strategies[1].matches({ in_combat = false, target = {}, settings = {} }, state),
+    assert_false(bear.strategies[1].matches(ooc_ctx, state),
         "Lacerate should not match when out of combat")
 end)
 
 test("Lacerate: does not match when rage < 15", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 10 end
-    local state = bear.build_state(ctx)
+    local low_rage_ctx = { in_combat = true, target = {}, settings = {}, rage = 10 }
+    local state = bear.build_state(low_rage_ctx)
     state.lacerate_remains = 1
-    local ok = bear.strategies[1].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
-    assert_false(ok, "Lacerate should not match when rage < 15")
+    assert_false(bear.strategies[1].matches(low_rage_ctx, state), "Lacerate should not match when rage < 15")
 end)
 
 -- SwipeBear: matches when in combat, enemy_count >= 2, rage >= 15
 test("SwipeBear: matches in AoE combat with rage >= 15", function()
-    local state = bear.build_state({ in_combat = true, target = {}, settings = {}, enemy_count = 2 })
-    assert_true(bear.strategies[2].matches({ in_combat = true, target = {}, settings = {}, enemy_count = 2 }, state),
+    local aoe_ctx = { in_combat = true, target = {}, settings = {}, rage = 50, enemy_count = 2 }
+    local state = bear.build_state(aoe_ctx)
+    assert_true(bear.strategies[2].matches(aoe_ctx, state),
         "SwipeBear should match in AoE combat")
 end)
 
 test("SwipeBear: does not match with fewer than 2 enemies", function()
-    local state = bear.build_state({ in_combat = true, target = {}, settings = {}, enemy_count = 1 })
-    assert_false(bear.strategies[2].matches({ in_combat = true, target = {}, settings = {}, enemy_count = 1 }, state),
+    local state = bear.build_state(ctx)
+    assert_false(bear.strategies[2].matches(ctx, state),
         "SwipeBear should not match with < 2 enemies")
 end)
 
 test("SwipeBear: does not match when rage < 15", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 10 end
-    local state = bear.build_state({ in_combat = true, target = {}, settings = {}, enemy_count = 2 })
-    local ok = bear.strategies[2].matches({ in_combat = true, target = {}, settings = {}, enemy_count = 2 }, state)
-    _G.EaxRotations.me.get_rage = orig_rage
-    assert_false(ok, "SwipeBear should not match when rage < 15")
+    local low_rage_ctx = { in_combat = true, target = {}, settings = {}, rage = 10, enemy_count = 2 }
+    local state = bear.build_state(low_rage_ctx)
+    assert_false(bear.strategies[2].matches(low_rage_ctx, state), "SwipeBear should not match when rage < 15")
 end)
 
--- MangleBear: matches when in combat and rage >= 15
+-- MangleBear: matches when in combat, debuff expiring, rage >= 15
 test("MangleBear: matches when in combat and rage >= 15", function()
     local state = bear.build_state(ctx)
-    assert_true(bear.strategies[3].matches(ctx, state), "MangleBear should match when in combat and rage >= 15")
+    state.mangle_remains = 1
+    assert_true(bear.strategies[3].matches(ctx, state), "MangleBear should match when debuff expiring")
 end)
 
 test("MangleBear: does not match when not in combat", function()
-    local state = bear.build_state({ in_combat = false, target = {}, settings = {} })
-    assert_false(bear.strategies[3].matches({ in_combat = false, target = {}, settings = {} }, state),
+    local ooc_ctx = { in_combat = false, target = {}, settings = {}, rage = 50 }
+    local state = bear.build_state(ooc_ctx)
+    state.mangle_remains = 1
+    assert_false(bear.strategies[3].matches(ooc_ctx, state),
         "MangleBear should not match when out of combat")
 end)
 
 test("MangleBear: does not match when rage < 15", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 10 end
+    local low_rage_ctx = { in_combat = true, target = {}, settings = {}, rage = 10 }
+    local state = bear.build_state(low_rage_ctx)
+    state.mangle_remains = 1
+    assert_false(bear.strategies[3].matches(low_rage_ctx, state), "MangleBear should not match when rage < 15")
+end)
+
+-- W3.3: MangleBear is refresh-gated on the 30% bleed-vuln debuff (was an
+-- unconditional rage sink starving Lacerate).
+test("MangleBear: does not match when the Mangle debuff is fresh", function()
     local state = bear.build_state(ctx)
-    local ok = bear.strategies[3].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
-    assert_false(ok, "MangleBear should not match when rage < 15")
+    state.mangle_remains = 20
+    assert_false(bear.strategies[3].matches(ctx, state),
+        "MangleBear should not match when the Mangle debuff is still up")
 end)
 
 -- Maul: matches when in combat and rage >= 30
 test("Maul: matches when in combat and rage >= 30", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 65 end
-    local state = bear.build_state(ctx)
-    local ok = bear.strategies[5].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
-    assert_true(ok, "Maul should match when rage >= 30")
+    local high_rage_ctx = { in_combat = true, target = {}, settings = {}, rage = 65 }
+    local state = bear.build_state(high_rage_ctx)
+    assert_true(bear.strategies[5].matches(high_rage_ctx, state), "Maul should match when rage >= 30")
 end)
 
 test("Maul: does not match when rage < 30", function()
-    local orig_rage = _G.EaxRotations.me.get_rage
-    _G.EaxRotations.me.get_rage = function() return 20 end
+    local low_rage_ctx = { in_combat = true, target = {}, settings = {}, rage = 20 }
+    local state = bear.build_state(low_rage_ctx)
+    assert_false(bear.strategies[5].matches(low_rage_ctx, state), "Maul should not match when rage < 30")
+end)
+
+-- FrenziedRegeneration (W3.3): panic heal at hp <= 40 with rage >= 10
+test("FrenziedRegeneration: matches in combat at low hp with rage", function()
+    local fr_ctx = { in_combat = true, target = {}, settings = {}, rage = 30, hp = 35 }
+    local state = bear.build_state(fr_ctx)
+    assert_true(bear.strategies[6].matches(fr_ctx, state), "FR should match at hp <= 40 with rage >= 10")
+end)
+
+test("FrenziedRegeneration: does not match at full hp", function()
     local state = bear.build_state(ctx)
-    local ok = bear.strategies[5].matches(ctx, state)
-    _G.EaxRotations.me.get_rage = orig_rage
-    assert_false(ok, "Maul should not match when rage < 30")
+    assert_false(bear.strategies[6].matches(ctx, state), "FR should not match at full hp")
+end)
+
+test("FrenziedRegeneration: does not match with rage < 10", function()
+    local fr_ctx = { in_combat = true, target = {}, settings = {}, rage = 5, hp = 35 }
+    local state = bear.build_state(fr_ctx)
+    assert_false(bear.strategies[6].matches(fr_ctx, state), "FR should not match with rage < 10")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

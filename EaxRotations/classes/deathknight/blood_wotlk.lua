@@ -34,6 +34,8 @@ local ACTION = {
     VampiricBlood     = define("VampiricBlood",     55233, "VampiricBlood"),
     IceboundFortitude = define("IceboundFortitude", 48792, "IceboundFortitude"),
     BloodPresence     = define("BloodPresence",     48266, "BloodPresence"),
+    FrostPresence     = define("FrostPresence",     48263, "FrostPresence"),
+    UnholyPresence    = define("UnholyPresence",    48265, "UnholyPresence"),
 }
 
 local DK_CONST            = NS.DeathKnightConstants or {}
@@ -56,16 +58,6 @@ local blood_state = {
     runic_power          = 0,
     presence             = nil,
 }
-
--- safe_cast: invoke an action's cast_safe only when it is a real action table.
--- Guards minimal test mocks where NS.spell_action is absent and define_action
--- falls back to returning a bare spell id (a number).
-local function safe_cast(action, target)
-    if action and type(action) == "table" and type(action.cast_safe) == "function" then
-        return action:cast_safe(target)
-    end
-    return false
-end
 
 local function build_state(context)
     local state  = spec_kit.safe_state(blood_state)
@@ -102,18 +94,6 @@ end
 -- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
-    {
-        name = "Presence",
-        conditions = {
-            { type = "custom", fn = function(context, state)
-                if not (NS.is_wotlk and NS.is_wotlk()) then return false end
-                local desired = PresenceManager.get_optimal_presence(context, state)
-                if not desired then return false end
-                return PresenceManager.should_switch_presence(context, state, desired)
-            end },
-        },
-        action = { type = "cast", spell = ACTION.BloodPresence, target = "self" },
-    },
     {
         name = "IceboundFortitude",
         conditions = {
@@ -159,6 +139,11 @@ local DSL_DEFS = {
         name = "DeathStrike",
         conditions = {
             { type = "state", field = "hp", op = "<", value = 80 },
+            -- Disease-uptime guard: DeathStrike burns 1 frost + 1 unholy rune,
+            -- so firing it unconditionally at hp<80 starves the frost rune
+            -- IcyTouch needs and Frost Fever uptime collapses on a disease-
+            -- dependent spec. Only self-heal once Frost Fever is up (>3s).
+            { type = "state", field = "frost_fever_remains", op = ">", value = 3 },
         },
         action = { type = "cast", spell = ACTION.DeathStrike, target = "target" },
     },
@@ -205,9 +190,36 @@ if interrupt_manager and interrupt_manager.register_interrupt_spell then
     if ok and strat then interrupt_strategy = strat end
 end
 
+-- -----------------------------------------------------------------------------
+-- Presence strategy (manual): casts the presence PresenceManager DESIRES, not
+-- a hard-coded BloodPresence. The old DSL def always cast BloodPresence even
+-- when the manager wanted frost (hp<30) or unholy (rooted/slowed) — a wrong-
+-- presence switch every time those states occurred. Execute uses the REAL
+-- cast path (NS.try_cast); action:cast_safe() is mock-only.
+-- -----------------------------------------------------------------------------
+local function presence_matches(context, state)
+    if not (NS.is_wotlk and NS.is_wotlk()) then return false end
+    local desired = PresenceManager.get_optimal_presence(context, state)
+    if not desired then return false end
+    return PresenceManager.should_switch_presence(context, state, desired)
+end
+
+local function presence_execute(context, state)
+    if not PresenceManager then return false end
+    local desired = PresenceManager.get_optimal_presence(context, state)
+    local action = nil
+    if desired == "blood" then action = ACTION.BloodPresence
+    elseif desired == "frost" then action = ACTION.FrostPresence
+    elseif desired == "unholy" then action = ACTION.UnholyPresence end
+    if not action then return false end
+    local me = (context and context.me) or (NS.GetPlayer and NS.GetPlayer())
+    if not me then return false end
+    return NS.try_cast and NS.try_cast(action, me, "Presence") == true or false
+end
+
 local strategies = {
     interrupt_strategy or { name = "MindFreezeSkip", matches = function() return false end, execute = function() return false end },
-    { name = "Presence" },
+    { name = "Presence", matches = presence_matches, execute = presence_execute },
     { name = "IceboundFortitude" },
     { name = "VampiricBlood" },
     { name = "HornOfWinter" },
