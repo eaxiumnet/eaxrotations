@@ -392,7 +392,11 @@ local components = {
             return {
                 { "specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 13)", never == 13 },
+                -- 2026-08-12 live-correctness campaign: 13 -> 16 (rogue
+                -- ExposeArmor (a) + Sap (c) pins + paladin Ret_SealMartyr_Primary
+                -- (c), introduced by the seal rewrite; pinned in
+                -- tools/spec_scorecard.lua LANE_CLASS).
+                { "never-firing " .. never .. " (expected 16)", never == 16 },
             }
         end,
     },
@@ -417,66 +421,74 @@ local components = {
             }
         end,
     },
-    -- Vanilla-era battery (2026-08-11): the era previously had ZERO behavioral
-    -- coverage — run_all errored on non-sylvanas/wotlk eras, which is why
-    -- fury_vanilla's never-fired Pummel shipped silently (it needed a dedicated
-    -- test instead). Wiring: SPEC_FILES_VANILLA manifest (31 non-leveling specs,
-    -- leveling_vanilla excluded like TBC), CLI/run_all era acceptance, the
-    -- plain-style loading shape (vanilla files return bare strategies + register
-    -- get_state via NS.rotation_registry — the harness now captures it via the
-    -- build_ns registry mock), is_vanilla + NS.setting stubs (subtlety_vanilla
-    -- crashed on every matcher without setting — 6 lanes cleared by the stub).
+    -- Vanilla-era battery (2026-08-11, extended wave 1.4 2026-08-13): the era
+    -- previously had ZERO behavioral coverage — run_all errored on
+    -- non-sylvanas/wotlk eras, which is why fury_vanilla's never-fired Pummel
+    -- shipped silently (it needed a dedicated test instead). Wiring:
+    -- SPEC_FILES_VANILLA manifest (ALL 40 vanilla spec files since wave 1.4 —
+    -- the 9 leveling_vanilla files joined the battery; they return
+    -- { strategies, build_state } and require shared/leveling_sylvanas, whose
+    -- require-time NS binding is refreshed per load_spec), CLI/run_all era
+    -- acceptance, the plain-style loading shape (vanilla files return bare
+    -- strategies + register get_state via NS.rotation_registry — the harness
+    -- now captures it via the build_ns registry mock), is_vanilla + NS.setting
+    -- stubs (subtlety_vanilla crashed on every matcher without setting — 6
+    -- lanes cleared by the stub).
     -- Baseline (honest first run): 79 never-firing lanes, classified, future
     -- campaigns clear them per the (a)/(b)/(c) discipline. The fury Pummel
     -- interrupt (previous unit) FIRES in 11 scenarios incl. wotlk_interrupts.
     --
-    -- Classification of the CURRENT 13 pins (post sweep, 2026-08-11):
-    --  * OOC/pre-pull/conjure/mounted (6): bear FaerieFirePull + PrePullEnrage
-    --    (requires_not_in_combat pre-pull family — TBC pins the same lanes),
-    --    mage ManaGemConjure x2 (OOC conjure — TBC-pinned family), priest holy
-    --    MountedProtection (mounted OOC — TBC-pinned family).
-    --  * expected-absence / impossible-by-design (3): warlock RacialArcaneTorrent
+    -- Classification of the CURRENT 13 pins (wave 1.4 close-out, 2026-08-13;
+    -- full per-lane evidence in docs/never_strategy_triage_vanilla_2026-08-13.md):
+    --  * OOC/pre-pull/conjure/mounted (7): bear FaerieFirePull + PrePullEnrage
+    --    (requires_not_in_combat pre-pull family — TBC pins the same lanes,
+    --    and any OOC-bear-target scenario would fire the TBC siblings, so
+    --    they cannot be modeled without breaking the era count contract),
+    --    mage ManaGemConjure x2 + leveling ConjureManaGem (OOC conjure — the
+    --    mock always has a gem available via is_item_ready; modeling "no gem"
+    --    would clear the TBC (b) pins — TBC-pinned family), priest holy
+    --    MountedProtection (mounted OOC — same era-shared constraint).
+    --  * expected-absence / impossible-by-design (4): warlock RacialArcaneTorrent
     --    (Blood Elf racial, no blood elves in vanilla — affliction_vanilla:83
     --    pins ArcaneTorrent = nil), shaman elemental WrathOfAirTotem (TBC-only
     --    spell — elemental_vanilla:452 inert marker) + MagmaTotem
     --    (intentionally-inert by file design — elemental_vanilla:461-462
-    --    'Magma Totem max rank is TBC-only in Classic').
+    --    'Magma Totem max rank is TBC-only in Classic'), priest holy
+    --    EncounterReactions (era gate: NS.is_tbc() false in Classic — the
+    --    lane is a Karazhan reaction and is_tbc() is the era discriminator).
     --  * module-local / state-machine-bound (3): FireNovaReplacement
-    --    (module-local unpinnable, TBC-pinned family), enhancement
-    --    GraceOfAirTotemTwist (internal twist state machine — totem_state.
+    --    (module-local totem_state.fire_nova_active, unpinnable — TBC-pinned
+    --    family), enhancement GraceOfAirTotemTwist (module-local totem_state.
     --    next_air flips only inside the twist executes, enhancement_vanilla:
-    --    732/740; the battery evaluates matches statelessly per scenario and
-    --    cannot run the windfury→grace cycle; the strategy IS live in-game),
-    --    priest holy EncounterReactions (declined — vacuous without boss data).
-    --  * battery-shape-bound (2): subtlety Ambush (opener auto-resolve always
-    --    picks garrote because the constant-true try_interrupt stub makes
-    --    is_caster_target always true — behavioral_audit.lua:668; a bank-aware
-    --    try_interrupt was trialed but rippled across TBC interrupt/cyclone
-    --    lanes and was reverted), priest holy AbolishDisease (pre-emptive
-    --    branch of the cure pair — fires only when CureDisease is NOT ready;
-    --    the import_helpers stub returns constant-true spell_ready
-    --    (behavioral_audit.lua:399), so the asymmetric state is inexpressible
-    --    without weakening the mock's global lenient posture).
+    --    731/739; the battery evaluates matches statelessly per scenario and
+    --    cannot run the windfury→grace cycle; the strategy IS live in-game —
+    --    the TBC sibling was cleared only because the TBC version reads
+    --    NS.buff_remains, the vanilla version reads module-local state),
+    --    priest leveling Fade (threat_pct >= 99 "drawn aggro" gate — the
+    --    battery's threat channel is capped at 95 because the TBC Soulshatter
+    --    lanes are pinned fires-ONLY-in-threat_high
+    --    (test_threat_context_regression.lua), so any threat >= 99 scenario
+    --    would break that exclusivity contract).
     --
-    -- Vanilla sweep close-out (2026-08-11): 58 → 13. Harness gaps closed
-    --    (ShamanSpells/HunterSpells/MageSpells seeds, is_in_party/is_in_raid,
-    --    debuff stacks, enemies_casting, target_get_target, in_melee_range,
-    --    friends_hp heal-scan) + 6 genuine live-game defects fixed (see the
-    --    sweep commit): restoration_vanilla idle-DPS strategies were exposed
-    --    only as numeric indices (dead in the live rotation — merged into
-    --    healing_strategies like restoration_sylvanas:789-791), assassination
-    --    combo read context.combo (engine exposes combo_points — finishers dead
-    --    live), demonology demon_armor_ready never computed (DemonArmorBuff
-    --    dead live), warlock ShadowWard x2 read context.enemy_shadow_caster
-    --    which the engine never sets (get_class fallback, mirrors
-    --    shared/warlock_shadow_ward), balance InsectSwarm/Moonfire + elemental
-    --    FlameShock min-SP gates gated on ctx.spell_damage the engine never
-    --    populates (dropped, mirroring the TBC siblings). + the dodge_proc
-    --    scenario (target_dodge_chance) making fury Overpower's real
-    --    get_dodge_chance pcall path observable. Regression-pinned by
-    --    test_vanilla_sweep_regression.lua; era-pair seed unchanged (no
-    --    strategy names added — restoration's idle-DPS names were already in
-    --    the file statically).
+    -- Wave 1.4 campaign (2026-08-13): 109 → 13 (content reclassified: 96
+    --    leveling never-lanes surfaced by the coverage extension cleared, and
+    --    AbolishDisease + Ambush cleared; Fade pinned as (c) above). Battery
+    --    extension to all 40 specs closed as: spell-table seeds
+    --    (DruidSpells/HunterSpells/MageSpells/PaladinSpells/PriestSpells/
+    --    RogueSpells/ShamanSpells/WarlockSpells/WarriorSpells ladders mirror
+    --    classes/<class>/class_sylvanas.lua), bank-aware spell_ready +
+    --    is_behind_target import forwarding, the CCGateDB under-CC stub, the
+    --    shared/leveling_sylvanas require-time NS-binding cleanup, and 8
+    --    fixture scenarios (cat_lev_claw, ambush_opener, pal_lev_seal,
+    --    priest_ve, lev_shock_earth, lev_shock_frost, pvp_cc_gate,
+    --    ooc_afflicted). Also cleared: priest holy AbolishDisease
+    --    + CureDisease (cure-pair split: friends_afflicted no longer puts
+    --    CureDisease on cd; holy_cure_on_cd drives the pre-emptive branch)
+    --    and rogue subtlety Ambush (opener_preference setting fixture).
+    --    Regression-pinned by test_vanilla_sweep_regression.lua; TBC (16) and
+    --    WotLK (0) never counts verified lane-for-lane unchanged; era-pair
+    --    seed unchanged (no strategy names added — the leveling names were
+    --    already in the files statically).
     {
         label = "behavioral battery (vanilla)",
         cmd = "lua " .. R .. "/behavioral_audit.lua vanilla",
@@ -486,7 +498,7 @@ local components = {
             local never = 0
             for _ in c:gmatch("NEVER:") do never = never + 1 end
             return {
-                { "vanilla specs " .. tostring(specs) .. " (expected 31)", specs == 31 },
+                { "vanilla specs " .. tostring(specs) .. " (expected 40)", specs == 40 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
                 { "never-firing " .. never .. " (expected 13 baseline, classified)", never == 13 },
             }
