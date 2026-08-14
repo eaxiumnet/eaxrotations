@@ -1401,6 +1401,23 @@ local function build_context()
             end
         end
     end
+    -- Purge target detection (shaman restoration): an enemy with any buff is
+    -- a purge candidate (PvE caster shields/wards; PvP handled by is_pvp).
+    -- Read-without-producer since the DSL adoption (86f74ae9) — the PvE
+    -- purge path could never fire live. Break on the first buff found.
+    _context.purge_target = false
+    if target and _api.safe_field then
+        local get_buffs = _api.safe_field(target, "get_buffs")
+        if get_buffs then
+            local ok, buffs = pcall(fast, get_buffs, target)
+            if ok and type(buffs) == "table" then
+                for _ in pairs(buffs) do
+                    _context.purge_target = true
+                    break
+                end
+            end
+        end
+    end
     -- PvP: Melee enemy targeting player for defensive curse/Howl (warlock specs)
     _context.melee_on_you = false
     if _context.is_pvp and target and me and _api.safe_field then
