@@ -57,6 +57,7 @@ local ENERGY_TICK = 20           -- Energy gained per tick (2s)
 local ENERGY_MUTILATE_COST = 60  -- Mutilate base cost
 local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
+local ENERGY_FINISHER_COST = 35  -- Envenom/Eviscerate/Rupture base cost (hard floor)
 
 -- ============================================================================
 -- Energy Tick Optimization (ported from combat_sylvanas.lua)
@@ -422,6 +423,18 @@ local strategies = {
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if (state.combo or 0) < 4 then return false end
             if (state.rupture_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Cold Blood sequencing: Rupture sits ABOVE EnvenomFinisher, so a
+            -- due Rupture would consume the Cold Blood charge before
+            -- ColdBloodEnvenom can use it. Hold Rupture while CB is banked
+            -- AND a finisher can actually use it (Envenom usable this GCD).
+            if state.has_cold_blood then
+                local min_stacks = spec_kit.setting_number(context, "assassin_envenom_stacks", 3)
+                if state.slice_dice_active and not state.snd_needs_refresh
+                    and (state.combo or 0) >= 4 and (state.dp_stacks or 0) >= min_stacks
+                    and (state.energy or 0) >= ENERGY_FINISHER_COST then
+                    return false
+                end
+            end
             -- Bleed-immune targets can't be ruptured
             if (context.target_bleed_immune or false) then return false end  -- nil-safe: skip rupture if immune
             -- Only on long-lived targets (TTD > 12s)
@@ -441,6 +454,10 @@ local strategies = {
         name = "EnvenomFinisher",
         matches = function(context, state)
             if state.energy_pool_finisher then return false end
+            -- Hard energy floor: Envenom costs 35 — in the 25-34 band neither
+            -- finisher nor builder is castable, so pool instead of dead-GCD
+            -- try_cast failures (mirrors subtlety/combat hard floors).
+            if (state.energy or 0) < ENERGY_FINISHER_COST then return false end
             if not state.slice_dice_active or state.snd_needs_refresh then return false end
             if (state.combo or 0) < 4 then return false end
             local min_stacks = spec_kit.setting_number(context, "assassin_envenom_stacks", 3)
@@ -551,10 +568,13 @@ local strategies = {
     -- 14. Eviscerate (fallback finisher)
     -- ------------------------------------------------------------------------
 	    {
-	        name = "EviscerateFallback",
-	        matches = function(context, state)
-	            if state.energy_pool_finisher then return false end  -- pool energy below 25
-	            -- Low-level: dump at 4 CP (Envenom/Mutilate not available; short fights)
+        name = "EviscerateFallback",
+        matches = function(context, state)
+            if state.energy_pool_finisher then return false end  -- pool energy below 25
+            -- Hard energy floor: Eviscerate costs 35 (pool in the 25-34 band
+            -- instead of dead-GCD try_cast failures).
+            if (state.energy or 0) < ENERGY_FINISHER_COST then return false end
+            -- Low-level: dump at 4 CP (Envenom/Mutilate not available; short fights)
 	            local min_cp = 5
 	            local level = leveling_helpers.level_from_context(context, 70)
 	            if leveling_helpers.is_low_level(level) or context.is_leveling then min_cp = 4 end
@@ -576,6 +596,14 @@ local strategies = {
             local target = context.target
             if not target then return false end
             if (state.combo or 0) < 3 then return false end
+            -- Assignment gate (mirrors combat combat_expose_assigned / subtlety
+            -- subtlety_expose_assigned): only apply Expose Armor when assigned —
+            -- never steal combo points in groups without warriors. The engine
+            -- always provides context.settings (main_sylvanas.lua:1234); a
+            -- missing settings table only occurs in unit-test harnesses.
+            if type(context.settings) == "table" then
+                if not spec_kit.setting_bool(context, "assassin_expose_assigned", false) then return false end
+            end
             -- Skip if target has no armor (API unavailable or already fully reduced)
             if (context.target_armor or 0) <= 0 then return false end
             if (context.has_sunder or false) then return false end

@@ -84,7 +84,6 @@ local ACTION = {
     Cyclone           = define("Cyclone",           { 33786 }, "Cyclone"),
     EntanglingRoots   = define("EntanglingRoots",   { 26989, 9853, 9852, 5196, 5195, 1062, 339 }, "EntanglingRoots"),
     HealingTouch      = define("HealingTouch",      { 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
-    HealingTouchRank4 = define("HealingTouchRank4", { 5189 }, "HealingTouchRank4"),
     InsectSwarm       = define("InsectSwarm",       { 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
     Innervate         = define("Innervate",         { 29166 }, "Innervate"),
     Lifebloom         = define("Lifebloom",         { 33763 }, "Lifebloom"),
@@ -428,10 +427,8 @@ local function build_state(context)
  resto_state.lowest_tank = nil
  resto_state.lowest_healer = nil
  resto_state.lowest_dps = nil
- -- early hoist for FSR manager (in_combat, lowest_hp_pct; Pattern 14, before loops/returns; mana later)
+ -- early hoist for FSR manager (in_combat; Pattern 14, before loops/returns; mana later)
  resto_state.in_combat = context.in_combat or false
- local _lowest = resto_state.lowest
- resto_state.lowest_hp_pct = _lowest and (_lowest.effective_hp or _lowest.hp or 100) or 100
  resto_state.swiftmend_target = nil
  resto_state.ns_target = nil
  resto_state.ht_target = nil
@@ -453,9 +450,10 @@ local function build_state(context)
  resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
  resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
  -- Tree of Life talent detection
- if NS.spell_book and NS.spell_book.is_spell_learned then
-  resto_state.can_tree = NS.spell_book.is_spell_learned(33891) == true
- elseif NS.spell_exists then
+ -- NS.spell_book is never defined in production (only core.spell_book exists);
+ -- the previous primary branch was dead code and NS.spell_exists carried the
+ -- feature. Fixed 2026-08-12.
+ if NS.spell_exists then
   resto_state.can_tree = NS.spell_exists(ACTION.TreeOfLifeForm) == true
  end
  -- Wire NS.Triage for intelligent target ranking (if available)
@@ -465,6 +463,10 @@ local function build_state(context)
    resto_state.lowest = ranked[1]
   end
  end
+ -- lowest_hp_pct computed AFTER the Triage override so FSRPause (via
+ -- FsrManager.should_pause_for_fsr) sees the ranked lowest, not the pre-Triage
+ -- one. Moved 2026-08-12 (was hoisted before the override).
+ resto_state.lowest_hp_pct = resto_state.lowest and (resto_state.lowest.effective_hp or resto_state.lowest.hp or 100) or 100
  -- Wire NS.AoEHeal for Tranquility cluster targeting (if available)
  if NS.AoEHeal and NS.AoEHeal.best_target and count > 0 then
   local best_cluster, cluster_count = NS.AoEHeal.best_target(entries, count, 40, 3)
@@ -693,7 +695,17 @@ local function LeaveTreeForDirectHeal_execute(_, state) state.should_dance_caste
 local function SecondRaidLifebloomCoverage_matches(_, state) return state.lifebloom_raid2 and NS.spell_ready(ACTION.Lifebloom, state.lifebloom_raid2.unit) end
 local function SecondRaidLifebloomCoverage_execute(_, state) return NS.try_cast(ACTION.Lifebloom, state.lifebloom_raid2.unit, "[RESTO] Second raid Lifebloom coverage") end
 
-local function MovingLifebloom_matches(context, state) return context.is_moving and state.lowest and effective_hp(state.lowest) <= MOVING_HOT_HP and NS.spell_ready(ACTION.Lifebloom, state.lowest.unit) end
+local function MovingLifebloom_matches(context, state)
+ -- Never steal the tank's ACTIVE Lifebloom roll: when the tank has a roll
+ -- (stacks > 0) that needs refresh (lifebloom_tank set — mirrors
+ -- TankLifebloomStack's condition, which has priority over this lane), skip
+ -- the moving raid roll. A tank with no roll yet (stacks 0) is owned by
+ -- TankLifebloomStack, so MovingLifebloom doesn't block that case. Added
+ -- 2026-08-12.
+ local tank = state.tank
+ if state.lifebloom_tank and tank and (tank.lifebloom_stacks or 0) > 0 then return false end
+ return context.is_moving and state.lowest and effective_hp(state.lowest) <= MOVING_HOT_HP and NS.spell_ready(ACTION.Lifebloom, state.lowest.unit)
+end
 local function MovingLifebloom_execute(_, state) return NS.try_cast(ACTION.Lifebloom, state.lowest.unit, "[RESTO] Moving Lifebloom") end
 
 local function MovingRejuvenation_matches(context, state) return context.is_moving and state.rejuv_target and not state.mana_emergency and NS.spell_ready(ACTION.Rejuvenation, state.rejuv_target.unit) end
@@ -826,6 +838,13 @@ local strategies = {
    spell = REGROWTH_CONSERVE
    label = "Downrank Regrowth (conserve)"
   end
+  -- Downrank ids (9857/9858) resolve via NS.get_spell_id only when that exact
+  -- rank is learned; a sub-70 druid lacks them and the cast silently failed.
+  -- Fall back to the max-rank action (already spell_ready in matches) instead.
+  if spell ~= ACTION.Regrowth and NS.get_spell_id and not NS.get_spell_id(spell) then
+   spell = ACTION.Regrowth
+   label = "Regrowth spot heal"
+  end
   return NS.try_cast(spell, state.regrowth_target.unit, "[RESTO] " .. label)
  end },
  { name = "LifebloomLetBloom", matches = function(_, state) return state.lifebloom_bloom ~= nil end, execute = function() return false end },
@@ -845,7 +864,11 @@ local strategies = {
   if context.is_moving or not state.lowest then return false end
   if effective_hp(state.lowest) > DOWNRANK_HT_HP then return false end
   if (context.mana_pct or 100) > 45 then return false end
-  if not NS.spell_ready(ACTION.HealingTouchRank4, state.lowest.unit) then return false end
+  -- Readiness gate must agree with the cast ranks (26979/26978/25297). It
+  -- previously gated on the rank-5 id 5189 (HealingTouchRank4), which only
+  -- worked because Healing Touch has no cooldown; gate on the resolved max
+  -- rank instead (the execute downranks from it).
+  if not NS.spell_ready(ACTION.HealingTouch, state.lowest.unit) then return false end
   if downrank_ht_overheal(state.lowest, context.settings) then return false end
   return true
   end, execute = function(context, state)
@@ -858,6 +881,8 @@ local strategies = {
    else
     spell_id = HEALING_TOUCH_EFFICIENT
    end
+   -- Rank labels (26979/26978/25297 = ranks 13/12/11 of the 13-rank Healing
+   -- Touch ladder — 5189, formerly mislabeled "HealingTouchRank4", is rank 5).
    local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 3000)
    return NS.try_cast(spell_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s (penalty %.0f%%)", mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11"), (penalty or 1) * 100))
   end },

@@ -95,6 +95,12 @@ local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false en
 
 local INNER_FOCUS_BUFF = { 14751 }  -- matches ACTION.InnerFocus rank ID
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
+-- Holy Concentration (34753/34754/34859/34860) is a WotLK talent — these buff
+-- IDs cannot exist on the TBC 2.5.5 client, so state.clearcasting is always
+-- false in live TBC and the ClearcastingGreaterHeal lane can never fire there.
+-- Kept (not removed) because tests pin the buff map + lane: behavioral_audit's
+-- clearcast_surge fixture (34753) and test_phase3_c_fixture_regression.lua
+-- assert state.clearcasting == true and the lane matching.
 local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
 local PRAYER_OF_MENDING_BUFF = { 33076 } -- PoM buff on target (TBC rank 1)
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
@@ -127,17 +133,22 @@ local KARAZHAN_MAP_ID = 532
 -- Tracks recent damage taken to gate long-cast heals during pushback
 --- Checks if the player is taking damage or in pushback using available API.
 --- Uses fallback detection when standard enemy scanner isn't exposed.
+--- PERF: result is tick-cached in build_state (state.has_pushback) — this
+--- scans all 8yd enemies with pcalls and was previously invoked up to 3x/tick.
 ---@param context table The combat context.
+---@param me unit|nil Player unit (defaults to context.me).
 ---@return boolean has_pushback True if pushback is likely active.
-local function _check_pushback(context)
- if not (context and context.me) then return false end
+local function _check_pushback(context, me)
+ if not context then return false end
+ me = me or context.me
+ if not me then return false end
  local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(8) or {}
  for _, enemy in ipairs(enemies) do
   if enemy then
    local ok, is_casting = pcall(function() return enemy:is_casting() end)
    if ok and is_casting then return true end
    local ok2, can_atk = pcall(function()
-    if context.me.can_attack then return enemy:can_attack(context.me) end
+    if me.can_attack then return enemy:can_attack(me) end
     return false
    end)
    if ok2 and can_atk then return true end
@@ -146,14 +157,10 @@ local function _check_pushback(context)
  return false
 end
 
--- [PRE-ALLOC] Heal rank option tables — created once at load time, not per-frame in execute().
--- Avoids Lua 5.1 GC pressure from repeated inline table creation in combat path.
-local HOLY_OPTS_EMERGENCY_FH = { prioritize_speed = true, cast_time = 1.5, overheal_threshold = 1.4 }
-local HOLY_OPTS_BH = { bh_coefficient = true, cast_time = 2.0, overheal_threshold = 1.3 }
-local HOLY_OPTS_CLEARCAST_GH = { prioritize_efficiency = true, gh_coefficient = true, cast_time = 2.5, overheal_threshold = 1.3 }
-local HOLY_OPTS_GH = { gh_coefficient = true, cast_time = 2.5, overheal_threshold = 1.3 }
-local HOLY_OPTS_FH = { cast_time = 1.5, overheal_threshold = 1.3 }
-local HOLY_OPTS_POH = { poh_coefficient = true, cast_time = 3.0, overheal_threshold = 1.3 }
+-- NOTE: cast_best_heal_rank(ranks, target, context, label) takes exactly 4
+-- args (core_sylvanas.lua) — the former 5th HOLY_OPTS_* "options" table was
+-- silently dropped, so no downranking/heal-size options ever applied. Call
+-- sites pass 4 args; the claimed option-driven downranking does not exist.
 
 -- Greater Heal tiered ranks for mana-based downranking
 local GREATER_HEAL_MAX = 25213      -- Rank 7 (max)
@@ -199,6 +206,8 @@ local HOLY_SCHEMA = {
     target_creature_type = nil,
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
+    -- Pushback (tick-cached; see _check_pushback)
+    has_pushback = false,
 }
 
 local holy_state = {
@@ -235,6 +244,7 @@ local holy_state = {
  friendly_target_ready = false,
  shackle_undead_ready = false,
  target_creature_type = nil,
+ has_pushback = false,
 }
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_control_locked, has_player_buff = NS.import_helpers(
@@ -252,10 +262,13 @@ local function build_state(context)
 
  local player = NS.GetPlayer()
  if not player then return spec_kit.safe_state(holy_state, HOLY_SCHEMA) end
+ -- Pushback tick-cache: reset here so early-return paths never serve a stale value
+ holy_state.has_pushback = false
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if player.is_mounted and player:is_mounted() then
   return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
  end
+ holy_state.has_pushback = _check_pushback(context, player)
  -- Guard: player_control_locked may be nil in some environments
 local pcl_ok, pcl_result = pcall(function()
     return type(player_control_locked) == "function" and player_control_locked() or false
@@ -487,7 +500,7 @@ local function pre_heal_matches(context, state)
  -- the cast, but damage is incoming
  if (state.tank_hp or 100) < 60 or (state.tank_hp or 100) > 95 then return false end
  -- Check for incoming damage: enemy casting
- if not _check_pushback(context) then return false end
+ if not state.has_pushback then return false end
  -- Don't pre-heal if already casting
  if context.me then
   local ok, casting = pcall(function() return context.me:is_casting() end)
@@ -698,7 +711,7 @@ local strategies = {
   execute = function(context, state)
    local ft = state.friendly_target
    if not ft or not ft.unit then return false end
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, ft.unit, context, "FriendlyTarget GH", HOLY_OPTS_GH)
+   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, ft.unit, context, "FriendlyTarget GH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, ft.unit, format("[HOLY] %s (friendly target) %.0f%%", spell_label, ft.hp_pct or 0))
   end,
@@ -740,7 +753,7 @@ local strategies = {
   execute = function(context, state)
    local target = state._preemptive_target
    if not target or not target.unit then return false end
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target.unit, context, "Preemptive GH", HOLY_OPTS_GH)
+   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target.unit, context, "Preemptive GH")
    if not chosen_spell then return false end
    return PreemptiveHeal.execute(context, state, chosen_spell, format("[HOLY] %s %.0f%%", spell_label, target.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
   end,
@@ -763,15 +776,18 @@ local strategies = {
    end,
   execute = function(context, state)
    local target = state.lowest.unit
-   local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Emergency FH", HOLY_OPTS_EMERGENCY_FH)
+   local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Emergency FH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
   end,
  },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
- -- Placed AFTER EmergencyPWS / PreemptiveGreaterHeal / EmergencyFlashHeal so
- -- life-critical saves still win, but BEFORE routine heals (PoM / CoH / GH /
- -- FH / Renew) so a manual friendly target wins over auto-lowest-scan for
+ -- NOTE (test-pinned, test_priest_holy_friendly_target.lua): this lane sits at
+ -- index 1 — BEFORE EmergencyPWS / PreemptiveGreaterHeal / EmergencyFlashHeal —
+ -- so a manual friendly target outranks the auto emergency lanes, then routine
+ -- heals (PoM / CoH / GH / FH / Renew) follow. Threshold-gated below so
+ -- full-health friendly targets are ignored; the emergency lanes only fire if
+ -- the friendly target lane declines the tick.
  {
   name = "PrayerOfMending",
   matches = function(context, state)
@@ -819,7 +835,7 @@ local strategies = {
    return true
   end,
   execute = function(context, state)
-   local chosen_spell, spell_label = cast_best_heal_rank(BINDING_HEAL_RANKS, state.lowest.unit, context, "BH", HOLY_OPTS_BH)
+   local chosen_spell, spell_label = cast_best_heal_rank(BINDING_HEAL_RANKS, state.lowest.unit, context, "BH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, state.lowest.unit, format("[HOLY] %s target=%.0f%% self=%.0f%%", spell_label, state.lowest.effective_hp or 0, context and context.hp or 0))
   end,
@@ -840,13 +856,17 @@ local strategies = {
    return true
   end,
   execute = function(context, state)
-   local chosen_spell, spell_label = cast_best_heal_rank(PRAYER_OF_HEALING_RANKS, NS.PLAYER_UNIT, context, "PoH", HOLY_OPTS_POH)
+   local chosen_spell, spell_label = cast_best_heal_rank(PRAYER_OF_HEALING_RANKS, NS.PLAYER_UNIT, context, "PoH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, NS.PLAYER_UNIT, format("[HOLY] %s count=%d", spell_label, state.group_damaged_count or 0))
   end,
  },
  {
   name = "ClearcastingGreaterHeal",
+  -- DEAD IN LIVE TBC: gates on state.clearcasting, which maps the WotLK-only
+  -- Holy Concentration buff IDs (see HOLY_CONCENTRATION_BUFF) — always false on
+  -- the 2.5.5 client. Lane retained because test_phase3_c_fixture_regression.lua
+  -- pins the buff map + match (behavioral_audit clearcast_surge fixture).
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
@@ -854,7 +874,7 @@ local strategies = {
    if not state.greater_heal_ready then return false end
    if not state.lowest then return false end
    -- Pushback gate: skip long-cast heals when taking damage
-   if _check_pushback(context) then return false end
+   if state.has_pushback then return false end
     -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
     local mana_pct = state.mana_pct or context.mana_pct or 100
     local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
@@ -863,7 +883,7 @@ local strategies = {
   end,
   execute = function(context, state)
    local target = state.lowest.unit
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Clearcasting GH", HOLY_OPTS_CLEARCAST_GH)
+   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Clearcasting GH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
   end,
@@ -907,7 +927,7 @@ local strategies = {
    if not state.greater_heal_ready then return false end
    if not state.lowest then return false end
    -- Pushback gate: skip GH when taking damage, fallback to FH
-   if _check_pushback(context) then return false end
+   if state.has_pushback then return false end
    -- Mana conservation: drop GH below 30% mana, use FH+Renew only
    if context.mana_pct < spec_kit.setting_number(context, "holy_gh_mana_floor", 30) then return false end
    local flash_hp = spec_kit.setting_number(context, "holy_flash_heal_hp", 50)
@@ -1216,12 +1236,9 @@ local strategies = {
   name = "StopCast",
   matches = stop_cast_matches,
   execute = function()
-   if NS.stop_casting then
-    return NS.stop_casting()
-   end
-   -- Fallback: cancel current form/cast via spell book
-   if NS.cancel_current_cast then
-    return NS.cancel_current_cast()
+   -- Real API: NS.cancel_spells wraps core.input.cancel_spells (nil-guarded).
+   if NS.cancel_spells then
+    return NS.cancel_spells()
    end
    return false
   end,
@@ -1232,7 +1249,7 @@ local strategies = {
   matches = pre_heal_matches,
   execute = function(context, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "PreHeal GH", HOLY_OPTS_GH)
+   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "PreHeal GH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s (PreHeal) %.0f%%", spell_label, state.tank_hp or 0))
   end,
@@ -1261,7 +1278,7 @@ local strategies = {
   matches = encounter_reactions_matches,
   execute = function(context, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
-   local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Encounter FH", HOLY_OPTS_FH)
+   local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Encounter FH")
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s (Encounter) %.0f%%", spell_label, (state.tank_hp or state.lowest_hp or 0)))
   end,  },

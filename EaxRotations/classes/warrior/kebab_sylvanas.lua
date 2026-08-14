@@ -126,11 +126,16 @@ local function would_starve_core_kebab(context, state, cost)
     return false
 end
 
-local kebab_state = { general_use = false, target_below_20 = false, sunder_stacks = 0, sunder_duration = 0, thunder_clap_duration = 0, demo_shout_duration = 0, ms_cd = 0, ww_cd = 0, healthstone_ready = 0 }
-local KEBAB_SCHEMA = { general_use = false, target_below_20 = false, sunder_stacks = 0, sunder_duration = 0, thunder_clap_duration = 0, demo_shout_duration = 0, ms_cd = 99, ww_cd = 99, pummel_ready = false, healthstone_ready = 0, is_group = false }
+local kebab_state = { general_use = false, target_below_20 = false, sunder_stacks = 0, sunder_duration = 0, thunder_clap_duration = 0, demo_shout_duration = 0, ms_cd = 0, ww_cd = 0, healthstone_ready = 0, hp_pct = 100 }
+local KEBAB_SCHEMA = { general_use = false, target_below_20 = false, sunder_stacks = 0, sunder_duration = 0, thunder_clap_duration = 0, demo_shout_duration = 0, ms_cd = 99, ww_cd = 99, pummel_ready = false, healthstone_ready = 0, is_group = false, hp_pct = 100 }
 
 local function build_state(context)
     kebab_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+    -- Live-correctness fix: populate hp_pct so the Healthstone DSL condition
+    -- (`state.hp_pct <= 28`) is a real gate. Before, hp_pct was never set and
+    -- absent from KEBAB_SCHEMA, so the DSL comparator read (nil or 0) <= 28 —
+    -- ALWAYS true — and the stone was consumed at full HP whenever in combat.
+    kebab_state.hp_pct = context.hp or 100
     if context._kebab_valid then return spec_kit.safe_state(kebab_state, KEBAB_SCHEMA) end
     context._kebab_valid = true
     kebab_state.is_group = context.is_group or false
@@ -220,14 +225,14 @@ local DSL_DEFS = {
                 if settings.kebab_use_ww_execute ~= false and (context.rage or 0) >= 25 and (state.ww_cd or 0) <= 0 then return false end
                 if settings.kebab_use_ms_execute ~= false and (context.rage or 0) >= 30 and (state.ms_cd or 0) <= 0 then return false end
             end
-            if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.BERSERKER then
+            if (context.stance or "") ~= Constants.STANCE.BATTLE and (context.stance or "") ~= Constants.STANCE.BERSERKER then
                 if not (spell_exists(SPELLS.BerserkerStance) and spell_ready(SPELLS.BerserkerStance, NS.PLAYER_UNIT)) then return false end
             end
             if not (spell_exists(SPELLS.Execute) and spell_ready(SPELLS.Execute, context.target)) then return false end
             return true
         end },
     }, action = { type = "custom", fn = function(context, state)
-        if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.BERSERKER then
+        if (context.stance or "") ~= Constants.STANCE.BATTLE and (context.stance or "") ~= Constants.STANCE.BERSERKER then
             return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for Execute)", { skip_range = true })
         end
         return try_cast(SPELLS.Execute, context.target, format("[KEBAB] Execute - Rage: %d, HP: %.0f%%", context.rage or 0, context.target_hp or 0))
@@ -240,14 +245,14 @@ local DSL_DEFS = {
             if (context.enemy_count or 0) < 2 then return false end
             if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12328) then return false end
             if (context.rage or 0) < 30 then return false end
-            if context.stance ~= Constants.STANCE.BATTLE then
+            if (context.stance or "") ~= Constants.STANCE.BATTLE then
                 if not (spell_exists(SPELLS.BattleStance) and spell_ready(SPELLS.BattleStance, NS.PLAYER_UNIT)) then return false end
             end
             if not (spell_exists(SPELLS.SweepingStrikes) and spell_ready(SPELLS.SweepingStrikes, NS.PLAYER_UNIT)) then return false end
             return true
         end },
     }, action = { type = "custom", fn = function(context)
-        if context.stance ~= Constants.STANCE.BATTLE then
+        if (context.stance or "") ~= Constants.STANCE.BATTLE then
             return try_cast(SPELLS.BattleStance, NS.PLAYER_UNIT, "[KEBAB] Battle Stance (for Sweeping Strikes)", { skip_range = true })
         end
         return try_cast(SPELLS.SweepingStrikes, NS.PLAYER_UNIT, format("[KEBAB] Sweeping Strikes - Rage: %d, Enemies: %d", context.rage or 0, context.enemy_count or 0), { skip_range = true })
@@ -275,14 +280,14 @@ local DSL_DEFS = {
             if state.target_below_20 and settings.kebab_execute_phase and not settings.kebab_use_ww_execute then return false end
             if (context.rage or 0) < 25 then return false end
             if should_reserve_for_sweeping(context) then return false end
-            if context.stance ~= Constants.STANCE.BERSERKER then
+            if (context.stance or "") ~= Constants.STANCE.BERSERKER then
                 if not (spell_exists(SPELLS.BerserkerStance) and spell_ready(SPELLS.BerserkerStance, NS.PLAYER_UNIT)) then return false end
             end
             if not (spell_exists(SPELLS.Whirlwind) and spell_ready(SPELLS.Whirlwind, NS.PLAYER_UNIT)) then return false end
             return true
         end },
     }, action = { type = "custom", fn = function(context)
-        if context.stance ~= Constants.STANCE.BERSERKER then
+        if (context.stance or "") ~= Constants.STANCE.BERSERKER then
             return try_cast(SPELLS.BerserkerStance, NS.PLAYER_UNIT, "[KEBAB] Berserker Stance (for WW)", { skip_range = true })
         end
         return try_cast(SPELLS.Whirlwind, NS.PLAYER_UNIT, format("[KEBAB] Whirlwind - Rage: %d", context.rage or 0), { skip_range = true })
@@ -303,7 +308,7 @@ local DSL_DEFS = {
             local settings = settings_for(context)
             if not can_attack_target(context) then return false end
             if settings.kebab_use_overpower == false then return false end
-            if context.stance ~= Constants.STANCE.BATTLE then return false end
+            if (context.stance or "") ~= Constants.STANCE.BATTLE then return false end
             if not (spell_exists(SPELLS.Overpower) and spell_ready(SPELLS.Overpower, context.target)) then return false end
             return true
         end },
@@ -346,15 +351,25 @@ local DSL_DEFS = {
             local mode = settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
             if (context.target_armor or 0) <= 0 then return false end
-            if context.stance ~= Constants.STANCE.DEFENSIVE then return false end
+            -- Live-correctness fix: SunderMaintain used to require Defensive
+            -- stance outright, so it never fired in DW-Arms modes (Battle/
+            -- Berserker). Mirror the file's other stance-cast strategies:
+            -- when not in Defensive, require the stance-cast to be available
+            -- (the action then swaps to Defensive before applying stacks).
+            if (context.stance or "") ~= Constants.STANCE.DEFENSIVE then
+                if not (spell_exists(SPELLS.DefensiveStance) and spell_ready(SPELLS.DefensiveStance, NS.PLAYER_UNIT)) then return false end
+            end
             if mode == "help_stack" and (state.sunder_stacks or 0) >= (Constants.SUNDER_MAX_STACKS or 5) then return false end
             if mode == "maintain" and (state.sunder_stacks or 0) >= (Constants.SUNDER_MAX_STACKS or 5) and (state.sunder_duration or 0) > (Constants.SUNDER_REFRESH_WINDOW or 3) then return false end
-            if context.stance == Constants.STANCE.DEFENSIVE and spell_exists(SPELLS.Devastate) and spell_ready(SPELLS.Devastate, context.target) then return true end
+            if (context.stance or "") == Constants.STANCE.DEFENSIVE and spell_exists(SPELLS.Devastate) and spell_ready(SPELLS.Devastate, context.target) then return true end
             if not (spell_exists(SPELLS.SunderArmor) and spell_ready(SPELLS.SunderArmor, context.target)) then return false end
             return true
         end },
     }, action = { type = "custom", fn = function(context, state)
-        if context.stance == Constants.STANCE.DEFENSIVE and spell_exists(SPELLS.Devastate) and spell_ready(SPELLS.Devastate, context.target) then
+        if (context.stance or "") ~= Constants.STANCE.DEFENSIVE then
+            return try_cast(SPELLS.DefensiveStance, NS.PLAYER_UNIT, "[KEBAB] Defensive Stance (for Sunder)", { skip_range = true })
+        end
+        if spell_exists(SPELLS.Devastate) and spell_ready(SPELLS.Devastate, context.target) then
             return try_cast(SPELLS.Devastate, context.target, format("[KEBAB] Devastate (Sunder) - Stacks: %d", state.sunder_stacks or 0))
         end
         return try_cast(SPELLS.SunderArmor, context.target, format("[KEBAB] Sunder Armor - Stacks: %d", state.sunder_stacks or 0))
@@ -366,11 +381,18 @@ local DSL_DEFS = {
             if settings.maintain_thunder_clap == false then return false end
             if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             if (state.thunder_clap_duration or 0) > (Constants.TC_REFRESH_WINDOW or 2) then return false end
-            if context.stance ~= Constants.STANCE.BATTLE then return false end
+            -- ThunderClap needs Battle stance; if we're not in it, require the
+            -- stance-cast to be available (mirrors Execute/SweepingStrikes/WW).
+            if (context.stance or "") ~= Constants.STANCE.BATTLE then
+                if not (spell_exists(SPELLS.BattleStance) and spell_ready(SPELLS.BattleStance, NS.PLAYER_UNIT)) then return false end
+            end
             if not (spell_exists(SPELLS.ThunderClap) and spell_ready(SPELLS.ThunderClap, NS.PLAYER_UNIT)) then return false end
             return true
         end },
-    }, action = { type = "custom", fn = function()
+    }, action = { type = "custom", fn = function(context)
+        if (context.stance or "") ~= Constants.STANCE.BATTLE then
+            return try_cast(SPELLS.BattleStance, NS.PLAYER_UNIT, "[KEBAB] Battle Stance (for Thunder Clap)", { skip_range = true })
+        end
         return try_cast(SPELLS.ThunderClap, NS.PLAYER_UNIT, format("[KEBAB] Thunder Clap - Duration: %.1fs", kebab_state.thunder_clap_duration or 0), { skip_range = true })
     end } },
     { name = "DemoShout", conditions = {

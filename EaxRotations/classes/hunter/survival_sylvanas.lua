@@ -49,6 +49,7 @@ local ACTION = {
 }
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
+local hunter_core = require("shared/hunter_core_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 local dsl = require("shared/strategy_dsl_sylvanas")
@@ -87,8 +88,34 @@ local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_DEBUFF = { 3043 }
 local WING_CLIP_DEBUFF = { 2974 }
+-- Viper Sting full rank ladder (TBC ranks 1-4; DBC-verified in _dbc_spell_ids.lua)
+local VIPER_STING_DEBUFF = { 27018, 14280, 14279, 3034 }
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
+
+-- Misdirection (spell 34477, TBC CD 30s since patch 2.3.2)
+local MISDIRECTION_ID = 34477
+local CONCUSSIVE_SHOT_IDS = { 5116 }
+
+-- Trap mutual exclusion: TBC hunters can have only ONE trap placed at a time —
+-- dropping a second trap destroys the first. SnakeTrap and ImmolationTrap both
+-- fire at enemy_count >= 2, so consecutive ticks used to overwrite each other's
+-- trap (audit 2026-08). Each trap execute records its cast time; the other
+-- lane is suppressed for TRAP_MUTUAL_EXCLUSION_SEC (the trap's active window).
+local TRAP_MUTUAL_EXCLUSION_SEC = 15
+local _last_trap_placed_at = 0
+
+-- True while a trap placed within the last TRAP_MUTUAL_EXCLUSION_SEC is still
+-- live — blocks the OTHER trap lane from overwriting it. Executes record the
+-- cast time (module-local; no per-frame allocation).
+local function trap_blocked_by_recent_placement()
+    local now = (NS.time_now and NS.time_now()) or 0
+    return (now - _last_trap_placed_at) < TRAP_MUTUAL_EXCLUSION_SEC
+end
+
+local function record_trap_placed()
+    _last_trap_placed_at = (NS.time_now and NS.time_now()) or 0
+end
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
@@ -225,6 +252,15 @@ local SV_SCHEMA = {
     mana_pct = 100,  in_combat = false,  enemy_count = 1,
     hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
     healthstone_ready = 0,  distance_sq = 10000,
+    -- Threat management (mirrors BM): fd_mode defaults "off" — the middleware
+    -- ThreatDrop lane (use_threat_drop) owns always-on Feign Death.
+    threat_level = 0,  fd_mode = "off",
+    -- Concussive Shot readiness (was read-but-never-written; lane cast every
+    -- tick in range — audit 2026-08).
+    concussive_shot_ready = false,
+    -- Traps / AoE settings (BM parity): Explosive Trap opt-in; the Volley
+    -- threshold is read straight from settings (volley_matches), not state.
+    use_explosive_trap = false,
 }
 
 -- ============================================================================
@@ -270,6 +306,10 @@ local sv_state = {
     hunter_shot_timer_buffer = 150,
     healthstone_ready = 0,
     distance_sq = 10000,
+    threat_level = 0,
+    fd_mode = "off",
+    concussive_shot_ready = false,
+    use_explosive_trap = false,
 }
 
 local function build_state(context)
@@ -326,6 +366,21 @@ local function build_state(context)
     sv_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
     sv_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
     sv_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+    -- Concussive Shot readiness (was read-but-never-written — see schema note).
+    sv_state.concussive_shot_ready = target and spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
+    -- Traps / AoE settings (BM parity): Explosive Trap is opt-in (schema
+    -- default false); the Volley threshold is read straight from settings in
+    -- volley_matches (no state field).
+    sv_state.use_explosive_trap = spec_kit.setting_bool(context, "use_explosive_trap", false)
+    -- Threat management (mirrors BM): fd_mode defaults "off"; the middleware
+    -- ThreatDrop lane (use_threat_drop) owns always-on Feign Death. The live
+    -- dispatcher publishes has_aggro (get_threat_situation >= 2) rather than
+    -- threat_level, so aggro counts as threat level 2 — otherwise the lane
+    -- would be dead in live play (battery drives ctx.threat_level directly).
+    local tl = context.threat_level or context.threat_situation or 0
+    if tl < 2 and context.has_aggro then tl = 2 end
+    sv_state.threat_level = tl
+    sv_state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
 
     return spec_kit.safe_state(sv_state, SV_SCHEMA)
 end
@@ -345,6 +400,10 @@ local function rapid_fire_matches(context, s)
 end
 
 local function explosive_trap_matches(context, s)
+    -- BM parity: opt-in setting (schema default false) + combat-only. The
+    -- audit found the lane firing OOC on every tick with no setting gate.
+    if not s.in_combat then return false end
+    if s.use_explosive_trap == false then return false end
     if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not s.explosive_trap_ready then return false end
     -- TTD gate: don't waste trap CD on a dying target
@@ -352,10 +411,12 @@ local function explosive_trap_matches(context, s)
     return true
 end
 
--- Immolation Trap: AoE fire trap for 2-3 enemies
+-- Immolation Trap: AoE fire trap for 2-3 enemies. Mutual exclusion with
+-- SnakeTrap (one trap at a time in TBC) — see TRAP_MUTUAL_EXCLUSION_SEC.
 local function immolation_trap_matches(context, s)
     if not s.in_combat then return false end
     if (s.enemy_count or 0) < 2 then return false end
+    if trap_blocked_by_recent_placement() then return false end
     if not s.immolation_trap_ready then return false end
     -- TTD gate: don't waste trap CD on a dying target
     if context.ttd_known and (context.ttd or 0) < 8 then return false end
@@ -395,7 +456,12 @@ local function serpent_sting_refresh_matches(context, s)
     if not s.in_combat then return false end
     if not s.serpent_sting_ready then return false end
     if not s.has_serpent_sting then return false end
-    local remains = NS.debuff_remains and NS.debuff_remains(context.target, SERPENT_STING_DEBUFF) or 0
+    -- pcall-wrapped like the other NS.debuff_remains reads (nil-target safe).
+    local remains = 0
+    if context.target and NS.debuff_remains then
+        local ok, rem = pcall(NS.debuff_remains, context.target, SERPENT_STING_DEBUFF)
+        if ok and type(rem) == "number" then remains = rem end
+    end
     if remains > 3 then return false end
     -- TTD gate: don't refresh if target dies before the refreshed DoT ticks meaningfully
     if context.ttd_known and (context.ttd or 0) < 6 then return false end
@@ -431,11 +497,36 @@ local function snake_trap_matches(context, s)
     if not spec_kit.setting_bool(context, "use_snake_trap", true) then return false end
     if not s.in_combat then return false end
     if (s.enemy_count or 0) < 2 then return false end
+    -- Mutual exclusion with Immolation Trap (one trap at a time in TBC).
+    if trap_blocked_by_recent_placement() then return false end
     return true
 end
 
 local function viper_sting_matches(context, s)
+    if not s.in_combat then return false end
     if not s.viper_sting_ready then return false end
+    -- Honor the middleware's use_viper_sting_pve/pvp settings (same defaults).
+    local pve = spec_kit.setting_bool(context, "use_viper_sting_pve", true)
+    local pvp = spec_kit.setting_bool(context, "use_viper_sting_pvp", true)
+    if not pve and not pvp then return false end
+    if context.is_pvp then
+        if not pvp then return false end
+    elseif not pve then
+        return false
+    end
+    if not context.target then return false end
+    -- No recast over a live Viper Sting debuff (full TBC rank ladder).
+    if NS.debuff_up and NS.debuff_up(context.target, VIPER_STING_DEBUFF) then return false end
+    -- Target-mana gate: with under 20% mana there is almost nothing left to
+    -- drain — skip. Unknown target mana does not block. The engine never
+    -- writes context.target_mana_pct (read-side audit), so read the real
+    -- IZI unit method directly.
+    local tm = nil
+    if context.target.get_mana_percentage then
+        local ok, v = pcall(context.target.get_mana_percentage, context.target)
+        if ok and type(v) == "number" then tm = v end
+    end
+    if tm ~= nil and tm < 20 then return false end
     return true
 end
 
@@ -443,6 +534,16 @@ end
 local function wyvern_sting_matches(context, s)
     local group_aware = spec_kit.setting_bool(context, "hunter_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
+    -- Group contexts: skip when the current target is the group's active DPS
+    -- target — the group's damage breaks the sleep instantly, wasting the CD
+    -- (audit 2026-08). Signal: an engaged mob has a current target
+    -- (target:get_target() non-nil); an idle / CC'd add is safe to sting.
+    if context.is_group and context.target then
+        local engaged = nil
+        local ok_t, tv = pcall(function() return context.target:get_target() end)
+        if ok_t then engaged = tv end
+        if engaged then return false end
+    end
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "incapacitate") then return false end
     if not s.wyvern_sting_ready then return false end
     if s.has_serpent_sting then return false end
@@ -474,8 +575,12 @@ local function leveling_sting_matches(context, s)
     return true
 end
 
--- Concussive Shot: kiting/slow utility (15yd max range)
+-- Concussive Shot: kiting/slow utility (15yd max range). Combat + readiness
+-- gated — the audit found try_cast attempted every tick within 15yd because
+-- readiness was never computed and there was no in_combat check.
 local function concussive_shot_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.concussive_shot_ready then return false end
     if not context.has_valid_enemy_target then return false end
     local target = context.target
     if not target then return false end
@@ -485,11 +590,21 @@ local function concussive_shot_matches(context, s)
     return true
 end
 
--- Misdirection: redirect threat to pet
+-- Misdirection: redirect threat to pet. Mirrors BM's Misdirection: setting
+-- opt-in, pull-window (combat_time <= 6), learned + ready, and no active MD
+-- buff. expected_cooldown corrected to 30s (TBC patch 2.3.2+ reduced
+-- Misdirection's CD from 120s to 30s; the DBC SpellCooldowns has no entry for
+-- 34477, so the cast-history fallback needs the real value).
 local function misdirection_matches(context, s)
+    if not spec_kit.setting_bool(context, "use_misdirection", false) then return false end
     if not s.in_combat then return false end
     if not s.pet_alive then return false end
-    return spell_ready(ACTION.Misdirection, context.me or NS.PLAYER_UNIT, { skip_range = true, expected_cooldown = 120 })
+    local combat_time = context.combat_time or 0
+    if combat_time > 6 then return false end
+    if not (NS.is_spell_learned and NS.is_spell_learned(MISDIRECTION_ID)) then return false end
+    -- Already active (buff 34477) — don't recast
+    if NS.has_buff and context.me and NS.has_buff(context.me, MISDIRECTION_ID) then return false end
+    return spell_ready(ACTION.Misdirection, context.me or NS.PLAYER_UNIT, { skip_range = true, expected_cooldown = 30 })
 end
 
 local function misdirection_execute(context, s)
@@ -550,7 +665,11 @@ local function wing_clip_matches(context, s)
     return true
 end
 
--- Mongoose Bite: melee-range counterattack after dodge
+-- Mongoose Bite: melee-range counterattack after dodge.
+-- NOTE (audit 2026-08): the dodge-proc gate is left to IZI castability (no
+-- explicit proc-state read — Mongoose Bite only becomes castable after a
+-- dodge). Left as-is; verify-on-live that IZI reports castability only on the
+-- proc, otherwise add an explicit dodge-proc buff gate here.
 local function mongoose_bite_matches(context, s)
     if not s.in_combat then return false end
     local target = context.target
@@ -565,10 +684,13 @@ local function mongoose_bite_matches(context, s)
 end
 
 -- Volley: AoE channeled attack for multi-target
+-- Threshold is configurable via aoe_threshold (default 4 — preserves the
+-- historical hardcode; hunter menu default is 3).
 local function volley_matches(context, s)
     if context.is_channeling then return false end
     if not s.in_combat then return false end
-    if not NS.aoe_target_meets or not NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
+    local threshold = spec_kit.setting_number(context, "aoe_threshold", 4)
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(threshold, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if context.is_moving then return false end
     if not s.volley_ready then return false end
     return true
@@ -624,6 +746,15 @@ local DSL_DEFS = {
         name = "FeignDeath",
         conditions = {
             { type = "state", field = "in_combat", value = true },
+            -- Threat-gated (mirrors BM): fd_mode defaults "off"; fires only at
+            -- high threat / aggro with the mode enabled. The middleware
+            -- ThreatDrop lane (use_threat_drop, default on) remains the
+            -- always-on threat drop.
+            { type = "custom", fn = function(context, state)
+                local mode = state.fd_mode or "off"
+                if mode == "off" then return false end
+                return hunter_core.should_feign_death(state.threat_level or 0, mode)
+            end },
             { type = "state", field = "feign_death_ready", value = true },
         },
         action = { type = "cast", spell = ACTION.FeignDeath, target = "self", opts = { skip_range = true, expected_cooldown = 30 }, label = "[SURVIVAL] Feign Death" }
@@ -712,9 +843,9 @@ local strategies = {
     { name = "HuntersMark" },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(ACTION.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(ACTION.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "SnakeTrap", matches = snake_trap_matches, execute = function(context) return NS.try_cast(ACTION.SnakeTrap, context.me, "[SURVIVAL] Snake Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "ImmolationTrap", matches = immolation_trap_matches, execute = function(context) return NS.try_cast(ACTION.ImmolationTrap, context.me, "[SURVIVAL] Immolation Trap", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) local ok = NS.try_cast(ACTION.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) if ok then record_trap_placed() end return ok end },
+    { name = "SnakeTrap", matches = snake_trap_matches, execute = function(context) local ok = NS.try_cast(ACTION.SnakeTrap, context.me, "[SURVIVAL] Snake Trap", { skip_range = true, expected_cooldown = 30 }) if ok then record_trap_placed() end return ok end },
+    { name = "ImmolationTrap", matches = immolation_trap_matches, execute = function(context) local ok = NS.try_cast(ACTION.ImmolationTrap, context.me, "[SURVIVAL] Immolation Trap", { skip_range = true, expected_cooldown = 30 }) if ok then record_trap_placed() end return ok end },
     { name = "KillCommand" },
     { name = "FeignDeath" },
     { name = "Misdirection", matches = misdirection_matches, execute = misdirection_execute },

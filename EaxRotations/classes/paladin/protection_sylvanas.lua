@@ -415,7 +415,22 @@ local function creature_type(unit)
 end
 
 
+-- Frame cache: apply_base_matches calls build_state once per strategy per
+-- tick (~27 full builds/frame, each ~20 spell_ready + ~15 buff_up + a
+-- per-enemy CC debuff scan). Reuse the state within the same frame (mirrors
+-- bear_sylvanas.lua:339-352). Cache-hit returns stay safe_state-wrapped so
+-- Pattern-14 nil-guard defaults still apply (run_cache_hit_audit_tests.lua).
+local _last_build_state_time = -1
+
 local function build_state(context)
+
+ local now = context.now
+
+ if now and now == _last_build_state_time then return spec_kit.safe_state(prot_state, PROT_SCHEMA) end
+
+ now = now or (NS.time_now and NS.time_now() or 0)
+
+ if context.now then _last_build_state_time = now end
 
  local me = context.me or NS.GetPlayer()
 
@@ -451,7 +466,10 @@ local function build_state(context)
 
  prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
 
- prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
+ -- NOTE: consecration_remains is NOT populated — Consecration is a ground
+ -- effect in TBC and applies no target debuff, so a debuff_remains read on
+ -- the target would always return 0 (field kept at init 0 for schema/test
+ -- compatibility; see consecration_matches).
 
  prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
 
@@ -604,16 +622,34 @@ local function build_state(context)
 
      if NS.debuff_up(enemy, {CC_DEBUFFS[j]}) then
 
-      local dx = (enemy.x or 0) - (target.x or 0)
-
-      local dy = (enemy.y or 0) - (target.y or 0)
-
-      if dx*dx + dy*dy < 225 then -- 15 yards
-
+      -- Real-distance check: .x/.y are not part of the game_object API
+      -- (positions come from get_position() -> vec3), so the old
+      -- dx*dx+dy*dy < 225 test saw nil-0 distances and was ALWAYS true —
+      -- any CC'd mob anywhere in the 40yd enemy list globally gated
+      -- Avenger's Shield and Consecration. Use NS.unit_distance (999 when
+      -- unknown); fall back to get_position (pcall-guarded) when the core
+      -- helper is unavailable (unit tests).
+      local nearby = false
+      if NS.unit_distance then
+       local dist = NS.unit_distance(enemy, target)
+       nearby = type(dist) == "number" and dist < 15
+      else
+       -- NOTE: `enemy.get_position and pcall(...)` never propagates
+       -- pcall's second return
+       -- (and/or expressions are closed), so capture via explicit locals.
+       local ok1, pos_a = false, nil
+       if enemy.get_position then ok1, pos_a = pcall(enemy.get_position, enemy) end
+       local ok2, pos_b = false, nil
+       if target.get_position then ok2, pos_b = pcall(target.get_position, target) end
+       if ok1 and ok2 and pos_a and pos_b then
+        local pdx = (pos_a.x or 0) - (pos_b.x or 0)
+        local pdy = (pos_a.y or 0) - (pos_b.y or 0)
+        nearby = pdx*pdx + pdy*pdy < 225
+       end
+      end
+      if nearby then
        prot_state.cc_nearby = true
-
        break
-
       end
 
      end
@@ -837,8 +873,11 @@ local function consecration_matches(context, state)
 
  if (state.mana_pct or 100) < min_mana then return false end
 
- -- AoE threshold: only use single-target if Consecration is already ticking
-
+ -- AoE threshold: Consecration is a ground effect in TBC — it applies no
+ -- target debuff, so the old "already ticking" gate (state.consecration_remains
+ -- read from debuff_remains) always saw 0 and never blocked re-casts; the 8s
+ -- cooldown alone spaces them. The min-targets read is kept as an intent hook
+ -- (single-target Consecration stays allowed, per the original behavior).
  local min_targets = spec_kit.setting_number(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
 
  if not (NS.aoe_self_meets and NS.aoe_self_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) and (state.consecration_remains or 0) > 2 then return false end
@@ -962,6 +1001,17 @@ local function seal_command_aoe_matches(context, state)
  if (state.enemy_count or 0) < 3 then return false end
 
  if state.has_seal or state.has_seal_command then return false end
+
+ -- JoW emergency: do not overwrite the emergency Seal of Wisdom with SoC
+ if state.judgement_wisdom_mode then return false end
+
+ if state.has_seal_wisdom then
+
+  local mana_threshold = spec_kit.setting_number(context, "prot_seal_of_wisdom_mana", 30)
+
+  if (state.mana_pct or 100) <= mana_threshold then return false end
+
+ end
 
  if not NS.spell_ready(ACTION.SealCommand, context.me, { skip_range = true }) then return false end
 
@@ -1385,6 +1435,9 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 local fol_threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
                 if (state.hp_pct or 100) <= fol_threshold then return false end
+                -- Upper bound: don't spend the 15s CD on the damage Holy Shock
+                -- at (near) full HP — hold it for the heal window.
+                if (state.hp_pct or 100) >= 85 then return false end
                 return true
             end },
         },

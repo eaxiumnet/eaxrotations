@@ -82,6 +82,7 @@ local CURSE_OF_ELEMENTS_DEBUFF = curse_helper.CURSE_OF_ELEMENTS_DEBUFF
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
+local SOUL_SHARD_ITEM = 6265       -- TBC Soul Shard reagent (Soul Fire consumes one)
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 local LIFE_TAP_MIN_INTERVAL = 1.5
 local _last_life_tap = 0
@@ -125,7 +126,8 @@ local DEMO_SCHEMA = {
     agony_remains = 0, doom_remains = 0, coe_remains = 0,
     recklessness_remains = 0, weakness_remains = 0,
     dark_pact_ready = false, drain_soul_ready = false,
-    soul_link_ready = false,
+    soul_link_ready = false, has_soul_link = false,
+    target = nil,
     -- Items
     healthstone_ready = false,
 }
@@ -465,6 +467,9 @@ end
 
 local function soul_fire_matches(context, s)
     if not s then return false end
+    -- Soul Fire consumes a Soul Shard (TBC reagent): mirror destruction's
+    -- shard gate so a shardless player never attempts the failed cast.
+    if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if not context.target then return false end
     if not s.soul_fire_ready then return false end
     if (s.target_hp_pct or 100) > EXECUTE_THRESHOLD then return false end
@@ -748,9 +753,12 @@ local strategies = {
     shadow_ward_helper.make_strategy("ShadowWard", ACTION.ShadowWard, { label = "[DEMONOLOGY] Shadow Ward" }),
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
     { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
-    { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
+    { name = "Seduction", matches = seduction_matches, execute = function(context)
+        -- 6358 is the Succubus's spell: cast via the PET, not the player.
+        local sid = NS.get_spell_id and NS.get_spell_id(ACTION.Seduction) or 6358
+        return pet_manager.try_cast(sid or 6358, context.target)
+    end },
     soulshatter_helper.make_strategy("Soulshatter", ACTION.Soulshatter, "[DEMONOLOGY] Soulshatter"),
-    { name = "LifeTap" },
     { name = "ShadowBolt" },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     healthstone_helper.make_strategy("Healthstone", {

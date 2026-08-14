@@ -457,7 +457,10 @@ local function sunder_armor_matches(context, state)
     if state.sunder_stacks >= 5 then return false end
     if state.rage < 15 then return false end
     if state.execute_phase then return false end
-    return action(context, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.DEFENSIVE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }))
+    -- Live-correctness fix: arms plays in Battle stance and no strategy swaps to
+    -- Defensive for Sunder — require BATTLE (matches the strategy metadata row and
+    -- arms play; the old DEFENSIVE gate made Sunder unreachable).
+    return action(context, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.BATTLE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }))
 end
 
 local function whirlwind_matches(context, state)
@@ -605,6 +608,11 @@ local function battle_stance_matches(context, state)
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, OVERPOWER_RAGE) then return action(context, battle_stance_action()) end
     if state.ms_cd <= 0.3 and stance_swap_safe(state, MORTAL_STRIKE_RAGE) then return action(context, battle_stance_action()) end
+    -- Openers: swap to Battle when Charge is ready OOC so the next pull's
+    -- Charge isn't blocked (mirrors fury's OOC charge-ready branch).
+    if not state.in_combat and (NS.spell_ready(ACTION.Charge, context.target) or false) and stance_swap_safe(state, 0) then
+        return action(context, battle_stance_action())
+    end
     return false
 end
 
@@ -619,6 +627,12 @@ local function berserker_stance_matches(context, state)
     end
     if state.ww_ready and stance_swap_safe(state, 25) and (state.enemy_count >= 2 or state.rage >= 45) then return action(context, berserker_stance_action()) end
     if state.is_pvp and state.target_distance >= 8 and stance_swap_safe(state, 10) then return action(context, berserker_stance_action()) end
+    -- Interrupts: swap to Berserker so Pummel can fire (PvE interrupt windows
+    -- otherwise never trigger a stance swap and Pummel stays dead outside
+    -- WW/Execute windows — mirrors the pvp gap-closer branch above).
+    if state.target_is_casting and state.target_casting_interruptible and state.pummel_ready and stance_swap_safe(state, 10) then
+        return action(context, berserker_stance_action())
+    end
     return false
 end
 
@@ -743,6 +757,13 @@ local DSL_DEFS = {
         name = "Execute",
         conditions = {
             { type = "state", field = "execute_phase", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- TBC Execute requires Battle or Berserker stance (never Defensive).
+                -- The arms stance matchers swap to Berserker for execute phase, so
+                -- both stances must be accepted here.
+                local stance = state.stance or context.stance or STANCE.BATTLE
+                return stance == STANCE.BATTLE or stance == STANCE.BERSERKER
+            end },
             { type = "custom", fn = function(context, state)
                 local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
                 return (state.rage or 0) >= min_rage

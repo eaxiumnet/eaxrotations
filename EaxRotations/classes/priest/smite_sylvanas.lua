@@ -1,7 +1,9 @@
 -- smite_sylvanas.lua — Priest Holy DPS for TBC Anniversary (2.5.5).
 -- WHAT:  holy damage spec — Holy Fire > Surge-of-Light Smite > SW:P > Mind Blast,
 --         with Power Infusion + Inner Focus burst, racials (Starshards, Devouring Plague),
---         and mana conservation tiers (downrank at <30%, wand-only at <5%).
+--         and mana conservation tiers (Smite blocked below the conserve floor, wand-only at <5%).
+--         NOTE: SmiteFiller always casts max-rank Smite — no downranking is implemented;
+--         the mana tiers gate casting entirely rather than selecting ranks.
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors TBC smite/holy dps consensus from Icy Veins/Wowhead: HF > SoL Smite > SW:P > MB, PI/IF burst, mana tiers.
 -- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs;
@@ -66,7 +68,7 @@ local PLAYER_UNIT = NS.PLAYER_UNIT
 
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local DEVOURING_PLAGUE_DEBUFF = { 2944, 19276, 19277, 19278, 19279, 19280, 25467 }
-local SURGE_OF_LIGHT_BUFF = 33151
+local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }  -- SoL proc auras: 33151 (1/2 talent) and 33154 (2/2 talent, both verified in the 2.5.5 DBC)
 local INNER_FOCUS_BUFF = 14751
 local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
 local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
@@ -131,6 +133,9 @@ local SMITE_SCHEMA = {
 local function build_state(context)
     local target = context.target
     local player = NS.GetPlayer()
+    -- Nil player guard (mirrors discipline/holy/shadow build_state): bail with
+    -- the schema defaults instead of dereferencing player.is_moving / mana_pct.
+    if not player then return spec_kit.safe_state(smite_state, SMITE_SCHEMA) end
 
     context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
@@ -166,7 +171,13 @@ local function build_state(context)
     smite_state.enemy_count = context.enemy_count or context.enemies_count or 1
     smite_state.mana_low = smite_state.mana_pct < spec_kit.setting_number(context, "smite_mana_floor", 30)
     smite_state.mana_emergency = smite_state.mana_pct < spec_kit.setting_number(context, "smite_wand_floor", 5)
-    smite_state.threat_safe = type(NS.is_threat_safe) == "function" and NS.is_threat_safe() or true
+    if type(NS.is_threat_safe) == "function" then
+        -- Pass context (mirrors shadow_sylvanas.lua): NS.is_threat_safe(context)
+        -- consults context.has_aggro, so MindBlast/SWD are actually threat-gated.
+        smite_state.threat_safe = NS.is_threat_safe(context)
+    else
+        smite_state.threat_safe = true
+    end
     smite_state.in_weave_window = smite_state.swp_active
         and (smite_state.swp_remaining or 0) > 2.0
         and (smite_state.swp_remaining or 0) < 3.0
@@ -279,7 +290,11 @@ local DSL_DEFS = {
         },
         action = { type = "custom", fn = function(context)
             local id = first_ready_item(HEALTHSTONE_IDS)
-            if id then NS.use_item_by_id(id, context.me) end
+            if id then
+                NS.use_item_by_id(id, context.me)
+                return true  -- actually consumed the healthstone: report executed
+            end
+            return false
         end },
     },
     {
@@ -500,7 +515,7 @@ local DSL_DEFS = {
                 if not spec_kit.setting_bool(context, "smite_auto_shackle", true) then return false end
                 if not context.has_valid_enemy_target then return false end
                 local ct = state.target_creature_type
-                if not ct or (ct ~= 3 and ct ~= 6) then return false end
+                if not ct or ct ~= 6 then return false end
                 if context.target and NS.debuff_up and NS.debuff_up(context.target, {9484, 9485, 10955}) then return false end
                 return true
             end },

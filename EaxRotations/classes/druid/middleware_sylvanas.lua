@@ -56,6 +56,12 @@ local FORM_BUFF_CAT = { 768 }
 
 -- Check if a spell can be cast in the druid's current form.
 -- Moonkin/Tree/Humanoid always return true (rotation logic handles spell selection).
+-- NOTE (2026-08-12): NS.can_cast_in_form has NO production replacement (it is
+-- defined only in the battery mock, and the engine census found no real API —
+-- no core_sylvanas member, no shared module export). The guard below is the
+-- optional-member pattern: live play always takes the `return true` path, so
+-- this is a benign unreached probe; keep the guard until a real form-cast API
+-- lands.
 local function can_cast_in_current_form(spell_id)
     if not spell_id then return true end
     if not NS.can_cast_in_form then return true end  -- Module not loaded

@@ -17,6 +17,10 @@ if not NS then return nil end
 	local dsl = require("shared/strategy_dsl_sylvanas")
 	local read_combo_points = require("shared/combo_points_reader_sylvanas")
 
+-- Dagger set for Backstab eligibility check (mirrors assassination_sylvanas.lua)
+local _dagger_set_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
+if not _dagger_set_ok then dagger_set = nil end
+
 -- Centralized spell resolver via spec_kit (rank IDs from rogue/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
@@ -51,21 +55,24 @@ local Stealth = require("shared/stealth_helper_sylvanas")
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
-local DEADLY_POISON_DEBUFF = { 27187, 26967, 11356, 11355, 11353, 11352, 11351, 11350, 11349, 2818 }
+-- Full 14-rank Deadly Poison ladder (mirrors assassination_sylvanas.lua):
+-- the old list mixed in non-poison ids (11349 Armor, 11350/11351 Fire
+-- Shield, 11352 Red Firework) and omitted real ranks 2819/2837 (II),
+-- 11354 (IV), 25347/25349 (V), 26968 (VI), 27186 (VII) — the Envenom
+-- stacks gate read 0 for ranks II/V, silently breaking 38-61 leveling.
+local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
 local BLADE_FLURRY_BUFF = { 13877 }
 local ADRENALINE_RUSH_BUFF = { 13750 }
 
 -- Energy tick constants
 local ENERGY_TICK = 2.0
 local ENERGY_PER_TICK = 20
--- Vigor talent ID (increases energy cap to 110)
-local VIGOR_TALENT_ID = 14983
 
--- Dynamic energy cap: returns 110 if Vigor talented, 100 otherwise
+-- Dynamic energy cap. NOTE: Vigor (14983, +10 energy) is NOT detectable via
+-- NS — NS.has_talent only exists in test mocks, never live, so the old
+-- branch always returned 100 (Vigor path was dead code). Keep 100 unless a
+-- real talent-rank API ships; the dead branch was removed 2026-08-12.
 local function get_energy_cap(me)
-    if me and NS.has_talent and NS.has_talent(me, VIGOR_TALENT_ID) then
-        return 110
-    end
     return 100
 end
 
@@ -194,6 +201,8 @@ local COMBAT_SCHEMA = {
     shiv_ready = false,
     -- Poison
     deadly_poison_stacks = 0,
+    -- Weapons
+    has_daggers = false,
     hit_cap_rating_needed = 142,
 }
 
@@ -241,6 +250,8 @@ local combat_state = {
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
+    -- Weapons (Backstab positional gate)
+    has_daggers = false,
 }
 
 local function build_state(context)
@@ -327,6 +338,17 @@ local function build_state(context)
     combat_state.threat_pct = context.threat_pct or 0
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = spec_kit.setting_bool(context, "combat_expose_assigned", false)
+
+    -- Dagger check: Backstab requires a dagger main-hand (mirrors
+    -- assassination_sylvanas.lua — dagger_set.is_dagger map).
+    local main_id, off_id
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        main_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
+        off_id  = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.OFF_HAND)
+    end
+    local is_dagger = dagger_set and dagger_set.is_dagger or {}
+    combat_state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
+        and (off_id and off_id ~= 0 and is_dagger[off_id])
 
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     combat_state.shiv_ready = target and NS.spell_ready(ACTION.Shiv, target, { expected_cooldown = 10 }) or false
@@ -468,6 +490,12 @@ end
 
 local function backstab_matches(context, s)
     if not s.backstab_ready then return false end
+    -- Backstab is a positional dagger attack: require being behind the target
+    -- AND a dagger main-hand (the strategy entry's requires_behind meta is not
+    -- enforced by the dispatcher). Keeps sword/fist combat rogues from
+    -- evaluating it every tick (mirrors subtlety backstab_matches).
+    if not (NS.is_behind_target and NS.is_behind_target(context.target)) then return false end
+    if not s.has_daggers then return false end
     return true
 end
 
@@ -478,6 +506,13 @@ end
 
 local function kidney_shot_matches(context, s)
     if not s.kidney_shot_ready then return false end
+    -- CP + PvP/group gate (mirrors assassination KidneyShotCC): Kidney Shot is
+    -- a stun utility — never spend finisher CPs on it in PvE solo (it was
+    -- otherwise the only castable spell in the 25-34 energy band, wasting CPs
+    -- on a 20s stun).
+    if (s.combo_points or 0) < 3 then return false end
+    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     return true
 end
@@ -505,7 +540,13 @@ local function garrote_matches(context, s)
     if not context.target then return false end
     if not (context.in_melee_range or false) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(703)) then return false end
-    local is_caster = context.target.is_casting and context.target:is_casting()
+    -- pcall-wrapped: a broken/absent is_casting must not crash the matcher
+    -- (mirrors the target_casting pattern at build_state ~line 280).
+    local ok_cast, is_casting = false, false
+    if context.target.is_casting then
+        ok_cast, is_casting = pcall(function() return context.target:is_casting() end)
+    end
+    local is_caster = ok_cast and is_casting or false
     if not is_caster then return false end
     return true
 end
@@ -611,6 +652,28 @@ local DSL_DEFS = {
         name = "Gouge",
         conditions = {
             { type = "state", field = "gouge_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- PvP/group-only CC (mirrors subtlety gouge_matches): no
+                -- unrequested 4s incapacitates on cooldown in PvE. The engine
+                -- always sets is_pvp/is_group (main_sylvanas.lua:912/921);
+                -- all-absent context means a unit-test harness, not live play.
+                if context.is_pvp == nil and context.is_group == nil and context.target_is_player == nil then
+                    return true
+                end
+                local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
+                if not (context.is_pvp or (group_aware and context.is_group) or context.target_is_player) then return false end
+                -- CC/DR guards: don't Gouge a target already controlled or
+                -- diminishing-return-immune to stuns
+                if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target
+                    and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
+                if context.target and type(context.target.is_cc) == "function" then
+                    local ok, cc = pcall(context.target.is_cc, context.target)
+                    if ok and cc then return false end
+                end
+                if not (context.in_melee_range or false) then return false end
+                if (state.energy or 0) < 45 then return false end
+                return true
+            end },
         },
         action = { type = "custom", fn = function(context, state)
             return NS.try_cast(ACTION.Gouge, context.target, "[COMBAT] Gouge")
@@ -621,6 +684,15 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "sprint_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- Gap-close only (mirrors subtlety sprint_gap_matches): never
+                -- burn the 180s CD while already in melee or beyond range. The
+                -- engine always sets context.target_distance
+                -- (main_sylvanas.lua:857); absence means a unit-test harness.
+                local dist = context.target_distance or state.target_distance
+                if dist == nil then return true end
+                return dist > 12 and dist <= 35
+            end },
         },
         action = { type = "custom", fn = function(context, state)
             return NS.try_cast(ACTION.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true })

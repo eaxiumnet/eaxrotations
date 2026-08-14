@@ -116,6 +116,36 @@ end
 
 NS.ShamanHealing.all_members_above_hp = all_members_above_hp
 
+local function count_below_hp(threshold)
+    scan_healing_targets()
+    return healing_count_below_hp(healing_targets, healing_targets_count, threshold)
+end
+
+NS.ShamanHealing.count_below_hp = count_below_hp
+
+-- Average mana percentage across the scanned healing entries (group-mana
+-- condition for ManaTideTotem). Returns nil when no entries or no mana data.
+local function group_mana_avg()
+    scan_healing_targets()
+    if healing_targets_count <= 0 then return nil end
+    local sum = 0
+    local n = 0
+    for i = 1, healing_targets_count do
+        local entry = healing_targets[i]
+        if entry and entry.unit then
+            local m = mana_pct(entry.unit)
+            if type(m) == "number" then
+                sum = sum + m
+                n = n + 1
+            end
+        end
+    end
+    if n == 0 then return nil end
+    return sum / n
+end
+
+NS.ShamanHealing.group_mana_avg = group_mana_avg
+
 local function get_cleanse_target()
     scan_healing_targets()
     return healing_get_cleanse_target(healing_targets, healing_targets_count)

@@ -331,11 +331,27 @@ local function entry_needs_cleanse(entry)
  return entry.needs_cleanse or entry.has_poison or entry.has_disease or entry.has_magic
 end
 
+-- Mana-using classes (paladin, hunter, priest, shaman, mage, warlock, druid).
+-- build_healing_entries never sets power_type/mana_pct/is_caster/role — entries
+-- only carry unit/hp/effective_hp/deficit/incoming_*/is_tank + decorate fields —
+-- so the checks above can never fire live (Blessing of Wisdom was unreachable).
+local MANA_CLASS_IDS = { [2] = true, [3] = true, [5] = true, [7] = true, [8] = true, [9] = true, [11] = true }
+
 local function entry_is_mana_user(entry)
- if not can_help(entry) then return false end
- if entry.power_type == NS.POWER_MANA then return true end
- if type(entry.mana_pct) == "number" then return true end
- return entry.is_caster == true or entry.role == "healer" or entry.role == "caster"
+	if not can_help(entry) then return false end
+	if entry.power_type == NS.POWER_MANA then return true end
+	if type(entry.mana_pct) == "number" then return true end
+	if entry.is_caster == true or entry.role == "healer" or entry.role == "caster" then return true end
+	-- Real mana-user signal: the unit's class. pcall-guarded (unit API can be
+	-- broken); tanks are excluded because they already receive Blessing of Light.
+	local unit = entry.unit
+	if unit and type(unit.get_class) == "function" then
+		local ok, class_id = pcall(unit.get_class, unit)
+		if ok then return MANA_CLASS_IDS[class_id] == true end
+	end
+	-- No class API (tests/edge): non-tank entries are the best proxy — the
+	-- tank slot is covered by Blessing of Light, everyone else gets Wisdom.
+	return entry.is_tank ~= true
 end
 
 local function should_use_greater_blessing(s)
@@ -998,8 +1014,14 @@ local strategies = {
    if not choose_smart_heal(context, s, s.tank) or not NS.spell_ready(s.heal_spell, s.tank.unit, EMPTY_OPTS) then return false end
    -- Predictive overheal gate for tank pre-heal
    if s.heal_spell then
-    local spell_key = (s.heal_spell == ACTION.HolyLight) and "HolyLight" or "FlashOfLight"
-    local cast_time = (s.heal_spell == ACTION.HolyLight) and 2.5 or 1.5
+    -- The holy ACTION table has no "HolyLight" key (ranks are the separate
+    -- HolyLightRank11/9/7/4 locals), so comparing against ACTION.HolyLight
+    -- never matched and every Holy Light pre-heal was gated as "FlashOfLight"
+    -- with a 1.5s window on a 2.5s cast. Compare against the rank locals.
+    local is_holy_light = s.heal_spell == HolyLightRank11 or s.heal_spell == HolyLightRank9
+     or s.heal_spell == HolyLightRank7 or s.heal_spell == HolyLightRank4
+    local spell_key = is_holy_light and "HolyLight" or "FlashOfLight"
+    local cast_time = is_holy_light and 2.5 or 1.5
     if gate_overheal(spell_key, s.tank.unit, cast_time, context.settings, _spell_id(s.heal_spell)) then return false end
    end
    return true

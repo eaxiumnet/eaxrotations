@@ -94,7 +94,7 @@ local WF_TOTEM_SPELLS = { 8512, 10607, 10611, 25585, 25587 }
 local GOA_TOTEM_SPELLS = { 8835, 10626, 10627, 25359 }
 
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
-local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 33736, 24398 }
+local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 33736, 24398, 23575 }  -- r3/r2/r1 (23575 = rank 1, verified in _dbc_spell_ids.lua)
 local SHIELD_REFRESH_UNKNOWN_MS = 30000
 local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local WINDFURY_WEAPON_SPELLS = { 25505, 16362, 10486, 8235, 8232 }
@@ -345,9 +345,13 @@ local function build_state(context)
         enh_state.effective_mode = enh_state.combat_mode
     end
 
-    -- -- Player level for auto weapon buff selection
+    -- -- Player level for auto weapon buff selection (get_level called once per frame)
     local player = me or NS.GetPlayer()
-    enh_state.player_level = (player and player.get_level and pcall(player.get_level, player) and ({pcall(player.get_level, player)})[2]) or 70
+    local ok_level, level_value
+    if player and player.get_level then
+        ok_level, level_value = pcall(player.get_level, player)
+    end
+    enh_state.player_level = (ok_level and type(level_value) == "number" and level_value) or 70
     if type(enh_state.player_level) ~= "number" then enh_state.player_level = 70 end
 
     -- -- Auto weapon buffs by level (best_weapon_buff_for_level is module-scoped)
@@ -475,34 +479,9 @@ local function build_state(context)
     enh_state.totemic_call_ready = me and NS.spell_ready(ACTION.TotemicCall, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(ACTION.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
 
-    -- -- Totem phase tracking for twisting (check air slot = 4)
-    -- IZI SDK: prefer unit:get_totem_info(slot) on player for accurate duration tracking
-    local air_info = nil
-    if me and type(me.get_totem_info) == "function" then
-        local ok_ti, active, name, start, dur = pcall(me.get_totem_info, me, 4)
-        if ok_ti and active then
-            air_info = { have_totem = true, spell_id = 0, start_time = start or 0, duration = dur or 0 }
-        end
-    end
-    if not air_info then
-        air_info = NS.get_totem_info and NS.get_totem_info(4)
-    end
-    if air_info and air_info.have_totem then
-        local air_remains = (air_info.duration or 0) - ((NS.game_time_ms and NS.game_time_ms() or 0) / 1000 - (air_info.start_time or 0))
-        if air_remains < 0 then air_remains = 0 end
-        -- Determine current phase from active totem spell_id
-        local sid = air_info.spell_id or 0
-        local is_wf = false
-        local is_grace = false
-        for i = 1, #(WINDFURY_WEAPON_SPELLS or {}) do
-            if sid == WINDFURY_WEAPON_SPELLS[i] then is_wf = true; break end
-        end
-        -- Windfury Totem spell IDs differ from weapon imbues; check against totem spell list
-        for i = 1, #WF_TOTEM_SPELLS do if sid == WF_TOTEM_SPELLS[i] then is_wf = true; break end end
-        for i = 1, #GOA_TOTEM_SPELLS do if sid == GOA_TOTEM_SPELLS[i] then is_grace = true; break end end
-        -- twist_phase intentionally removed; matching is now buff-driven
-    else
-    end
+    -- (totem phase tracking for twisting removed 2026-08-12: air_info/air_remains/
+    -- is_wf/is_grace were computed every frame and then discarded — matching is
+    -- buff-driven via _wf_buff_remains/_goa_buff_remains, so this was dead work)
 
     -- Prefer CLEU-backed swing timer; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
@@ -841,6 +820,9 @@ end
 -- ============================================================================
 -- Spell match functions
 -- ============================================================================
+-- Nature's Swiftness (documented 2026-08-12): casts with no paired heal — the
+-- NS buff can expire unused if no heal is needed immediately. Pairing the next
+-- heal is intentionally out of scope for this melee spec (would need heal state).
 local function natures_swiftness_matches(ctx)
     if not cooldowns_enabled(ctx) then return false end
     if not enh_state.in_combat then return false end
@@ -881,8 +863,9 @@ end
 
 local function chain_lightning_matches(ctx)
     if not enh_state.chain_lightning_ready then return false end
-    -- AoE mode: CL if enough enemies
-    if enh_state.effective_mode == "single" and (enh_state.enemy_count or 0) < 2 then return false end
+    -- AoE gate: respect the configured enhancement_aoe_threshold (default 3)
+    -- instead of a hardcoded 2 — CL is a GCD + mana sink below the threshold.
+    if (enh_state.enemy_count or 0) < (enh_state.aoe_threshold or 3) then return false end
     return true
 end
 
@@ -1226,6 +1209,7 @@ local DSL_DEFS = {
         conditions = {
             { type = "setting", key = "use_cooldowns", op = "==", value = true, default = true },
             { type = "setting", key = "enhancement_cd_mana_tide", op = "==", value = true, default = true },
+            { type = "in_combat" },
             { type = "state", field = "mana_tide_totem_ready", op = "truthy" },
             { type = "state", field = "mana_pct", op = "<=", value = 60 },
         },
@@ -1269,6 +1253,13 @@ local DSL_DEFS = {
                 return true
             end },
             { type = "state", field = "mana_low", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                -- PvE GCD economy: don't burn Frost Shock on CD in single-target
+                -- fights; only spend it with Flame Shock up, or as a PvP/moving snare.
+                if context.is_pvp then return true end
+                if context.is_moving then return true end
+                return state.target_has_flame_shock == true
+            end },
         },
         action = { type = "cast", spell = ACTION.FrostShock, target = "target", label = "[ENHANCEMENT] Frost Shock" },
     },

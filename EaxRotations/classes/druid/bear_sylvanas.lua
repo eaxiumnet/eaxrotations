@@ -297,15 +297,6 @@ local function rage_allows_filler(state, rage_cost)
     return not would_starve_mangle(state, rage_cost)
 end
 
-local function update_rage_tracking(state)
-    local now   = state.now
-    local elapsed = now - (state.last_rage_time or 0)
-    if elapsed > 0 and elapsed < 5 then
-    else
-    end
-    state.last_rage_time = now
-end
-
 -------------------------------------------------------------------------------
 -- BEAR SCHEMA  (for spec_kit.safe_state — Pattern 14 nil-guard elimination)
 -- Fields NOT listed here use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, etc.).
@@ -438,8 +429,6 @@ local function build_state(context)
     end
     state.swing_remains = swing_remains
 
-    update_rage_tracking(state)
-
     if NS.SnapThreat and type(NS.SnapThreat.check) == "function" and state.is_bear then
         local snap_spell = NS.SnapThreat.check(state.me, state.target, context.settings, {
             spell_id = ACTION.Growl,
@@ -499,8 +488,9 @@ local _bear_form_cast_at = 0
 
 local function pre_pull_enrage_matches(context, action)
     local s = build_state(context)
+    -- RAGE_POOL_PULL and OOC_ENRAGE_MAX are both 20; a single >= check covers
+    -- both thresholds (previously duplicated as >= 20 then > 20).
     if (s.rage or 0) >= RAGE_POOL_PULL then return false end
-    if (s.rage or 0) > OOC_ENRAGE_MAX then return false end
     return action_ready(context, action)
 end
 
@@ -517,7 +507,10 @@ end
 local function faerie_fire_pull_matches(context, action)
     local s = build_state(context)
     -- pull only; never chain-pull mid-combat
-    if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
+    -- No-armor sentinel: main_sylvanas.lua:820 sets context.target_armor =
+    -- get_armor() or 0, so 0 (not 1) is the "no armor / API unavailable" value
+    -- (unified with balance_sylvanas:435 and cat_sylvanas:959).
+    if (context.target_armor or 0) <= 0 then return false end   -- mob has no armor
     if s.in_melee then return false end
     if (s.target_range or 40) > 30 then return false end
     if (s.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
@@ -571,8 +564,10 @@ local function bash_interrupt_matches(context, action)
     local mgr = NS.InterruptManager
     if mgr then
         if NS.try_interrupt and not NS.try_interrupt(s.target) then return false end
-        if mgr.cast_has_interrupt_window and not mgr.cast_has_interrupt_window(s.target, settings) then return false end
-        if mgr.humanize_interrupt_elapsed and not mgr.humanize_interrupt_elapsed(s.target, settings) then return false end
+        -- NOTE: the second arg was a bare `settings` (no such local — nil was
+        -- passed silently); s.settings is the resolved context.settings.
+        if mgr.cast_has_interrupt_window and not mgr.cast_has_interrupt_window(s.target, s.settings) then return false end
+        if mgr.humanize_interrupt_elapsed and not mgr.humanize_interrupt_elapsed(s.target, s.settings) then return false end
     else
         if not s.target_is_casting then return false end
         if not s.target_interruptible then return false end
@@ -753,7 +748,8 @@ local DSL_DEFS = {
         conditions = {
             { type = "custom", fn = function(context, state)
                 if not state.is_bear or not state.in_combat or not state.has_valid_target then return false end
-                if (context.target_armor or 0) == 1 then return false end
+                -- No-armor sentinel: 0 (not 1) — see faerie_fire_pull_matches.
+                if (context.target_armor or 0) <= 0 then return false end
                 if (state.target_range or 40) > 30 then return false end
                 if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
                 return action_ready(context, { spell = ACTION.FaerieFireFeral })
@@ -865,12 +861,36 @@ local function base_guard_passes(action_def, s)
 end
 
 
+-- Per-frame merged-state cache for the base guard layer. The dispatcher passes
+-- the SAME built state object to every strategy on a frame; merge_state then
+-- rebuilt + copied it per strategy (~3 small allocs x N strategies/frame).
+-- Keyed on (context.now, state) so the live path merges once per frame while
+-- test callers that pass partial overrides or distinct state objects still get
+-- a correct per-call merge. No caching when state is nil or now is unset.
+local _guard_state_frame = -1
+local _guard_state_override = nil
+local _guard_state_merged = nil
+
+local function guard_merged_state(context, state)
+    local frame = context and context.now
+    if state ~= nil and frame ~= nil and frame == _guard_state_frame and state == _guard_state_override then
+        return _guard_state_merged
+    end
+    local merged = merge_state(build_state, context, state)
+    if state ~= nil and frame ~= nil then
+        _guard_state_frame = frame
+        _guard_state_override = state
+        _guard_state_merged = merged
+    end
+    return merged
+end
+
 local function apply_base_matches(strategies, actions)
     for i = 1, #strategies do
         local action = actions[i]
         local original_matches = strategies[i].matches
         strategies[i].matches = function(context, state)
-            local s = merge_state(build_state, context, state)
+            local s = guard_merged_state(context, state)
             if not base_guard_passes(action, s) then return false end
             return original_matches(context, s)
         end

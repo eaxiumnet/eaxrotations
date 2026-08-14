@@ -381,7 +381,12 @@ local function build_state(context)
     fury_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
     fury_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
     fury_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
-    fury_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) and fury_state.stance == STANCE.BATTLE
+    -- Live-correctness fix: overpower_ready must NOT require Battle stance here.
+    -- The old gate (`... and fury_state.stance == STANCE.BATTLE`) created a
+    -- circular dependency: battle_stance_matches swaps INTO Battle only when
+    -- state.overpower_ready is true, but the proc was gated on ALREADY being in
+    -- Battle — from Berserker (the default DPS stance) the weave never fired.
+    fury_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) or false
     fury_state.death_wish_ready = NS.spell_ready(ACTION.DeathWish, me, { skip_range = true }) or false
     fury_state.recklessness_ready = NS.spell_ready(ACTION.Recklessness, me, { skip_range = true }) or false
     fury_state.berserker_rage_ready = NS.spell_ready(ACTION.BerserkerRage, me, { skip_range = true }) or false
@@ -473,8 +478,12 @@ local function charge_matches(context, state)
         if target_in_combat then return false end
     end
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
-    -- Openers only: stay in Battle Stance between fights
-    if state.stance ~= STANCE.BATTLE and not stance_swap_safe(state, 0) then return false end
+    -- Openers only: stay in Battle Stance between fights. The old guard
+    -- (`not stance_swap_safe(state, 0)`) was dead — stance_swap_safe with cost 0
+    -- is always true (preserved rage >= 0). Keep the meaningful stance gate;
+    -- the swap into Battle is handled by the BattleStance strategy's OOC
+    -- charge-ready branch, and the action row's required_stance enforces it too.
+    if state.stance ~= STANCE.BATTLE then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
 end
 
@@ -1024,7 +1033,8 @@ local STRATEGY_SPECS = {
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     { "SwingDesync", swing_desync_matches, build_action("SwingDesync", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
-    -- Overpower REMOVED from Fury: Arms-only in TBC
+    -- SunderArmor: optional armor-reduction stacks (Overpower IS present above —
+    -- the opt-in weave is wowsims fury APL behavior, not "removed from Fury")
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },
     { "DemoralizingShout" },  -- DSL-substituted at runtime
     -- Rage dumps

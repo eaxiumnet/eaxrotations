@@ -158,6 +158,7 @@ local SUB_SCHEMA = {
     healthstone_ready = 0,  is_behind = false,  is_caster_target = false,
     control_active = false,  threat_pct = 0,
     vanish_cd = 0,  sprint_cd = 0,  evasion_cd = 0,
+    kidney_remains = 0,
     shiv_ready = false,  shiv_purge_name = nil,  is_group = false,
 }
 
@@ -243,9 +244,14 @@ local function build_state(context)
     subtlety_state.is_behind = NS.is_behind_target and NS.is_behind_target(target) or false
     subtlety_state.is_caster_target = target_is_casting(target)
     subtlety_state.threat_pct = context.threat_pct or 0
-    subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(ACTION.Vanish) or 0
-    subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(ACTION.Sprint) or 0
-    subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(ACTION.Evasion) or 0
+    -- Cooldown reads for the Preparation reset (has_cd_burned gate). Prefer
+    -- NS.get_spell_cd ONLY as a mock fallback — it never exists live (battery
+    -- stub is bank-aware; production falls through to the real
+    -- NS.get_spell_cooldown, core_sylvanas.lua:1694).
+    local cd_remaining = NS.get_spell_cd or NS.get_spell_cooldown
+    subtlety_state.vanish_cd = cd_remaining and cd_remaining(ACTION.Vanish) or 0
+    subtlety_state.sprint_cd = cd_remaining and cd_remaining(ACTION.Sprint) or 0
+    subtlety_state.evasion_cd = cd_remaining and cd_remaining(ACTION.Evasion) or 0
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     subtlety_state.shiv_ready = context.target and NS.spell_ready(ACTION.Shiv, context.target, { expected_cooldown = 10 }) or false
     subtlety_state.shiv_purge_name = nil
@@ -316,6 +322,11 @@ local function sap_matches(context, state)
     if context.in_combat then return false end
     if not state.stealth_up then return false end
     if not has_enemy(context) then return false end
+    -- PvP/group gate: an unconditional Sap on every pull target gets broken by
+    -- the next Ambush/Garrote tick, wasting the Sap CD and DR-ing the target.
+    -- Keep Sap for PvP / multi-target pull setups (mirrors gouge/blind gates).
+    local group_aware = setting(context, "rogue_group_aware_utility", true)
+    if not is_pvp_target(context) and not (group_aware and (context.is_group or false)) then return false end
     return NS.spell_ready(ACTION.Sap, context.target)
 end
 
@@ -337,6 +348,10 @@ local function ambush_opener_matches(context, state)
     local opener = opener_preference(context, state)
     if opener ~= "ambush" and not state.shadowstep_buff then return false end
     if not enough_energy(state, ENERGY_AMBUSH) then return false end
+    -- Ambush requires being behind the target (the entry's requires_behind
+    -- meta is not enforced by the dispatcher). A Shadowstep-buffed Ambush is
+    -- exempt — Shadowstep lands you behind and the buff proves it fired.
+    if not state.is_behind and not state.shadowstep_buff then return false end
     return NS.spell_ready(ACTION.Ambush, context.target)
 end
 
@@ -389,6 +404,9 @@ end
 
 local function cloak_matches(context, state)
     if setting(context, "rogue_use_cloak", true) == false then return false end
+    -- Defensive-only: never fire at full HP just because the target casts
+    -- (PvP remains allowed — magic dispel/escape matters there).
+    if (state.hp or 100) > 70 and not (context.is_pvp or false) then return false end
     if (state.hp or 100) > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
     return NS.spell_ready(ACTION.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -432,6 +450,7 @@ local function gouge_matches(context, state)
 end
 
 local function shadowstep_gap_matches(context, state)
+    if not context.in_combat then return false end  -- never burn the 30s CD OOC
     if not use_shadowstep_now(context) then return false end
     if not in_shadowstep_range(context, state) then return false end
     return NS.spell_ready(ACTION.Shadowstep, context.target)
@@ -455,11 +474,12 @@ local function preparation_matches(context, state)
     local in_burst = context.should_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
     if (state.hp or 100) > setting(context, "subtlety_prep_hp", 40) then return false end
-    -- Only use when at least one major cooldown is actually on cooldown
-    if NS.get_spell_cd then
-        local has_cd_burned = (state.vanish_cd or 0) > 0 or (state.sprint_cd or 0) > 0 or (state.evasion_cd or 0) > 0
-        if not has_cd_burned then return false end
-    end
+    -- Only use when at least one major cooldown is actually on cooldown.
+    -- vanish_cd/sprint_cd/evasion_cd are populated in build_state from the
+    -- real cooldown API (NS.get_spell_cooldown); previously the NS.get_spell_cd
+    -- guard was always nil live, so Preparation never fired.
+    local has_cd_burned = (state.vanish_cd or 0) > 0 or (state.sprint_cd or 0) > 0 or (state.evasion_cd or 0) > 0
+    if not has_cd_burned then return false end
     if not context.in_combat then return false end
     return NS.spell_ready(ACTION.Preparation, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -475,12 +495,17 @@ end
 local function shadowstep_hemo_matches(context, state)
     if not state.shadowstep_buff then return false end
     if not enough_energy(state, ENERGY_HEMORRHAGE) then return false end
+    -- Sequencing: a due SnD refresh (<= 3s remains, >= 2 CP) must not be
+    -- delayed by a 35-energy Hemo — SliceAndDice sits below this lane.
+    if (state.slice_remains or 0) <= SND_REFRESH and (state.combo or 0) >= 2 then return false end
     return NS.spell_ready(ACTION.Hemorrhage, context.target)
 end
 
 local function hemo_debuff_matches(context, state)
     if not hemo_refresh_needed(context, state) then return false end
     if not enough_energy(state, ENERGY_HEMORRHAGE) then return false end
+    -- Sequencing: same SnD-refresh guard as ShadowstepHemorrhage.
+    if (state.slice_remains or 0) <= SND_REFRESH and (state.combo or 0) >= 2 then return false end
     return NS.spell_ready(ACTION.Hemorrhage, context.target)
 end
 

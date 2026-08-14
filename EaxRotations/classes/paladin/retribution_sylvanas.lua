@@ -175,6 +175,9 @@ end
 local _last_twist_result = nil
 local _last_twist_log_time = 0
 local _last_expected_swing_time = 0
+-- Seal chosen by SealTwistBlood's matches() (Blood or Martyr depending on
+-- availability); execute() casts whatever matches() picked.
+local _last_twist_spell = nil
 
 local function log_twist_result(result)
     _last_twist_result = result
@@ -189,9 +192,10 @@ local function log_twist_result(result)
     if not diag_enabled then return end
     -- CLEU provides authoritative twist logging; skip client-side guess when active.
     if _cleu and _cleu.is_active() then return end
-    local ok, has_core = pcall(function() return core and core.log and core.log.info end)
-    if ok and has_core then
-        pcall(core.log.info, string.format("[RET] Seal twist: %s", result))
+    -- The documented API is core.log(message) — core.log.info does not exist.
+    -- Use the file's NS.log (mirrors every other spec in this tree).
+    if NS.log then
+        NS.log(string.format("[RET] Seal twist: %s", result))
     end
 end
 
@@ -250,8 +254,7 @@ local function post_swing_judge_gate(context, state)
     if not spec_kit.setting_bool(context, "retri_post_swing_judge", true) then return true end
     local swing_remains = state.swing_remains or 99
     if swing_remains < 0.3 then return false end -- too close to swing, wait
-    if swing_remains > 1.5 then return true end   -- just swung, safe to judge
-    return true -- in the middle of swing cycle, allow
+    return true -- just swung or mid-cycle: safe to judge
 end
 
 local function has_player_debuff(ids)
@@ -341,33 +344,73 @@ local function should_use_blood(context)
     return ACTION.SealBlood ~= nil
 end
 
+-- Seal of Blood (31892) is Horde-only; the TBC Anniversary Alliance
+-- counterpart is Seal of the Martyr (348700). NS.unit_faction does not exist
+-- in the production core API (defined only in test mocks), so faction cannot
+-- be detected directly — instead detect whether Blood is even usable.
+local function blood_available()
+    if NS.is_spell_learned then
+        local ok, learned = pcall(NS.is_spell_learned, 31892)
+        if ok then return learned == true end
+    end
+    -- No learn-check API (unit tests): probe via spell_ready, which fails for
+    -- unlearned spells in production.
+    if NS.spell_ready then
+        return NS.spell_ready(ACTION.SealBlood, PLAYER, { skip_range = true }) or false
+    end
+    return false
+end
+
 local function damage_seal_spell(state)
     if state.preferred_damage_seal == "martyr" then return ACTION.SealOfTheMartyr end
     if state.preferred_damage_seal == "blood" then return ACTION.SealBlood end
     return ACTION.SealCommand
 end
 
+-- Frame cache: apply_base_matches calls build_state once per strategy per
+-- tick (~47 full builds/frame). Reuse the state within the same frame
+-- (mirrors bear_sylvanas.lua:339-352). Cache-hit returns stay
+-- safe_state-wrapped so Pattern-14 nil-guard defaults still apply
+-- (run_cache_hit_audit_tests.lua).
+local _last_build_state_time = -1
+
 local function build_state(context)
+    -- Frame cache guard (see above).
+    local now = context.now
+    if now and now == _last_build_state_time then return spec_kit.safe_state(ret_state, RET_SCHEMA) end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if context.now then _last_build_state_time = now end
+
     local is_group = context.is_group or false
     ret_state.is_group = is_group
     ret_state.hp_pct = context.hp or health_pct(context.me, 100)
-    ret_state.mana_pct = context.mana_pct or context.mana or 100
+    -- context.mana is never set by the engine; keep context.mana_pct only.
+    ret_state.mana_pct = context.mana_pct or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
     ret_state.target_hp_pct = health_pct(context.target, context.target_hp or 100)
     -- Prefer CLEU-authoritative swing timer when available; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
     ret_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or (context.time_to_swing or 0)
-    ret_state.can_use_blood = should_use_blood(context)
-    ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"
     -- [ARTISTRY] Improved: Dynamic Twist Window from settings (ms to seconds)
     local twist_ms = spec_kit.setting_number(context, "retri_twist_window", 450)
     ret_state.twist_window = twist_ms / 1000
-    -- Alliance faction override: Seal of the Martyr replaces Seal of Blood
-    if ACTION.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer and NS.GetPlayer() then
-        local faction = NS.unit_faction(NS.GetPlayer())
-        if faction == "Alliance" and ret_state.preferred_damage_seal == "blood" then
-            ret_state.preferred_damage_seal = "martyr"
-        end
+    local seal_pref = spec_kit.setting(context, "seal_preference", spec_kit.setting(context, "retri_seal_preference", "auto"))
+    ret_state.can_use_blood = should_use_blood(context)
+    if ret_state.can_use_blood and not blood_available() then
+        -- Alliance: Seal of Blood (31892) is never learned on this character.
+        ret_state.can_use_blood = false
+    end
+    if ret_state.can_use_blood then
+        ret_state.preferred_damage_seal = "blood"
+    elseif seal_pref == "command" then
+        ret_state.preferred_damage_seal = "command"
+    else
+        -- Auto (or blood-unavailable): Seal of the Martyr (348700) is the TBC
+        -- Anniversary Alliance replacement. The old NS.unit_faction branch was
+        -- mock-only (dead in production, so Alliance rets always fell to SoR),
+        -- so availability + the ret_use_martyr setting (default true) decide.
+        ret_state.preferred_damage_seal = (ACTION.SealOfTheMartyr and spec_kit.setting_bool(context, "ret_use_martyr", true))
+            and "martyr" or "command"
     end
     ret_state.has_blood = has_player_buff(SEAL_BLOOD_BUFF)
     ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
@@ -661,7 +704,16 @@ strategies[#strategies + 1] = {
         -- [ARTISTRY] Improved: Use dynamic twist_window instead of hardcoded 0.45s
         local twist_window = state.twist_window or TWIST_WINDOW
         local swing_remains = state.swing_remains or 99
-        if not (state.can_twist and state.has_command and not state.has_blood and swing_remains <= twist_window and NS.spell_ready(ACTION.SealBlood, PLAYER, { skip_range = true })) then
+        -- Twisted seal: Seal of Blood (31892) on Horde; Seal of the Martyr
+        -- (348700, TBC Anniversary Alliance backport) when blood is
+        -- unavailable. The old code hardcoded SealBlood, so the twist never
+        -- fired on Alliance. Mirror the same swing-window logic.
+        local twist_spell = ACTION.SealBlood
+        if not state.can_use_blood then
+            if not (ACTION.SealOfTheMartyr and spec_kit.setting_bool(context, "ret_use_martyr", true)) then return false end
+            twist_spell = ACTION.SealOfTheMartyr
+        end
+        if not (state.can_twist and state.has_command and not state.has_blood and not state.has_martyr and swing_remains <= twist_window and NS.spell_ready(twist_spell, PLAYER, { skip_range = true })) then
             -- Diagnostic: if we're in twist window but didn't attempt, log NO-TWIST
             if state.can_twist and swing_remains <= twist_window and not state.has_blood then
                 log_twist_result("NO-TWIST")
@@ -669,11 +721,14 @@ strategies[#strategies + 1] = {
             return false
         end
         _last_expected_swing_time = (NS.time_now and NS.time_now() or 0) + swing_remains
+        _last_twist_spell = twist_spell
         return true
     end,
     execute = function()
-        if _cleu then _cleu.mark_twist_attempt(ACTION.SealBlood) end
-        local ok = cast(ACTION.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
+        local spell = _last_twist_spell or ACTION.SealBlood
+        if _cleu then _cleu.mark_twist_attempt(spell) end
+        local label = (spell == ACTION.SealOfTheMartyr) and "Martyr" or "Blood"
+        local ok = cast(spell, PLAYER, "[RET] Seal twist: " .. label, { skip_range = true })
         if ok then
             log_twist_result("PERFECT")
         else
@@ -695,7 +750,7 @@ strategies[#strategies + 1] = {
         -- If Judgement is about to come off CD (≤1.5s), skip prep and let Judgement fire first
         local judge_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.Judgement) or 0
         if judge_cd <= 1.5 then return false end
-        if not (state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(ACTION.SealCommandRank1 or ACTION.SealCommand, PLAYER, { skip_range = true })) then
+        if not (state.can_twist and (state.can_use_blood or state.preferred_damage_seal == "martyr") and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(ACTION.SealCommandRank1 or ACTION.SealCommand, PLAYER, { skip_range = true })) then
             return false
         end
         _last_expected_swing_time = (NS.time_now and NS.time_now() or 0) + swing_remains
@@ -865,6 +920,10 @@ end, function() return cast(ACTION.SealCommand, PLAYER, "[RET] Seal of Command c
 
 add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(context, state)
     if not seal_refresh_allowed(context) then return false end
+    -- Martyr path (Alliance): let Ret_SealMartyr_Fallback (435) apply Seal of
+    -- the Martyr instead — otherwise this filler (which always matches on
+    -- learned SoR) shadows the martyr path entirely.
+    if state.preferred_damage_seal == "martyr" then return false end
     return not state.has_damage_seal and not state.has_wisdom and NS.spell_ready(ACTION.SealRighteousness, PLAYER, { skip_range = true }) or false
 end, function() return cast(ACTION.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
 

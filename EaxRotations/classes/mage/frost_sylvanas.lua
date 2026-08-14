@@ -70,7 +70,10 @@ local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
 local ANY_MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local WINTERS_CHILL_DEBUFF = { 28595, 28594, 28593, 28592, 11180 }
-local FROSTBITE_DEBUFF = { 12494 }
+-- Frostbite talent procs apply a target debuff; all three talent ranks exist
+-- in TBC (DBC-verified 11071/12494/12496 = ranks 1-3) — only covering 12494
+-- missed procs from the other ranks.
+local FROSTBITE_DEBUFF = { 11071, 12494, 12496 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 
@@ -121,7 +124,7 @@ local function cold_snap_matches(context, s)
     return false
 end
 
-local function frost_nova_matches(context)
+local function frost_nova_matches(context, s)
     if not context.target then return false end
     local target = context.target
     local is_rooted = NS.debuff_up and NS.debuff_up(target, FROST_NOVA_ROOTS) or false
@@ -130,6 +133,17 @@ local function frost_nova_matches(context)
     if not me then return false end
     local dist = me.get_distance and me:get_distance(target) or 999
     if dist > 10 then return false end
+    -- Context gate (live-correctness fix): Frost Nova is a self-peel/CC tool,
+    -- not a raid/dungeon DPS filler. Mirror arcane's gating — in combat, only
+    -- allow PvP / leveling / solo / group-utility contexts. When the flags are
+    -- absent (legacy unit-test contexts) keep the open behavior.
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
+    if context.in_combat and not (context.is_pvp or context.is_leveling or context.is_solo or (group_aware and context.is_group)) then
+        return false
+    end
+    -- Readiness gate: only fire when castable (state-driven; nil state from
+    -- legacy single-arg callers falls back to allowed).
+    if s and s.frost_nova_ready == false then return false end
     return true
 end
 
@@ -144,8 +158,10 @@ local function cone_of_cold_matches(context)
     if frozen then return true end
     -- AoE: 2+ targets inside Cone of Cold frontal cone (~10yd, ESP-style facing sector)
     local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
-    if NS.aoe_cone_meets then
-        if not NS.aoe_cone_meets(2, r, nil, context) then return false end
+    -- aoe_cone_meets lives in shared/aoe_hit_volume_sylvanas (required above
+    -- as AoeHV); NS.aoe_cone_meets is mock-only, never engine-side.
+    if AoeHV and AoeHV.aoe_cone_meets then
+        if not AoeHV.aoe_cone_meets(2, r, nil, context) then return false end
     elseif not NS.aoe_self_meets or not NS.aoe_self_meets(2, r, context) then
         return false
     end
@@ -219,6 +235,7 @@ local frost_state = {
     target_frozen = false,
     mana_gem_available = false,
     ice_barrier_remains = 999,
+    frost_nova_ready = false,
     healthstone_ready = 0,
 }
 
@@ -257,6 +274,7 @@ local function build_state(context)
     frost_state.ice_barrier_ready = me and NS.spell_ready(ACTION.IceBarrier, me, { skip_range = true }) or false
     frost_state.icy_veins_ready = me and NS.spell_ready(ACTION.IcyVeins, me, { skip_range = true, expected_cooldown = 180 }) or false
     frost_state.water_elemental_ready = me and NS.spell_ready(ACTION.WaterElemental, me, { skip_range = true, expected_cooldown = 180 }) or false
+    frost_state.frost_nova_ready = me and NS.spell_ready(ACTION.FrostNova, me, { skip_range = true }) or false
     frost_state.ice_lance_ready = target and NS.spell_ready(ACTION.IceLance, target) or false
     frost_state.blizzard_ready = me and NS.spell_ready(ACTION.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
     frost_state.frostbolt_ready = target and NS.spell_ready(ACTION.Frostbolt, target, { expected_cooldown = 3 }) or false
@@ -305,8 +323,8 @@ local function cold_snap_wrapper(context, s)
     return cold_snap_matches(context, s)
 end
 
-local function frost_nova_wrapper(context)
-    return frost_nova_matches(context)
+local function frost_nova_wrapper(context, s)
+    return frost_nova_matches(context, s)
 end
 
 local function cone_of_cold_wrapper(context)
@@ -334,6 +352,13 @@ local function frostbolt_matches(context, s)
     if context.is_moving then return false end
     -- Clearcasting: always consume on Frostbolt (highest damage) per research
     if s.has_clearcasting then return true end
+    -- Winter's Chill stack-aware skip (mirrors the WintersChill lane): at 5
+    -- stacks with > 3s remaining the lane's refresh policy governs — the plain
+    -- filler must not refresh a fresh 5-stack WC early.
+    if (s.winter_chill_stacks or 0) >= 5 then
+        local wc_remains = context.target and NS.debuff_remains and NS.debuff_remains(context.target, WINTERS_CHILL_DEBUFF) or 999
+        if wc_remains > 3 then return false end
+    end
     if not s.frostbolt_ready then return false end
     return true
 end
@@ -384,6 +409,8 @@ local function polymorph_matches(context, s)
     local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.target then return false end
+    -- Polymorph has a 1.5s cast — never attempt it while moving (mirrors arcane)
+    if context.is_moving then return false end
     if not s.polymorph_ready then return false end
     -- IZI SDK: skip Polymorph if target is already CC'd
     local target = context.target
