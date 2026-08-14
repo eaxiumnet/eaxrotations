@@ -94,7 +94,7 @@ if _core and type(_core.register_on_combat_end_callback) == "function" then
     end)
 end
 
--- PvP context field constants (cc_target, cc_safe, fear_nearby, enemy_healer, melee_on_you)
+-- PvP context field constants (cc_target, cc_safe, fear_nearby, enemy_healer, enemy_caster, melee_on_you)
 local FEAR_IDS = {
     5782, 6213, 6215,  -- Fear ranks
     5484, 17928,       -- Howl of Terror
@@ -1384,6 +1384,20 @@ local function build_context()
             local ok, class_id = pcall(fast, get_class, target)
             if ok and class_id and HEALER_CLASS_IDS[class_id] then
                 _context.enemy_healer = true
+            end
+        end
+    end
+    -- PvP: Enemy caster detection for Curse of Tongues (warlock specs). A mana
+    -- pool is the precise signal: the cast-speed curse only affects classes
+    -- that cast spells, and warriors/rogues/DKs have no mana. Previously
+    -- mock-only (Pattern 17) — the CurseTongues lanes could never fire live.
+    _context.enemy_caster = false
+    if _context.is_pvp and target and _api.safe_field then
+        local get_max_mana = _api.safe_field(target, "get_max_mana")
+        if get_max_mana then
+            local ok, max_mana = pcall(fast, get_max_mana, target)
+            if ok and type(max_mana) == "number" and max_mana > 0 then
+                _context.enemy_caster = true
             end
         end
     end
