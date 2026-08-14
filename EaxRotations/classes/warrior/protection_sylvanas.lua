@@ -77,7 +77,14 @@ local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
     if not inventory_helper then return nil end
     for _, id in ipairs(ids) do
-        if inventory_helper.has_item(id) then return id end
+        if inventory_helper.has_item(id) then
+            -- Cooldown-aware (mirrors arms_sylvanas.lua:374): presence alone
+            -- made the Healthstone lane match every tick while the stone was
+            -- on CD, monopolizing the rotation at hp <= 28 (fix 2026-08-14).
+            -- All healthstone ranks share the 2-min cooldown category.
+            if NS.is_item_ready and not NS.is_item_ready(id) then return nil end
+            return id
+        end
     end
     return nil
 end

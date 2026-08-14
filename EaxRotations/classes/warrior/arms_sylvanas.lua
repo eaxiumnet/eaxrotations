@@ -119,8 +119,13 @@ local function is_feared_sapped_or_incapacitated(unit)
     return false
 end
 
--- Healthstone item IDs (TBC, best to worst)
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22116, 22105, 22104, 22103, 22102, 22101 }
+-- Healthstone item IDs (TBC, best to worst). The TBC global was previously
+-- never required — the data branch was dead and the literal fallback always
+-- won. Wire the era data module (resto_sylvanas pattern) so the full stone
+-- ladder (incl. classic-era ranks for leveling) is live (fix 2026-08-14).
+local _hs_ok, TBC_ITEMS = pcall(require, "shared/tbc_data_sylvanas")
+local HEALTHSTONE_IDS = (TBC_ITEMS and TBC_ITEMS.ITEMS and TBC_ITEMS.ITEMS.healthstones)
+    or { 22116, 22105, 22104, 22103, 22102, 22101 }
 
 
 local HEALTHSTONE_HP_THRESHOLD = 35
