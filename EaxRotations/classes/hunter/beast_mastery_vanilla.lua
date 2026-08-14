@@ -691,8 +691,13 @@ local strategies = {
     {
         name = "Trinket",
         matches = trinket_matches,
-        execute = function(context)
-            local s = build_state(context)
+        execute = function(context, s)
+            -- Dispatcher already built state once this tick (get_state); use it
+            -- instead of rebuilding build_state per execute (frame-cache parity).
+            -- Fallback rebuild only when a direct caller omits state (tests).
+            if not s or (type(s) == "table" and not getmetatable(s) and next(s) == nil) then
+                s = build_state(context)
+            end
             return execute_trinket(context, s)
         end,
     },

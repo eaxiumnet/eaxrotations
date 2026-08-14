@@ -115,6 +115,7 @@ return {
                 header = "Finisher Settings",
                 settings = {
                     { key = "assassin_envenom_stacks", type = "slider", label = "Min DP Stacks for Envenom", min = 1, max = 5, default = 3 },
+                    { key = "assassin_expose_assigned", type = "checkbox", label = "Expose Armor Assigned", default = false },
                 },
             },
             {

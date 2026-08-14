@@ -60,7 +60,7 @@ local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helpe
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local ARCANE_SHOT_MANA_FLOOR = 50   -- BM optimal (70): save mana below 50% for Kill Command & pet abilities
+local ARCANE_SHOT_MANA_FLOOR = 50   -- BM mana floor: below 50% save mana for Kill Command & pet abilities
 local ARCANE_SHOT_MANA_FLOOR_PRE_STEADY = 20  -- Pre-62: Steady Shot unavailable; Arcane is the filler
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
 local STEADY_SHOT_LEVEL = 62
@@ -201,9 +201,9 @@ local function safe_is_spell_learned(spell)
     return ok and a or false
 end
 
-local function safe_cooldown_remains(spell)
+local function safe_cooldown_remains(spell, expected_cooldown)
     if not NS.cooldown_remains then return 0 end
-    local ok, a = pcall(NS.cooldown_remains, spell)
+    local ok, a = pcall(NS.cooldown_remains, spell, expected_cooldown)
     if ok and type(a) == "number" then return a end
     return 0
 end
@@ -342,7 +342,12 @@ local function build_state(context)
     state.bestial_wrath_ready = me and spell_ready(ACTION.BestialWrath, me, { skip_range = true }) or false
     state.intimidation_ready = me and spell_ready(ACTION.Intimidation, me, { skip_range = true }) or false
     state.rapid_fire_ready = me and spell_ready(ACTION.RapidFire, me, { skip_range = true }) or false
-    state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
+    -- Rapid Fire CD (DBC-verified 300s / 5 min in TBC 2.5.5 — spell 3045
+    -- RecoveryTime 300000). The expected_cooldown hint feeds the cast-history
+    -- fallback in NS.cooldown_remains: without it a freshly-cast Rapid Fire
+    -- reads as re-ready after ~2.5s and the Readiness lane (rapid_fire_cd >= 60)
+    -- could never fire from cast history.
+    state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire, 300) or 0
     state.feign_death_ready = me and spell_ready(ACTION.FeignDeath, me, { skip_range = true }) or false
     state.mend_pet_ready = me and spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
     state.call_pet_ready = me and spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
@@ -541,9 +546,11 @@ local function misdirection_matches(context, s)
     return true
 end
 
--- Intimidation (BM pet stun)
+-- Intimidation (BM pet stun, 60s CD) — combat-only; without the in_combat
+-- gate the stun was cast OOC every tick (live-correctness audit 2026-08).
 local function intimidation_matches(context, s)
     if not mounted_bail(context, s) then return false end
+    if not s.in_combat then return false end
     if not s.pet_alive then return false end
     if not s.intimidation_ready then return false end
     return true
@@ -773,13 +780,12 @@ local function execute_misdirection(context)
     if not target then
         target = hunter_core.get_pet()
     end
+    -- Self-Misdirection is invalid (bounces the buff back with no redirect) —
+    -- only cast when focus or pet target exists; skip otherwise.
     if not target then
-        target = context.me
+        return false
     end
-    if target then
-        return NS.try_cast(MISDIRECTION_ID, target, prefix .. " Misdirection", { skip_range = true })
-    end
-    return false
+    return NS.try_cast(MISDIRECTION_ID, target, prefix .. " Misdirection", { skip_range = true })
 end
 
 -- ============================================================================
@@ -1021,8 +1027,13 @@ local strategies = {
     {
         name = "Trinket",
         matches = trinket_matches,
-        execute = function(context)
-            local s = build_state(context)
+        execute = function(context, s)
+            -- Dispatcher already built state once this tick (get_state); use it
+            -- instead of rebuilding build_state per execute (frame-cache parity).
+            -- Fallback rebuild only when a direct caller omits state (tests).
+            if not s or (type(s) == "table" and not getmetatable(s) and next(s) == nil) then
+                s = build_state(context)
+            end
             return execute_trinket(context, s)
         end,
     },
