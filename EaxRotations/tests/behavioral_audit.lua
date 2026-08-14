@@ -111,22 +111,30 @@ M.SPEC_FILES_WOTLK = {
     warrior = { "arms", "fury", "leveling", "protection" },
 }
 
--- Vanilla era (Classic 1.15.x): the 30 non-leveling spec files mirror the TBC
--- manifest shape. Vanilla files are plain-style — they return their strategies
--- table directly and register get_state via NS.rotation_registry (fury_vanilla
--- is the canonical example) — which the harness supports via the registry mock
--- in build_ns + the run_spec build_state fallback. leveling_vanilla files run
--- via run_leveling_tests.lua (same exclusion as TBC).
+-- Vanilla era (Classic 1.15.x): ALL 40 spec files — the 31 non-leveling specs
+-- mirror the TBC manifest shape, plus the 9 per-class leveling_vanilla files
+-- (wave 1.4 coverage extension, 2026-08-13: the leveling files previously ran
+-- only via run_leveling_tests.lua, so the behavioral battery never covered
+-- 13 of the 40 vanilla files). Vanilla files are plain-style — they return
+-- their strategies table directly and register get_state via
+-- NS.rotation_registry (fury_vanilla is the canonical example) — which the
+-- harness supports via the registry mock in build_ns + the run_spec build_state
+-- fallback. leveling_vanilla files return { strategies, build_state } and
+-- require shared/leveling_sylvanas, whose require-time `local NS =
+-- _G.EaxRotations` binding is refreshed per load_spec (see the leveling_sylvanas
+-- package.loaded cleanup below), so each leveling spec sees its own mock NS.
+-- check_manifest_drift includes leveling_ for the vanilla era for the same
+-- reason the WotLK era does (leveling files ARE battery specs there).
 M.SPEC_FILES_VANILLA = {
-    druid = { "balance", "bear", "cat", "caster", "resto" },
-    hunter = { "beast_mastery", "marksmanship", "survival" },
-    mage = { "arcane", "fire", "frost" },
-    paladin = { "holy", "protection", "retribution" },
-    priest = { "discipline", "holy", "shadow", "smite" },
-    rogue = { "assassination", "combat", "subtlety" },
-    shaman = { "elemental", "enhancement", "restoration" },
-    warlock = { "affliction", "demonology", "destruction" },
-    warrior = { "arms", "fury", "protection", "kebab" },
+    druid = { "balance", "bear", "cat", "caster", "leveling", "resto" },
+    hunter = { "beast_mastery", "leveling", "marksmanship", "survival" },
+    mage = { "arcane", "fire", "frost", "leveling" },
+    paladin = { "holy", "leveling", "protection", "retribution" },
+    priest = { "discipline", "holy", "leveling", "shadow", "smite" },
+    rogue = { "assassination", "combat", "leveling", "subtlety" },
+    shaman = { "elemental", "enhancement", "leveling", "restoration" },
+    warlock = { "affliction", "demonology", "destruction", "leveling" },
+    warrior = { "arms", "fury", "kebab", "leveling", "protection" },
 }
 
 M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA }
@@ -191,7 +199,9 @@ local function _me_unit(class_id)
         get_max_power = function(self, p) return 100 end,
         get_health_percentage = function(self) return 100 end,
         get_health = function(self) return 10000 end,
-        get_mana_percentage = function(self) return 100 end,
+        -- NO get_mana_percentage: mock-only member removed in W3.4 (see
+        -- _scenario_me tripwire) — production reads context.mana_pct or
+        -- me:mana_pct() / NS.unit_mana_pct(me).
         -- 0.4s sits inside both pooling (<=0.45) and powershift (>0.35) windows.
         energy_predicted = function(self) return 100 end,
         energy_time_to_x = function(self, v) return 0.4 end,
@@ -394,9 +404,11 @@ function M.build_ns(class_key, era)
             -- NOTE: has_player_buff is NOT here on purpose — it has its own
             -- branch above that forwards to the map-aware ns.has_player_buff
             -- (buff_remains_map), so a constant false here would be dead data.
+            -- NOTE: spell_ready is NOT here on purpose (2026-08-13) — see its
+            -- dedicated forwarding branch below (bank-aware via ns.spell_ready).
             player_control_locked = false, has_breakable_cc_nearby = false,
             can_attack_target = true,
-            try_cast = true, spell_exists = true, spell_ready = true,
+            try_cast = true, spell_exists = true,
         }
         local results = {}
         for i = 1, #names do
@@ -437,6 +449,26 @@ function M.build_ns(class_key, era)
                 results[i] = function(unit, ids)
                     if ns.buff_up then return ns.buff_up(unit, ids) end
                     return false
+                end
+            elseif n == "spell_ready" then
+                -- Vanilla sweep follow-up (2026-08-13): forward to the LATEST
+                -- ns.spell_ready binding (bank-aware via cooldown_remains).
+                -- holy_vanilla captures spell_ready at require time
+                -- (holy_vanilla:125) and its AbolishDisease pre-emptive branch
+                -- gates on `not state.cure_disease_ready` — the old constant-
+                -- true capture made the asymmetric cure pair (CureDisease on
+                -- CD → AbolishDisease) inexpressible, so AbolishDisease could
+                -- never fire even in the holy_cure_on_cd scenario. Only
+                -- vanilla specs capture spell_ready this way (smite_vanilla:
+                -- 66, kebab_vanilla:53, holy_vanilla:125 — verified no TBC
+                -- spec does, 2026-08-13), so the change is era-safe, and
+                -- forwarding can only SHRINK the never list: lanes gated on
+                -- `not spell_ready(X)` become observable, while lanes gated on
+                -- spell_ready(X) == true keep firing in every scenario that
+                -- does not put X on cd.
+                results[i] = function(spell, target, opts)
+                    if ns.spell_ready then return ns.spell_ready(spell, target, opts) end
+                    return true
                 end
             elseif typed_map[n] ~= nil then
                 results[i] = function() return typed_map[n] end
@@ -522,7 +554,15 @@ function M.build_ns(class_key, era)
     ns.pet_hp_pct = function() return ns._bstate("pet_hp", 100) end
     ns.pet_alive = function() return not (ns._bstate("pet_dead", false) == true) end
     ns.get_player_stance = function() return 0 end
-    ns.is_behind_target = function() return true end
+    -- Wave 1.4 (2026-08-13): bank-aware is_behind_target. The druid
+    -- leveling_vanilla Claw lane reads NS.is_behind_target DIRECTLY (no
+    -- context.is_behind preference like cat_sylvanas/cat_vanilla), so the
+    -- constant-true stub made its shred-preference gate (skip Claw when Shred
+    -- is usable from behind) block the lane forever. Bank-aware with a TRUE
+    -- default keeps every existing scenario byte-identical (cat specs read
+    -- context.is_behind first, combat_vanilla/assassination read the same
+    -- true default); the cat_lev_claw scenario flips it off.
+    ns.is_behind_target = function() return ns._bstate("is_behind", true) ~= false end
     ns.get_combo_points = function() return 0 end
     ns.combo_points = function() return 0 end
 
@@ -617,7 +657,11 @@ function M.build_ns(class_key, era)
     -- NS helper surface: permissive stubs so every spec's match/execute can run.
     ns.action_matches = function() return true end
     ns.action_execute = function() return true end
-    ns.aoe_target_meets = function() return true end
+    -- Phase 2.2a (2026-08-13): bank-aware aoe_target_meets with a TRUE default
+    -- (mirrors the is_behind_target pattern) so the elem_cl_st scenario can
+    -- present a single-target fight (aoe gate fails) without changing any
+    -- other scenario — absent the bank key every caller keeps the legacy true.
+    ns.aoe_target_meets = function() return ns._bstate("aoe_target_meets", true) ~= false end
     ns.aoe_cone_meets = function() return true end
     ns.aoe_count_meets = function() return true end
     ns.aoe_self_meets = function() return true end
@@ -715,7 +759,18 @@ function M.build_ns(class_key, era)
     ns.get_time_until_oh_swing = function() return ns._bstate("swing_until", 0.5) end
     ns.swing_progress = function() return 0.5 end
     ns.swing_time_until = function() return ns._bstate("swing_until", 0.5) end
-    ns.get_totem_info = function() return false end
+    ns.get_totem_info = function(slot)
+        -- Bank-aware (Wave 3.3, 2026-08-13): the totem_active scenario presents
+        -- a live totem ({have_totem=true}) so WotLK slot-gated lanes (enh Fire
+        -- Nova, elem Searing Totem holds) are exercised through the REAL
+        -- NS.get_totem_info path. Default false preserves the legacy posture
+        -- for every pre-existing consumer; spell_id 0 keeps TBC enh
+        -- _air_totem_active (WF/GoA id match) byte-identical.
+        if ns._bstate("totem_active") then
+            return { have_totem = true, totem_name = "AuditTotem", start_time = 0, duration = 60, spell_id = 0 }
+        end
+        return false
+    end
     ns.register_on_spell_cast = function() return true end
     ns.register_class_middleware = function() end
     -- Scenario-aware (2026-08-08): the healer FriendlyTarget lanes (disc +
@@ -890,6 +945,15 @@ function M.build_ns(class_key, era)
             return false, nil
         end,
         is_casting_preemptive_cc = function() return false, nil end,
+        -- Wave 1.4 (2026-08-13): warrior leveling_vanilla's PvPCCGate strategy
+        -- reads CCGateDB.is_any_nearby_enemy_under_cc (the real
+        -- shared/offensive_dispel_sylvanas:311 surface — a live game-state
+        -- scan the battery cannot reproduce). Bank-driven on the
+        -- enemy_cc_nearby key; default false keeps every other scenario
+        -- identical (no other consumer reads this method).
+        is_any_nearby_enemy_under_cc = function()
+            return ns._bstate("enemy_cc_nearby", false) == true
+        end,
     }
     -- Note: NS.purge_should_cast / NS.PurgeManager stubs were considered but
     -- removed — enhancement_sylvanas.lua now mirrors the middleware gate
@@ -1089,21 +1153,19 @@ function M.build_ns(class_key, era)
             rank = function(self, r) return ids[r or #ids] end,
             cooldown = function(self) return 0 end,
             is_known = function(self) return true end,
-            -- WotLK era (Phase 1 triage): *_wotlk.lua specs gate on
-            -- `action:cooldown_remaining() <= 0` (e.g. retribution Judgement /
-            -- CrusaderStrike / DivineStorm, mage arcane PresenceOfMind, rogue
-            -- combat BladeFlurry). Without this method the caller's
-            -- cd_remaining() fell through to 99, so every `<= 0` gate failed
-            -- and all 8 retri lanes (plus others) never fired. Mirrors
-            -- ns.get_spell_cd: on_cd-map aware, 0 (ready) otherwise.
+            -- W3.4 mock-tightening (2026-08-13): the W3.1-audited
+            -- `action:cooldown_remaining()` injection is REMOVED — it masked
+            -- production never-lanes (callers fell through to 99 live, then
+            -- 0 in the battery, so cd-gated lanes fired only under the mock).
+            -- All W3.3 fixers migrated to NS.cooldown_remains / NS.spell_ready
+            -- (0 when unknown, on_cd-map aware); the repo-wide grep audit
+            -- found ZERO live production reads of this member. This tripwire
+            -- FAILS LOUDLY if any (re)introduced production or test code
+            -- calls the member on a battery spell_action.
             cooldown_remaining = function(self)
-                local on_cd = ns._bstate and ns._bstate("on_cd", nil)
-                if type(on_cd) == "table" then
-                    for _, id in ipairs(ids or {}) do
-                        if on_cd[id] then return on_cd[id] end
-                    end
-                end
-                return 0
+                error("mock-only member action:cooldown_remaining() removed in W3.4 "
+                    .. "(behavioral_audit.lua) — production must use NS.cooldown_remains/NS.spell_ready "
+                    .. "(label: " .. tostring(label) .. ")", 2)
             end,
         }
         obj.rank_ids = function() return ids end
@@ -1139,6 +1201,35 @@ function M.build_ns(class_key, era)
         -- sunder_fallback scenario's on_cd { [30022] = 6 } resolvable.
         -- Mirrors class_sylvanas.lua (ids = { 30022, 30016, 20243 }).
         Devastate = ns.spell_action({ 30022, 30016, 20243 }, "Devastate"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention. NOTE: Whirlwind
+        -- (1680) and MortalStrike (30330) ids[1] collide with existing TBC
+        -- scenario on_cd keys — that is intended (the on_cd scenarios model
+        -- those abilities mid-cooldown for the TBC fillers), and the seeds
+        -- only make the cooldown resolution REAL instead of nil-fallback.
+        BattleShout = ns.spell_action({ 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+        BattleStance = ns.spell_action({ 2457 }, "BattleStance"),
+        BerserkerRage = ns.spell_action({ 18499 }, "BerserkerRage"),
+        BerserkerStance = ns.spell_action({ 2458 }, "BerserkerStance"),
+        Bloodrage = ns.spell_action({ 2687 }, "Bloodrage"),
+        Bloodthirst = ns.spell_action({ 30335, 25251, 23894, 23893, 23892, 23881 }, "Bloodthirst"),
+        Charge = ns.spell_action({ 11578, 6178, 100 }, "Charge"),
+        DefensiveStance = ns.spell_action({ 71 }, "DefensiveStance"),
+        DemoralizingShout = ns.spell_action({ 25203, 25202, 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
+        Disarm = ns.spell_action({ 676 }, "Disarm"),
+        Execute = ns.spell_action({ 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
+        Hamstring = ns.spell_action({ 25212, 7373, 7372, 1715 }, "Hamstring"),
+        HeroicStrike = ns.spell_action({ 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+        IntimidatingShout = ns.spell_action({ 5246 }, "IntimidatingShout"),
+        MortalStrike = ns.spell_action({ 30330, 25248, 21553, 21552, 21551, 12294 }, "MortalStrike"),
+        Overpower = ns.spell_action({ 11585, 11584, 7887, 7384 }, "Overpower"),
+        Pummel = ns.spell_action({ 6554, 6552 }, "Pummel"),
+        Rend = ns.spell_action({ 25208, 11574, 11573, 6548, 6547, 772 }, "Rend"),
+        ShieldBash = ns.spell_action({ 29704, 1672, 1671, 72 }, "ShieldBash"),
+        ShieldWall = ns.spell_action({ 871 }, "ShieldWall"),
+        SweepingStrikes = ns.spell_action({ 12328 }, "SweepingStrikes"),
+        ThunderClap = ns.spell_action({ 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
+        Whirlwind = ns.spell_action({ 1680 }, "Whirlwind"),
     }
     -- Druid spell resolution for the balance multi-DoT spread lanes: the
     -- spread matchers explicitly gate on `SPELLS.Moonfire`/`SPELLS.InsectSwarm`
@@ -1175,6 +1266,28 @@ function M.build_ns(class_key, era)
         TigersFury = ns.spell_action({ 9846, 9845, 6793, 5217 }, "TigersFury"),
         Rake = ns.spell_action({ 27003, 9904, 1824, 1823, 1822 }, "Rake"),
         Claw = ns.spell_action({ 27000, 9850, 9849, 5201, 3029, 1082 }, "Claw"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13): the 9 leveling files
+        -- read SPELLS.X directly with a `if not spell_action then return false
+        -- end` guard on the local spell_ready helper, so unseeded names were
+        -- structurally dead in the battery (every spell-gated leveling lane
+        -- reported never). Ladders mirror classes/<class>/class_sylvanas.lua
+        -- (TBC max-rank first) — same convention as the existing seeds. Only
+        -- ids[1] is consulted by cooldown_remains/on_cd, so no existing
+        -- scenario keys are affected.
+        BearForm = ns.spell_action({ 9634, 5487 }, "BearForm"),
+        EntanglingRoots = ns.spell_action({ 26989, 9853, 9852, 5196, 5195, 1062, 339 }, "EntanglingRoots"),
+        FaerieFire = ns.spell_action({ 26993, 9907, 9749, 778, 770 }, "FaerieFire"),
+        FrenziedRegeneration = ns.spell_action({ 26999, 22896, 22895, 22842 }, "FrenziedRegeneration"),
+        HealingTouch = ns.spell_action({ 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
+        MarkOfTheWild = ns.spell_action({ 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }, "MarkOfTheWild"),
+        Maul = ns.spell_action({ 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, "Maul"),
+        NaturesGrasp = ns.spell_action({ 27009, 17329, 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
+        Pounce = ns.spell_action({ 27006, 9827, 9823, 9005 }, "Pounce"),
+        Rejuvenation = ns.spell_action({ 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
+        Starfire = ns.spell_action({ 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
+        SwipeBear = ns.spell_action({ 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
+        Thorns = ns.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
+        Wrath = ns.spell_action({ 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
     }
     -- Vanilla battery sweep (2026-08): plain-style vanilla spec files read
     -- SPELLS.X directly (no define_action_for_class fallback), so an empty
@@ -1196,6 +1309,29 @@ function M.build_ns(class_key, era)
         CureDisease = ns.spell_action({ 2870 }, "CureDisease"),
         PoisonCleansingTotem = ns.spell_action({ 8166 }, "PoisonCleansingTotem"),
         DiseaseCleansingTotem = ns.spell_action({ 8170 }, "DiseaseCleansingTotem"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention.
+        ChainLightning = ns.spell_action({ 25442, 25439, 10605, 2860, 930, 421 }, "ChainLightning"),
+        EarthShock = ns.spell_action({ 25454, 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, "EarthShock"),
+        EarthbindTotem = ns.spell_action({ 2484 }, "EarthbindTotem"),
+        FlameShock = ns.spell_action({ 25457, 29228, 10448, 10447, 8053, 8052, 8050 }, "FlameShock"),
+        FlametongueWeapon = ns.spell_action({ 25489, 16342, 16341, 16339, 8030, 8027, 8024 }, "FlametongueWeapon"),
+        FrostShock = ns.spell_action({ 25464, 10473, 10472, 8058, 8056 }, "FrostShock"),
+        FrostbrandWeapon = ns.spell_action({ 25500, 16356, 16355, 10456, 8038, 8033 }, "FrostbrandWeapon"),
+        GhostWolf = ns.spell_action({ 2645 }, "GhostWolf"),
+        GroundingTotem = ns.spell_action({ 8177 }, "GroundingTotem"),
+        HealingStreamTotem = ns.spell_action({ 25567, 10463, 10462, 6377, 6375, 5394 }, "HealingStreamTotem"),
+        HealingWave = ns.spell_action({ 25396, 25391, 25357, 10396, 10395, 8005, 959, 939, 913, 547, 332, 331 }, "HealingWave"),
+        LesserHealingWave = ns.spell_action({ 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, "LesserHealingWave"),
+        LightningBolt = ns.spell_action({ 25449, 25448, 15208, 15207, 10392, 10391, 6041, 943, 915, 548, 529, 403 }, "LightningBolt"),
+        LightningShield = ns.spell_action({ 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, "LightningShield"),
+        Purge = ns.spell_action({ 8012, 370 }, "Purge"),
+        RockbiterWeapon = ns.spell_action({ 25485, 25479, 16316, 16315, 16314, 10399, 8019, 8018, 8017 }, "RockbiterWeapon"),
+        SearingTotem = ns.spell_action({ 25533, 10438, 10437, 6365, 6364, 6363, 3599 }, "SearingTotem"),
+        StoneclawTotem = ns.spell_action({ 25525, 10428, 10427, 6392, 6391, 6390, 5730 }, "StoneclawTotem"),
+        Stormstrike = ns.spell_action({ 17364 }, "Stormstrike"),
+        TremorTotem = ns.spell_action({ 8143 }, "TremorTotem"),
+        WindfuryWeapon = ns.spell_action({ 25505, 16362, 10486, 8235, 8232 }, "WindfuryWeapon"),
     }
     ns.MageSpells = {
         ArcaneExplosion = ns.spell_action({ 27082, 27080, 10202, 10201, 8439, 8438, 8437, 1449 }, "ArcaneExplosion"),
@@ -1206,19 +1342,146 @@ function M.build_ns(class_key, era)
         -- sentinel's "unavailable in classic" semantics — give it a sentinel
         -- id (0) so the low_level scenario's not_learned {[0]=true} drives it.
         UnavailableClassicMageArcane = ns.spell_action({ 0 }, "UnavailableClassicMageArcane"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention.
+        ArcaneIntellect = ns.spell_action({ 27126, 10157, 10156, 1461, 1460, 1459 }, "ArcaneIntellect"),
+        ArcaneMissiles = ns.spell_action({ 38699, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143 }, "ArcaneMissiles"),
+        Blink = ns.spell_action({ 1953 }, "Blink"),
+        Blizzard = ns.spell_action({ 27085, 10187, 10186, 10185, 8427, 6141, 10 }, "Blizzard"),
+        ConeOfCold = ns.spell_action({ 27087, 10161, 10160, 10159, 8492, 120 }, "ConeOfCold"),
+        Counterspell = ns.spell_action({ 2139 }, "Counterspell"),
+        Evocation = ns.spell_action({ 12051 }, "Evocation"),
+        FireBlast = ns.spell_action({ 27079, 27078, 10199, 10197, 8413, 8412, 2138, 2137, 2136 }, "FireBlast"),
+        FireWard = ns.spell_action({ 27128, 10225, 10223, 8458, 8457, 543 }, "FireWard"),
+        Fireball = ns.spell_action({ 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
+        FrostArmor = ns.spell_action({ 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }, "FrostArmor"),
+        FrostNova = ns.spell_action({ 27088, 10230, 6131, 865, 122 }, "FrostNova"),
+        Frostbolt = ns.spell_action({ 27072, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }, "Frostbolt"),
+        IceBarrier = ns.spell_action({ 33405, 27134, 13033, 13032, 13031, 11426 }, "IceBarrier"),
+        ManaShield = ns.spell_action({ 27131, 10193, 10192, 10191, 8495, 8494, 1463 }, "ManaShield"),
+        Polymorph = ns.spell_action({ 12826, 12825, 12824, 118 }, "Polymorph"),
+        RemoveCurse = ns.spell_action({ 475 }, "RemoveCurse"),
+        Scorch = ns.spell_action({ 27074, 27073, 10207, 10206, 10205, 8446, 8445, 8444, 2948 }, "Scorch"),
     }
     ns.HunterSpells = {
         AimedShot = ns.spell_action({ 27065, 20904, 20903, 20902, 20901, 20900, 19434 }, "AimedShot"),
         ArcaneShot = ns.spell_action({ 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044 }, "ArcaneShot"),
         SerpentSting = ns.spell_action({ 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention.
+        AspectOfTheCheetah = ns.spell_action({ 5118 }, "AspectOfTheCheetah"),
+        AspectOfTheHawk = ns.spell_action({ 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }, "AspectOfTheHawk"),
+        CallPet = ns.spell_action({ 883 }, "CallPet"),
+        ConcussiveShot = ns.spell_action({ 5116 }, "ConcussiveShot"),
+        FeignDeath = ns.spell_action({ 5384 }, "FeignDeath"),
+        FreezingTrap = ns.spell_action({ 14311, 14310, 1499 }, "FreezingTrap"),
+        HuntersMark = ns.spell_action({ 14325, 14324, 14323, 1130 }, "HuntersMark"),
+        MendPet = ns.spell_action({ 27046, 13544, 13543, 13542, 3662, 3661, 3111, 136 }, "MendPet"),
+        MongooseBite = ns.spell_action({ 14271, 14270, 14269, 1495 }, "MongooseBite"),
+        MultiShot = ns.spell_action({ 27021, 25294, 14290, 14289, 14288, 2643 }, "MultiShot"),
+        RapidFire = ns.spell_action({ 3045 }, "RapidFire"),
+        RaptorStrike = ns.spell_action({ 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }, "RaptorStrike"),
+        ScareBeast = ns.spell_action({ 14327, 14326, 1513 }, "ScareBeast"),
+        WingClip = ns.spell_action({ 14268, 14267, 2974 }, "WingClip"),
     }
     ns.PaladinSpells = {
         DevotionAura = ns.spell_action({ 27149, 10293, 10292, 1032, 10291, 643, 10290, 465 }, "DevotionAura"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention. DivineShield was
+        -- previously unseeded: TBC paladin middleware's get_divine_shield_spell
+        -- (middleware_sylvanas:110) reads SPELLS.DivineShield and now resolves
+        -- to a real action (verified era-safe: TBC holy/protection never counts
+        -- are unchanged by the seed).
+        BlessingOfMight = ns.spell_action({ 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }, "BlessingOfMight"),
+        BlessingOfWisdom = ns.spell_action({ 27142, 25290, 19854, 19853, 19852, 19850, 19742 }, "BlessingOfWisdom"),
+        Cleanse = ns.spell_action({ 4987 }, "Cleanse"),
+        Consecration = ns.spell_action({ 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
+        DivineShield = ns.spell_action({ 1020, 642 }, "DivineShield"),
+        Exorcism = ns.spell_action({ 27138, 10314, 10313, 10312, 5615, 5614, 879 }, "Exorcism"),
+        FlashOfLight = ns.spell_action({ 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
+        HammerOfJustice = ns.spell_action({ 10308, 5589, 5588, 853 }, "HammerOfJustice"),
+        HammerOfWrath = ns.spell_action({ 27180, 24239, 24274, 24275 }, "HammerOfWrath"),
+        HolyLight = ns.spell_action({ 27136, 27135, 25292, 10329, 10328, 3472, 1042, 1026, 647, 639, 635 }, "HolyLight"),
+        HolyShield = ns.spell_action({ 27179, 20928, 20927, 20925 }, "HolyShield"),
+        Judgement = ns.spell_action({ 20271 }, "Judgement"),
+        LayOnHands = ns.spell_action({ 27154, 10310, 2800, 633 }, "LayOnHands"),
+        RetributionAura = ns.spell_action({ 27150, 10301, 10300, 10299, 10298, 7294 }, "RetributionAura"),
+        SealCommand = ns.spell_action({ 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
+        SealRighteousness = ns.spell_action({ 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }, "SealRighteousness"),
     }
     ns.PriestSpells = {
-        -- ids[1] resolves the friends_afflicted on_cd entry (CureDisease on
-        -- CD → holy AbolishDisease's `not cure_disease_ready` gate passes).
+        -- ids[1] resolves the holy_cure_on_cd on_cd entry (CureDisease on CD
+        -- → holy AbolishDisease's `not cure_disease_ready` gate passes).
         CureDisease = ns.spell_action({ 528, 11554 }, "CureDisease"),
+        -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
+        -- comment for the rationale and ladder convention.
+        DesperatePrayer = ns.spell_action({ 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
+        Fade = ns.spell_action({ 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
+        FlashHeal = ns.spell_action({ 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+        GreaterHeal = ns.spell_action({ 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
+        HolyFire = ns.spell_action({ 25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }, "HolyFire"),
+        HolyNova = ns.spell_action({ 25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237 }, "HolyNova"),
+        InnerFire = ns.spell_action({ 25431, 10952, 10951, 1006, 602, 7128, 588 }, "InnerFire"),
+        InnerFocus = ns.spell_action({ 14751 }, "InnerFocus"),
+        MindBlast = ns.spell_action({ 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
+        MindFlay = ns.spell_action({ 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
+        PowerWordFortitude = ns.spell_action({ 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, "PowerWordFortitude"),
+        PowerWordShield = ns.spell_action({ 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
+        PsychicScream = ns.spell_action({ 10890, 10888, 8124, 8122 }, "PsychicScream"),
+        Renew = ns.spell_action({ 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+        ShackleUndead = ns.spell_action({ 10955, 9485, 9484 }, "ShackleUndead"),
+        ShadowWordPain = ns.spell_action({ 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
+        Shadowform = ns.spell_action({ 15473 }, "Shadowform"),
+        Smite = ns.spell_action({ 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
+        VampiricEmbrace = ns.spell_action({ 15286 }, "VampiricEmbrace"),
+    }
+    -- Wave 1.4 leveling_vanilla seeds (2026-08-13): warlock + rogue leveling
+    -- files read SPELLS.X with a nil-guarded local spell_ready (see the
+    -- DruidSpells comment for the full rationale). Ladders mirror
+    -- classes/<class>/class_sylvanas.lua (TBC max-rank first); Stealth/
+    -- SliceAndDice ids mirror the class ladder — the buff-map readers
+    -- (stealth_helper, SnD gates) use their own id tables, so no buff/on_cd
+    -- collision.
+    ns.WarlockSpells = {
+        Corruption = ns.spell_action({ 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+        CreateHealthstone = ns.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
+        CreateSoulstone = ns.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
+        CurseOfAgony = ns.spell_action({ 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+        DeathCoil = ns.spell_action({ 27223, 17926, 17925, 6789 }, "DeathCoil"),
+        DemonArmor = ns.spell_action({ 27260, 11735, 11734, 11733, 1086, 706 }, "DemonArmor"),
+        DrainLife = ns.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
+        DrainSoul = ns.spell_action({ 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
+        Fear = ns.spell_action({ 6215, 6213, 5782 }, "Fear"),
+        HealthFunnel = ns.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
+        HowlofTerror = ns.spell_action({ 17928, 5484 }, "HowlofTerror"),
+        Immolate = ns.spell_action({ 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+        LifeTap = ns.spell_action({ 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
+        SearingPain = ns.spell_action({ 30459, 27210, 17923, 17922, 17921, 17920, 17919, 5676 }, "SearingPain"),
+        ShadowBolt = ns.spell_action({ 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+        SiphonLife = ns.spell_action({ 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
+        SpellLock = ns.spell_action({ 24259, 19647 }, "SpellLock"),
+    }
+    ns.RogueSpells = {
+        AdrenalineRush = ns.spell_action({ 13750 }, "AdrenalineRush"),
+        Ambush = ns.spell_action({ 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
+        BladeFlurry = ns.spell_action({ 13877 }, "BladeFlurry"),
+        Blind = ns.spell_action({ 2094 }, "Blind"),
+        ColdBlood = ns.spell_action({ 14177 }, "ColdBlood"),
+        Evasion = ns.spell_action({ 26669, 5277 }, "Evasion"),
+        Eviscerate = ns.spell_action({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+        ExposeArmor = ns.spell_action({ 26866, 11198, 11197, 8650, 8649, 8647 }, "ExposeArmor"),
+        Garrote = ns.spell_action({ 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
+        Gouge = ns.spell_action({ 11286, 11285, 8629, 1777, 1776 }, "Gouge"),
+        Kick = ns.spell_action({ 38768, 1769, 1768, 1767, 1766 }, "Kick"),
+        KidneyShot = ns.spell_action({ 8643, 408 }, "KidneyShot"),
+        Rupture = ns.spell_action({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+        Sap = ns.spell_action({ 11297, 2070, 6770 }, "Sap"),
+        SinisterStrike = ns.spell_action({ 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
+        SliceAndDice = ns.spell_action({ 6774, 5171 }, "SliceAndDice"),
+        Sprint = ns.spell_action({ 11305, 8696, 2983 }, "Sprint"),
+        Stealth = ns.spell_action({ 1787, 1786, 1785, 1784 }, "Stealth"),
+        ThistleTea = ns.spell_action({ 9513 }, "ThistleTea"),
+        Vanish = ns.spell_action({ 26889, 1857, 1856 }, "Vanish"),
     }
     -- Scenario-aware equipped-item mock: the mutilate_daggers scenario sets
     -- equipped_daggers = true and get_equipped_item_id returns a real dagger
@@ -1721,6 +1984,32 @@ M.SCENARIOS = {
     -- that had zero interrupt handling. Same gate, same dedicated scenario so
     -- the WotLK never=0 pin stays non-vacuous for the new strategies.
     { name = "wotlk_interrupts", overrides = { target_is_casting = true, target_cast_pct = 60 } },
+    -- W3.3 warrior sweep (2026-08-13): arms Retaliation is Defensive-stance-only
+    -- in WotLK AND boss-gated; the file's DefensiveStance dance covers the
+    -- stance swap, so this scenario presents the tank already in Defensive
+    -- facing a boss so the lane itself is observable (real CD API: retaliation
+    -- NOT on cooldown in the default on_cd bank).
+    -- W3.4 mock-tightening (2026-08-13): drives the REAL dispatcher field
+    -- context.target_is_boss (main_sylvanas.lua:1287) — the phantom
+    -- ctx.is_boss override is gone (arms_wotlk is_boss() reads target_is_boss
+    -- first; the legacy context.is_boss compat line was DELETED in the W3.4
+    -- targeted fix, see run_read_side_audit_tests.lua allowlist).
+    { name = "arms_retaliation", overrides = { stance = 2, target_is_boss = true, rage = 50 } },
+    -- W3.4 warrior rage chain (2026-08-13): with me:get_rage() tripwired, the
+    -- battery unit has NO mock rage member — warrior wotlk lanes can only see
+    -- rage through the REAL chain (context.rage from main_sylvanas.lua:814, or
+    -- me:get_power(NS.POWER_RAGE)). This scenario drives context.rage = 25
+    -- (>= the WotLK Execute cost 15) inside the execute window (target_hp 15)
+    -- so the arms/fury/leveling Execute lanes prove they fire through that
+    -- chain: any surviving me:get_rage() read errors loudly instead of
+    -- silently firing the lane.
+    { name = "arms_execute_rage", overrides = { rage = 25, target_hp = 15 } },
+    -- W3.3 warrior sweep (2026-08-13): leveling_wotlk's BattleStance lane only
+    -- fires OOC when the warrior is NOT already in Battle stance, but the
+    -- harness force-defaults warriors to stance 1 — this scenario presents a
+    -- warrior left in Defensive stance OOC so the stance-up lane (and the
+    -- 8-25 yd range-gated Charge, same scenario) stay observable.
+    { name = "leveling_warrior_ooc", overrides = { in_combat = false, stance = 2, target_distance = 15, target_range = 15 } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
     -- Rogue stealth openers (ranked #7): combat Garrote needs stealth + a
     -- casting target; subtlety CheapShot needs stealth + the explicit
@@ -1799,6 +2088,40 @@ M.SCENARIOS = {
     -- only scenario where those two are up. Default injured friends
     -- {55,70,85} satisfy both lanes' lowest_hp bands (GH < 95, surge >= 50).
     { name = "clearcast_surge", overrides = { buff_remains_map = { [34753] = 1, [33151] = 1 } } },
+    -- Phase 2.3 scenario modeling (2026-08-13, top-tier parsing campaign):
+    -- per-buff / per-stack fidelity scenarios for the parse-critical proc and
+    -- refresh mechanics. Each lane below ALREADY fired via the coarse buffs_up
+    -- fallback (buffs_up marks every aura up); these scenarios drive the REAL
+    -- aura ids through buff_remains_map / debuff_remains_map so the battery
+    -- demonstrates the mechanic with per-aura precision (one proc up, others
+    -- down), not the all-buffs-up posture. Ids are spec-scoped (12536 fire/
+    -- frost/arcane clearcasting, 16864 cat Omen, 12043 PoM, 33745 Lacerate,
+    -- 28595 Winter's Chill), so no other spec's gates change. Placement before
+    -- the buffs_up/burst/burn scenarios keeps arcane's sticky burn phase out
+    -- of these shapes (no player_mana/ttd keys set).
+    -- bear Lacerate 5-stack refresh: stacks 5 (debuff_stacks + aura ids) with
+    -- remains 2 inside LACERATE_REFRESH_WINDOW (3.0) — the refresh branch of
+    -- the Lacerate DSL (stacks < 5 -> stack; remains <= 3 -> refresh) fires.
+    { name = "bear_lacerate_refresh", overrides = { form = 1, in_combat = true, debuff_stacks = 5, debuff_aura_ids = { 33745 }, debuff_remains_map = { [33745] = 2 } } },
+    -- cat Omen of Clarity proc: OMEN_OF_CLARITY_BUFF {16864} up via the map —
+    -- ShredOmen (free Shred consume) fires while Rake/Rip/Mangle remain down
+    -- (no buffs_up), proving the per-buff proc path of clearcasting_shred_matches.
+    { name = "cat_omen_proc", overrides = { form = 3, in_combat = true, buff_remains_map = { [16864] = 1 }, energy = 80, combo_points = 2 } },
+    -- fire Clearcasting consume: CLEARCASTING_BUFF {12536} up via the map —
+    -- fireball_matches_fn's `has_clearcasting -> always Fireball` branch fires
+    -- with the proc precisely modeled (Arcane Concentration talent).
+    { name = "fire_clearcasting", overrides = { in_combat = true, buff_remains_map = { [12536] = 1 } } },
+    -- fire Presence of Mind -> Pyroblast: PRESENCE_OF_MIND_BUFF {12043} up via
+    -- the map — pyroblast_matches_fn's pom_active branch fires, and the PoM
+    -- lane itself self-blocks (its DSL gate is buff 12043 invert), so the
+    -- Pyroblast-on-PoM sequencing is demonstrated, not the PoM re-cast.
+    { name = "fire_pom_pyro", overrides = { in_combat = true, buff_remains_map = { [12043] = 1 } } },
+    -- frost Winter's Chill 5-stack refresh policy: WINTERS_CHILL_DEBUFF
+    -- {28595} at 5 stacks (debuff_stacks + aura ids) with 2s remains — the
+    -- WintersChill DSL's `stacks >= 5 and remains > 3` suppression passes
+    -- (2 <= 3), so the refresh lane fires and the plain Frostbolt filler does
+    -- not skip (its WC-aware gate uses the same remains read).
+    { name = "frost_wc_refresh", overrides = { in_combat = true, debuff_stacks = 5, debuff_aura_ids = { 28595 }, debuff_remains_map = { [28595] = 2 } } },
     -- elem_shock_moving: EarthShockMoving gates is_moving + the
     -- elemental_interrupt_reserve setting DEFAULT true (elemental:250) — the
     -- plain `moving` scenario leaves the reserve on, so this is the only
@@ -1815,10 +2138,16 @@ M.SCENARIOS = {
     { name = "pvp_interrupt",    overrides = { is_pvp = true, target_is_casting = true, combo_points = 3 } },
     { name = "berserker_interrupt", overrides = { stance = 3, target_is_casting = true } },
     { name = "potions_ready",    overrides = { has_potions = true } },
-    -- Vanilla battery sweep (2026-08): holy AbolishDisease fires pre-emptively
-    -- only while CureDisease is NOT ready (`not state.cure_disease_ready`) —
-    -- the on_cd entry (CureDisease 528) makes that observable.
-    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 80, 90, 95 }, afflicted = { poison = true, disease = true, curse = true, magic = true }, on_cd = { [528] = 6 } } },
+    -- friends_afflicted: poison/disease/curse/magic affliction drives the
+    -- cleanse/cure lanes. NOTE: CureDisease (528) is deliberately NOT on cd
+    -- here (removed 2026-08-13): with the bank-aware spell_ready forwarding
+    -- below, an on_cd entry would block the very lane this scenario exists to
+    -- fire — CureDisease needs `ready AND has_disease`, and the disease flag
+    -- is only set in this scenario. The pre-emptive AbolishDisease branch
+    -- (fires when CureDisease is NOT ready) is driven by the holy_cure_on_cd
+    -- scenario instead, so the two halves of the cure pair stay observable in
+    -- BOTH eras (TBC holy + vanilla holy).
+    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 80, 90, 95 }, afflicted = { poison = true, disease = true, curse = true, magic = true } } },
     -- Healer group-damage scenarios (healer triage upgrade): friends_hp bands
     -- are tuned per lane family — group_light (62/72/85: GH + PreHeal + RenewTank),
     -- group_critical (30/45/60 + low self: BindingHeal + Emergency PWS),
@@ -1950,6 +2279,22 @@ M.SCENARIOS = {
     { name = "cat_gap",             overrides = { form = 3, target_distance = 15, energy = 70 } },
     { name = "cat_2target",         overrides = { form = 3, enemy_count = 2, enemies_count = 2, energy = 70, combo_points = 3 } },
     { name = "cat_target_casting",  overrides = { form = 3, target_is_casting = true, energy = 60, combo_points = 3 } },
+    -- W3.3 druid wotlk (2026-08-13): resto_wotlk WildGrowth now gates on
+    -- INJURED ALLIES (context.party_injured_count >= 2) instead of
+    -- enemy_count — the old gate could never fire in the single-boss raid
+    -- fight Wild Growth exists for. No other spec/lane reads
+    -- party_injured_count, so the override is additive-safe.
+    { name = "druid_wotlk_wildgrowth", overrides = { party_injured_count = 3, lowest_hp = 55, mana_pct = 90, friends_hp = { 55, 70, 85 }, friend_class = 11 } },
+    -- W3.4 balance_wotlk (2026-08-13): lunar-phase Eclipse spell-switch — the
+    -- Starfire lane reads eclipse_lunar (48518, buff_remains_map-aware NS.buff_up)
+    -- mirroring the pinned wowsims APL's Starfire-on-lunar gate; the scenario
+    -- proves the lunar-phase lane (Starfire) fires when eclipse_lunar is up,
+    -- the mirror of the solar-phase Wrath pin in
+    -- test_balance_wotlk_dsl_priority.lua. 48518 is balance-scoped; no other
+    -- spec reads it, so the buff map is additive-safe. (Solar phase = Wrath:
+    -- solar eclipse 48517 buffs Wrath; lunar phase = Starfire: lunar eclipse
+    -- 48518 buffs Starfire — the W3.4 addendum documents the interpretation.)
+    { name = "balance_eclipse_lunar", overrides = { in_combat = true, buff_remains_map = { [48518] = 5 } } },
     -- Vanilla battery sweep (2026-08): bear BashInterrupt is a DSL strategy
     -- with required_form="bear" + target_is_casting + target_interruptible;
     -- no scenario combined form=1 with a casting target (cat_target_casting
@@ -1969,11 +2314,13 @@ M.SCENARIOS = {
     { name = "dodge_proc", overrides = { in_combat = true, target_dodge_chance = 5, rage = 40 } },
     -- Vanilla sweep (2026-08): holy AbolishDisease is the pre-emptive branch
     -- of the cure pair — it fires only when CureDisease is NOT ready
-    -- (holy_vanilla:616). Both spells are always "ready" in the mock, so the
-    -- asymmetric state was inexpressible. on_cd { [528] = 5 } (CureDisease)
-    -- models the real live state (Cure just cast, on CD) while AbolishDisease
-    -- (552) stays ready; only priest CureDisease reads id 528, so no other
-    -- spec's lanes are affected.
+    -- (holy_vanilla:616). on_cd { [528] = 5 } (CureDisease) models the real
+    -- live state (Cure just cast, on CD) while AbolishDisease (552) stays
+    -- ready; only priest CureDisease reads id 528, so no other spec's lanes
+    -- are affected. Since the 2026-08-13 spell_ready forwarding (import_helpers
+    -- now delegates to the bank-aware ns.spell_ready), this scenario fires the
+    -- pre-emptive AbolishDisease lane in BOTH eras (TBC holy_vanilla's sibling
+    -- gates on the disease flag and fires via friends_afflicted instead).
     { name = "holy_cure_on_cd", overrides = { in_combat = true, on_cd = { [528] = 5 }, mana_pct = 80 } },
     { name = "cat_pvp_interrupt",   overrides = { form = 3, is_pvp = true, target_is_casting = true, energy = 60, combo_points = 3 } },
     { name = "pvp_ooc",             overrides = { in_combat = false, is_pvp = true } },
@@ -2107,16 +2454,28 @@ M.SCENARIOS = {
     { name = "wand_low_mana",   overrides = { mana_pct = 4, hp = 15 } },
     -- AB-stack conserve (ranked #4): mage/arcane FrostboltConserve fires when
     -- phase == conserve AND ab_stacks >= 3 AND ab_remains > cast_time (~1.0).
-    -- ab_stacks reads NS.debuff_stacks(me, ARCANE_BLAST_DEBUFF = {36032, 36033,
-    -- 36034}) → scenario debuff_stacks 4 + those aura ids (id-scoped so mage
-    -- AB stacks can't leak into rogue poison stacks); ab_remains reads
-    -- NS.debuff_remains → buffs_up fallback 20. mana_pct 15 keeps phase
-    -- conserve: with the ranked-#2 bank max_mana (15000), mtte_burn ≈ 14 ≥ 5
-    -- AND buffs_up=true sets bloodlust_active=true, whose burn-override needs
-    -- mana_pct >= 20 — 15 stays under both, so can_burn stays false and the
-    -- phase never flips to burn (mana 15 >= 10 also avoids the emergency
+    -- Arcane Blast's stack aura (36032) is a SELF BUFF — the spec reads the
+    -- BUFF side only (NS.buff_stacks/NS.buff_remains) since 2026-08-11, so
+    -- the scenario drives buff_remains_map { [36032] = 4 } (map-first: 4
+    -- stacks + 4s remains; the map entry doubles as both values). mana_pct 15
+    -- keeps phase conserve: with the ranked-#2 bank max_mana (15000), mtte_burn
+    -- ≈ 14 ≥ 5 AND buffs_up=true sets bloodlust_active=true, whose burn-override
+    -- needs mana_pct >= 20 — 15 stays under both, so can_burn stays false and
+    -- the phase never flips to burn (mana 15 >= 10 also avoids the emergency
     -- branch, and FrostboltConserve has no mana gate).
-    { name = "ab_stack_conserve", overrides = { mana_pct = 15, buffs_up = true, debuff_stacks = 4, debuff_aura_ids = { 36032, 36033, 36034 } } },
+    { name = "ab_stack_conserve", overrides = { mana_pct = 15, buffs_up = true, buff_remains_map = { [36032] = 4 } } },
+    -- W3.3 mage live-fixes (2026-08-13): per-aura scenarios for the fixed
+    -- WotLK mage gates. Ids are mage-wotlk-scoped (44545 FoF proc, 42917 Frost
+    -- Nova max rank, 44549 Frostfire Bolt debuff, 55360 Living Bomb DoT) — no
+    -- TBC-era spec reads them (verified), so no other era's fires_in changes.
+    -- The [36032]-stack shape deliberately stays exclusive to ab_stack_conserve:
+    -- TBC arcane's FrostboltConserve is pins-exclusive to that scenario
+    -- (test_combat_battery_regression.lua), and WotLK ArcaneBarrage (4-stack
+    -- dump, W3.3) fires right here through the same map entry.
+    { name = "frost_fof_proc", overrides = { in_combat = true, buff_remains_map = { [44545] = 1 } } },
+    { name = "frost_nova_freeze", overrides = { in_combat = true, debuff_remains_map = { [42917] = 5 } } },
+    { name = "frost_ffb_debuff", overrides = { in_combat = true, debuff_remains_map = { [44549] = 2 } } },
+    { name = "leveling_living_bomb_wotlk", overrides = { in_combat = true, debuff_remains_map = { [55360] = 2 } } },
     -- Battle-ready SnD (ranked #5): rogue/combat BladeFlurry needs Slice and
     -- Dice up (SND_BUFF {6774, 5171}) while Blade Flurry itself is DOWN
     -- (13877) — the map-aware ns.buff_up reads buff_remains_map so the two
@@ -2178,11 +2537,18 @@ M.SCENARIOS = {
     -- the last 6 opt-in lanes. Keys are spec-scoped (arms reads
     -- use_sunder_armor; fury reads sunder_mode; arms+prot read
     -- use_commanding_shout; combat/subtlety read their own expose key).
-    -- arms SunderArmor ALSO needs DEFENSIVE stance (its build_action has
-    -- required_stance = STANCE.DEFENSIVE — battle-stance default blocks it
-    -- even with the setting); prot SunderArmor is unaffected (dev_ready gate,
-    -- no use_sunder_armor read).
-    { name = "arms_sunder",     overrides = { setting_overrides = { use_sunder_armor = true }, stance = 2 } },
+    -- arms SunderArmor needs BATTLE stance (its build_action has
+    -- required_stance = STANCE.BATTLE since 2026-08-12 — arms plays in Battle
+    -- and no strategy swaps to Defensive for Sunder, so the old DEFENSIVE
+    -- gate made the lane fire only from a non-default stance); prot
+    -- SunderArmor is unaffected (dev_ready gate, no use_sunder_armor read).
+    { name = "arms_sunder",     overrides = { setting_overrides = { use_sunder_armor = true }, stance = 1 } },
+    -- Vanilla-era mirror (2026-08-12): arms_vanilla's SunderArmor build_action
+    -- still requires DEFENSIVE stance (vanilla files are their own sweep), so
+    -- the era-shared arms_sunder (stance=1 since the TBC BATTLE-stance fix)
+    -- cannot fire the vanilla lane. This scenario re-supplies stance=2 for
+    -- the vanilla battery only; arms_sylvanas ignores it (BATTLE required).
+    { name = "arms_sunder_vanilla", overrides = { setting_overrides = { use_sunder_armor = true }, stance = 2 } },
     -- fury SunderArmor: sunder_mode "maintain" (default "off" blocks;
     -- "maintain" has no rage gate — the "low" branch requires rage >= 60,
     -- which rage 70 would satisfy anyway; min_rage 15 build_action passes).
@@ -2205,6 +2571,18 @@ M.SCENARIOS = {
     { name = "curse_mode_elements",     overrides = { setting_overrides = { warlock_curse_mode = "elements" } } },
     { name = "curse_mode_recklessness", overrides = { setting_overrides = { warlock_curse_mode = "recklessness" } } },
     { name = "curse_mode_weakness",     overrides = { setting_overrides = { warlock_curse_mode = "weakness" } } },
+    -- Warlock affliction CurseFirst (guide-divergence opt-in, 2026-08-13):
+    -- aff_curse_first (default false) lifts the selected curse ABOVE the DoT
+    -- setup at combat start. Auto curse mode at long TTD resolves to Doom, so
+    -- this reuses the long_ttd shape (ttd 120 clears the CoD 62s sanity gate)
+    -- plus the setting flip. Curse mode is left auto ON PURPOSE: flipping it
+    -- to elements/recklessness/weakness would fire the regular curse lanes in
+    -- a second scenario and break their fires-in(1) exclusivity pins
+    -- (test_warlock_opt_in_regression.lua); hp stays 100 so Healthstone
+    -- (pinned to low_self_healthstone) is untouched. For non-warlock specs
+    -- this ctx is identical to long_ttd (aff_curse_first is warlock-scoped),
+    -- so no other spec's fires_in changes.
+    { name = "aff_curse_first", overrides = { in_combat = true, ttd = 120, target_ttd = 120, setting_overrides = { aff_curse_first = true } } },
     -- Warlock Healthstone (affl/demo/destro, shared warlock_healthstone
     -- helper): the matcher gates on healthstone_hp > 0 AND hp <= threshold
     -- (default 0 -> never). hp 25 + healthstone_hp 40 makes all three
@@ -2218,6 +2596,13 @@ M.SCENARIOS = {
     -- they were only invisible because the battery never set threat).
     -- hunter FeignDeath reads state.threat_level via hunter_core, so it does
     -- NOT clear from these ctx keys (verified below).
+    -- NOTE (2026-08-13): threat_pct stays 95. priest/leveling Fade gates on
+    -- threat_pct >= 99, and the TBC Soulshatter lanes are pinned fires-ONLY-
+    -- in-threat_high (test_threat_context_regression.lua) — any scenario
+    -- with threat >= 99 fires Soulshatter in a second scenario and breaks
+    -- that exclusivity contract. The leveling Fade lane is therefore
+    -- classified (c) mock-limitation (see
+    -- docs/never_strategy_triage_vanilla_2026-08-13.md).
     { name = "threat_high", overrides = { threat_pct = 95, threat_status = 3, has_aggro = true } },
     -- Retri seal choice = "command" (seal_preference drives should_use_blood →
     -- preferred_damage_seal): Ret_SealCommand_Primary fires when the Command
@@ -2266,10 +2651,23 @@ M.SCENARIOS = {
     -- DK runic power (runic_power >= 60 DancingRuneWeapon blood; >= 100
     -- DeathCoil unholy). Base ctx defaults runic_power 50 — one flag short.
     { name = "dk_runic",        overrides = { runic_power = 100 } },
-    -- DK unholy SummonGargoyle: is_boss truthy AND runic_power >= 60. is_boss
-    -- is a new bank key (ctx.is_boss); runic_power rides the same flag as
-    -- dk_runic. (Gargoyle is a boss-target DPS CD — realistic shape.)
-    { name = "dk_boss",         overrides = { is_boss = true, runic_power = 100 } },
+    -- DK unholy SummonGargoyle: boss flag truthy AND runic_power >= 60.
+    -- W3.3 register: unholy build_state now reads the REAL dispatcher field
+    -- context.target_is_boss (main_sylvanas.lua:1287 — the old ctx.is_boss
+    -- was phantom). W3.4 mock-tightening (2026-08-13): the scenario now
+    -- drives ONLY the real field; the legacy is_boss compat override is
+    -- removed, and the unholy_wotlk:127 legacy context.is_boss read was
+    -- DELETED in the W3.5 integration wave (mirrors arms_wotlk.lua:143).
+    -- (Gargoyle is a boss-target DPS CD — realistic shape.)
+    { name = "dk_boss",         overrides = { target_is_boss = true, runic_power = 100 } },
+    -- DK ghoul pet commands (W3.3 register, unholy): the new GhoulGnaw /
+    -- GhoulLeap lanes must be demonstrably fireable — has_pet presents a live
+    -- ghoul (see the pets block: ctx.has_pet now materializes ctx.pet for
+    -- non-pet-profile classes), target_casting drives Gnaw's real gate
+    -- (context.target_casting, main_sylvanas.lua:759), target_distance 15
+    -- drives Leap's gap-close gate (>= 8, main_sylvanas.lua:877).
+    { name = "dk_ghoul_gnaw",   overrides = { has_pet = true, in_combat = true, target_casting = true } },
+    { name = "dk_ghoul_leap",   overrides = { has_pet = true, in_combat = true, target_distance = 15 } },
     -- DK disease refresh (Pestilence x3 — blood/unholy/leveling): all three
     -- gate on frost_fever_remains > 0 AND blood_plague_remains > 0 with one
     -- below 3s (blood/unholy) or diseases_up (leveling: ff>0 or bp>0). The
@@ -2281,6 +2679,13 @@ M.SCENARIOS = {
     -- enemies or the spread lane stays 0. Blood's Pestilence (no aoe gate)
     -- clears from the disease map alone.
     { name = "dk_disease",      overrides = { debuff_remains_map = { [55095] = 1, [55078] = 1 }, enemy_count = 3, enemies_count = 3 } },
+    -- DK blood DeathStrike (W3.3 register): self-heal at hp < 80, gated on
+    -- Frost Fever > 3s (the disease-uptime guard — DeathStrike burns the frost
+    -- rune IcyTouch needs, so firing at hp<80 with FF down starves the
+    -- disease). hp 60 + FF 5s is the ONLY shape that clears the lane:
+    -- dk_disease (FF 1s) deliberately keeps blocking it (guard active) and no
+    -- other scenario combines hp<80 with FF>3. 55095 = Frost Fever (DK-only).
+    { name = "dk_death_strike", overrides = { hp = 60, debuff_remains_map = { [55095] = 5 } } },
     -- DK EmpowerRuneWeapon x2 (frost + unholy): both gate on total runes ready
     -- == 0; the rune bank defaults 2/2/2/0 (6 total), so an all-zero ready map
     -- is the only shape where the CD fires. rune_state is a new bank key
@@ -2304,9 +2709,11 @@ M.SCENARIOS = {
     -- strings, unlike the numeric form ids TBC specs use). The battery context
     -- passes ctx.form through verbatim, so a string override lands in
     -- state.form and the string gates match. combo_points 4 satisfies both the
-    -- >= 4 finishers (Rip/FerociousBite) and < 5 builders (MangleCat/Shred/
-    -- Claw) — default 5 blocks the builders, default 0 blocks the finishers.
+    -- >= 4 finishers (FerociousBite) and < 5 builders (MangleCat/Shred/Claw);
+    -- the W3.3 5-CP Rip spend (2026-08-13) needs the sibling 5-CP scenario —
+    -- default 5 blocks the builders, default 0 blocks the finishers.
     { name = "lvl_cat_form",    overrides = { form = "cat", combo_points = 4 } },
+    { name = "lvl_cat_form_5cp", overrides = { form = "cat", combo_points = 5 } },
     -- Druid leveling bear abilities x3 (Swipe/Lacerate/MangleBear): form ==
     -- "bear" string; Swipe additionally needs enemy_count >= 2.
     { name = "lvl_bear_form",   overrides = { form = "bear", enemy_count = 3, enemies_count = 3 } },
@@ -2316,9 +2723,22 @@ M.SCENARIOS = {
     -- target_hp 30 satisfies the low-health gate. (buffs_up=false elsewhere so
     -- the lane stays silent in every other scenario.)
     { name = "resto_swiftmend", overrides = { target_hp = 30, buff_remains_map = { [26982] = 1 } } },
-    -- Hunter survival ExplosiveShotProc: lock_and_load truthy (proc flag —
-    -- new bank key, ctx.lock_and_load). No other scenario sets it.
-    { name = "surv_lockload",   overrides = { lock_and_load = true } },
+    -- Hunter survival ExplosiveShotProc (W3.3 live fix, 2026-08-13): the
+    -- production lane reads the Lock and Load proc via NS.buff_up over
+    -- LOCK_AND_LOAD_BUFF {56344,56343,56342} (context.lock_and_load is never
+    -- set by production). The buff_remains_map entry for the max-rank aura
+    -- 56344 drives the REAL API path. The map also flips the plain
+    -- ExplosiveShot lane off (its gate is lock_and_load falsy), so the proc
+    -- lane is the only Explosive Shot that fires here. No other scenario
+    -- presents 56344.
+    { name = "surv_lockload",   overrides = { in_combat = true, buff_remains_map = { [56344] = 1 } } },
+    -- Hunter BestialWrath CD gate (W3.3 live fix, 2026-08-13): BM + leveling
+    -- now derive bestial_wrath_ready from NS.cooldown_remains(ACTION.
+    -- BestialWrath). This scenario puts 19574 on CD via the real on_cd bank,
+    -- proving the gate is genuinely cooldown-driven (the lane fires in
+    -- `standard` where the bank is empty). 19574 is hunter-scoped, so no other
+    -- spec's gates change.
+    { name = "hunter_wotlk_bw_cd", overrides = { in_combat = true, on_cd = { [19574] = 20 } } },
     -- Mage fire FireBlast (scorch-window weave): gates on scorch_cast_time > 0
     -- (number) AND state.ttd <= cast_time. scorch_cast_time is a new bank key;
     -- ttd 2 <= cast_time 3 makes the lane fire (base ttd 60 > 3 blocks it
@@ -2337,22 +2757,55 @@ M.SCENARIOS = {
     -- in_combat falsy + shadowform_up falsy. Settings fixture, like lvl_feral.
     { name = "lvl_shadowform",  overrides = { in_combat = false, setting_overrides = { eaxpriestlvl_use_shadowform = true } } },
     -- Shaman ready flags x4 (elem Bloodlust + ElementalMastery + FireElemental,
-    -- enh Bloodlust): all gate on ctx.bloodlust_ready / elemental_mastery_ready
-    -- / fire_elemental_ready, which the base ctx leaves false. One scenario
-    -- with all three set clears the four lanes (elem + enh share bloodlust).
-    { name = "shaman_ready",    overrides = { bloodlust_ready = true, elemental_mastery_ready = true, fire_elemental_ready = true } },
-    -- Shaman enh totem/proc lanes x2: CallOfTheElements gates water_totem_remains
-    -- < 20 (base 300); LightningBolt gates maelstrom_stacks >= 5 — enh reads
-    -- NS.buff_stacks(me, MAELSTROM_WEAPON_BUFF {53817,..}), which is
-    -- buff_remains_map-aware, so the map entry [53817] = 5 supplies the stacks
-    -- (buffs_up=false elsewhere keeps the lane silent). water_totem_remains is
-    -- a ctx/bank key read directly by build_state.
-    { name = "enh_procs",       overrides = { water_totem_remains = 5, buff_remains_map = { [53817] = 5 } } },
-    -- Shaman resto triage x2: ChainHeal needs injured_count >= 2 + lowest_hp
-    -- < 85 + mana >= 25; ManaTideTotem needs mana_tide_ready + mana < 30. One
-    -- scenario satisfies both: mana 27 (>= 25 and < 30), 2 injured, lowest_hp
-    -- 50. injured_count/mana_tide_ready are new bank keys.
-    { name = "resto_triage",    overrides = { injured_count = 2, lowest_hp = 50, mana_pct = 27, mana_tide_ready = true } },
+    -- enh Bloodlust): W3.3 moved the gates to REAL API —
+    -- state.*_ready = NS.spell_ready(ACTION.*) (cooldown_remains-aware, ready
+    -- unless on_cd), so the lanes fire through the production path in every
+    -- scenario. W3.4 mock-tightening (2026-08-13): the phantom ctx overrides
+    -- (bloodlust_ready / elemental_mastery_ready / fire_elemental_ready —
+    -- never set by the dispatcher) are removed; this scenario remains as the
+    -- regression row (the lanes must fire on the default ctx).
+    { name = "shaman_ready",    overrides = {} },
+    -- Shaman enh totem/proc lanes x2: LightningBolt gates maelstrom_stacks
+    -- >= 5 — enh reads NS.buff_stacks(me, MAELSTROM_WEAPON_BUFF {53817,..}),
+    -- which is buff_remains_map-aware, so the map entry [53817] = 5 supplies
+    -- the stacks (buffs_up=false elsewhere keeps the lane silent).
+    -- W3.4 mock-tightening (2026-08-13): CallOfTheElements now gates on the
+    -- REAL water-slot occupancy (NS.get_totem_info — the phantom
+    -- ctx.water_totem_remains key was never set by the engine and is removed).
+    { name = "enh_procs",       overrides = { buff_remains_map = { [53817] = 5 } } },
+    -- Shaman resto triage x2: W3.3 moved both gates to REAL API — ChainHeal
+    -- gates on context.party_injured_count (engine field) + lowest_hp < 85 +
+    -- mana >= 25; ManaTideTotem gates on NS.spell_ready(ManaTideTotem) +
+    -- mana < 30. W3.4 mock-tightening (2026-08-13): the phantom overrides
+    -- (injured_count / mana_tide_ready — never set by the dispatcher) are
+    -- removed; the real overrides (lowest_hp 50, mana_pct 27) keep the
+    -- ManaTideTotem mana band observable here (ChainHeal fires in
+    -- resto_party_injured).
+    { name = "resto_triage",    overrides = { lowest_hp = 50, mana_pct = 27 } },
+    -- Wave 3.3 (2026-08-13) REAL-FIELD scenarios: the WotLK shaman fixes read
+    -- production fields (party_injured_count, NS.get_totem_info slot
+    -- occupancy) instead of the phantom/injected keys above, so these two
+    -- scenarios prove the fixed lanes fire through the REAL API path:
+    --   * resto ChainHeal gates on context.party_injured_count (the engine
+    --     field) — 2 injured + lowest_hp 50 + mana 27 fires it.
+    --   * enh Fire Nova (61657) requires an ACTIVE fire totem in WotLK —
+    --     totem_active presents one through the bank-aware NS.get_totem_info,
+    --     and the 3-enemy count clears the AoE gate.
+    { name = "resto_party_injured", overrides = { party_injured_count = 2, lowest_hp = 50, mana_pct = 27 } },
+    { name = "enh_fire_totem_up",    overrides = { enemy_count = 3, enemies_count = 3, totem_active = true } },
+    -- W3.3 priest wotlk REAL-FIELD scenarios (2026-08-13): the four priest
+    -- *_wotlk.lua fixes read production fields (context.mana_pct,
+    -- context.party_injured_count) instead of phantom/mock-only paths, so these
+    -- scenarios prove the newly-activated lanes fire through the real API:
+    --   * shadow Shadowfiend (34433, APL priority 1): fires when in combat and
+    --     mana < 60. mana 50 sits above the TBC shadow sibling's <= 45 gate and
+    --     below the 60 threshold, so ONLY the WotLK lane fires here (TBC
+    --     shadow Shadowfiend stays observable only via its own bands).
+    --   * holy CircleOfHealing (48089, APL slot 3): fires on 2+ injured party
+    --     members (context.party_injured_count) with the lowest ally below 85
+    --     and mana >= 20 — the same engine field resto_wotlk WildGrowth uses.
+    { name = "priest_wotlk_shadowfiend",    overrides = { in_combat = true, mana_pct = 50, player_mana = 5000, player_mana_pct = 50 } },
+    { name = "priest_wotlk_circle_healing", overrides = { party_injured_count = 2, lowest_hp = 60, mana_pct = 90, friends_hp = { 60, 75, 85 }, friend_class = 11 } },
 
     -- (c) close-out batch 2 (2026-08-09): the 18 remaining TBC (c) lanes.
     -- druid/balance: HurricaneAoE (aoe + mana + Barkskin active so the
@@ -2372,6 +2825,14 @@ M.SCENARIOS = {
     -- InCombatAimedShot (fresh-combat opener, no Serpent Sting).
     { name = "bm_trinket",      overrides = { in_combat = true, has_trinket = true, setting_overrides = { trinket_mode = "slot1" } } },
     { name = "mm_aimed_opener", overrides = { in_combat = true, combat_time = 0.2 } },
+    -- MM Aimed Shot weave (guide-divergence opt-in, 2026-08-13): mm_aimed_weave
+    -- (default false) unlocks the in-combat Aimed Shot weave lane. The battery's
+    -- settings fixture defaults unset, so without this scenario the lane would
+    -- be a never-lane; flipping the opt-in keeps the never=16 contract
+    -- non-vacuous. combat_time 5 clears the <=0.5s opener window owned by
+    -- InCombatAimedShot; the swing-window gate is lenient (no ms_until_auto
+    -- stub on the HunterClipTracker mock) and mana 90 > the 20 floor.
+    { name = "mm_aimed_weave",  overrides = { in_combat = true, combat_time = 5, setting_overrides = { mm_aimed_weave = true } } },
     -- paladin/protection: AvengingWrath (use_cooldowns enabled, ttd above the
     -- 15s expiry gate); LayOnHands (self below the 10% threshold).
     { name = "prot_cd_window",  overrides = { in_combat = true, ttd = 60, setting_overrides = { use_cooldowns = true } } },
@@ -2386,6 +2847,16 @@ M.SCENARIOS = {
     { name = "elem_group_injured", overrides = { in_combat = true, group_injured = true } },
     { name = "elem_burst_cd",   overrides = { in_combat = true, should_burst = true, setting_overrides = { elemental_use_elemental_mastery = true } } },
     { name = "elem_totemic_call", overrides = { in_combat = true, is_moving = true, has_totems = true } },
+    -- shaman/elemental guide divergences (Phase 2.2a, opt-in pattern (a)):
+    -- ChainLightningSingleTarget gates on elemental_cl_single_target (default
+    -- false) AND the AoE gate FAILING (aoe_target_meets bank key flipped
+    -- false — the regular ChainLightning lane stays silent here); the
+    -- bank-aware stub defaults true so no other scenario changes.
+    { name = "elem_cl_st",      overrides = { in_combat = true, aoe_target_meets = false, setting_overrides = { elemental_cl_single_target = true } } },
+    -- FlameShockMaintain gates on elemental_fs_maintain (default false) AND
+    -- flame_remains in the (1, 3) maintain window — 25457 (FS top rank) at 2s
+    -- sits above the clip lane's <=1s cutoff, below the 3s refresh threshold.
+    { name = "elem_fs_maintain", overrides = { in_combat = true, debuff_remains_map = { [25457] = 2 }, setting_overrides = { elemental_fs_maintain = true } } },
     -- shaman/enhancement: EarthShock interrupt (target casting in the kick
     -- window); ShamanisticRage (low mana defensive use + the per-CD toggle
     -- setting enabled — the DSL condition requires it, the battery settings
@@ -2404,6 +2875,21 @@ M.SCENARIOS = {
     -- scenarios; build_scenario returns the FIRST match, so reusing the
     -- name would silently shadow this one.
     { name = "moonkin_form_optin", overrides = { in_combat = false, setting_overrides = { balance_moonkin_auto = true } } },
+    -- druid/balance InnervateHealer (Pattern 13 split, P2.2b 2026-08-13):
+    -- the smart-Innervate party scan (balance build_state, 2s throttle —
+    -- battery clock 102+ clears it) reads NS.GetPartyMembers() and hands the
+    -- first non-self healer-class member to the InnervateHealer lane. This
+    -- scenario presents a priest ally (class 5 via the _friend class id) at
+    -- bank mana 25 <= balance_innervate_mana(30)+5; the in_combat + group
+    -- context comes from the base ctx (druid is a healer-class profile so
+    -- ctx.is_group is true; druid_group_aware_utility defaults true).
+    { name = "balance_innervate_healer", overrides = { in_combat = true, mana_pct = 25, player_mana_pct = 25, party_members = { _friend(100, 30, 5) } } },
+    -- druid/balance Wrath filler divergence (P2.2b 2026-08-13):
+    -- balance_wrath_conserve is an opt-OUT (default true = mana-tier gating;
+    -- WrathFiller already fires at low mana). This scenario flips the opt-out
+    -- at high mana so the divergence lane is observable: WrathFiller must
+    -- ALSO fire when the gate is removed (aggressive parse filler).
+    { name = "balance_wrath_divergence", overrides = { in_combat = true, mana_pct = 90, player_mana_pct = 90, setting_overrides = { balance_wrath_conserve = false } } },
     -- druid/bear Barkskin: setting + in combat + NOT bear form (TBC: casting
     -- it in bear breaks the form) + hp in (15, barkskin_hp=55] (15 reserved
     -- for Frenzied Regen) + no barkskin buff.
@@ -2444,6 +2930,14 @@ M.SCENARIOS = {
     -- paladin/retribution Ret_Consecration_ManaDump: consecration_single_target
     -- + not mana_emergency + mana >= 75 (single-target; no enemy gate).
     { name = "ret_consec_dump",     overrides = { mana_pct = 80, setting_overrides = { consecration_single_target = true } } },
+    -- W3.4 paladin wotlk mana-chain fixture (2026-08-13): retribution_wotlk
+    -- DivinePlea gates on state.mana_pct < 40 (divine_plea_up falsy +
+    -- divine_plea_cd <= 0 are the base defaults). mana_pct = 35 drives the
+    -- lane through the REAL chain — context.mana_pct (dispatcher-set,
+    -- main_sylvanas.lua:795) → state.mana_pct — with the mock unit now
+    -- mana_pct-less (me:get_mana_percentage is a W3.4 tripwire), so any
+    -- surviving sole-source read errors loudly instead of silently reading 100.
+    { name = "ret_divine_plea",     overrides = { in_combat = true, mana_pct = 35 } },
     -- shaman/enhancement GraceOfAirTotemTwist: totem_twisting (default true)
     -- + in combat + not moving + gcd 0 + mana >= 40 + GoA ready + WF buff up
     -- (25587 > 2.0) + GoA buff expiring (25359 < 5.0) + no recent GoA cast
@@ -2508,6 +3002,105 @@ M.SCENARIOS = {
     -- does). The real gate is _engaged_with_player (shadow:743-754), which
     -- needs target_hp < 100. No RACE_OVERRIDES extension needed.
     { name = "shadow_devouring_plague", overrides = { target_hp = 80 } },
+    -- (b) PvP/OOC scenario family (2026-08-13, campaign phase 0.2): two
+    -- context banks that run for EVERY class/spec like the rest of the
+    -- battery. pvp_arena models an in-combat arena match — is_pvp + is_group
+    -- + a hostile target (the base-ctx target: has_valid_enemy_target /
+    -- has_target true, target_hp 100); ooc_idle models an out-of-combat idle
+    -- state — in_combat false + no target. These are the two context shapes
+    -- the 10 (b) correctly-silent lanes are documented against (OOC-only pull
+    -- openers, OOC-only tracking/travel, OOC conjure, mounted/encounter
+    -- safety nets); running them through the battery proves each lane either
+    -- demonstrably fires (reclassify out of (b)) or stays correctly silent.
+    { name = "pvp_arena", overrides = { is_pvp = true, is_group = true } },
+    { name = "ooc_idle",  overrides = { in_combat = false }, no_target = true },
+    -- WotLK warlock live-fix fixture (wave 3.3, 2026-08-13): the production
+    -- debuff tables now carry the WotLK max-rank ids FIRST (Corruption 47813 /
+    -- UA 47843 / CoA 47864 / Immolate 47811 / Haunt 59164). This scenario
+    -- marks those EXACT ids on the primary target at 8s with low mana (25) +
+    -- healthy HP (90): the DoT refresh lanes gate off (remains 8 >= 3), the
+    -- Immolate-up shape satisfies Conflagrate, and the new LifeTap sustain
+    -- lanes fire (mana below threshold, HP above the safety floor) — all via
+    -- the REAL ids a max-level WotLK client applies. The ids are WotLK-scoped
+    -- (TBC-era debuff tables contain none of them), so the TBC battery's
+    -- never=13 pins are untouched; for non-warlock specs the keys are inert.
+    { name = "wotlk_warlock_lifetap", overrides = { in_combat = true, mana_pct = 25, hp = 90, player_hp = 90, debuff_remains_map = { [47813] = 8, [47843] = 8, [47864] = 8, [47811] = 8, [59164] = 8 } } },
+    -- WotLK rogue live-fix fixture (wave 3.3, 2026-08-13): assassination_wotlk
+    -- Envenom now gates on Deadly Poison stacks (>= 3) tracked with the REAL
+    -- WotLK application ids (57970/57969 — wowhead-verified Deadly Poison
+    -- IX/VIII). This scenario marks those exact ids at 5 stacks with 5 combo
+    -- points + energy 60: the Envenom lane fires via the real
+    -- NS.get_debuff_stacks path (envenom buff down). The ids are WotLK-scoped
+    -- (no TBC/vanilla debuff table contains them), so the TBC never=13 pins
+    -- and the TBC-id poison_stacks scenario are untouched; for non-rogue
+    -- specs the keys are inert.
+    { name = "wotlk_rogue_dp_stacks", overrides = { in_combat = true, combo_points = 5, energy = 60, debuff_stacks = 5, debuff_aura_ids = { 57970, 57969 } } },
+    -- WotLK rogue live-fix fixture (wave 3.3, 2026-08-13): subtlety_wotlk
+    -- Ambush now gates on is_behind (real NS.is_behind_target) inside the
+    -- Shadow Dance window (buff 51713). This scenario presents the Shadow
+    -- Dance buff via the map (51713, map-first) with energy 60 — the Ambush
+    -- lane fires through the real buff_up + is_behind path. 51713 is
+    -- rogue-scoped (Shadow Dance is WotLK-only), so no TBC/vanilla spec's
+    -- gates change; the buffs_up fallback still marks the buff up in the
+    -- buffs_up/pull/burst scenarios, so the lane stays observable there too.
+    { name = "wotlk_sub_dance_ambush", overrides = { in_combat = true, buff_remains_map = { [51713] = 5 }, energy = 60, combo_points = 0 } },
+    -- =========================================================================
+    -- Wave 1.4 leveling-vanilla fixtures (2026-08-13): the 9 leveling_vanilla
+    -- specs joined the battery manifest (40 specs total). After the
+    -- spell-table seeds (DruidSpells/.../WarriorSpells ladders), the remaining
+    -- never-lanes are driven by these scenario shapes. Each is era-shared
+    -- (every scenario runs in every era) — TBC never-count preservation was
+    -- verified lane-for-lane after the batch (see the triage addendum).
+    -- druid/leveling Claw: cat form + in combat + energy >= 45 + NOT behind
+    -- (shred-preference gate reads the bank-aware NS.is_behind_target) + Rake
+    -- remains > 3 (rake-refresh preference gate reads the primary-target
+    -- debuff map; 9904 is the vanilla Rake rank-6 id in RAKE_DEBUFF).
+    { name = "cat_lev_claw", overrides = { form = 3, energy = 60, combo_points = 0, is_behind = false, debuff_remains_map = { [9904] = 10 } } },
+    -- shaman/leveling EarthShock + FrostShock: gated on the
+    -- leveling_default_shock setting (default "flame") — one scenario per
+    -- opt-in value (settings fixture, same pattern as the warlock curse modes).
+    { name = "lev_shock_earth", overrides = { setting_overrides = { leveling_default_shock = "earth" } } },
+    { name = "lev_shock_frost", overrides = { setting_overrides = { leveling_default_shock = "frost" } } },
+    -- priest/leveling VampiricEmbrace: needs shadowform up (has_buff over
+    -- SHADOWFORM_BUFF {15473} — map-only reader, so the buff_remains_map
+    -- entry drives it) and VE NOT active (no 15286 entry in the map).
+    { name = "priest_ve", overrides = { buff_remains_map = { [15473] = 30 } } },
+    -- paladin/leveling Exorcism + HammerOfWrath: damage lanes gated on a live
+    -- seal (has_any_seal via ANY_SEAL_BUFF — 20375 is the vanilla Command
+    -- top rank) + undead/demon target (Exorcism) or execute range (HoW).
+    -- target_hp 15 satisfies HoW's <= 20; creature-type 6 the Exorcism gate.
+    { name = "pal_lev_seal", overrides = { target_creature_type = 6, target_hp = 15, buff_remains_map = { [20375] = 30 } } },
+    -- rogue/subtlety Ambush: stealth-up + behind + opener_preference
+    -- explicitly "ambush". The auto-resolve path is battery-dead (constant-
+    -- true try_interrupt makes is_caster_target true → auto picks garrote),
+    -- but the SETTING path (option("opener_preference")) is expressible —
+    -- same settings fixture as stealth_opener's cheap_shot override.
+    { name = "ambush_opener", overrides = { buff_remains_map = { [1784] = 10 }, setting_overrides = { opener_preference = "ambush" } } },
+    -- warrior/leveling PvPCCGate: the gate strategy fires when a CC'd enemy
+    -- is within the 15-yd radius (CCGateDB.is_any_nearby_enemy_under_cc,
+    -- bank-driven on enemy_cc_nearby) + any AoE spell learned (lenient mock)
+    -- + use_pvp_cc_gating default true. PvP context + enemies.
+    { name = "pvp_cc_gate", overrides = { is_pvp = true, enemy_count = 3, enemies_count = 3, enemy_cc_nearby = true } },
+    -- paladin/leveling Cleanse: OOC self-cure — needs in_combat false + a
+    -- dispel-type affliction on self (has_dispel_type_debuff reads the
+    -- friends_afflicted bank flag; the TBC healer cure/cleanse lanes all gate
+    -- in_combat=true, so the OOC shape fires nothing in the TBC era).
+    { name = "ooc_afflicted", overrides = { in_combat = false, friends_afflicted = true }, no_target = true },
+    -- WotLK Phase-3 paladin sweep (2026-08-13): retribution SealSwitch — the
+    -- opt-in (ret_seal_switch, default true) seal ST/AoE switch lane fires when
+    -- Seal of Vengeance is up with 2+ enemies (adds arrived): SoV is re-cast
+    -- to CANCEL (WotLK seal mechanic, no GCD) and SealOfCommand applies on the
+    -- next GCD. buff_remains_map { [31801] = 5 } marks SoV up (map-first); no
+    -- other scenario presents SoV, so the lane fires exclusively here. The
+    -- reverse direction (SoC up + 1 enemy) is battery-shadowed by
+    -- seal_command_active (2 enemies); both share the same cancel code path.
+    { name = "ret_seal_switch", overrides = { in_combat = true, enemy_count = 3, enemies_count = 3, buff_remains_map = { [31801] = 5 }, setting_overrides = { ret_seal_switch = true } } },
+    -- protection Holy Shield charge-refresh path: the shield is UP (48927 in
+    -- the map) while the battery's buff_points returns nil (charges read 0 <=
+    -- floor 2) — the lane must fire WITH the buff up, proving the charge floor
+    -- drives the refresh and not just the absent-buff branch (which already
+    -- fires in standard). 48927 is paladin-scoped; no other spec reads it.
+    { name = "prot_hs_charges", overrides = { in_combat = true, buff_remains_map = { [48927] = 30 } } },
 }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
@@ -2516,7 +3109,22 @@ local function _scenario_me(profile, ctx)
     local me = _me_unit(profile.class_id or 0)
     me.get_health_percentage = function(self) return ctx.hp or 100 end
     me.get_health = function(self) return (ctx.hp or 100) * 100 end
-    me.get_mana_percentage = function(self) return ctx.mana_pct or 100 end
+    -- W3.4 mock-tightening (2026-08-13): me:get_mana_percentage() is NOT a
+    -- real game_object/IZI SDK member (the izi unit method is me:mana_pct();
+    -- engine path is context.mana_pct / NS.mana_pct). The lenient injection is
+    -- REMOVED (tripwire, see _scenario_me) — the W3.4 fixers migrated the
+    -- paladin wotlk files (holy/leveling/retribution/protection) to the
+    -- context-first chain, and the repo audit found no surviving SOLE-source
+    -- reads: every remaining reader is a context-first tail fallback
+    -- (priest/shaman/warlock wotlk + affliction_sylvanas + aspect_manager) or
+    -- a pcall-guarded tail (druid middleware party-member scan, hunter
+    -- target-mana reads) that the tripwire makes inert (same result as the
+    -- nil method in production). A survivor would now error loudly per
+    -- scenario in the battery report ("dispatch ERR").
+    me.get_mana_percentage = function(self)
+        error("mock-only member me:get_mana_percentage() removed in W3.4 (behavioral_audit.lua) "
+            .. "— production must use context.mana_pct or me:mana_pct() or NS.unit_mana_pct(me)", 2)
+    end
     me.is_in_combat = function(self) return ctx.in_combat == true end
     me.get_shapeshift_form_id = function(self)
         -- Coerce string forms (leveling_wotlk scenarios pass form="cat"/"bear")
@@ -2590,9 +3198,29 @@ local function _scenario_me(profile, ctx)
     -- TBC-era files read context.rage / ns.rage() etc. (bank-driven). Without
     -- these, every WotLK resource read fell back to 0 — warrior arms 18/19,
     -- fury 5/6, protection 6/6, rogue 4+5+8+3, cat 7/8, DK lanes all dead.
-    me.get_rage = function(self) return ctx.rage or 70 end
-    me.get_energy = function(self) return ctx.energy or 100 end
-    me.get_combo_points = function(self) return ctx.combo_points or 5 end
+    -- W3.4 mock-tightening (2026-08-13): get_energy / get_combo_points /
+    -- get_rage are REMOVED (tripwire) — the W3.3/W3.4 fixers migrated
+    -- rogue/cat/warrior wotlk to context.energy / context.combo_points /
+    -- context.rage + me:get_power(POWER_*); the repo audit found no live
+    -- production reads (warrior wotlk arms/fury/protection/leveling now read
+    -- context.rage first with a me:get_power(NS.POWER_RAGE) tail, mirroring
+    -- bear_wotlk.lua:58; cat_sylvanas:363 keeps a pcall-guarded tail fallback
+    -- that the tripwire makes inert). The tripwires FAIL LOUDLY if any
+    -- (re)introduced production or test code calls these members on a battery
+    -- unit — re-run the grep audits (get_rage / get_energy / get_combo_points)
+    -- before ever removing or loosening them.
+    me.get_rage = function(self)
+        error("mock-only member me:get_rage() removed in W3.4 (behavioral_audit.lua) "
+            .. "— production must use context.rage or me:get_power(NS.POWER_RAGE)", 2)
+    end
+    me.get_energy = function(self)
+        error("mock-only member me:get_energy() removed in W3.4 (behavioral_audit.lua) "
+            .. "— production must use context.energy or me:get_power(NS.POWER_ENERGY)", 2)
+    end
+    me.get_combo_points = function(self)
+        error("mock-only member me:get_combo_points() removed in W3.4 (behavioral_audit.lua) "
+            .. "— production must use context.combo_points or NS.get_combo_points", 2)
+    end
     me.get_runic_power = function(self) return ctx.runic_power or 50 end
     return me
 end
@@ -2673,13 +3301,28 @@ function M.build_context_for(class_key, scenario)
         level=true, player_level=true, is_leveling=true, target_ttd=true,
         combo_points=true, energy=true, rage=true, focus=true,
         is_moving=true, is_stealthed=true, target_is_casting=true,
+        -- W3.3 deathknight (2026-08-13): the REAL dispatcher fields the DK
+        -- fixes read. Production sets context.target_casting
+        -- (main_sylvanas.lua:759) and context.target_is_boss
+        -- (main_sylvanas.lua:1287) — the W3.1 audit's is_boss /
+        -- target_is_casting reads were phantom/mock-only. Whitelisted so the
+        -- dk_boss / dk_ghoul_gnaw scenarios drive the REAL fields.
+        target_casting=true, target_is_boss=true,
         stance=true, buffs_up=true, faction=true, pet_hp=true, pet_dead=true,
         lowest_hp=true, has_potions=true, friends_afflicted=true,
+        -- W3.3 druid wotlk (2026-08-13): party_injured_count feeds resto_wotlk
+        -- WildGrowth's injured-ally gate (context.party_injured_count is the
+        -- engine party-scan field, main_sylvanas.lua:1237); only the new
+        -- resto_wotlk lane reads it, so the key is additive-safe.
+        party_injured_count=true,
         enemy_buffed=true, me_casting=true, on_cd=true, swing_until=true, afflicted=true,
         form=true, target_distance=true, should_burst=true,
         debuff_stacks=true, debuff_aura_ids=true, combat_time=true,
         target_creature_type=true, enemies_casting=true, buff_remains_map=true,
         debuff_remains_map=true, not_learned=true,
+        -- Phase 2.2a (2026-08-13): aoe_target_meets feeds the bank-aware
+        -- aoe_target_meets stub (elem_cl_st presents a single-target fight).
+        aoe_target_meets=true,
         -- (c) close-out (2026-08-09, batch 2): cat MangleFiller reads
         -- context.is_behind (cat:514) so the battery target's always-true
         -- is_behind no longer blocks it; elem ChainHeal reads context.
@@ -2747,21 +3390,31 @@ function M.build_context_for(class_key, scenario)
         -- WotLK Phase-1 triage (2026-08-09): resource/state banks for the
         -- *_wotlk.lua specs. runic_power feeds the DK rune stub (DancingRune
         -- Weapon >= 60 / DeathCoil >= 100); rune_state drives the rune bank
-        -- (dk_runes_depleted → EmpowerRuneWeapon); is_boss gates unholy
-        -- SummonGargoyle; optimal_presence drives the presence stub
-        -- (dk_presence → blood/unholy Presence + frost FrostPresence);
-        -- lock_and_load gates survival ExplosiveShotProc; scorch_cast_time
-        -- + ttd unlock fire FireBlast's scorch-window gate; bloodlust_ready /
-        -- elemental_mastery_ready / fire_elemental_ready drive the shaman
-        -- ready flags; water_totem_remains + maelstrom_stacks gate enh
-        -- CallOfTheElements / LightningBolt; injured_count + mana_tide_ready
-        -- gate resto ChainHeal / ManaTideTotem; diseases/ff-bp remain handled
-        -- by the existing debuff_remains_map (dk_disease scenario).
-        runic_power=true, rune_state=true, is_boss=true, optimal_presence=true,
+        -- (dk_runes_depleted → EmpowerRuneWeapon); optimal_presence drives
+        -- the presence stub (dk_presence → blood/unholy Presence + frost
+        -- FrostPresence); lock_and_load is RETIRED since W3.3 (2026-08-13):
+        -- survival reads the Lock and Load proc via NS.buff_up over
+        -- buff_remains_map 56344, not the ctx key — the key is kept
+        -- whitelisted as inert; scorch_cast_time + ttd unlock fire
+        -- FireBlast's scorch-window gate; maelstrom_stacks feeds the enh
+        -- LightningBolt stacks bank; diseases/ff-bp remain handled by the
+        -- existing debuff_remains_map (dk_disease scenario).
+        -- W3.4 mock-tightening (2026-08-13): is_boss / bloodlust_ready /
+        -- elemental_mastery_ready / fire_elemental_ready / water_totem_remains
+        -- / injured_count / mana_tide_ready are REMOVED from the whitelist —
+        -- phantom scenario-only keys the dispatcher never sets (production
+        -- now reads target_is_boss / party_injured_count / NS.spell_ready /
+        -- NS.get_totem_info). A scenario override using one of these names is
+        -- now silently dropped (fail-closed via the audit table + W3.4
+        -- addendum rather than fed to production).
+        runic_power=true, rune_state=true, optimal_presence=true,
         lock_and_load=true, scorch_cast_time=true,
-        bloodlust_ready=true, elemental_mastery_ready=true,
-        fire_elemental_ready=true, water_totem_remains=true,
-        maelstrom_stacks=true, injured_count=true, mana_tide_ready=true,
+        maelstrom_stacks=true,
+        -- Wave 3.3 (2026-08-13): party_injured_count is the REAL engine field
+        -- for the healer AoE-heal gate (main_sylvanas.lua:973/1225 populates
+        -- context.party_injured_count, NOT the phantom injured_count the old
+        -- shaman resto build_state read).
+        party_injured_count=true,
         -- (b) close-out (2026-08-10): PvP/situational fixture keys. is_pvp /
         -- combat_time / player_debuff_remains_map / setting_overrides already
         -- whitelisted; these add the remaining ctx reads (balance/affliction
@@ -2772,6 +3425,11 @@ function M.build_context_for(class_key, scenario)
         target_fleeing=true, target_is_fleeing=true, self_rooted_snared=true,
         fear_nearby=true, enemies_in_range=true, is_auto_attacking=true,
         pet_spells=true, has_pet=true, snared_friend=true,
+        -- Wave 1.4 (2026-08-13): is_behind feeds the bank-aware
+        -- NS.is_behind_target (druid leveling Claw shred-preference gate);
+        -- enemy_cc_nearby feeds CCGateDB.is_any_nearby_enemy_under_cc
+        -- (warrior leveling PvPCCGate).
+        is_behind=true, enemy_cc_nearby=true,
         -- Vanilla battery sweep (2026-08): in_melee_range feeds fury Intercept's
         -- `not in_melee_range` gate (gap scenarios set target_distance 15 but
         -- never flipped it); enemies_target_me drives the GetEnemiesInRange
@@ -2903,7 +3561,12 @@ function M.build_context_for(class_key, scenario)
     end
     -- Pets (hunter + warlock) — skipped when the scenario says the pet was
     -- never summoned (no_pet) so Call Pet / summon lanes are reachable.
-    if profile.pet and not scenario.no_pet then
+    -- W3.3 (2026-08-13): the dk_ghoul_* scenarios set has_pet=true for the
+    -- death knight (no pet profile) so the new unholy ghoul command lanes are
+    -- demonstrably fireable; warlock/hunter scenarios are unchanged (their
+    -- ctx.pet already comes from profile.pet, and has_pet=true only ADDS a pet
+    -- where none would exist).
+    if (profile.pet or ctx.has_pet == true) and not scenario.no_pet then
         local pet_hp = ctx.pet_hp or 100
         local pet = _target()
         pet.get_health_percentage = function(self) return pet_hp end
@@ -3016,6 +3679,11 @@ function M.apply_battery_state(ns, ctx, class_key)
         is_auto_attacking = ctx.is_auto_attacking ~= false,
         pet_spells = ctx.pet_spells,
         snared_friend = ctx.snared_friend == true,
+        -- Wave 1.4 (2026-08-13): is_behind drives the bank-aware
+        -- NS.is_behind_target (default true when unset — legacy posture);
+        -- enemy_cc_nearby drives the CCGateDB under-CC scan stub.
+        is_behind = ctx.is_behind ~= false,
+        enemy_cc_nearby = ctx.enemy_cc_nearby == true,
         -- Equipped-weapon mock (2026-08-08): the mutilate_daggers scenario's
         -- equipped_daggers flag lands here so the get_equipped_item_id stub
         -- (which reads _bstate) returns a dagger id for both hands → assn
@@ -3034,17 +3702,18 @@ function M.apply_battery_state(ns, ctx, class_key)
         -- ns._bstate) and the *_wotlk build_state context reads.
         runic_power = ctx.runic_power,
         rune_state = ctx.rune_state,
-        is_boss = ctx.is_boss == true,
         optimal_presence = ctx.optimal_presence,
         lock_and_load = ctx.lock_and_load == true,
         scorch_cast_time = ctx.scorch_cast_time,
-        bloodlust_ready = ctx.bloodlust_ready == true,
-        elemental_mastery_ready = ctx.elemental_mastery_ready == true,
-        fire_elemental_ready = ctx.fire_elemental_ready == true,
-        water_totem_remains = ctx.water_totem_remains,
         maelstrom_stacks = ctx.maelstrom_stacks,
-        injured_count = ctx.injured_count,
-        mana_tide_ready = ctx.mana_tide_ready == true,
+        -- W3.4 mock-tightening (2026-08-13): the phantom bank keys are
+        -- REMOVED — bloodlust_ready / elemental_mastery_ready /
+        -- fire_elemental_ready / water_totem_remains / injured_count /
+        -- mana_tide_ready / is_boss were scenario-only overrides the
+        -- dispatcher never sets; production now reads NS.spell_ready /
+        -- NS.get_totem_info / context.party_injured_count / context.target_is_boss
+        -- (the W3.1 audit's masked-member family). Any lane depending on them
+        -- is a genuine production never-lane (see the W3.4 triage addendum).
         -- Friendly-target context (2026-08-08): friendly_target_hp feeds
         -- NS.get_friendly_target_entry so the healer FriendlyTarget lanes
         -- (disc + holy priest, holy paladin, resto druid + shaman) get a
@@ -3107,6 +3776,16 @@ function M.apply_battery_state(ns, ctx, class_key)
         for i = 1, (spec.melee or 0) do out[#out + 1] = _battery_enemy("melee") end
         for i = 1, (spec.healer or 0) do out[#out + 1] = _battery_enemy("healer") end
         return out
+    end
+    -- Party scan (P2.2b, 2026-08-13): druid balance/vanilla build_state's
+    -- smart-Innervate scan reads NS.GetPartyMembers() directly — a LIVE
+    -- engine API (main_sylvanas.lua:178/:949), unlike the bare-value
+    -- party_members field (which is why the 2026-08-11 stub removal did not
+    -- cover it). Scenario-provided party_members (friend units constructed
+    -- with a class id carry get_class) drive the InnervateHealer lane;
+    -- default nil keeps every other spec's reads unchanged.
+    ns.GetPartyMembers = function()
+        return ctx.party_members
     end
     -- Pets (hunter + warlock)
     if ctx.pet ~= nil then
@@ -3299,6 +3978,14 @@ function M.load_spec(class_key, spec_key, era, race_override)
     package.loaded["shared/rune_manager_sylvanas"] = nil
     package.loaded["shared/presence_manager_sylvanas"] = nil
     package.loaded["shared/interrupt_manager_sylvanas"] = nil
+    -- Wave 1.4 (2026-08-13): the 9 leveling_vanilla specs require
+    -- shared/leveling_sylvanas, which captures `local NS = _G.EaxRotations`
+    -- at require time (leveling_sylvanas:21) — same pollution class as the
+    -- stub modules above. Without eviction the FIRST leveling spec's mock-NS
+    -- binding stays cached in package.loaded and the remaining 8 leveling
+    -- specs would read a stale spec's state bank. Each load_spec must start
+    -- the module virgin (bound to the CURRENT mock NS).
+    package.loaded["shared/leveling_sylvanas"] = nil
     if not ok then
         return nil, tostring(result)
     end
@@ -3594,9 +4281,10 @@ function M.check_manifest_drift(era)
         "class_", "schema_", "middleware_", "healing_", "cliptracker_",
         "heal_helper_", "shared_helpers_",
     }
-    if era == "sylvanas" or era == "vanilla" then
-        -- TBC + vanilla leveling files run via run_leveling_tests.lua, not the
-        -- battery (WotLK leveling files ARE battery specs).
+    if era == "sylvanas" then
+        -- TBC leveling files run via run_leveling_tests.lua, not the battery
+        -- (WotLK AND vanilla leveling files ARE battery specs — WotLK by
+        -- design, vanilla since the wave 1.4 coverage extension 2026-08-13).
         non_spec[#non_spec + 1] = "leveling_"
     end
     local drift = { missing = {}, extra = {} }

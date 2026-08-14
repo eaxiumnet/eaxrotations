@@ -121,7 +121,8 @@ assert_true(gh_hp >= 55 and gh_hp <= 82,
 local poh_ctx, poh_state = assert_lane_matches(disc, disc_ns, "priest", "group_aoe", "PrayerOfHealing",
     "discipline PrayerOfHealing must match in group_aoe (4+ injured)")
 assert_true((poh_state.group_damaged_count or 0) >= 4,
-    "discipline PrayerOfHealing needs group_damaged_count >= 4, got " .. tostring(poh_state.group_damaged_count))
+    "discipline PrayerOfHealing needs group_damaged_count >= 3 (matcher threshold since 2026-08-13); scenario yields >= 4, got "
+    .. tostring(poh_state.group_damaged_count))
 assert_lane_matches(disc, disc_ns, "priest", "group_critical", "EmergencyPowerWordShield",
     "discipline EmergencyPowerWordShield must match in group_critical")
 print("PASS: priest/discipline heal-scan regression (4 lanes)")

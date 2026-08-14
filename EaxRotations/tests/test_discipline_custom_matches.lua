@@ -204,19 +204,19 @@ assert_false(gh.matches({ in_combat = true, is_moving = false, settings = { disc
 
 local poh = find_strategy("PrayerOfHealing")
 assert_false(poh.matches({ is_moving = false, mana_pct = 80, settings = {} }, {
-    subgroup_damaged_count = 3,
+    subgroup_damaged_count = 2,
     group_damaged_count = 5,
     prayer_of_healing_ready = true,
     lowest = { unit = {} },
     mana_pct = 80,
-}), "PrayerOfHealing should not match below four injured subgroup members")
+}), "PrayerOfHealing should not match below three injured subgroup members")
 assert_true(poh.matches({ is_moving = false, mana_pct = 80, settings = {} }, {
-    subgroup_damaged_count = 4,
+    subgroup_damaged_count = 3,
     group_damaged_count = 4,
     prayer_of_healing_ready = true,
     lowest = { unit = {} },
     mana_pct = 80,
-}), "PrayerOfHealing should match at four injured subgroup members")
+}), "PrayerOfHealing should match at three injured subgroup members")
 assert_false(poh.matches({ is_moving = false, mana_pct = 14, settings = {} }, {
     subgroup_damaged_count = 4,
     group_damaged_count = 4,
@@ -224,6 +224,37 @@ assert_false(poh.matches({ is_moving = false, mana_pct = 14, settings = {} }, {
     lowest = { unit = {} },
     mana_pct = 14,
 }), "PrayerOfHealing should not match below Discipline's healing mana floor")
+
+-- ============================================================================
+-- disc_poh_priority opt-in: PoH/BindingHeal yield above the GH/FH tier
+-- (guide rank; pinned order kept, see parse-spec tbc/priest/discipline.md)
+-- ============================================================================
+local gh_yield = find_strategy("GreaterHeal")
+-- Default off: GH keeps its pinned priority even when PoH conditions hold
+assert_true(gh_yield.matches({ in_combat = true, is_moving = false, settings = {} },
+    { lowest = { effective_hp = 60 }, greater_heal_ready = true, mana_pct = 80,
+      prayer_of_healing_ready = true, subgroup_damaged_count = 4 }),
+    "GreaterHeal matches by default (no yield) even when PrayerOfHealing would fire")
+-- Enabled + BindingHeal would fire (lowest <= 50, self <= 70, ready) -> GH yields
+assert_false(gh_yield.matches({ in_combat = true, is_moving = false, settings = { disc_poh_priority = true } },
+    { lowest = { effective_hp = 40 }, hp_pct = 60, greater_heal_ready = true,
+      binding_heal_ready = true, mana_pct = 80 }),
+    "GreaterHeal yields to BindingHeal when disc_poh_priority is enabled")
+-- Enabled + PrayerOfHealing would fire (3 injured) -> GH yields
+assert_false(gh_yield.matches({ in_combat = true, is_moving = false, settings = { disc_poh_priority = true } },
+    { lowest = { effective_hp = 60 }, greater_heal_ready = true,
+      prayer_of_healing_ready = true, mana_pct = 80, subgroup_damaged_count = 3 }),
+    "GreaterHeal yields to PrayerOfHealing when disc_poh_priority is enabled")
+-- Enabled but neither heal would fire (lowest 60, no injured count) -> GH still matches
+assert_true(gh_yield.matches({ in_combat = true, is_moving = false, settings = { disc_poh_priority = true } },
+    { lowest = { effective_hp = 60 }, greater_heal_ready = true, mana_pct = 80 }),
+    "GreaterHeal still matches when disc_poh_priority is enabled but PoH/BH would not fire")
+-- Enabled + BindingHeal would fire -> EmergencyFlashHeal (FH tier) yields too
+local fh_yield = find_strategy("EmergencyFlashHeal")
+assert_false(fh_yield.matches({ in_combat = true, is_moving = false, settings = { disc_poh_priority = true } },
+    { lowest = { effective_hp = 40 }, hp_pct = 60, flash_heal_ready = true,
+      binding_heal_ready = true, mana_pct = 80 }),
+    "EmergencyFlashHeal yields to BindingHeal when disc_poh_priority is enabled")
 
 -- ============================================================================
 -- IdleShadowWordPain: only in combat, dps_when_idle, valid enemy, group stable

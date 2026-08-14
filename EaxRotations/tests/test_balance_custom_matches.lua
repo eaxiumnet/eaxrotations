@@ -209,6 +209,30 @@ action_calls = {}
 assert_false(innervate.matches(ctx_inn_ooc, { innervate_ready = true, innervate_target = "other" }), "Innervate should not match when OOC and target is another player")
 
 -- ============================================================================
+-- InnervateHealer (Pattern 13 split, P2.2b): non-self low-mana healer target
+-- ============================================================================
+
+local innervate_healer = find_strategy("InnervateHealer")
+
+-- No innervate target -> should NOT match
+assert_false(innervate_healer.matches({ in_combat = true }, { innervate_target = nil }), "InnervateHealer should not match with no target")
+
+-- Self target -> should NOT match (InnervateSelf owns the self fallback)
+assert_false(innervate_healer.matches({ in_combat = true }, { innervate_target = "self" }), "InnervateHealer should not match when target is self")
+
+-- Non-self party member (healer), in combat -> should match
+action_calls = {}
+assert_true(innervate_healer.matches({ in_combat = true }, { innervate_target = "healer_unit" }), "InnervateHealer should match when target is a non-self party member")
+
+-- Out of combat -> should NOT match
+assert_false(innervate_healer.matches({ in_combat = false }, { innervate_target = "healer_unit" }), "InnervateHealer should not match when OOC")
+
+-- Execute casts on the healer target
+action_calls = {}
+assert_true(innervate_healer.execute({}, { innervate_target = "healer_unit" }), "InnervateHealer execute should call try_cast")
+assert_eq(action_calls[1].target, "healer_unit", "InnervateHealer execute should target the healer")
+
+-- ============================================================================
 -- Starfire: only when not moving and mana >= 15%
 -- ============================================================================
 
@@ -286,6 +310,19 @@ assert_eq(action_calls[1].spell, "Wrath", "Wrath execute should pass the Wrath s
 -- High mana -> Wrath should NOT match (Starfire is the default nuke)
 action_calls = {}
 assert_false(wrath.matches(ctx_wr_ok, { mana_pct = 80 }), "Wrath should not match when mana is high (Starfire default)")
+
+-- Guide divergence (P2.2b): balance_wrath_conserve=false (opt-OUT, default
+-- true) removes the mana-tier gate — Wrath fires as aggressive filler at
+-- high mana, and Starfire yields to it.
+action_calls = {}
+local ctx_wr_div = {
+    is_moving = false,
+    target = {},
+    has_valid_enemy_target = true,
+    settings = { balance_wrath_conserve = false },
+}
+assert_true(wrath.matches(ctx_wr_div, { mana_pct = 80 }), "Wrath should match at high mana when balance_wrath_conserve=false")
+assert_false(starfire.matches(ctx_wr_div, { mana_pct = 80 }), "Starfire should not match at high mana when balance_wrath_conserve=false")
 
 -- ============================================================================
 -- Hurricane: only when not moving and 3+ enemies

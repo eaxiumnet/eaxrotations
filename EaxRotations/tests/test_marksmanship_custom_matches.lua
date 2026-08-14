@@ -23,6 +23,9 @@ _G.EaxRotations = {
   unit_alive=function() return true end, unit_mana_pct=function() return 100 end,
   gate_cooldown_boss_only=function() return true end,
   try_cast=function() bestial_wrath_casts = bestial_wrath_casts + 1; return true end,
+  -- MM MultiShot is now AoE-gated (aoe_target_meets, BM parity); supply the
+  -- permissive stub so the mana/CC gate assertions below keep working.
+  aoe_target_meets=function() return true end,
   log=function() end, time_now=function() return 100 end,
   GetPlayer=function() return {} end, GetPet=function() return nil end,
   HunterClipTracker = { can_cast_steady=function() return true end, ms_until_auto=function() return 0 end, record_manual_shot=function() end },
@@ -73,6 +76,17 @@ at(as.matches({target={}},cs({arcane_shot_ready=true,mana_pct=60})),"AS match")
 local ss=fs("SerpentSting")
 af(ss.matches({target={}},cs({has_serpent_sting=true,serpent_sting_remains=5})),"SS already applied")
 at(ss.matches({target={}},cs({has_serpent_sting=false,serpent_sting_remains=0,serpent_sting_ready=true})),"SS match")
+
+-- AimedShotWeave: guide-divergence opt-in lane (mm_aimed_weave, default off).
+-- Off must be inert; on requires in_combat, past the 0.5s opener window,
+-- ready, mana, and the swing window (ms_until_auto 0 in this mock -> open).
+local aw=fs("AimedShotWeave")
+af(aw.matches({target={}},cs({aimed_shot_ready=true})),"AW off by default (opt-in)")
+af(aw.matches({settings={mm_aimed_weave=true}},cs({in_combat=false,aimed_shot_ready=true})),"AW OOC")
+af(aw.matches({settings={mm_aimed_weave=true},combat_time=0.2},cs({aimed_shot_ready=true})),"AW not in opener window")
+af(aw.matches({settings={mm_aimed_weave=true},combat_time=5},cs({aimed_shot_ready=false})),"AW not ready")
+af(aw.matches({settings={mm_aimed_weave=true},combat_time=5},cs({aimed_shot_ready=true,mana_pct=10})),"AW low mana")
+at(aw.matches({settings={mm_aimed_weave=true},combat_time=5},cs({aimed_shot_ready=true,mana_pct=60})),"AW match in combat")
 
 local cp=fs("CallPet")
 af(cp.matches({},cs({has_pet=true})),"CP has pet")

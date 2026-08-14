@@ -184,6 +184,33 @@ assert_true(tigers_fury.matches(ctx_tf_ok), "TigersFury should match in combat w
 assert_false(tigers_fury.matches({}), "TigersFury should not match when me is nil")
 
 -- ============================================================================
+-- Tiger's Fury cooldown guard (P2.3 live-correctness fix): the matcher must
+-- read NS.cooldown_remains (the live engine surface — spell_action objects
+-- expose only id/IsReady/IsInRange/Cast). The previous
+-- ACTION.TigersFury.cooldown_remaining() read a mock-only member, so the
+-- guard short-circuited in production and TF could re-fire after the 6s buff
+-- expired while the 30s CD was still up.
+-- ============================================================================
+local saved_cd_remains = _G.EaxRotations.cooldown_remains
+local ctx_tf_cd = Mock.DefaultMeleeContext({
+    in_combat = true,
+    is_stealthed = false,
+    me = {
+        get_power = function(pt) return 20 end,
+        get_max_power = function(pt) return 100 end,
+    },
+})
+-- CD still up -> must NOT match (the guard is live, not short-circuited).
+_G.EaxRotations.cooldown_remains = function(spell) return 12 end
+assert_false(tigers_fury.matches(ctx_tf_cd),
+    "TigersFury must not match while TF is on cooldown (NS.cooldown_remains > 0)")
+-- CD ready -> must match (same combat shape as the positive case above).
+_G.EaxRotations.cooldown_remains = function(spell) return 0 end
+assert_true(tigers_fury.matches(ctx_tf_cd),
+    "TigersFury should match when NS.cooldown_remains == 0")
+_G.EaxRotations.cooldown_remains = saved_cd_remains
+
+-- ============================================================================
 -- Omen of Clarity: only when buff is up and action is Shred
 -- ============================================================================
 

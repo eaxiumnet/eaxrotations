@@ -217,7 +217,10 @@ assert_false(intercept.matches({ target = {}, rage = 10, stance = 3, settings = 
 assert_true(intercept.matches({ target = {}, rage = 10, stance = 3, target_distance = 15 }), "Intercept should match at 15 yd in berserker stance with rage")
 
 -- ============================================================================
--- SunderArmor: target_armor > 0 + use_sunder_armor + stacks < 5 + rage >= 15 + not execute + DEFENSIVE stance
+-- SunderArmor: target_armor > 0 + use_sunder_armor + stacks < 5 + rage >= 15 + not execute + BATTLE stance
+-- (live-correctness fix 2026-08-12: Sunder requires BATTLE — arms plays in
+-- Battle and no strategy swaps to Defensive for Sunder; the old DEFENSIVE gate
+-- made Sunder unreachable for normal arms players)
 -- ============================================================================
 
 local sunder = find_strategy("SunderArmor")
@@ -236,11 +239,11 @@ _G.EaxRotations.get_debuff_stacks = function() return 0 end
 -- Execute phase -> should NOT match
 assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 15, settings = { use_sunder_armor = true } }), "SunderArmor should not match during execute phase")
 
--- Wrong stance (BATTLE, Sunder requires DEFENSIVE) -> should NOT match
-assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 1, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should not match in Battle stance (requires Defensive)")
+-- Wrong stance (DEFENSIVE, Sunder requires BATTLE) -> should NOT match
+assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should not match in Defensive stance (requires Battle)")
 
--- All conditions met (DEFENSIVE stance, armor>0, stacks 0, rage 30, use_sunder_armor on) -> should match
-assert_true(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should match in Defensive stance with armor, low stacks, rage")
+-- All conditions met (BATTLE stance, armor>0, stacks 0, rage 30, use_sunder_armor on) -> should match
+assert_true(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 1, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should match in Battle stance with armor, low stacks, rage")
 
 -- ============================================================================
 -- ShieldWall: hp <= threshold (25 solo / 40 group) + DEFENSIVE stance

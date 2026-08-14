@@ -63,10 +63,16 @@ local cl = fs("ChainLightning")
 af(cl.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={ enhancement_combat_mode="single" } })), "CL single 1 enemy")
 at(cl.matches(setup({ in_combat=true, enemy_count=3, mana_pct=80, hp=100, target={}, settings={ enhancement_combat_mode="single" } })), "CL single 3 enemies")
 
--- FrostShock: mana_low gate.
+-- FrostShock: mana_low gate + PvE GCD economy (needs FS debuff, or PvP/moving;
+-- gate added 2026-08-12 live-fix campaign).
 local fsh = fs("FrostShock")
 af(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=5, hp=100, target={}, settings={} })), "FrostShock low mana")
-at(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={} })), "FrostShock match")
+af(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={} })), "FrostShock single-target PvE without FS debuff")
+at(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={}, is_pvp=true })), "FrostShock PvP snare")
+at(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={}, is_moving=true })), "FrostShock moving filler")
+NS.debuff_up = function() return true end
+at(fsh.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={} })), "FrostShock with FS debuff up")
+NS.debuff_up = function() return false end
 
 -- EarthShock (dps mode): needs target_has_flame_shock.
 local es = fs("EarthShock")

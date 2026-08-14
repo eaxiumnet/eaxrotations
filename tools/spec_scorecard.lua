@@ -148,6 +148,14 @@ local LANE_CLASS = {
             -- ret_consec_dump scenarios (settings + mana) — pins removed.
             -- (b) close-out (2026-08-10): Ret_BlessingFreedom_Ally / _Self +
             -- Ret_HammerWrath_FleeingPvP cleared (snare_self / pvp_melee).
+            -- (c) pin (2026-08-12 campaign): Ret_SealMartyr_Primary gated on
+            -- preferred_damage_seal == "martyr", which the 2026-08-12 seal
+            -- rewrite derives from blood_available() → is_spell_learned(31892).
+            -- The battery's lenient is_spell_learned mock reports 31892 learned
+            -- (no not_learned bank entry for it), so the Alliance-only martyr
+            -- branch is inexpressible — a mock limitation (fires live for
+            -- Alliance rets with ret_use_martyr default true).
+            Ret_SealMartyr_Primary = 'c',
         },
     },
     priest = {
@@ -170,6 +178,16 @@ local LANE_CLASS = {
             -- time as undead (race 5) and the battery merges the never lists,
             -- so both racial lanes are observable.
         },
+    },
+    rogue = {
+        -- (a) pin (2026-08-12 campaign): assassination ExposeArmor gated on the
+        -- new assassin_expose_assigned setting (default false — opt-in, mirrors
+        -- combat/subtlety expose keys), so the battery never sees it.
+        assassination = { ExposeArmor = 'a' },
+        -- (c) pin (2026-08-12 campaign): subtlety Sap requires OOC + stealth +
+        -- a PvP target or a group pull; the battery has no OOC/PvP scenario,
+        -- so the gate is a mock limitation (fires live in PvP / group pulls).
+        subtlety = { Sap = 'c' },
     },
     shaman = {
         elemental = {

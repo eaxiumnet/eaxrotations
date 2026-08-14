@@ -90,16 +90,16 @@ local NO_WRITER_ALLOWLIST = {
 
         -- spell_damage (10 sites: shadow/elemental/affliction/demonology/
         -- destruction, both eras): the state writes `X_state.spell_damage =
-        -- context.spell_damage or 0` are a designed extension point — the
-        -- comment in every file says "provided by middleware or character
-        -- API" — but the engine never provides it (verified: no writer in
-        -- main/core/shared/api; get_spell_power not exposed). With 0 the
+        -- context.spell_damage or 0` are a designed extension point. Phase 2.1
+        -- (2026-08-13) wired the producer: main_sylvanas.lua populates
+        -- context.spell_damage ONLY when the player_spell_damage menu setting
+        -- is > 0 (2s-throttled read). Default 0 = field absent = byte-identical
+        -- to the pre-Phase-2.1 behavior (0-degradation documented); with 0 the
         -- snapshot-upgrade thresholds degenerate to the documented
-        -- no-snapshot-refresh behavior (shadow_sylvanas.lua:697), and the
-        -- min-SP gates that depended on it (balance/elemental 2026-08 sweep;
-        -- destruction Immolate 2026-08 read-side audit) were DROPPED. The
-        -- feature wakes up if an engine producer ever lands.
-        spell_damage = "designed extension point, engine never provides it (0-degradation documented); all dependent gates dropped 2026-08",
+        -- no-snapshot-refresh behavior, and the min-SP gates (balance/
+        -- elemental/destruction Immolate) stay inert. Entry retained as the
+        -- 0-degradation contract note (inert while the field is produced).
+        spell_damage = "engine produces it only when player_spell_damage setting > 0 (Phase 2.1); 0-degradation contract note",
 
         -- enemy_shadow_caster (shared/warlock_shadow_ward:36 + affliction/
         -- demonology vanilla:769/686): the engine never sets it; every read
@@ -173,6 +173,25 @@ local NO_WRITER_ALLOWLIST = {
         searing_totem_up = "optional context enrichment with buff fallback (elemental_wotlk)",
         lightning_shield_up = "optional context enrichment with buff fallback (enhancement_wotlk)",
         in_melee = "optional context enrichment with distance fallback (protection_sylvanas:671-678)",
+
+        -- is_boss (warrior/arms_wotlk:143 + deathknight/unholy_wotlk:127):
+        -- W3.3-era legacy compat reads KEPT FOR BATTERY MOCKS; both files read
+        -- the REAL engine field context.target_is_boss (main_sylvanas.lua:1287)
+        -- FIRST, so the legacy line is inert live and (since W3.4, 2026-08-13)
+        -- inert in the battery too — behavioral_audit.lua no longer feeds
+        -- ctx.is_boss (the arms_retaliation/dk_boss scenarios drive
+        -- target_is_boss). The engine never produces context.is_boss. Targeted
+        -- fix (W3.4 triage addendum): delete the legacy line in both files.
+        is_boss = "legacy battery-mock compat read behind produced context.target_is_boss; inert live (W3.4 addendum)",
+        -- injured_count (druid/restoration_sod:29 + shaman/restoration_sod:31):
+        -- Season-of-Discovery era files — a separate runtime contract from the
+        -- sylvanas/wotlk/vanilla eras (ns.is_sod; the battery never loads
+        -- _sod files). Every read is guarded
+        -- (`type(context.injured_count) == "number" and ... or 0`) and the
+        -- real healer-injury field is context.party_injured_count
+        -- (main_sylvanas.lua:1237). Verify against the SoD engine field set
+        -- when the SoD rotation gets a live pass (W3.4 triage addendum).
+        injured_count = "SOD-era guarded read; real field is party_injured_count (out of the three battery eras)",
 
         -- SOD context contract: the _sod files' rotation-state fields. The
         -- 2026-08 read-side audit flagged ~25 as read-but-unproduced (every
@@ -992,18 +1011,22 @@ local function run_self_tests()
         "local t = spec_kit.setting_number(context, \"fsr_mana_threshold\", 35)\n")
     expect(#unproduced_reads(sk2, empty_writers), 0, "spec_kit.setting_number is a settings read, never a context read")
 
-    -- Real-file probes: the THREE pre-fix defect shapes must each flag under
-    -- the writer set of the CURRENT tree (the fields are still unproduced —
-    -- the fixes changed the READS, not the producers):
+    -- Real-file probes: the pre-fix defect shapes must each be classified
+    -- correctly under the writer set of the CURRENT tree:
     --   * context.combo has no context-class writer (engine writes
-    --     ctx.combo_points, main_sylvanas.lua:856)
-    --   * spell_damage has no state or context writer anywhere
-    --   * enemy_shadow_caster has no context-class writer
+    --     ctx.combo_points, main_sylvanas.lua:856) -> still unproduced -> 1
+    --   * context.spell_damage is PRODUCED since Phase 2.1 (player_spell_damage
+    --     setting wiring, main_sylvanas.lua) -> 0 unproduced
+    --   * enemy_shadow_caster has no context-class writer -> still unproduced -> 1
     local writers = collect_all_writers()
     local def1 = scan_content("local function m(context) return context.combo or 0 end\n")
     expect(#unproduced_reads(def1, writers), 1, "context.combo is unproduced in the real tree (assassination defect)")
     local def2 = scan_content("local function m(context) return (context.spell_damage or 0) end\n")
-    expect(#unproduced_reads(def2, writers), 1, "context.spell_damage is unproduced in the real tree (balance/elemental/destruction defect)")
+    -- Phase 2.1 (2026-08-13): main_sylvanas.lua now PRODUCES
+    -- context.spell_damage when the player_spell_damage setting is > 0, so the
+    -- field must NOT flag as unproduced (the 2026-08 "unproduced" real-tree pin
+    -- is superseded — the allowlist entry above carries the 0-degradation note).
+    expect(#unproduced_reads(def2, writers), 0, "context.spell_damage is produced in the real tree (main_sylvanas.lua Phase 2.1 player_spell_damage setting)")
     local def3 = scan_content("local function m(context) if not context.enemy_shadow_caster then return false end end\n")
     expect(#unproduced_reads(def3, writers), 1, "context.enemy_shadow_caster is unproduced in the real tree (warlock defect)")
 
@@ -1030,7 +1053,7 @@ local function run_self_tests()
         .. "battery known-keys, method-call exclusion, comment exclusion, "
         .. "declarative + implicit DSL reads, leading-underscore scope, "
         .. "strategy-contract exclusion, allowlist dup detection, real-tree "
-        .. "probes (combo / spell_damage / enemy_shadow_caster unproduced)")
+        .. "probes (combo / enemy_shadow_caster unproduced, spell_damage produced since Phase 2.1)")
     os.exit(0)
 end
 
