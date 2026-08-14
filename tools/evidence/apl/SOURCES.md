@@ -427,3 +427,18 @@ edits, no matcher-logic or order changes. Fixtures added to
 - **Pinned**: `test_b_bucket_closeout_regression.lua` extended to 33 lanes
   (incl. the race-5 variant proof), verify_all battery pin 19 → 13, badges
   475/475, scorecard regenerated.
+
+## Top-tier parsing campaign (2026-08-13/14): provenance delta
+
+- **No fixtures added or re-fetched** — the pin set remains the
+  `563e4a08cb15729f1fdcfbcb68e6d68224553bfef` (2025-12-22) baseline;
+  `test_apl_conformance.lua` stays 50/50.
+- **One manifest change:** `wotlk/priest/holy` gained the
+  `CircleOfHealing 48089 → "CircleOfHealing"` resolve (previously nil — the
+  CoH strategy did not exist). The W3.3 priest fixer added the CoH lane at its
+  exact APL slot (2+ injured party members) and wired the resolve
+  (tools/apl_status.lua, 2026-08-13). Disc Penance/PoM comment updates only.
+- **No TBC-era pin changes** during the campaign (tbc pins: fire, arcane,
+  elemental, enhancement, protection + the reference_names family — all
+  untouched; every Phase 2/3 change was pin-safe additions or
+  condition/build_state edits).

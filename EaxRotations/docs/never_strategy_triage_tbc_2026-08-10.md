@@ -221,3 +221,113 @@ drift.
 
 _Generated from `lua EaxRotations/tests/behavioral_audit.lua` +
 `lua tools/spec_scorecard.lua --check` (2026-08-10)._
+
+---
+
+## Addendum — 2026-08-12 live-correctness campaign: 13 → 16
+
+The 2026-08-12 live-correctness campaign introduced three new never-lanes
+(never=16, a=1 b=10 c=5 d=0). Two were anticipated by the rogue fixes; the
+third is a side effect of the paladin seal rewrite. All three are pinned in
+`tools/spec_scorecard.lua` LANE_CLASS (the authoritative pin table this doc
+now defers to for the (a)/(b)/(c)/(d) split):
+
+### (a) opt-in — 1 (new)
+
+| Spec | Strategy | Gate (evidence) | Why it stays pinned |
+|------|----------|-----------------|---------------------|
+| rogue/assassination | `ExposeArmor` | `assassin_expose_assigned` default false (assassination:605) | **opt-in by design** — mirrors combat/subtlety expose keys; only applies Expose Armor when the rogue is assigned, so it is correctly silent in the battery (and in live group play until the user opts in) |
+
+### (c) mock-limitation — 2 new (5 total)
+
+| Spec | Strategy | Gate (evidence) | Why it cannot be driven from the battery |
+|------|----------|-----------------|------------------------------------------|
+| rogue/subtlety | `Sap` | OOC + stealth + PvP target or group pull (subtlety:320-330) | the battery has **no out-of-combat / PvP scenario**, so the OOC-stealth-PvP gate is inexpressible — fires live in PvP and group pulls |
+| paladin/retribution | `Ret_SealMartyr_Primary` | `preferred_damage_seal == "martyr"` (retribution:806-809), derived from `blood_available()` → `is_spell_learned(31892)` | the 2026-08-12 seal rewrite replaced the old `unit_faction` read (which the battery's `alliance` scenario could drive) with a learned-probe; the battery's lenient `is_spell_learned` mock reports 31892 learned (no `not_learned` bank entry for it), so the **Alliance-only martyr branch is inexpressible** — fires live for Alliance rets (`ret_use_martyr` defaults true) |
+
+**Why Ret_SealMartyr_Primary was not re-driven via a fixture:** a `not_learned
+= { [31892] = true }` entry on the `alliance` scenario would ripple into the
+seal-twist lanes (twist spell selection swaps Blood → Martyr in that scenario),
+so the campaign chose the honest (c) pin over a battery-behavior change; the
+pin goes stale (hard-fail) if a future fixture ever makes the lane observable.
+
+Updated status line: the drift gate now enforces never=16 (a=1 b=10 c=5 d=0)
+for the TBC era (run_verify_all.lua + tools/spec_scorecard.lua --check),
+WotLK stays at 0.
+
+## Addendum — 2026-08-13 top-tier parsing campaign (phase 0.2 + 0.3)
+
+### 0.3 — Arcane AB-stack fixture cleanup (hack removal)
+
+The `ab_stack_conserve` battery scenario originally drove the DEBUFF side
+(`debuff_stacks = 4, debuff_aura_ids = {36032, 36033, 36034}`) to keep
+arcane's FrostboltConserve observable, and the spec's `get_ab_stacks`
+(arcane_sylvanas.lua:153) carried a documented debuff-side max-fallback that
+could only ever fire inside the battery (a self-buff never appears on a live
+unit's debuff side). Per the 0.3 mandate the hack is gone:
+
+- `behavioral_audit.lua` `ab_stack_conserve` now drives the BUFF side —
+  `buff_remains_map = { [36032] = 4 }` (map-first: 4 stacks + 4s remains,
+  matching the real self-buff aura 36032).
+- The debuff-side max-fallback was DELETED from `get_ab_stacks`; the helper
+  reads only `NS.buff_stacks` / `NS.buff_remains` (the 2026-08-11 core
+  surfaces built for exactly this caller).
+- `test_combat_battery_regression.lua` (pins the ranked #3-5 fixture
+  mechanisms) was co-updated: the `debuff_stacks(...) == 4` assertion became
+  a buff-side assertion (`buff_stacks(...) == 4`); the poison-id leak guard
+  became `buff_stacks({27187}) ~= 4` (buffs_up fallback yields 1, never the
+  scenario's 4). The lane pins themselves (FrostboltConserve fires in
+  ab_stack_conserve, silent in standard/burst, scenario-exclusive) are
+  unchanged.
+
+Gate result: battery TBC never count UNCHANGED at 16 (a=1 b=10 c=5 d=0),
+arcane suites + `test_mage_live_fixes.lua` + `test_combat_battery_regression.lua`
+all green, 503/503 rotation suites green.
+
+### 0.2 — PvP/OOC scenario family (pvp_arena + ooc_idle)
+
+Two context banks were added to the battery (behavioral_audit.lua, end of
+M.SCENARIOS) and run for EVERY class/spec like the rest of the battery:
+
+- `pvp_arena`: `is_pvp = true, is_group = true` + hostile target (base-ctx
+  has_valid_enemy_target/has_target, in_combat true) — an in-combat arena
+  match shape.
+- `ooc_idle`: `in_combat = false` + no target — an out-of-combat idle shape.
+
+Audit outcome (battery re-run, both eras):
+
+| Era | before | after | delta |
+|-----|--------|-------|-------|
+| TBC never | 16 (a=1 b=10 c=5 d=0) | 16 (a=1 b=10 c=5 d=0) | 0 — STAY |
+| WotLK never | 0 | 0 | 0 — STAY |
+
+No (b) lane demonstrably fires under the two new context shapes, so no
+reclassification was warranted; every pin in `tools/spec_scorecard.lua`
+LANE_CLASS remains valid (no stale pins, no unclassified lanes):
+
+- OOC pull openers (bear `PrePullEnrage`/`FaerieFirePull`/`FeralChargePull`)
+  need the bear form + pre-pull resource/range shape on top of OOC — the
+  no-target `ooc_idle` cannot express them, and `pvp_arena` is in-combat.
+- cat `TrackHumanoids` needs OOC + cat form + PvP + a NON-player target
+  (battery target is a player); cat `TravelForm` needs OOC + opt-in setting
+  (`cat_auto_travel_form`, default false) + moving + a target in range.
+- mage `ManaGemConjure` (fire + frost) needs the gem UNAVAILABLE — the mock's
+  `is_item_ready` is always true, so the lane stays correctly suppressed.
+- holy `MountedProtection` needs `me:is_mounted()` (never set in any
+  scenario); `EncounterReactions` stays the declined Karazhan-encounter pin.
+- shadow `DispelMagic` remains disabled-by-design (middleware owns dispels).
+- rogue subtlety `Sap` needs OOC + stealth + (PvP target or group) — the
+  OOC-stealth-PvP triple is still inexpressible (`pvp_arena` is in-combat;
+  `ooc_idle` has no stealth). Fires live in arena-open/group pulls; (c) pin
+  stands.
+- (c) mock-limitation lanes (RakeSnapshot/RipSnapshot snapshot state,
+  Ret_SealMartyr_Primary Alliance-only learned-probe, FireNovaReplacement
+  totem lifecycle) are unchanged and unaffected by the new context shapes.
+
+The two new banks DO fire many already-observable lanes (e.g. subtlety
+Gouge/Kick, holy InnerFocus, shadow Starshards — probe-verified), so the
+audit is non-vacuous: the scenarios demonstrably participate in the battery
+while leaving the never-list untouched. WotLK never stays 0 (STRICT pin
+holds). All gates green: 503 rotation + 32 leveling + 45 WotLK suites,
+battery TBC 16 / WotLK 0, `run_verify_all` exit 0, `spec_scorecard.lua
+--check` in sync. Scorecard pins: unchanged (no lane moved; reclassified 0).
