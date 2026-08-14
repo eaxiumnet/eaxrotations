@@ -1223,10 +1223,16 @@ local strategies = {
    if context.hp < 15 and state.lowest and state.lowest.is_player then return false end
    return context.has_valid_enemy_target
   end,
-  execute = function()
-   -- Wand if auto-shoot is not active; otherwise do nothing (auto-attack handles itself)
-   if NS.start_auto_attack then
-    return NS.start_auto_attack()
+  execute = function(context)
+   -- Wand if auto-shoot is not active; otherwise do nothing (auto-attack
+   -- handles itself). NS.start_auto_attack requires a target and defaults to
+   -- melee when none is given — pass the target + wand type explicitly or
+   -- the wand lane is a dead no-op (mirrors holy_vanilla.lua:750 fix).
+   if context and context.target then
+    if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+    if NS.start_auto_attack then
+     return NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true
+    end
    end
    return false
   end,
