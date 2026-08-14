@@ -82,6 +82,37 @@
 - **CI**: verified via `run_verify_all.lua` locally (exit 0); push follows
   the release commit.
 
+## 2.24.1 — 2026-08-14
+
+### Customer Changelog
+- **SoD (Season of Discovery) era joined the top-tier campaign — 0
+  never-firing lanes across all 20 `_sod.lua` rotations** (druid
+  balance/feral/restoration/tank, hunter dps, mage dps, paladin
+  protection/retribution, priest healing/shadow, rogue combat/tank,
+  shaman elemental/enhancement/restoration/warden, warlock dps/tank,
+  warrior dps/tank). The behavioral battery now covers **all four eras**
+  (TBC 16 pins / WotLK 0 / Vanilla 13 / **SoD 0 — strict**), 18 verify_all
+  components, exit 0.
+- **SoD production never-lane fixes** (the W4.1/W4.2 audit wave): the
+  rune-gated SoD actions were dead in production because `NS.get_sod_runes`
+  existed only in test mocks — the engine now reads real settings-driven
+  runes, and rune state is fail-open (unknown = open; known non-empty
+  without the rune = closed), so a player without a rune simply cannot cast
+  the rune spell instead of the rotation silently degrading. Also fixed:
+  `define_sod_action_for_class` rejecting class-table-backed spells (shaman
+  FlameShock/LightningBolt/ChainLightning and every other class-table
+  action resolved nil), the `context.injured_count` healer-injury alias
+  (resto Wild Growth / Chain Heal / Healing Stream gates), warden
+  Rockbiter/weakened-soul/fire+water-totem field wiring in
+  `sod_context_sylvanas.lua`, LavaLash's mock-only `offhand_imbue` gate,
+  and BerserkerRage numeric-stance normalization.
+- **Battery-era mechanics**: the real `sod_context` enrich now runs against
+  every battery scenario (form, Metamorphosis, Maelstrom, poison stacks,
+  totem slots, Weakened Soul all driven through production producers), the
+  mock `spell_action` emits the live `_meta` surface (37-lane false-positive
+  cluster cleared), and 14 SoD scenario shapes make every strategy
+  observable. Full evidence: `docs/never_strategy_triage_sod_2026-08-14.md`.
+
 ## 2.23.0 — 2026-08-10
 
 ### Customer Changelog
