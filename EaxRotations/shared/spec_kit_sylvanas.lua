@@ -108,23 +108,14 @@ local function valid_sod_phase(value)
 end
 
 function M.define_sod_action_for_class(SPELLS)
-    local define = M.define_action_for_class(SPELLS)
+    -- SoD actions always carry explicit ids (SoD rune spells are 40xxxx ids
+    -- absent from the TBC class tables; same-named TBC fields like Envenom/
+    -- Mutilate/Lifebloom must NOT shadow them). W4.2 unwrapped the class-table
+    -- rich objects for validation but kept the shadow; W5.1 removes it — the
+    -- explicit ids are authoritative. SPELLS is retained for signature
+    -- compatibility with call sites.
     return function(spell_field, rank_ids, requirements, label)
-        local source_ids = rank_ids
-        if type(SPELLS) == "table" and SPELLS[spell_field] ~= nil then
-            local entry = SPELLS[spell_field]
-            -- Rich spell_action objects ({ _meta = { ids = ... } }) carry the
-            -- rank list inside; unwrap for validation (W4.2 — class tables
-            -- store rich objects, which valid_action_ids would otherwise
-            -- reject, silently killing every class-table-backed SoD action).
-            if type(entry) == "table" and type(entry._meta) == "table"
-                and type(entry._meta.ids) == "table" then
-                source_ids = entry._meta.ids
-            else
-                source_ids = entry
-            end
-        end
-        if not valid_action_ids(source_ids) then return nil, "invalid action ids" end
+        if not valid_action_ids(rank_ids) then return nil, "invalid action ids" end
         if requirements ~= nil and type(requirements) ~= "table" then
             return nil, "invalid requirements"
         end
@@ -142,7 +133,7 @@ function M.define_sod_action_for_class(SPELLS)
         end
 
         return {
-            action = define(spell_field, rank_ids, label),
+            action = M.define_action(spell_field, rank_ids, label),
             rune_id = rune_id,
             min_phase = min_phase,
             max_phase = max_phase,

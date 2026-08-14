@@ -45,4 +45,25 @@ local frostbolt = assert(define("Frostbolt", { 10181, 10180 }, { min_phase = 1 }
 assert_true(spec_kit.sod_action_available({ sod_phase = 1 }, frostbolt),
     "non-rune action remains available in its phase")
 
-print("PASS test_sod_shared (action descriptors, phase/settings boundary, rune gate)")
+-- W5.1 regression pin: the class-table shadow is REMOVED for SoD actions.
+-- A same-named TBC class-table entry (Envenom/Mutilate/Lifebloom shape) must
+-- NOT replace the explicit SoD ids passed to define_sod_action_for_class —
+-- W4.2 unwrapped rich class entries for validation but still resolved the
+-- action through the class table, so rogue SoD Envenom 399963 was silently
+-- cast as TBC 32684 and druid SoD Lifebloom 409824 as TBC 33763.
+local shadow_define = spec_kit.define_sod_action_for_class({
+    Envenom = { _meta = { ids = { 32684, 32645 } }, ids = { 32684, 32645 } },
+    Lifebloom = { 33763, 33762 },
+    Mutilate = 34413,
+})
+local sod_envenom = assert(shadow_define("Envenom", 399963, { rune_id = 399963 }, "Envenom"))
+assert_eq(sod_envenom.action, 399963,
+    "explicit SoD rune id wins over same-named TBC class-table entry (rich form)")
+local sod_lifebloom = assert(shadow_define("Lifebloom", 409824, { rune_id = 409824 }, "Lifebloom"))
+assert_eq(sod_lifebloom.action, 409824,
+    "explicit SoD rune id wins over same-named TBC class-table entry (ladder form)")
+local sod_mutilate = assert(shadow_define("Mutilate", 399956, { rune_id = 399956 }, "Mutilate"))
+assert_eq(sod_mutilate.action, 399956,
+    "explicit SoD rune id wins over scalar TBC class-table entry")
+
+print("PASS test_sod_shared (action descriptors, phase/settings boundary, rune gate, class-table shadow)")
