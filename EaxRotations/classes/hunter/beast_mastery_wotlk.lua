@@ -119,6 +119,7 @@ local DSL_DEFS = {
     {
         name = "BestialWrath",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "bestial_wrath_ready", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.BestialWrath, target = "self" },
@@ -126,6 +127,7 @@ local DSL_DEFS = {
     {
         name = "KillShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_hp", op = "<", value = 20 },
         },
         action = { type = "cast", spell = ACTION.KillShot, target = "target" },
@@ -133,18 +135,22 @@ local DSL_DEFS = {
     {
         name = "ExplosiveTrap",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "explosive_trap_remains", op = "<", value = 1 },
         },
         action = { type = "cast", spell = ACTION.ExplosiveTrap, target = "target" },
     },
     {
         name = "KillCommand",
-        conditions = {},
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
         action = { type = "cast", spell = ACTION.KillCommand, target = "target" },
     },
     {
         name = "SerpentSting",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "serpent_remains", op = "<", value = 3 },
             { type = "state", field = "target_remaining_time", op = ">", value = 6 },
         },
@@ -152,12 +158,15 @@ local DSL_DEFS = {
     },
     {
         name = "AimedShot",
-        conditions = {},
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
         action = { type = "cast", spell = ACTION.AimedShot, target = "target" },
     },
     {
         name = "MultiShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "enemy_count", op = ">=", value = 2 },
         },
         action = { type = "cast", spell = ACTION.MultiShot, target = "target" },
@@ -165,13 +174,16 @@ local DSL_DEFS = {
     {
         name = "ArcaneShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
         action = { type = "cast", spell = ACTION.ArcaneShot, target = "target" },
     },
     {
         name = "SteadyShot",
-        conditions = {},
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
         action = { type = "cast", spell = ACTION.SteadyShot, target = "target" },
     },
 }

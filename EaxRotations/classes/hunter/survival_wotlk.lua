@@ -114,6 +114,7 @@ local DSL_DEFS = {
     {
         name = "KillShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_hp", op = "<", value = 20 },
         },
         action = { type = "cast", spell = ACTION.KillShot, target = "target" },
@@ -121,6 +122,7 @@ local DSL_DEFS = {
     {
         name = "ExplosiveShotProc",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "lock_and_load", op = "truthy" },
         },
         -- Lock and Load makes Explosive Shot instant + free: cast the MAX-rank
@@ -132,6 +134,7 @@ local DSL_DEFS = {
     {
         name = "ExplosiveTrap",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "explosive_trap_remains", op = "<", value = 1 },
         },
         action = { type = "cast", spell = ACTION.ExplosiveTrap, target = "target" },
@@ -139,6 +142,7 @@ local DSL_DEFS = {
     {
         name = "SerpentSting",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "serpent_remains", op = "<", value = 3 },
             { type = "state", field = "target_remaining_time", op = ">", value = 6 },
         },
@@ -147,6 +151,7 @@ local DSL_DEFS = {
     {
         name = "BlackArrow",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "black_arrow_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.BlackArrow, target = "target" },
@@ -154,6 +159,7 @@ local DSL_DEFS = {
     {
         name = "ExplosiveShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             -- Outside the Lock and Load proc window the plain lane handles the
             -- normal (costed, cast-time) shot; during the proc window the
             -- ExplosiveShotProc lane above fires the instant/free cast. Keeps
@@ -164,19 +170,24 @@ local DSL_DEFS = {
     },
     {
         name = "AimedShot",
-        conditions = {},
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
         action = { type = "cast", spell = ACTION.AimedShot, target = "target" },
     },
     {
         name = "MultiShot",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "enemy_count", op = ">=", value = 2 },
         },
         action = { type = "cast", spell = ACTION.MultiShot, target = "target" },
     },
     {
         name = "SteadyShot",
-        conditions = {},
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
         action = { type = "cast", spell = ACTION.SteadyShot, target = "target" },
     },
 }
