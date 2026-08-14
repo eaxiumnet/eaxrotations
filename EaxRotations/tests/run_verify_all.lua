@@ -504,6 +504,32 @@ local components = {
             }
         end,
     },
+    -- SoD-era battery (W4.3, 2026-08-14): the Season-of-Discovery era joined
+    -- the behavioral battery (SPEC_FILES_SOD manifest — ALL 20 _sod.lua spec
+    -- files; era-conditional callable ns.is_sod; the REAL
+    -- shared/sod_context_sylvanas enrich runs against every scenario context
+    -- so the battery exercises the production field producers, not hand-built
+    -- mocks; the mock spell_action now emits the live `_meta` surface).
+    -- Initial honest run: 37 never-firing lanes → 0 after the _meta
+    -- fidelity fix + 14 SoD scenario shapes (meta/rockbiter/maelstrom/
+    -- bear-form/poison/flame-shock/molten/tank-aoe/berserker/rage-low/
+    -- pet-dismissed/pet-low/serpent/weakened-soul). The era is STRICT like
+    -- wotlk: a future regression here hard-fails verify_all until pinned.
+    {
+        label = "behavioral battery (sod)",
+        cmd = "lua " .. R .. "/behavioral_audit.lua sod",
+        check = function(c)
+            local specs = num(c, "Total:%s*(%d+)%s*|")
+            local load_fail = num(c, "Load failures:%s*(%d+)")
+            local never = 0
+            for _ in c:gmatch("NEVER:") do never = never + 1 end
+            return {
+                { "sod specs " .. tostring(specs) .. " (expected 20)", specs == 20 },
+                { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
+                { "never-firing " .. never .. " (expected 0)", never == 0 },
+            }
+        end,
+    },
     -- Clean-checkout dependency probe: scans every test/runner for file-read
     -- path literals and asserts each resolves to a tracked file or a
     -- self-provisioning artifact (.omo/evidence regenerated per run). A test

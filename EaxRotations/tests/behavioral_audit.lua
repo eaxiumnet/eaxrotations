@@ -137,7 +137,27 @@ M.SPEC_FILES_VANILLA = {
     warrior = { "arms", "fury", "kebab", "leveling", "protection" },
 }
 
-M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA }
+-- SoD era (Season of Discovery, 2026-08-14, W4.3): ALL 20 _sod.lua spec files
+-- (the 19-run role set plus warrior tank_warrior). SoD files gate every
+-- strategy on context.is_sod and read rune/phase/form state through the REAL
+-- shared/sod_context_sylvanas enrich (wired in run_spec, era == "sod"), so
+-- the battery exercises the production producer instead of hand-built fields.
+-- NOTE: unlike the other eras there are NO non-spec helper files under the
+-- _sod.lua suffix (priest/healing_sod.lua IS a spec, so the healing_ prefix
+-- exclusion is era-gated OFF for sod — see check_manifest_drift).
+M.SPEC_FILES_SOD = {
+    druid = { "balance", "feral", "restoration", "tank" },
+    hunter = { "dps_hunter" },
+    mage = { "dps_mage" },
+    paladin = { "protection", "retribution" },
+    priest = { "healing", "shadow" },
+    rogue = { "combat", "tank" },
+    shaman = { "elemental", "enhancement", "restoration", "warden" },
+    warlock = { "dps", "tank" },
+    warrior = { "dps_warrior", "tank_warrior" },
+}
+
+M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA, sod = M.SPEC_FILES_SOD }
 
 -- Class profiles used to build representative contexts.
 M.CLASS_PROFILE = {
@@ -693,7 +713,11 @@ function M.build_ns(class_key, era)
     -- Vanilla era flag, callable like is_wotlk (vanilla file headers reference
     -- NS.is_vanilla() as the loader contract; keep it a function for parity).
     ns.is_vanilla = (era == "vanilla") and function() return true end or false
-    ns.is_sod = false
+    -- SoD era flag (W4.3, 2026-08-14): every _sod.lua file guards its load with
+    -- `type(NS.is_sod) == "function" and not NS.is_sod()` (dps_warrior_sod:3),
+    -- so era="sod" must provide the callable form exactly like is_wotlk; the
+    -- boolean false keeps every other era's load guard short-circuiting.
+    ns.is_sod = (era == "sod") and function() return true end or false
     ns.should_kite = function() return false end
     ns.has_player_buff = function() return false end
     ns.has_player_debuff = function() return false end
@@ -1147,6 +1171,17 @@ function M.build_ns(class_key, era)
         local ids
         if type(rank_ids) == "table" then ids = rank_ids else ids = { rank_ids } end
         local obj = {
+            -- W4.3 (2026-08-14): emit the LIVE `_meta` surface (mirrors
+            -- core_sylvanas.lua NS.spell_action — rich objects carry
+            -- _meta.id/_meta.ids/_meta.label). Previously the mock exposed
+            -- only flat `.ids`, a mock-only shape: spec_kit's
+            -- define_sod_action_for_class unwrap (W4.2) resolves source ids
+            -- via _meta.ids, so every class-table-backed SoD action (shaman
+            -- FlameShock/LightningBolt/ChainLightning, druid, warrior...)
+            -- resolved nil in the battery and its lanes reported never-firing
+            -- while firing fine in production. Additive: every flat-.ids
+            -- reader (normalize_ids, cooldown_remains, rank_ids) still works.
+            _meta = { id = ids, ids = ids, label = label },
             label = label,
             ids = ids,
             id = function(self) return ids[1] or ids[#ids] end,
@@ -3103,6 +3138,109 @@ M.SCENARIOS = {
     { name = "prot_hs_charges", overrides = { in_combat = true, buff_remains_map = { [48927] = 30 } } },
 }
 
+-- SoD-era scenario battery (W4.3, 2026-08-14): the full shared scenario set
+-- (SoD lanes fire if they fire ANYWHERE, so every shared shape stays useful)
+-- plus SoD-specific shapes that drive the REAL sod_context enrich outputs
+-- through the map-aware mocks: buff_remains_map → metamorphosis_active /
+-- maelstrom_stacks / S&D / Blade Dance remains, form → in_cat_form /
+-- in_bear_form, debuff_remains_map → flame_shock / serpent / DoT remains,
+-- debuff_stacks + debuff_aura_ids → poison / sunder stacks,
+-- party_injured_count → injured_count, totem_active → fire/water_totem_active,
+-- friendly_target_hp (+ debuff map) → the heal_target enrich blocks
+-- (Riptide / Lifebloom / Weakened Soul on ctx.lowest_unit).
+-- Shared entries are referenced, not copied: run_spec never mutates them.
+M.SCENARIOS_SOD = {}
+for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] = sc end
+-- Warlock-tank Metamorphosis (10 of 11 tank_sod strategies gate on
+-- metamorphosis_active). 47241 is the WotLK meta aura the SoD client's rune
+-- mechanic reuses (sod_context_sylvanas.lua METAMORPHOSIS_BUFF). No shared
+-- scenario presents it, so the meta-gated lanes fire exclusively here.
+-- Superset shape (like elite_low_self): carries enemy 3 (ShadowCleave's
+-- enemy_count >= 2), target_hp 20 (DrainLife's <= 35, via the enrich's
+-- target_hp_pct alias) and pet_hp 25 (HealthFunnel's pet_hp_pct <= 35 with a
+-- live pet). The meta-active Metamorphosis lane itself fires elsewhere
+-- (standard — it gates on meta NOT active).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_meta", overrides = { buff_remains_map = { [47241] = 60 }, enemy_count = 3, enemies_count = 3, target_hp = 20, target_ttd = 6, ttd = 6, pet_hp = 25 } }
+-- Druid tank (bear) form: the shared set only drives cat form (form=3 in
+-- cat_mangle_filler); tank_sod's bear-gated lanes (Lacerate, Maul) and
+-- restoration's form-cancel lanes need form=1 → in_bear_form via the enrich.
+-- LacerateRefresh additionally needs the LACERATE debuff (414644) up at
+-- 0 < remains < 3 — same scenario, refresh window 2s.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_bear_form", overrides = { form = 1, debuff_remains_map = { [414644] = 2 } } }
+-- Rogue combat/tank poison-stack gates (PoisonedKnife: combo < 5 + stacks
+-- >= 4 + energy <= 80 — the energy/combo overrides make the knife lane
+-- reachable; the stacks bank is id-scoped to the deadly-poison ranks).
+-- (deadly-poison ranks mirror combat_sylvanas:54)
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_poison", overrides = { debuff_stacks = 5, debuff_aura_ids = { 27187, 27186, 26968, 26967, 25349, 25347, 11356, 11355, 11354, 11353, 11352, 11351, 11350, 11349, 2819, 2837, 2818, 2835 }, energy = 60, combo_points = 0 } }
+-- Shaman elemental/enhancement Flame Shock refresh: FLAME_SHOCK ids
+-- (29228 max rank, sod_context_sylvanas.lua) in the primary-target dot map.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_flame_shock", overrides = { debuff_remains_map = { [29228] = 4 } } }
+-- Enhancement/warden Maelstrom-stack burst: MAELSTROM_WEAPON ids (53817 max
+-- rank) in the buff map — the enrich falls back to NS.buff_stacks, which is
+-- map-aware, so maelstrom_stacks becomes 5. Carries Rockbiter (25485) so the
+-- warden's rockbiter-gated MaelstromChainLightning is observable too, and
+-- enemy 3 for the chain's enemy_count >= 2 gate.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_maelstrom", overrides = { buff_remains_map = { [53817] = 5, [25485] = 60 }, enemy_count = 3, enemies_count = 3 } }
+-- Warden single-target Maelstrom bolt (stacks 5 + enemy_count == 1 + rockbiter).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_maelstrom_single", overrides = { buff_remains_map = { [53817] = 5, [25485] = 60 } } }
+-- Warden Molten Blast (enemy_count >= 5) + Magma Totem (>= 2 + fire slot
+-- free): the shared aoe scenario caps at 4 enemies, so 5 is sod-only; no
+-- totem_active key → the get_totem_info bank reports an empty fire slot.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_molten", overrides = { buff_remains_map = { [25485] = 60 }, enemy_count = 5, enemies_count = 5 } }
+-- Warrior dps Berserker Rage: berserker stance (3) + a rage-starved window
+-- (matcher gates s.rage < 40 — the rage generator fires when the bar is
+-- empty). No shared scenario sets stance 3 (warriors default to battle 1;
+-- prot scenarios use defensive 2).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_berserker", overrides = { stance = 3, rage = 20 } }
+-- Warrior tank AoE lanes (Cleave/Shockwave/SweepingStrikes/ThunderClap):
+-- tank_warrior's available() requires defensive stance (2) AND the AoE lanes
+-- need enemy_count >= 2. No shared scenario combines stance 2 with 2+
+-- enemies (elite_* have the enemies but stay battle-stance; prot_filler_cd
+-- is stance 2 but single-target).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_tank_aoe", overrides = { stance = 2, enemy_count = 3, enemies_count = 3 } }
+-- Warrior tank Bloodrage (rage < 20 in defensive stance): no shared scenario
+-- drops warrior rage below 20 (arms_execute_rage floors at 25).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_tank_rage_low", overrides = { stance = 2, rage = 15 } }
+-- Pet dismissed but NOT dead (hunter + warlock dps Call Pet): OOC with no
+-- pet. The shared no_pet scenarios (low_level, pet_absent) present a DEAD
+-- pet (pet_dead=true → RevivePet's lane); Call Pet's `not s.pet_dead` gate
+-- needs the dismissed state the pet_dismissed branch provides.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_pet_dismissed", overrides = { in_combat = false }, no_target = true, pet_dismissed = true }
+-- Warlock dps MendPet (OOC + live pet at pet_hp_pct <= 35): the shared pet
+-- scenarios keep pet_hp at 100; pet_hp 25 presents the mend window.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_pet_low", overrides = { in_combat = false, pet_hp = 25 } }
+-- Hunter Serpent Sting refresh (dps_hunter): SERPENT_STING ids
+-- { 25295, 13555 } in the primary-target dot map (shared serpent_refresh
+-- uses the TBC max-rank 27016, which the SoD file's id set does not carry).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_serpent", overrides = { debuff_remains_map = { [25295] = 2, [13555] = 2 } } }
+-- Warrior-tank Sunder stacks (tank_warrior): SUNDER ids (engine has_sunder
+-- set, main_sylvanas.lua:1294) in the id-scoped stacks bank.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_sunder", overrides = { debuff_stacks = 3, debuff_aura_ids = { 7386, 7405, 8380, 11596, 11597, 25225 } } }
+-- Restoration-shaman Healing Stream (injured_count >= 2 gate via the enrich
+-- party_injured_count alias) with a live fire-slot totem (get_totem_info
+-- bank) for the warden/resto totem-gated lanes.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_totem_heal", overrides = { totem_active = true, party_injured_count = 2, lowest_hp = 40, friends_hp = { 40, 60, 80 } } }
+-- Priest Weakened Soul on the heal target (PW:S refresh gate in healing_sod):
+-- friendly_target_hp presents ctx.lowest_unit (apply_sod_enrich) + the
+-- 6788 debuff in the primary-target map.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_weakened_soul", overrides = { friendly_target_hp = 60, debuff_remains_map = { [6788] = 3 } } }
+
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
 local function _scenario_me(profile, ctx)
@@ -3289,7 +3427,7 @@ local function build_scenario_target(ctx)
 end
 
 -- Build the context table for one scenario descriptor + class profile.
-function M.build_context_for(class_key, scenario)
+function M.build_context_for(class_key, scenario, era)
     local profile = M.CLASS_PROFILE[class_key] or {}
     local ctx = _base_ctx(profile)
     local overrides = scenario.overrides or {}
@@ -3410,6 +3548,14 @@ function M.build_context_for(class_key, scenario)
         runic_power=true, rune_state=true, optimal_presence=true,
         lock_and_load=true, scorch_cast_time=true,
         maelstrom_stacks=true,
+        -- W4.3 (2026-08-14): SoD-era scenario keys. Both are REAL engine
+        -- fields the dispatcher sets for SoD clients (main_sylvanas.lua:
+        -- 1256/1258 — sod_phase from settings, sod_runes from
+        -- NS.get_sod_runes), consumed by spec_kit.sod_action_available /
+        -- has_sod_rune. No TBC/WotLK/vanilla scenario uses these names, so
+        -- whitelisting them is additive-safe; the sod scenarios drive them so
+        -- rune/phase-gated SoD lanes stay observable.
+        sod_runes=true, sod_phase=true,
         -- Wave 3.3 (2026-08-13): party_injured_count is the REAL engine field
         -- for the healer AoE-heal gate (main_sylvanas.lua:973/1225 populates
         -- context.party_injured_count, NOT the phantom injured_count the old
@@ -3467,6 +3613,17 @@ function M.build_context_for(class_key, scenario)
         for k, v in pairs(overrides.setting_overrides) do
             ctx.settings[k] = v
         end
+    end
+    -- W4.3 (2026-08-14): SoD-era context defaults. Every _sod.lua strategy
+    -- gates on context.is_sod (legacy-gate tests assert is_sod=false blocks),
+    -- and spec_kit.sod_action_available reads context.sod_phase — the engine
+    -- defaults phase to 8 (SOD_DEFAULT_PHASE, main_sylvanas.lua:1256) and
+    -- leaves sod_runes unset when settings carry none (has_sod_rune then
+    -- fails open — unknown rune state must not disable rune-only actions).
+    -- Scenario overrides win when present; defaults only fill unset fields.
+    if era == "sod" then
+        if ctx.is_sod == nil then ctx.is_sod = true end
+        if ctx.sod_phase == nil then ctx.sod_phase = 8 end
     end
     if ctx.target_distance then ctx.target_range = ctx.target_distance end
     -- Warriors start in Battle Stance (1); stance scenarios flip it.
@@ -3566,7 +3723,7 @@ function M.build_context_for(class_key, scenario)
     -- demonstrably fireable; warlock/hunter scenarios are unchanged (their
     -- ctx.pet already comes from profile.pet, and has_pet=true only ADDS a pet
     -- where none would exist).
-    if (profile.pet or ctx.has_pet == true) and not scenario.no_pet then
+    if (profile.pet or ctx.has_pet == true) and not scenario.no_pet and not scenario.pet_dismissed then
         local pet_hp = ctx.pet_hp or 100
         local pet = _target()
         pet.get_health_percentage = function(self) return pet_hp end
@@ -3578,6 +3735,14 @@ function M.build_context_for(class_key, scenario)
         pet.get_distance = function(self) return 20 end
         ctx.pet = pet
         ctx.pet_dead = ctx.pet_dead == true or pet_hp <= 0
+    elseif scenario.pet_dismissed then
+        -- W4.3 (2026-08-14): pet dismissed / never-summoned but NOT dead —
+        -- the SoD Call Pet lanes (hunter + warlock dps) gate on `not
+        -- s.pet_dead`, which the legacy no_pet branch (pet_dead=true) could
+        -- never present. Distinct from no_pet: RevivePet's pet_dead semantic
+        -- is untouched.
+        ctx.pet = nil
+        ctx.pet_dead = false
     else
         ctx.pet = nil
         ctx.pet_dead = true
@@ -3986,10 +4151,41 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- specs would read a stale spec's state bank. Each load_spec must start
     -- the module virgin (bound to the CURRENT mock NS).
     package.loaded["shared/leveling_sylvanas"] = nil
+    -- W4.3 (2026-08-14): sod_context_sylvanas captures `local NS =
+    -- _G.EaxRotations` at require time (sod_context_sylvanas.lua:40) — the
+    -- same require-time pollution class as the stub modules above. Evict it
+    -- per load so each SoD spec's enrich binds to ITS mock NS and reads the
+    -- CURRENT spec's state bank (stale binding → stale _battery reads).
+    package.loaded["shared/sod_context_sylvanas"] = nil
     if not ok then
         return nil, tostring(result)
     end
     return result, nil, ns
+end
+
+-- ---------------------------------------------------------------------------
+-- SoD enrich (W4.3, 2026-08-14): run the REAL shared/sod_context_sylvanas
+-- enrich against the scenario context, after apply_battery_state has bound
+-- the map-aware aura mocks. The enrich is fully pcall/type-guarded
+-- internally, so a missing mock member degrades to nil instead of crashing.
+-- heal_target: the enrich reads ctx.lowest_unit (the engine's lazy
+-- party-scan field); the battery presents friendly units via
+-- friendly_target_hp — mirror the engine's lowest-unit resolution so the
+-- heal-target enrich blocks (Riptide / Lifebloom / Rejuvenation / Weakened
+-- Soul on ctx.lowest) are observable in the friendly-target scenarios.
+-- ---------------------------------------------------------------------------
+function M.apply_sod_enrich(ns, ctx)
+    if type(ctx) ~= "table" then return end
+    if ctx.lowest_unit == nil and ns and type(ns.get_friendly_target_entry) == "function" then
+        local ok_entry, entry = pcall(ns.get_friendly_target_entry)
+        if ok_entry and type(entry) == "table" and entry.unit then
+            ctx.lowest_unit = entry.unit
+        end
+    end
+    local ok, enrich = pcall(require, "shared/sod_context_sylvanas")
+    if ok and type(enrich) == "table" and type(enrich.enrich) == "function" then
+        pcall(enrich.enrich, ctx)
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -4034,8 +4230,18 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
     end
 
     for _, sc in ipairs(scenarios) do
-        local ctx = M.build_context_for(class_key, sc)
+        local ctx = M.build_context_for(class_key, sc, era)
         M.apply_battery_state(ns, ctx, class_key)
+        -- W4.3 (2026-08-14): SoD era runs the REAL sod_context enrich AFTER
+        -- the state bank is applied so the map-aware mocks feed it — the
+        -- battery exercises the production producer instead of hand-built
+        -- fields (in_cat_form/in_bear_form from form, metamorphosis_active
+        -- from buff_remains_map, flame_shock/serpent/DoT remains from
+        -- debuff_remains_map, poison/sunder stacks from the id-scoped stacks
+        -- bank, injured_count from party_injured_count, fire/water_totem_active
+        -- from the get_totem_info bank, heal-target fields from the friendly
+        -- unit when a friendly_target_hp scenario is active).
+        if era == "sod" then M.apply_sod_enrich(ns, ctx) end
         local state = ctx
         if build_state then
             local ok, st = pcall(build_state, ctx)
@@ -4171,15 +4377,19 @@ function M.run_all(era)
     local manifest = M.ERA_MANIFESTS[era]
     if not manifest then
         error("behavioral_audit: unknown era '" .. tostring(era)
-            .. "' (expected 'sylvanas', 'wotlk' or 'vanilla')", 0)
+            .. "' (expected 'sylvanas', 'wotlk', 'vanilla' or 'sod')", 0)
     end
+    -- W4.3 (2026-08-14): the SoD era runs the shared scenario set plus the
+    -- SoD-specific shapes (M.SCENARIOS_SOD); every other era keeps the
+    -- shared set (byte-identical to the pre-W4.3 runs).
+    local scenarios = (era == "sod") and M.SCENARIOS_SOD or M.SCENARIOS
     local total = 0
     local reports = {}
     local load_failures = {}
     for class_key, specs in pairs(manifest) do
         for _, spec_key in ipairs(specs) do
             total = total + 1
-            local report, err = M.run_spec(class_key, spec_key, M.SCENARIOS, era)
+            local report, err = M.run_spec(class_key, spec_key, scenarios, era)
             if not report then
                 load_failures[#load_failures + 1] = class_key .. "/" .. spec_key .. ": " .. tostring(err)
             else
@@ -4200,7 +4410,7 @@ function M.run_all(era)
                 for _, e in ipairs(report.dispatch_errors) do errs[#errs + 1] = e end
                 if type(variants) == "table" then
                     for _, race in ipairs(variants) do
-                        local vrep, verr = M.run_spec(class_key, spec_key, M.SCENARIOS, era, race)
+                        local vrep, verr = M.run_spec(class_key, spec_key, scenarios, era, race)
                         if not vrep then
                             load_failures[#load_failures + 1] = class_key .. "/" .. spec_key
                                 .. " (race " .. tostring(race) .. "): " .. tostring(verr)
@@ -4281,6 +4491,15 @@ function M.check_manifest_drift(era)
         "class_", "schema_", "middleware_", "healing_", "cliptracker_",
         "heal_helper_", "shared_helpers_",
     }
+    if era == "sod" then
+        -- W4.3 (2026-08-14): the SoD era has NO non-spec helper files under
+        -- the _sod.lua suffix — priest/healing_sod.lua IS a spec (a real
+        -- rotation, unlike the shared-module healing_sylvanas.lua), so the
+        -- "healing_" exclusion must NOT apply or the manifest could silently
+        -- drop the priest healing spec without drift complaining. Maximal
+        -- strictness: every *_sod.lua file must have a manifest row.
+        non_spec = {}
+    end
     if era == "sylvanas" then
         -- TBC leveling files run via run_leveling_tests.lua, not the battery
         -- (WotLK AND vanilla leveling files ARE battery specs — WotLK by
@@ -4335,7 +4554,8 @@ end
 -- ---------------------------------------------------------------------------
 function M.print_report(agg)
     local era_label = (agg.era == "wotlk") and "wotlk"
-        or ((agg.era == "vanilla") and "vanilla" or "sylvanas")
+        or ((agg.era == "vanilla") and "vanilla"
+        or ((agg.era == "sod") and "sod" or "sylvanas"))
     print("=============================================================================")
     print("  BEHAVIORAL BATTERY AUDIT (" .. tostring(agg.total) .. " " .. era_label .. " specs)")
     print("=============================================================================")
@@ -4361,7 +4581,7 @@ function M.print_report(agg)
     print("=============================================================================")
 end
 
--- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua [wotlk|vanilla]`
+-- Standalone entry: `lua EaxRotations/tests/behavioral_audit.lua [wotlk|vanilla|sod]`
 -- Direct runs are detected via arg[0] (the invoked script path), NOT via
 -- select("#", ...): in Lua 5.1 the main chunk's `...` IS the CLI args, but the
 -- spec scorecard loads this file via loadfile + chunk('scorecard'), which also
@@ -4371,13 +4591,14 @@ end
 -- out with usage instead of silently producing no report.
 if arg and arg[0] and arg[0]:find("behavioral_audit", 1, true) then
     local cli_era = arg[1]
-    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" then
+    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" and cli_era ~= "sod" then
         io.stderr:write("behavioral_audit: unknown era '" .. tostring(cli_era)
-            .. "' — expected 'wotlk', 'vanilla' or no argument (default sylvanas)\n")
+            .. "' — expected 'wotlk', 'vanilla', 'sod' or no argument (default sylvanas)\n")
         os.exit(1)
     end
     local era = (cli_era == "wotlk") and "wotlk"
-        or ((cli_era == "vanilla") and "vanilla" or "sylvanas")
+        or ((cli_era == "vanilla") and "vanilla"
+        or ((cli_era == "sod") and "sod" or "sylvanas"))
     local agg = M.run_all(era)
     M.print_report(agg)
 end
