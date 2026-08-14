@@ -565,16 +565,6 @@ do
 end
 
 -- Fallback friendly-target helpers (defensive: available even if core/units fails to load).
-if not NS.has_friendly_target then
-    function NS.has_friendly_target()
-        local me = NS.GetPlayer and NS.GetPlayer()
-        if not me then return false end
-        local target = NS.GetTarget and NS.GetTarget()
-        if not target then return false end
-        if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return false end
-        return true
-    end
-end
 if not NS.get_friendly_target_entry then
     function NS.get_friendly_target_entry(context)
         local me = (context and context.me) or (NS.GetPlayer and NS.GetPlayer())
@@ -1005,20 +995,6 @@ function NS.sticky_spell_reset()
     _sticky.priority = 0
 
 end
-
--- ============================================================================
-
--- Install cooldowns domain (extracted to EaxRotations/core/cooldowns.lua).
--- Wires cooldown_registry + register_cooldown / unregister_cooldown /
--- get_cooldown_suggestions / get_best_offensive_cooldown /
--- clear_cooldown_registry onto NS.
-pcall(function()
-    local ok, cooldowns_domain = pcall(require, "core/cooldowns")
-    if not ok then ok, cooldowns_domain = pcall(require, "EaxRotations/core/cooldowns") end
-    if ok and type(cooldowns_domain) == "table" and type(cooldowns_domain.install) == "function" then
-        cooldowns_domain.install(NS)
-    end
-end)
 
 -- Shared callback batcher: all shared modules (racial_manager, trinket_manager, ooc_manager,
 -- etc.) register through this function. Instead of creating
