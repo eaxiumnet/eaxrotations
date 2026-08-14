@@ -28,7 +28,21 @@ local is_leveling_context = leveling.create_context_guard()
 local SPELLS = NS.RogueSpells or NS.SPELLS or {}
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
-local HAS_KICK = NS.spell_exists and NS.spell_exists(SPELLS.Kick and SPELLS.Kick[1] or 1766)
+
+-- Resolve the first spell ID from a spell action (live class_sylvanas entries
+-- are NS.spell_action tables carrying _meta.ids; bare tables/numbers also
+-- occur in tests). The old `SPELLS.Kick and SPELLS.Kick[1] or 1766` always
+-- fell through to 1766 because action tables have no [1] key (wave 1.3).
+local function first_spell_id(spell_action)
+    if type(spell_action) ~= "table" then return spell_action end
+    local meta = spell_action._meta
+    if meta then
+        if type(meta.ids) == "table" then return meta.ids[1] end
+        return meta.id
+    end
+    return spell_action[1]
+end
+local HAS_KICK = NS.spell_exists and NS.spell_exists(first_spell_id(SPELLS.Kick) or 1766)
 
 -- ============================================================================
 -- Strategy helpers
@@ -65,8 +79,8 @@ local LEVELING_VANILLA_SCHEMA = {
     is_moving = false,  target = nil,
     use_cooldowns = true,  use_blade_flurry = true,
     blade_flurry_min_enemies = 3,  vanish_hp = 15,
-    use_interrupt = true,  use_expose_armor = false,
-    has_slice_and_dice = false,  stealthed = false,
+    use_interrupt = true,
+    has_slice_and_dice = false,  slice_and_dice_remains = 0,  stealthed = false,
     sinister_strike_ready = false,  eviscerate_ready = false,
     slice_and_dice_ready = false,  rupture_ready = false,
     garrote_ready = false,  ambush_ready = false,
@@ -75,7 +89,7 @@ local LEVELING_VANILLA_SCHEMA = {
     blade_flurry_ready = false,  adrenaline_rush_ready = false,
     cold_blood_ready = false,  vanish_ready = false,
     stealth_ready = false,  kidney_shot_ready = false,
-    expose_armor_ready = false,  shiv_ready = false,
+    expose_armor_ready = false,
     thistle_tea_ready = false,  sap_ready = false,  blind_ready = false,
 }
 
@@ -146,6 +160,12 @@ function rogue_leveling.build_state(context)
 
     state.has_slice_and_dice = has_buff(SLICE_AND_DICE_BUFF)
     state.stealthed = has_buff(STEALTH_BUFF)
+    -- SnD refresh tracking: re-cast when < 3s remains for 100% uptime.
+    state.slice_and_dice_remains = 0
+    if me and NS.buff_remains then
+        local ok5, remains = pcall(NS.buff_remains, me, SLICE_AND_DICE_BUFF)
+        if ok5 and type(remains) == "number" then state.slice_and_dice_remains = remains end
+    end
 
     state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
     state.use_blade_flurry = spec_kit.setting_bool(context, "leveling_use_blade_flurry", true)
@@ -210,6 +230,7 @@ local gouge_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.gouge_ready then return false end
     if not state.target then return false end
+    if (state.energy or 100) < 45 then return false end  -- Gouge costs 45 energy
     if (state.hp or 100) > 40 then return false end
     return true
 end
@@ -254,7 +275,10 @@ local slice_and_dice_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.slice_and_dice_ready then return false end
-    if state.has_slice_and_dice then return false end
+    -- Refresh when about to drop (< 3s remains) even if active (wave 1.3:
+    -- previously a hard `if state.has_slice_and_dice then return false end` —
+    -- no refresh path, so uptime lapsed mid-fight).
+    if state.has_slice_and_dice and (state.slice_and_dice_remains or 0) > 3 then return false end
     if (state.combo_points or 0) < 1 then return false end
     return true
 end
@@ -366,6 +390,14 @@ local strategies = {
       matches = stealth_matches,
       execute = function(context) return try_cast(SPELLS.Stealth, nil, "[LEVELING] Stealth") end },
 
+    -- Sap sits directly after Stealth (wave 1.3): the openers (Ambush/Garrote)
+    -- match whenever stealthed + OOC, so a Sap lane below them was
+    -- unreachable. Sap requires humanoid + stealth + OOC, which cannot
+    -- conflict with the openers once it runs first.
+    { name = "Sap",
+      matches = sap_matches,
+      execute = function(context) return try_cast(SPELLS.Sap, context and context.target, "[LEVELING] Sap") end },
+
     { name = "Ambush",
       matches = ambush_matches,
       execute = function(context) return try_cast(SPELLS.Ambush, context and context.target, "[LEVELING] Ambush") end },
@@ -421,10 +453,6 @@ local strategies = {
     { name = "Rupture",
       matches = rupture_matches,
       execute = function(context) return try_cast(SPELLS.Rupture, context and context.target, "[LEVELING] Rupture") end },
-    -- Sap: CC humanoid while stealthed (before entering combat)
-    { name = "Sap",
-      matches = sap_matches,
-      execute = function(context) return try_cast(SPELLS.Sap, context and context.target, "[LEVELING] Sap") end },
 
     { name = "Eviscerate",
       matches = eviscerate_matches,

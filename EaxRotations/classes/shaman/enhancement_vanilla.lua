@@ -206,7 +206,11 @@ local function build_state(context)
 
     -- -- Buff detection
     enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-    enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
+    -- NS.buff_stacks (core:3115) resolves multi-id buff tables; the old
+    -- me:get_buff_stacks(LIGHTNING_SHIELD_BUFF) passed a 7-id TABLE to a
+    -- scalar unit method (un-pcall'd), so charges always read 0 and the shield
+    -- was drained to zero before refresh.
+    enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and NS.buff_stacks and NS.buff_stacks(me, LIGHTNING_SHIELD_BUFF)) or 0
     enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
 
     -- -- Weapon buff detection via WeaponImbueManager + exact enchant IDs.
@@ -549,6 +553,7 @@ end
 
 local function natures_swiftness_matches(ctx)
     if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 180) then return false end
+    if not cooldowns_enabled(ctx) then return false end
     if not enh_state.natures_swiftness_ready then return false end
     return true
 end

@@ -1,8 +1,14 @@
 -- protection_vanilla.lua — Paladin Protection tank for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  AoE tank (Consecration, Holy Shield, Seal of Righteousness).
+-- WHAT:  AoE tank (Consecration, Holy Shield, Seal of Righteousness/Wisdom,
+--        Judgement of Wisdom mana engine).
 -- WHEN:  combat, when NS.is_vanilla() is true.
 -- WHY:   Vanilla Prot Paladin has no taunt; relies on threat generation.
--- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14. Seal of
+--        Righteousness and Seal of Wisdom are tracked separately (has_seal /
+--        has_seal_wisdom) so the two seal lanes never ping-pong, and Judgement
+--        fires with either seal up (Judgement of Wisdom restores mana).
+--        Blessing of Salvation is intentionally absent (threat management is
+--        the raid leader's job in Classic).
 
 local __eax_file = "classes/paladin/protection_vanilla.lua"
 local __eax_version = "1.1.1"
@@ -17,7 +23,8 @@ if type(__eax_core) == "table" and type(__eax_core.log) == "function" then
 end
 local __eax_ns = rawget(_G, "EaxRotations")
 if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
--- Paladin Protection priority list with holy threat, uncrushable logic, and seal/aura management.
+-- Paladin Protection priority list with holy threat, seal/aura management,
+-- and CC-safe Consecration gating.
 
 -- ============================================================================
 -- What: Paladin Protection priority with holy threat and seal/aura management.
@@ -38,6 +45,7 @@ local SPELLS = NS.PaladinSpells or {}
 local RIGHTEOUS_FURY_BUFF = { 25780 }
 local HOLY_SHIELD_BUFF = { 20928, 20927, 20925 }
 local SEAL_RIGHTEOUSNESS_BUFF = { 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
+local SEAL_WISDOM_BUFF = { 20357, 20356, 20166 }
 local CONSECRATION_DEBUFF = { 20924, 20923, 20922, 20116, 26573 }
 local BLESSING_OF_SANCTUARY_BUFF = { 20914, 20913, 20912, 20911 }
 local DEVOTION_AURA_BUFF = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
@@ -47,6 +55,9 @@ local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 local CC_DEBUFFS = { 118, 12824, 12825, 12826, 28271, 28272, 3355, 14308, 14309, 20066 }
 local CONSECRATION_MIN_MANA = 35
 local CONSECRATION_AOE_THRESHOLD = 3
+local CC_SCAN_THROTTLE = 0.5  -- seconds between O(enemies x #CC_DEBUFFS) scans
+local _cc_scan_time = -1
+local _cc_scan_result = false
 
 -- ============================================================================
 -- Settings helper
@@ -74,6 +85,7 @@ local PROT_VANILLA_SCHEMA = {
     cleanse_ready = true,  seal_of_wisdom_ready = true,
     -- Buff/debuff state: assume buffed → skip re-application
     has_righteous_fury = true,  has_holy_shield = true,  has_seal = true,
+    has_seal_wisdom = false,
     has_devotion_aura = true,  has_divine_shield = false,
     has_forbearance = false,  has_blessing_sanctuary = true,
     needs_cleanse = false,  target_casting = false,  cc_nearby = false,
@@ -89,6 +101,7 @@ local prot_state = {
     has_righteous_fury = false,
     has_holy_shield = false,
     has_seal = false,
+    has_seal_wisdom = false,
     has_devotion_aura = false,
     has_divine_shield = false,
     has_forbearance = false,
@@ -148,6 +161,7 @@ local function build_state(context)
         prot_state.holy_shield_charges = (pts and pts[1]) or 0
     end
     prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
+    prot_state.has_seal_wisdom = me and NS.buff_up(me, SEAL_WISDOM_BUFF) or false
     prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
     prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
     prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
@@ -171,7 +185,7 @@ local function build_state(context)
     prot_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
     prot_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     prot_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
-    prot_state.enemy_count = context.enemy_count or context.enemies_count or 1
+    prot_state.enemy_count = context.enemy_count or context.enemies_count or 0
     prot_state.target_creature_type = creature_type(target)
     prot_state.target_casting = target and target.is_casting and target:is_casting() or false
 
@@ -184,7 +198,9 @@ local function build_state(context)
             local ally = allies[i]
             if ally and NS.not_same_unit(ally, me) then
                 local ally_hp = ally.get_health_percentage and ally:get_health_percentage() or 100
-                if ally_hp <= 35 and not prot_state.low_hp_ally then
+                -- Exclude the main tank: vanilla Blessing of Protection DROPS
+                -- the target's threat, so peeling the tank would lose aggro.
+                if ally_hp <= 35 and not prot_state.low_hp_ally and not (ally.is_tank == true) then
                     prot_state.low_hp_ally = ally
                 end
                 if not prot_state.ally_threatened and (ally.threat_status and ally.threat_status >= 2 or ally.has_aggro) then
@@ -194,26 +210,50 @@ local function build_state(context)
         end
     end
 
-    -- CC proximity check (skip AoE near controlled mobs)
+    -- CC proximity check (skip AoE near controlled mobs), throttled to 500ms:
+    -- the scan is O(enemies x #CC_DEBUFFS) and game objects expose positions
+    -- via get_position() (or NS.unit_distance), never .x/.y fields — the old
+    -- dx=dy=0 math saw nil distances and counted ANY CC'd mob as "within
+    -- 15 yd", globally blocking Consecration.
     prot_state.cc_nearby = false
     local enemies = context.enemies or context.enemy_list
     if enemies and target then
-        for i = 1, #enemies do
-            local enemy = enemies[i]
-            if enemy and NS.not_same_unit(enemy, target) then
-                for j = 1, #CC_DEBUFFS do
-                    if NS.debuff_up(enemy, {CC_DEBUFFS[j]}) then
-                        local dx = (enemy.x or 0) - (target.x or 0)
-                        local dy = (enemy.y or 0) - (target.y or 0)
-                        if dx*dx + dy*dy < 225 then -- 15 yards
-                            prot_state.cc_nearby = true
-                            break
+        local now = NS.time_now and NS.time_now() or 0
+        if now - _cc_scan_time >= CC_SCAN_THROTTLE then
+            _cc_scan_time = now
+            local nearby = false
+            for i = 1, #enemies do
+                local enemy = enemies[i]
+                if enemy and NS.not_same_unit(enemy, target) then
+                    for j = 1, #CC_DEBUFFS do
+                        if NS.debuff_up(enemy, {CC_DEBUFFS[j]}) then
+                            -- Real-distance check: .x/.y are not part of the
+                            -- game_object API; use NS.unit_distance when the
+                            -- core helper exists, else pcall-guarded
+                            -- get_position (mirrors protection_sylvanas).
+                            if NS.unit_distance then
+                                local dist = NS.unit_distance(enemy, target)
+                                if type(dist) == "number" and dist < 15 then nearby = true end
+                            else
+                                local ok1, pos_a = false, nil
+                                if enemy.get_position then ok1, pos_a = pcall(enemy.get_position, enemy) end
+                                local ok2, pos_b = false, nil
+                                if target.get_position then ok2, pos_b = pcall(target.get_position, target) end
+                                if ok1 and ok2 and pos_a and pos_b then
+                                    local pdx = (pos_a.x or 0) - (pos_b.x or 0)
+                                    local pdy = (pos_a.y or 0) - (pos_b.y or 0)
+                                    if pdx*pdx + pdy*pdy < 225 then nearby = true end
+                                end
+                            end
+                            if nearby then break end
                         end
                     end
+                    if nearby then break end
                 end
-                if prot_state.cc_nearby then break end
             end
+            _cc_scan_result = nearby
         end
+        prot_state.cc_nearby = _cc_scan_result
     end
 
     return spec_kit.safe_state(prot_state, PROT_VANILLA_SCHEMA)
@@ -259,9 +299,10 @@ local function consecration_matches(context, state)
     -- Mana conservation: skip Consecration below configurable floor
     local min_mana = get_setting(context, "prot_consecration_min_mana", CONSECRATION_MIN_MANA)
     if (state.mana_pct or 100) < min_mana then return false end
-    -- AoE threshold: only use single-target if Consecration is already ticking
+    -- AoE threshold: with few targets, only REFRESH an already-ticking
+    -- Consecration (never open with it on 1-2 mobs); 3+ targets cast freely.
     local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
-    if (state.enemy_count or 0) < min_targets and (state.consecration_remains or 0) > 2 then return false end
+    if (state.enemy_count or 0) < min_targets and (state.consecration_remains or 0) <= 2 then return false end
     return true
 end
 
@@ -269,13 +310,18 @@ local function judgement_matches(context, state)
     if not get_setting(context, "prot_judgement", true) then return false end
     if not has_combat_target(context) then return false end
     if not state.judgement_ready then return false end
-    if not state.has_seal then return false end
+    -- Vanilla Judgement does not consume the seal: judge with EITHER seal up
+    -- (Judgement of Wisdom with Seal of Wisdom restores mana — the vanilla
+    -- tank mana engine; SoR tracks has_seal, SoW tracks has_seal_wisdom).
+    if not state.has_seal and not state.has_seal_wisdom then return false end
     return true
 end
 
 local function seal_righteousness_matches(context, state)
     if not get_setting(context, "prot_seal_of_righteousness", true) then return false end
-    if state.has_seal then return false end
+    -- has_seal tracks ONLY Seal of Righteousness; a live Seal of Wisdom must
+    -- also block re-application or the two seal lanes ping-pong every tick.
+    if state.has_seal or state.has_seal_wisdom then return false end
     return true
 end
 
@@ -367,7 +413,9 @@ local function seal_of_wisdom_matches(context, state)
     if not get_setting(context, "prot_seal_of_wisdom", true) then return false end
     local mana_threshold = get_setting(context, "prot_seal_of_wisdom_mana", 30)
     if (state.mana_pct or 100) > mana_threshold then return false end
-    if state.has_seal then return false end
+    -- Respect a live Seal of Righteousness too — don't stomp the damage seal
+    -- (the ping-pong fix: has_seal tracks SoR, has_seal_wisdom tracks SoW).
+    if state.has_seal or state.has_seal_wisdom then return false end
     if not state.seal_of_wisdom_ready then return false end
     return true
 end

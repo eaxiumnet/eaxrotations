@@ -100,6 +100,7 @@ local LEVELING_VANILLA_SCHEMA = {
     use_rend = true,
     use_thunder_clap = true,
     exec_hp = 20,
+    pvp_cc_gate = false,
 }
 
 function warrior_leveling.build_state(context)
@@ -158,6 +159,23 @@ function warrior_leveling.build_state(context)
 
     -- Buff checks
     state.has_battle_shout = has_buff(BATTLE_SHOUT_BUFF)
+
+    -- PvP CC gate: computed ONCE per tick here (never halts the priority list —
+    -- the AoE lanes below read this flag and suppress themselves instead).
+    state.pvp_cc_gate = false
+    if state.in_combat and spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then
+        local has_aoe = false
+        for _, id in ipairs(WARRIOR_AOE_IDS) do
+            if NS.is_spell_learned and NS.is_spell_learned(id) then
+                has_aoe = true
+                break
+            end
+        end
+        if has_aoe then
+            local ok_cc, active = pcall(CCGateDB.is_any_nearby_enemy_under_cc, NS, PVP_CC_RADIUS)
+            state.pvp_cc_gate = ok_cc and active == true
+        end
+    end
 
     state.use_execute = spec_kit.setting_bool(context, "leveling_use_execute", true)
     state.use_rend = spec_kit.setting_bool(context, "leveling_use_rend", true)
@@ -242,6 +260,7 @@ local execute_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.execute_ready then return false end
     if not state.use_execute then return false end
+    if (state.rage or 0) < 15 then return false end  -- Vanilla Execute costs 15 rage
     if not state.target then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
     if not ok or not hp then return false end
@@ -252,8 +271,10 @@ end
 --- Sweeping Strikes - AoE buff (needs second target near primary)
 local sweeping_strikes_matches = function(context, state)
     if not state then return false end
+    if state.pvp_cc_gate then return false end
     if not state.in_combat then return false end
     if not state.sweeping_strikes_ready then return false end
+    if has_buff({ 12292 }) then return false end  -- Vanilla SS buff already up
     if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
         return false
     end
@@ -263,6 +284,7 @@ end
 --- Whirlwind - 8yd self PBAoE when surrounded
 local whirlwind_matches = function(context, state)
     if not state then return false end
+    if state.pvp_cc_gate then return false end
     if not state.in_combat then return false end
     if not state.whirlwind_ready then return false end
     if not state.target then return false end
@@ -275,6 +297,7 @@ end
 --- Thunder Clap - 8yd self PBAoE damage/slow
 local thunder_clap_matches = function(context, state)
     if not state then return false end
+    if state.pvp_cc_gate then return false end
     if not state.in_combat then return false end
     if not state.thunder_clap_ready then return false end
     if not state.use_thunder_clap then return false end
@@ -296,11 +319,12 @@ local rend_matches = function(context, state)
     return true
 end
 
---- Mortal Strike - spec filler (Arms talent)
+--- Mortal Strike - spec filler (Arms talent; Battle stance only in Vanilla)
 local mortal_strike_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
+    if context.stance and context.stance ~= 1 then return false end
     if state.mortal_strike_ready then return true end
     return false
 end
@@ -341,11 +365,11 @@ local disarm_matches = function(context, state)
     if not state.in_melee_range then return false end
     if not state.disarm_ready then return false end
     if not state.disarm_class_ok then return false end
-    if settings.disarm_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "disarm_pvp_only", true) then
         local ok, is_player = pcall(function() return state.target:is_player() end)
         if not (ok and is_player) then return false end
     end
-    local trigger = settings.disarm_trigger or "on_burst"
+    local trigger = spec_kit.setting(context, "disarm_trigger", "on_burst")
     if trigger == "on_burst" then
         if not state.disarm_burst_name then return false end
         context._disarm_burst_name = state.disarm_burst_name
@@ -353,21 +377,14 @@ local disarm_matches = function(context, state)
     return true
 end
 
---- PvP CC Gate — skip AoE/cleave when nearby enemy is under breakable CC
+--- PvP CC Gate — skip AoE/cleave when nearby enemy is under breakable CC.
+-- The gate is computed in build_state (state.pvp_cc_gate); this matcher only
+-- reports it. The AoE lanes (SweepingStrikes/Whirlwind/ThunderClap) read the
+-- flag and suppress THEMSELVES — the gate strategy must NOT return true from
+-- execute (that would halt the whole priority list for the tick).
 local pvp_cc_gate_matches = function(context, state)
-    if not context then return false end
     if not state then return false end
-    if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
-    if not state.in_combat then return false end
-    local has_aoe = false
-    for _, id in ipairs(WARRIOR_AOE_IDS) do
-        if NS.is_spell_learned and NS.is_spell_learned(id) then
-            has_aoe = true
-            break
-        end
-    end
-    if not has_aoe then return false end
-    return CCGateDB.is_any_nearby_enemy_under_cc(NS, PVP_CC_RADIUS)
+    return state.pvp_cc_gate == true
 end
 
 --- Hamstring - slow fleeing enemies or kite
@@ -483,11 +500,13 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ShieldWall, nil, "[LEVELING] Shield Wall") end },
 
     -- Execute
-    -- Execute (Berserker Stance — dance if needed; Execute dumps rage so the swap cost is acceptable)
+    -- Execute (Battle OR Berserker Stance — vanilla Execute works in both, so
+    -- only dance when in Defensive; from Battle the swap would waste a GCD +
+    -- 10-15 rage for nothing).
     { name = "Execute",
       matches = execute_matches,
       execute = function(context) if not context then return false end
-          if context.stance ~= STANCE.BERSERKER then
+          if context.stance ~= STANCE.BATTLE and context.stance ~= STANCE.BERSERKER then
               if NS.spell_ready and NS.spell_ready(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), { skip_range = true }) then
                   return NS.try_cast(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), "[LEVELING] Berserker Stance for Execute", { skip_range = true })
               end
@@ -507,11 +526,13 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam") end },
 
 
-    -- PvP CC Gate: blocks AoE when nearby breakable CC
+    -- PvP CC Gate: suppress AoE lanes while breakable CC is nearby (the AoE
+    -- strategies check state.pvp_cc_gate; this strategy must NOT return true
+    -- from execute — that would halt the entire priority list for the tick).
     { name = "PvPCCGate",
       matches = pvp_cc_gate_matches,
       execute = function()
-          return true
+          return false
       end },
 
     -- CC: Intimidating Shout (AoE fear escape when overwhelmed)

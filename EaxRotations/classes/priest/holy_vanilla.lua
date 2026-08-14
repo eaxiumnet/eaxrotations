@@ -58,10 +58,11 @@ local HOLY_FIRE_DOT_DEBUFF = { 15261, 15267, 15266, 15265, 15264, 15263, 15262, 
 -- Fade buff IDs (all ranks)
 local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
 
--- Healthstone item IDs (TBC, best to worst)
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+-- Healthstone item IDs (Vanilla ranks only: 22103/22104/22105 are TBC)
+local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 19013, 19012, 19011, 5512 }
 
--- Karazhan encounter map ID
+-- Karazhan encounter map ID (TBC content — the gate below keeps this lane
+-- inert in Classic; Karazhan does not exist in the 1.15.x client).
 local KARAZHAN_MAP_ID = 532
 
 -- Pushback detection for Greater Heal (parity v0.5.0 style)
@@ -157,7 +158,7 @@ local function build_holy_state(context)
     context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
     context.hp = health_pct(NS.PLAYER_UNIT)
-    context.mana_pct = context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
+    context.mana_pct = context.player_mana_pct or (type(NS.unit_mana_pct) == "function" and NS.unit_mana_pct(player)) or 100
 
     if Healing.scan_healing_targets then
         local entries, count = Healing.scan_healing_targets()
@@ -347,9 +348,14 @@ end
 -- Netherspite: avoid long casts during Nether Breath
 -- Maiden: cleanse/heal through Repentance
 -- Moroes: heal Garrote targets quickly
+-- Karazhan is TBC-only content (map 532); the lane is gated behind
+-- NS.is_tbc() so it is structurally inert in Classic (1.15.x has no
+-- Karazhan). Kept as a named lane for era-mirror parity with the TBC file.
 -- ============================================================================
 local function encounter_reactions_matches(context, state)
     if not context.in_combat then return false end
+    -- Karazhan is TBC-only: never fire in Classic (era gate, 2026-08-13).
+    if type(NS.is_tbc) ~= "function" or not NS.is_tbc() then return false end
     if state.encounter_id ~= KARAZHAN_MAP_ID then return false end
     if not state.flash_heal_ready then return false end
     -- Netherspite: player control locked (Nether Breath fear) ? dispel/prepare
@@ -428,6 +434,12 @@ local strategies = {
         end,
     },
 
+    -- UnavailableClassicPriestHealA: placeholder for Binding Heal (32546),
+    -- which is TBC-only — the spell cannot exist in the Classic client, so
+    -- spell_exists(SPELLS.UnavailableClassicPriestHealA) is always false here
+    -- and the lane never fires. Kept as a named lane for era-mirror parity;
+    -- the execute reuses the BINDING_HEAL_RANKS downrank ladder for TBC's
+    -- holy_sylvanas sibling. (Binding Heal becomes available in TBC.)
     {
         name = "UnavailableClassicPriestHealA",
         matches = function(context, state)
@@ -728,10 +740,16 @@ local strategies = {
             if context.hp < 15 and state.lowest and state.lowest.is_player then return false end
             return context.has_valid_enemy_target
         end,
-        execute = function()
-            -- Wand if auto-shoot is not active; otherwise do nothing (auto-attack handles itself)
-            if NS.start_auto_attack then
-                return NS.start_auto_attack()
+        execute = function(context)
+            -- Wand if auto-shoot is not active; otherwise do nothing (auto-attack
+            -- handles itself). NS.start_auto_attack requires a target and defaults
+            -- to melee (6603) when none is given — pass the target + wand type
+            -- (5019) explicitly or the wand lane is a dead no-op (fix 2026-08-13).
+            if context and context.target then
+                if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+                if NS.start_auto_attack then
+                    return NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true
+                end
             end
             return false
         end,
@@ -741,12 +759,10 @@ local strategies = {
         name = "StopCast",
         matches = stop_cast_matches,
         execute = function()
-            if NS.stop_casting then
-                return NS.stop_casting()
-            end
-            -- Fallback: cancel current form/cast via spell book
-            if NS.cancel_current_cast then
-                return NS.cancel_current_cast()
+            -- NS.stop_casting / NS.cancel_current_cast are mock-only members;
+            -- NS.cancel_spells (core:2334) is the live interrupt API.
+            if NS.cancel_spells then
+                return NS.cancel_spells()
             end
             return false
         end,

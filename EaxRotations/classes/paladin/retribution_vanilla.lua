@@ -1,8 +1,10 @@
 -- retribution_vanilla.lua — Paladin Retribution for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  melee DPS (Seal of Command, Judgement, Crusader Strike).
+-- WHAT:  melee DPS (Seal of Command, Judgement, Crusader Strike) + PvP tools.
 -- WHEN:  combat, when NS.is_vanilla() is true.
 -- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+--        Blessing of Salvation is intentionally absent (threat management is
+--        the raid leader's job in Classic).
 
 
 local NS = _G.EaxRotations
@@ -41,7 +43,7 @@ local SEAL_CRUSADER_BUFF = { 20308, 20307, 20306, 20305, 21082, 20162 }
 local SEAL_WISDOM_BUFF = { 20357, 20356, 20166 }
 local JUDGEMENT_CRUSADER_DEBUFF = { 20303, 20302, 20301, 20300, 20188 }
 local JUDGEMENT_WISDOM_DEBUFF = { 20354, 20353, 20352, 20186 }
-local SANCTITY_AURA_GATE_BUFF = { 20218 }  --  removed (TBC-only)
+local SANCTITY_AURA_GATE_BUFF = { 20218 }  -- Sanctity Aura (20218, vanilla retribution talent rank 1)
 local BLESSING_MIGHT_BUFF = { 19838, 19837, 19836, 19835, 19834, 19832, 19831, 19830, 19740 }
 local BLESSING_KINGS_BUFF = { 20217 }
 local FORBEARANCE_DEBUFF = { 25771 }
@@ -189,8 +191,18 @@ local function candidate_members(context)
     return context.party_members or context.group_members or context.friends or context.allies
 end
 
-local function find_ally(context, predicate)
+-- Snapshot the party once per build_state instead of rescanning per strategy
+-- (5+ ally lanes call find_ally; in a raid that is #members x 5 scans/tick).
+local function snapshot_members(context)
     local members = candidate_members(context)
+    if type(members) ~= "table" or #members == 0 then return nil end
+    local snap = {}
+    for i = 1, #members do snap[i] = members[i] end
+    return snap
+end
+
+local function find_ally(context, state, predicate)
+    local members = (state and state.party_snapshot) or candidate_members(context)
     if type(members) == "table" and #members > 0 then
         for i = 1, #members do
             local member = members[i]
@@ -221,10 +233,20 @@ local function should_use_blood(context)
     return false  -- Seal of Blood is TBC-only
 end
 
-local function damage_seal_spell(state)
-    if state.preferred_damage_seal == "martyr" then return nil end
-    if state.preferred_damage_seal == "blood" then return nil end
-    return SPELLS.SealCommand
+-- The main dispatcher (main_sylvanas.lua) never sets context.target_fleeing
+-- live, so the fleeing lane was permanently dead. Derive a real signal from
+-- target distance increasing (sample history); context.target_fleeing is kept
+-- for the battery/test-harness contract (pvp_melee drives it there).
+local _flee_prev_dist = nil
+
+local function compute_target_fleeing(context)
+    if context.target_fleeing == true or context.target_is_fleeing == true then return true end
+    if not context.target then return false end
+    local d = context.target_distance
+    if type(d) ~= "number" then return false end
+    local fleeing = _flee_prev_dist ~= nil and d > _flee_prev_dist + 3 and d > MELEE_RANGE
+    _flee_prev_dist = d
+    return fleeing == true
 end
 
 local function build_state(context)
@@ -254,9 +276,10 @@ local function build_state(context)
     ret_state.target_casting = is_casting(context.target)
     ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
-    ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
+    ret_state.target_fleeing = compute_target_fleeing(context)
     ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", false) and ret_state.mana_pct >= get_setting(context, "retri_twist_mana_floor", 20)
     ret_state.utility_target = nil
+    ret_state.party_snapshot = snapshot_members(context)
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)
     ret_state.healing_item = first_ready_item(HEALING_ITEMS)
@@ -306,7 +329,7 @@ add_strategy(strategies, "Ret_HealthstoneOrPotion", 970, function(context, state
 end, function(_, state) return use_item(state.healing_item) end)
 
 add_strategy(strategies, "Ret_BlessingProtection_FocusedAlly", 930, function(context, state)
-    state.utility_target = find_ally(context, function(unit) return unit ~= PLAYER and health_pct(unit, 100) <= 28 end)
+    state.utility_target = find_ally(context, state, function(unit) return unit ~= PLAYER and health_pct(unit, 100) <= 28 end)
     return state.utility_target ~= nil and NS.spell_ready(BlessingProtection, state.utility_target, {}) or false
 end, function(_, state) return cast(BlessingProtection, state.utility_target, "[RET] Blessing of Protection ally") end)
 
@@ -318,7 +341,7 @@ end, function() return cast(BlessingFreedom, PLAYER, "[RET] Blessing of Freedom 
 
 add_strategy(strategies, "Ret_BlessingFreedom_Ally", 910, function(context, state)
     if not get_setting(context, "blessing_of_freedom_allies", true) then return false end
-    state.utility_target = find_ally(context, function(unit) return unit_has_debuff(unit, COMMON_SNARES) end)
+    state.utility_target = find_ally(context, state, function(unit) return unit_has_debuff(unit, COMMON_SNARES) end)
     return state.utility_target ~= nil and NS.spell_ready(BlessingFreedom, state.utility_target, {}) or false
 end, function(_, state) return cast(BlessingFreedom, state.utility_target, "[RET] Blessing of Freedom ally") end)
 
@@ -334,7 +357,7 @@ end, function() return cast(Purify, PLAYER, "[RET] Purify self", { skip_range = 
 
 add_strategy(strategies, "Ret_Cleanse_Ally", 880, function(context, state)
     if not get_setting(context, "cleanse_allies", true) then return false end
-    state.utility_target = find_ally(context, function(unit) return unit_has_debuff(unit, COMMON_CLEANSE) end)
+    state.utility_target = find_ally(context, state, function(unit) return unit_has_debuff(unit, COMMON_CLEANSE) end)
     return state.utility_target ~= nil and NS.spell_ready(SPELLS.Cleanse, state.utility_target, {}) or false
 end, function(_, state) return cast(SPELLS.Cleanse, state.utility_target, "[RET] Cleanse ally") end)
 
@@ -402,8 +425,13 @@ add_strategy(strategies, "Ret_JudgementWisdom_LowMana", 640, function(context, s
     return (state.mana_pct or 100) <= threshold and state.has_wisdom and not state.target_has_wisdom and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Wisdom for mana", { expected_cooldown = 10 }) end)
 
-add_strategy(strategies, "Ret_SealWisdom_Emergency", 630, function(_, state)
-    return (state.mana_pct or 100) <= 18 and not state.has_wisdom and NS.spell_ready(SealWisdom, PLAYER, { skip_range = true }) or false
+add_strategy(strategies, "Ret_SealWisdom_Emergency", 630, function(context, state)
+    -- Close the 18-45% band: Judgement of Wisdom (640) needs the Wisdom seal
+    -- up, but this lane only fired at <= 18% — between 18-45% the seal was
+    -- never applied and JoW never fired. Use the same threshold setting as
+    -- the JoW lane so the seal comes up as soon as mana turns low.
+    local threshold = get_setting(context, "retri_judge_wisdom_mana", 45)
+    return (state.mana_pct or 100) <= threshold and not state.has_wisdom and NS.spell_ready(SealWisdom, PLAYER, { skip_range = true }) or false
 end, function() return cast(SealWisdom, PLAYER, "[RET] Seal of Wisdom emergency", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_ManaPotion", 620, function(context, state)
@@ -460,13 +488,13 @@ end, function() return cast(SPELLS.BlessingOfKings, PLAYER, "[RET] Blessing of K
 
 add_strategy(strategies, "Ret_BlessingMight_MeleeAlly", 520, function(context, state)
     if not get_setting(context, "blessing_of_might_melee", true) then return false end
-    state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_MIGHT_BUFF) end)
+    state.utility_target = find_ally(context, state, function(unit) return not unit_has_buff(unit, BLESSING_MIGHT_BUFF) end)
     return state.utility_target ~= nil and NS.spell_ready(SPELLS.BlessingOfMight, state.utility_target, {}) or false
 end, function(_, state) return cast(SPELLS.BlessingOfMight, state.utility_target, "[RET] Blessing of Might melee") end)
 
 add_strategy(strategies, "Ret_BlessingKings_Party", 510, function(context, state)
     if not get_setting(context, "blessing_of_kings_party", false) then return false end
-    state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_KINGS_BUFF) end)
+    state.utility_target = find_ally(context, state, function(unit) return not unit_has_buff(unit, BLESSING_KINGS_BUFF) end)
     return state.utility_target ~= nil and NS.spell_ready(SPELLS.BlessingOfKings, state.utility_target, {}) or false
 end, function(_, state) return cast(SPELLS.BlessingOfKings, state.utility_target, "[RET] Blessing of Kings party") end)
 

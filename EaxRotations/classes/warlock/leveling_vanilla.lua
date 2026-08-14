@@ -108,6 +108,12 @@ local function build_state(context)
     leveling_state.health_funnel_ready = safe_is_spell_ready(SPELLS.HealthFunnel, nil, { skip_range = true })
     leveling_state.healthstone_ready = safe_is_spell_ready(SPELLS.CreateHealthstone, nil, { skip_range = true })
     leveling_state.soulstone_ready = safe_is_spell_ready(SPELLS.CreateSoulstone, nil, { skip_range = true })
+    -- NOTE (2026-08-13, documented): Spell Lock is a FELHUNTER pet ability,
+    -- but it is probed here via the PLAYER spellbook (NS.spell_ready on
+    -- SPELLS.SpellLock). The player never learns it, so spell_lock_ready is
+    -- false in live play and the SpellLock lane below is a dead marker —
+    -- pet-cast wiring (pet spellbook access) is out of scope for the vanilla
+    -- mirror.
     leveling_state.spell_lock_ready = safe_is_spell_ready(SPELLS.SpellLock, context.target)
     leveling_state.howl_of_terror_ready = safe_is_spell_ready(SPELLS.HowlofTerror, nil, { skip_range = true })
     leveling_state.siphon_life_ready = safe_is_spell_ready(SPELLS.SiphonLife, context.target)
@@ -147,6 +153,8 @@ local function spell_lock_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.use_interrupt then return false end
+    -- Spell Lock is a pet ability probed via the player spellbook (see the
+    -- build_state note): dead marker unless pet-cast wiring lands.
     local ok, casting = pcall(function() return state.target:is_casting() end)
     if not ok or not casting then return false end
     return state.spell_lock_ready
@@ -292,7 +300,11 @@ local function searing_pain_matches(context, state)
     if not state.in_combat then return false end
     if not state.searing_pain_ready then return false end
     if state.is_moving then return false end
-    -- Use Searing Pain when Shadow Bolt is on cooldown or mana is low (faster cast, less mana)
+    -- Searing Pain is the preferred fast-cast filler for leveling (short
+    -- cast, cheap, less pushback than Shadow Bolt); it sits ABOVE the
+    -- Shadow Bolt lane so ready ticks prefer it. (Comment aligned with the
+    -- code 2026-08-13 — the old text claimed SB-on-CD/mana-low gating that
+    -- the matcher never implemented.)
     return true
 end
 
@@ -335,7 +347,7 @@ local strategies = {
     { name = "Fear", matches = fear_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") or false end },
     { name = "HowlOfTerror", matches = howl_of_terror_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.HowlofTerror, nil, "[LEVELING] Howl of Terror") or false end },
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.HowlofTerror, NS.PLAYER_UNIT, "[LEVELING] Howl of Terror") or false end },
     { name = "DeathCoil", matches = death_coil_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DeathCoil, context.target, "[LEVELING] Death Coil") or false end },
     { name = "LifeTap", matches = life_tap_matches,

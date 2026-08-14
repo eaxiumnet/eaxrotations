@@ -21,7 +21,7 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 -- ============================================================================
 -- Buff & Debuff ID tables
 -- ============================================================================
-local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
+local ICE_BARRIER_BUFF = { 11426, 13031, 13032, 13033 }
 local FROST_NOVA_ROOTS = { 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 23028, 10157, 10156, 1461, 1460, 1459 }
@@ -29,6 +29,29 @@ local PRESENCE_OF_MIND_BUFF = { 12043 }
 local WINTERS_CHILL_DEBUFF = { 11180 }
 local FROSTBITE_DEBUFF = { 12494 }
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
+
+-- Curse debuff IDs a Mage can dispel from self (Vanilla warlock curses + raid
+-- curses). All verified present in the 2.5.5 DBC.
+local CURSE_DEBUFFS = {
+    702, 1108, 6205, 7646, 11707, 11708,   -- Curse of Weakness R1-R6
+    1714, 11719, 12889, 13338, 15470,      -- Curse of Tongues R1-R5
+    704, 7658, 7659, 11717,                -- Curse of Recklessness R1-R4
+    980, 1014, 6217, 11711, 11712, 11713,  -- Curse of Agony R1-R6
+    1490, 11721, 11722,                    -- Curse of the Elements R1-R3
+    603, 18223,                            -- Curse of Doom / Curse of Exhaustion
+}
+
+--- True when the unit carries a curse, false when definitively not afflicted,
+--- nil when the affliction cannot be determined (unit API surface absent).
+local function curse_present(unit)
+    if not unit then return nil end
+    if type(unit.has_debuff) ~= "function" then return nil end
+    for i = 1, #CURSE_DEBUFFS do
+        local ok, present = pcall(unit.has_debuff, unit, CURSE_DEBUFFS[i])
+        if ok and present then return true end
+    end
+    return false
+end
 
 -- ============================================================================
 -- Custom Gating Functions (test assertions depend on these signatures)
@@ -130,6 +153,9 @@ local frost_state = {
     ice_barrier_remains = 999,
 }
 
+-- Hoisted spell_ready opts (no fresh table per frame — Pattern 4 static reuse)
+local _SKIP_RANGE = { skip_range = true }
+
 local function first_ready_mana_gem()
     if not NS.is_item_ready then return nil end
     for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
@@ -158,18 +184,18 @@ local function build_state(context)
     frost_state.enemy_count = context.enemy_count or context.enemies_count or 1
     frost_state.target_casting = target and target.is_casting and target:is_casting() or false
     frost_state.in_combat = context.in_combat or false
-    frost_state.ice_barrier_ready = me and NS.spell_ready(SPELLS.IceBarrier, me, { skip_range = true }) or false
+    frost_state.ice_barrier_ready = me and NS.spell_ready(SPELLS.IceBarrier, me, _SKIP_RANGE) or false
     frost_state.blizzard_ready = me and NS.spell_ready(SPELLS.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
     frost_state.frostbolt_ready = target and NS.spell_ready(SPELLS.Frostbolt, target, { expected_cooldown = 3 }) or false
     frost_state.presence_of_mind_ready = me and NS.spell_ready(SPELLS.PresenceOfMind, me, { skip_range = true, expected_cooldown = 180 }) or false
     frost_state.evocation_ready = me and NS.spell_ready(SPELLS.Evocation, me, { skip_range = true, expected_cooldown = 480 }) or false
-    frost_state.mana_shield_ready = me and NS.spell_ready(SPELLS.ManaShield, me, { skip_range = true }) or false
-    frost_state.arcane_intellect_ready = me and NS.spell_ready(SPELLS.ArcaneIntellect, me, { skip_range = true }) or false
+    frost_state.mana_shield_ready = me and NS.spell_ready(SPELLS.ManaShield, me, _SKIP_RANGE) or false
+    frost_state.arcane_intellect_ready = me and NS.spell_ready(SPELLS.ArcaneIntellect, me, _SKIP_RANGE) or false
     frost_state.fire_blast_ready = target and NS.spell_ready(SPELLS.FireBlast, target, { expected_cooldown = 8 }) or false
-    frost_state.frost_ward_ready = me and NS.spell_ready(SPELLS.FrostWard, me, { skip_range = true }) or false
+    frost_state.frost_ward_ready = me and NS.spell_ready(SPELLS.FrostWard, me, _SKIP_RANGE) or false
     frost_state.counterspell_ready = target and NS.spell_ready(SPELLS.Counterspell, target, { expected_cooldown = 24 }) or false
     frost_state.polymorph_ready = target and NS.spell_ready(SPELLS.Polymorph, target, { expected_cooldown = 1.5 }) or false
-    frost_state.remove_curse_ready = me and NS.spell_ready(SPELLS.RemoveCurse, me, { skip_range = true }) or false
+    frost_state.remove_curse_ready = me and NS.spell_ready(SPELLS.RemoveCurse, me, _SKIP_RANGE) or false
     frost_state.scorch_ready = target and NS.spell_ready(SPELLS.Scorch, target, { expected_cooldown = 1.5 }) or false
     frost_state.arcane_missiles_ready = target and NS.spell_ready(SPELLS.ArcaneMissiles, target, { expected_cooldown = 5 }) or false
     frost_state.winter_chill_stacks = target and NS.debuff_stacks and NS.debuff_stacks(target, WINTERS_CHILL_DEBUFF) or 0
@@ -251,6 +277,7 @@ end
 
 local function mana_shield_matches(context, s)
     if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
+    if (context.hp or 100) > 40 then return false end
     if s.has_mana_shield then return false end
     if not s.mana_shield_ready then return false end
     return true
@@ -270,6 +297,7 @@ local function fire_blast_matches(context, s)
 end
 
 local function frost_ward_matches(context, s)
+    if not s.in_combat then return false end
     if not s.frost_ward_ready then return false end
     return true
 end
@@ -283,14 +311,22 @@ local function counterspell_matches(context, s)
 end
 
 local function polymorph_matches(context, s)
-    if not context.target then return false end
+    -- Mirror the arcane/fire sibling gates: never sheep the main PvE target.
+    if not context.is_pvp then return false end
+    if not context.cc_target then return false end
     if not s.polymorph_ready then return false end
     return true
 end
 
 local function remove_curse_matches(context, s)
-    if context.settings and context.settings.auto_remove_curse == false then return false end
+    -- Curse detection is NOT middleware-handled on Vanilla: gate on combat
+    -- and on an actual curse affliction (documented unit API me:has_debuff;
+    -- nil = cannot determine, keep the ready-check behavior). Honors both the
+    -- frost key (auto_remove_curse) and the fire key (use_remove_curse_fire).
+    if context.settings and (context.settings.auto_remove_curse == false or context.settings.use_remove_curse_fire == false) then return false end
     if not s.remove_curse_ready then return false end
+    if not context.in_combat then return false end
+    if curse_present(context.me or NS.GetPlayer()) == false then return false end
     return true
 end
 
@@ -380,10 +416,12 @@ local strategies = {
         if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FROST] Blizzard") end
         return NS.try_cast(SPELLS.Blizzard, t, "[FROST] Blizzard")
     end },
-    { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[FROST] FireBlast") end },
-    -- Frostbolt is THE primary nuke for Frost mage — must be above Scorch/AM fillers
-    -- so a hybrid mage who learned those spells doesn't waste GCDs on weaker fillers.
+    -- Frostbolt is THE primary nuke for Frost mage — it must precede FireBlast
+    -- (the lane order was inverted, so an always-ready FireBlast starved the
+    -- primary nuke) and sit above the Scorch/AM fillers so a hybrid mage who
+    -- learned those spells doesn't waste GCDs on weaker fillers.
     { name = "Frostbolt", matches = frostbolt_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbolt") end },
+    { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[FROST] FireBlast") end },
     { name = "Scorch", matches = scorch_matches, execute = function(context) return NS.try_cast(SPELLS.Scorch, context.target, "[FROST] Scorch") end },
     { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
 }

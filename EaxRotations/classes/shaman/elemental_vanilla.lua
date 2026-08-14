@@ -35,6 +35,24 @@ local SPELLS = NS.ShamanSpells or {}
 -- These are overridden if class_sylvanas.lua defines them with higher priority
 SPELLS.UnavailableClassicShamanTotem = nil
 
+-- Vanilla Lightning Bolt downrank: class_sylvanas.lua's LightningBoltLowerRank
+-- (25448) is TBC LB rank 11 — never learned in Classic, so the downrank lane
+-- could never fire in vanilla. Local vanilla ranks (verified against the DBC):
+-- 10392 (rank 8, one below max) preferred, 10391 (rank 7), 15207 (rank 9 max
+-- as a final fallback — the lane degrades to max rank only if no lower rank is
+-- learned). Prefer this local spell_action over SPELLS.LightningBoltLowerRank.
+-- NOTE: no `name =` field on purpose — the era-pair audit treats every
+-- `name = "X"` literal as a strategy name and would flag this as a
+-- divergence missing from the sylvanas/wotlk siblings.
+local LB_LOWER_RANK = NS.spell_action and NS.spell_action({
+    ids = { 10392, 10391, 15207 },
+    cast_time = 3.0,
+    cooldown = 0,
+    power_cost = 0,
+    power_type = "mana",
+    school = "nature",
+}) or { ids = { 10392, 10391, 15207 } }
+
 -- Debuff and buff ID tables
 local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
 local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
@@ -153,17 +171,26 @@ local function chain_lightning_matches_fn(context, state)
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
 end
 
+-- Resolve the Lightning Bolt spell for the current mana state: the local
+-- vanilla downrank at mana_low (when learned), max rank otherwise. Used by
+-- both the matches gate and the execute so the actual cast honors the
+-- downrank (the old execute always cast SPELLS.LightningBolt).
+local function resolve_lightning_bolt(state)
+    state = state or {}
+    local lower_rank = LB_LOWER_RANK
+    local lower_id = (type(lower_rank) == "table" and lower_rank.ids and lower_rank.ids[1]) or lower_rank
+    if state.mana_low and lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id) then
+        return lower_rank
+    end
+    return SPELLS.LightningBolt
+end
+
 local function lightning_bolt_matches_fn(context, state)
     if context.is_moving then return false end
     if state.mana_emergency then return false end
     -- Threat safety: hold Lightning Bolt if threat > 90%
     if context.threat_pct and context.threat_pct > 90 then return false end
-    -- Research: switch to lower-rank Lightning Bolt at mana < 30%
-    -- Uses SPELLS.LightningBoltLowerRank when learned and mana is low
-    local lower_rank = SPELLS.LightningBoltLowerRank
-    local lower_id = (type(lower_rank) == "table" and lower_rank.ids and lower_rank.ids[1]) or lower_rank
-    local spell_id = (state.mana_low and lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id)) and lower_rank or SPELLS.LightningBolt
-    return NS.spell_ready ~= nil and NS.spell_ready(spell_id, context.target) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(resolve_lightning_bolt(state), context.target) or false
 end
 
 local function flame_shock_matches_fn(context, state)
@@ -380,9 +407,15 @@ local strategies = {
         if not state.mana_emergency then return false end
         return true
       end,
-      execute = function()
-        if NS.start_attack then
-          NS.start_attack()
+      -- NS.start_attack is a mock-only stub (undefined in core_sylvanas.lua);
+      -- the real entry point is NS.start_auto_attack(target, attack_type).
+      -- Wand at mana emergency, with target validation (TBC sibling pattern).
+      execute = function(context)
+        local target = context and context.target
+        if target and target.is_valid and target:is_valid() and not (target.is_dead and target:is_dead()) then
+          if NS.start_auto_attack then
+            NS.start_auto_attack(target, NS.AUTO_ATTACK_WAND)
+          end
         end
         return true
       end },
@@ -418,10 +451,10 @@ local strategies = {
     { name = "ChainLightning", spell = SPELLS.ChainLightning, not_moving = true, cooldown = 6,
       matches = chain_lightning_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning") end },
-    -- Lightning Bolt main nuke
+    -- Lightning Bolt main nuke (downranks locally at mana_low)
     { name = "LightningBolt",
       matches = lightning_bolt_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[ELEMENTAL] Lightning Bolt") end },
+      execute = function(context, state) return NS.try_cast(resolve_lightning_bolt(state), context.target, "[ELEMENTAL] Lightning Bolt") end },
     -- Flame Shock DoT maintenance
     { name = "FlameShock",
       matches = flame_shock_matches_fn,

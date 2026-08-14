@@ -3,6 +3,9 @@
 -- WHEN:  combat, when NS.is_vanilla() is true.
 -- WHY:   top Vanilla PvE spec; expansion-aware loader selects _vanilla suffix.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+-- NOTE:   weapon-skill / hit-cap awareness is intentionally NOT wired here
+--         (shared/hit_cap_tracker_sylvanas.lua exists for the TBC era);
+--         vanilla has no expertise/weapon-skill rating mechanics to track.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -10,6 +13,11 @@ if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
+
+-- Dagger item-ID set (pure static data) for the Backstab dagger gate; mirrors
+-- the TBC sibling (assassination_sylvanas.lua:120-121).
+local _dagger_set_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
+if not _dagger_set_ok then dagger_set = nil end
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 11275, 11274, 11273, 8640, 8639, 1943 }
@@ -31,6 +39,11 @@ local RUPTURE_TTD_FLOOR = 12
 
 -- ============================================================================
 -- [ARTISTRY] Energy Tick Optimization
+-- NOTE: this hand-rolled 2s tick heuristic duplicates the TBC-era
+-- shared/energy_tick_tracker_sylvanas.lua tracker. It is kept LOCAL on purpose:
+-- the shared tracker is off-limits to this wave, and the heuristic's module
+-- state (_last_energy/_last_tick_time) is per-file anyway — a shared module
+-- would not dedupe the work without a rework of its call sites.
 -- ============================================================================
 local _last_energy = 0
 local _last_tick_time = 0
@@ -124,6 +137,7 @@ local COMBAT_VANILLA_SCHEMA = {
     hemorrhage_ready = false,  backstab_ready = false,
     ghostly_strike_ready = false,  kidney_shot_ready = false,
     expose_armor_ready = false,
+    has_daggers = false,  is_behind = false,
 }
 
 local combat_state = {
@@ -163,6 +177,8 @@ local combat_state = {
     ghostly_strike_ready = false,
     kidney_shot_ready = false,
     expose_armor_ready = false,
+    has_daggers = false,
+    is_behind = false,
 }
 
 local function build_state(context)
@@ -175,7 +191,15 @@ local function build_state(context)
     combat_state.has_adrenaline_rush = me and NS.buff_up(me, ADRENALINE_RUSH_BUFF) or false
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
     combat_state.combo_points = context.combo_points or 0
-    combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
+    -- Energy fallback: NS.unit_energy_pct is mock-only (never assigned live) —
+    -- reading it resolved to hardcoded 100 and killed every energy gate.
+    -- context.energy is wired by the dispatcher (main_sylvanas.lua:811); the
+    -- unit fallback mirrors leveling_vanilla.lua:141-145.
+    combat_state.energy = (type(context.energy) == "number" and context.energy) or 100
+    if type(context.energy) ~= "number" and me and type(me.get_power) == "function" then
+        local ok_energy, e = pcall(me.get_power, me, 3)
+        if ok_energy and type(e) == "number" then combat_state.energy = e end
+    end
     combat_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     combat_state.in_combat = context.in_combat or false
     combat_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -205,6 +229,19 @@ local function build_state(context)
     combat_state.threat_pct = context.threat_pct or 0
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false
+
+    -- Dagger + behind state for the Backstab gate (mirrors the TBC sibling's
+    -- dagger check, assassination_sylvanas.lua:224-232). Defaults to no-daggers
+    -- when the item API is unavailable.
+    combat_state.has_daggers = false
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        local main_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
+        local off_id  = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.OFF_HAND)
+        local is_dagger = dagger_set and dagger_set.is_dagger or {}
+        combat_state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
+            and (off_id and off_id ~= 0 and is_dagger[off_id])
+    end
+    combat_state.is_behind = NS.is_behind_target and NS.is_behind_target(target) or false
 
     return spec_kit.safe_state(combat_state, COMBAT_VANILLA_SCHEMA)
 end
@@ -270,14 +307,20 @@ local function eviscerate_matches(context, s)
     if not s.eviscerate_ready then return false end
     if s.energy_pool_finisher then return false end
     if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
-    -- Research: only Eviscerate at 4-5 CP (not wasted at 2-3 CP)
-    if (s.combo_points or 0) < 4 then return false end
+    -- Research: Eviscerate at 5 CP only (Icy Veins Classic 5-CP rule — wave 1.3
+    -- raised from 4; the finisher scales with combo points, so a 4-CP cast
+    -- wastes the 5th point).
+    if (s.combo_points or 0) < 5 then return false end
     return true
 end
 
 local function sinister_strike_wrapper(context, s)
     if not s.sinister_strike_ready then return false end
     if s.energy_low then return false end  -- Research: pool energy below 45
+    -- [ARTISTRY] should_pool_energy was defined but never called; wire it in
+    -- so the tick-sync setting actually delays the cast until after the
+    -- imminent energy tick (wave 1.3).
+    if should_pool_energy(context) then return false end
     local energy = context.energy or 0
     if energy < 85 then
         if not should_spend_energy(context, 45) then return false end
@@ -293,13 +336,23 @@ end
 
 local function gouge_matches(context, s)
     if not s.gouge_ready then return false end
+    if (s.energy or 0) < 45 then return false end  -- Gouge costs 45 energy
+    -- Gouge is a 4s stun that breaks on damage: never spam it on a melee
+    -- target every 10s (the old gate fired on every ready tick). It is a PvP
+    -- control tool or a PvE cast-interrupt only.
+    if not context.is_pvp and not s.target_casting then return false end
+    if context.target_dr_stun and context.target_dr_stun > 0 then return false end
     return true
 end
 
 local function sprint_matches(context, s)
     if not s.in_combat then return false end
     if not s.sprint_ready then return false end
-    return true
+    -- Sprint is a 3-minute CD: never fire it every combat (the old gate did).
+    -- Only PvP gap-closing (target out of melee) or high-threat escapes.
+    if context.is_pvp and (context.target_distance or 999) > 8 then return true end
+    if (s.threat_pct or 0) >= 90 then return true end
+    return false
 end
 
 local function vanish_matches(context, s)
@@ -322,21 +375,46 @@ end
 
 local function hemorrhage_matches(context, s)
     if not s.hemorrhage_ready then return false end
+    -- Hemorrhage is a Subtlety-tree ability (31 pts): a Combat-specced rogue
+    -- never knows it, and spell_ready -> spell_exists already returns false
+    -- for unlearned spells — this lane is therefore talent-gated live. The
+    -- explicit energy floor stops a Subtlety hybrid from starving the pool.
+    if (s.energy or 0) < 35 then return false end
     return true
 end
 
 local function backstab_matches(context, s)
     if not s.backstab_ready then return false end
+    -- Backstab requires a dagger AND being behind the target (60 energy). The
+    -- old gate fired on every ready tick from the front with no dagger check.
+    -- No combo cap on purpose: finishers (Rupture/Eviscerate) sit ABOVE this
+    -- lane in dispatch, so overbuilding is already prevented by priority order
+    -- (mirrors the TBC sibling's dagger builder, which has no combo cap).
+    if not s.has_daggers then return false end
+    if not s.is_behind then return false end
+    if (s.energy or 0) < 60 then return false end
+    if s.has_stealth then return false end  -- stealth openers preferred
     return true
 end
 
 local function ghostly_strike_matches(context, s)
     if not s.ghostly_strike_ready then return false end
+    -- GhostlyStrike is a Subtlety talent (21 pts) granting +50% dodge for 7s
+    -- on a 20s CD — a defensive, not a filler. Fire it only as a PvP tool or
+    -- when the fight turns (HP low).
+    if not context.is_pvp and (s.hp_pct or 100) > 50 then return false end
+    if (s.energy or 0) < 40 then return false end
     return true
 end
 
 local function kidney_shot_matches(context, s)
     if not s.kidney_shot_ready then return false end
+    -- Kidney Shot is a stun that breaks on damage: PvP tool only (mirrors the
+    -- assassination vanilla lane). Needs combo points + energy; respect DR.
+    if not context.is_pvp then return false end
+    if (s.combo_points or 0) < 1 then return false end
+    if (s.energy or 0) < 25 then return false end
+    if context.target_dr_stun and context.target_dr_stun > 0 then return false end
     return true
 end
 

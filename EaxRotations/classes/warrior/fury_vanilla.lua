@@ -66,11 +66,16 @@ local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
 local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
 local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
 local HAMSTRING_DEBUFF = { 7373, 7372, 1715 }
+local BATTLE_SHOUT_BUFF = { 11551, 11550, 11549, 6192, 5242, 6673 }
+local SWEEPING_STRIKES_BUFF = { 12292 }  -- Vanilla SS buff id (TBC=12328)
 
 -- Constants
-local EXECUTE_DEFAULT_RAGE = 25
+local EXECUTE_DEFAULT_RAGE = 15  -- Vanilla Execute costs 15 rage (was 25)
 local WHIRLWIND_RESERVE = 25
 local SLAM_RAGE_COST = 15
+local SLAM_CAST_TIME = 0.5
+local SLAM_SAFETY = 0.2
+local OFFHAND_SLOT = 17
 
 -- State table (pre-allocated for hot-path reuse)
 local fury_state = {
@@ -80,7 +85,8 @@ local fury_state = {
     in_melee_range = false,
     has_valid_enemy = false,
     bw_ready = false,
-    berserker_rage_ready = false,
+    battle_shout_ready = false,
+    bloodrage_ready = false,
     death_wish_ready = false,
     demo_ready = false,
     execute_ready = false,
@@ -99,6 +105,10 @@ local fury_state = {
     has_rend = false,
     has_sunder = false,
     has_hamstring = false,
+    has_battle_shout = false,
+    has_sweeping_strikes = false,
+    mh_until = 999,
+    has_offhand = false,
     overpower_window = false,
     target_ttd = 15,
     target_count = 1,
@@ -113,7 +123,8 @@ local FURY_VANILLA_SCHEMA = {
     in_melee_range = false,
     has_valid_enemy = false,
     bw_ready = false,
-    berserker_rage_ready = false,
+    battle_shout_ready = false,
+    bloodrage_ready = false,
     death_wish_ready = false,
     demo_ready = false,
     execute_ready = false,
@@ -132,6 +143,10 @@ local FURY_VANILLA_SCHEMA = {
     has_rend = false,
     has_sunder = false,
     has_hamstring = false,
+    has_battle_shout = false,
+    has_sweeping_strikes = false,
+    mh_until = 999,
+    has_offhand = false,
     overpower_window = false,
     target_ttd = 15,
     target_count = 1,
@@ -173,9 +188,28 @@ local function build_state(context)
         local ok_dodge, dodge_val = false, 0
         if dodge_fn then ok_dodge, dodge_val = pcall(dodge_fn, target) end
         if not ok_dodge then dodge_val = 0 end
-        fury_state.overpower_window = dodge_val > 0
+        -- Overpower proc window: the CLEU-driven proc tracker (same mechanism
+        -- as TBC arms_sylvanas:782) is authoritative when the engine installed
+        -- it. The get_dodge_chance heuristic is only a fallback for cores that
+        -- lack the tracker (and the battery's dodge_proc scenario, which
+        -- drives target_dodge_chance). A raw dodge CHANCE is not a proc, but
+        -- the tracker turns real dodge events into a real window.
+        local proc_active = false
+        local sd = NS.SwingDiagnostics
+        if sd and type(sd.is_overpower_proc_active) == "function" then
+            local ok_proc, val = pcall(sd.is_overpower_proc_active)
+            proc_active = ok_proc and val == true
+        end
+        fury_state.overpower_window = proc_active or dodge_val > 0
     end
+    fury_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
+    fury_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
+    fury_state.mh_until = me and NS.swing_time_until and NS.swing_time_until(me) or 999
+    local offhand_id = NS.get_equipped_item_id and NS.get_equipped_item_id(OFFHAND_SLOT) or nil
+    fury_state.has_offhand = offhand_id ~= nil and offhand_id ~= 0
     fury_state.bw_ready = spell_ready(ACTION.BerserkerRage, me, { skip_range = true })
+    fury_state.battle_shout_ready = spell_ready(ACTION.BattleShout, me, { skip_range = true })
+    fury_state.bloodrage_ready = spell_ready(ACTION.Bloodrage, me, { skip_range = true })
     fury_state.bloodthirst_ready = target and spell_ready(ACTION.Bloodthirst, target) or false
     fury_state.death_wish_ready = spell_ready(ACTION.DeathWish, me, { skip_range = true })
     fury_state.demo_ready = spell_ready(ACTION.DemoralizingShout, me, { skip_range = true })
@@ -196,8 +230,11 @@ end
 
 -- Pummel interrupt: baseline warrior ability in vanilla; fires only when the
 -- target is actually casting (mirrors the WotLK/TBC interrupt conventions).
+-- Vanilla Pummel is Berserker-stance-only, so the stance gate prevents
+-- silent try_cast failures from Battle/Defensive.
 local function pummel_matches(c, s)
     if not c.in_combat then return false end
+    if c.stance ~= nil and c.stance ~= STANCE.BERSERKER then return false end
     if not s.target_casting then return false end
     if not s.pummel_ready then return false end
     return true
@@ -234,18 +271,24 @@ table.insert(strategies, { name = "DamagePotion",
     execute = function(c) return potion_helper.try_use_potion(c, potion_helper.DAMAGE_POTION_IDS) end
 })
 
--- 1. Defensive: Berserker Rage
+-- 1. Defensive: Berserker Rage (combat-only — never pop it OOC on the 30s CD)
 if ACTION.BerserkerRage then
     table.insert(strategies, { name = "BerserkerRage",
-        matches = function(c, s) return s.bw_ready end,
+        matches = function(c, s)
+            if not c.in_combat then return false end
+            return s.bw_ready
+        end,
         execute = function() return try_cast(ACTION.BerserkerRage, PLAYER_UNIT, "[VANILLA FURY] Berserker Rage", { skip_range = true }) end
     })
 end
 
--- 2. Mobility: Intercept
+-- 2. Mobility: Intercept (Berserker-stance-only in Vanilla)
 if ACTION.Intercept then
     table.insert(strategies, { name = "Intercept",
-        matches = function(c, s) return s.intercept_ready and not s.in_melee_range end,
+        matches = function(c, s)
+            if c.stance ~= nil and c.stance ~= STANCE.BERSERKER then return false end
+            return s.intercept_ready and not s.in_melee_range
+        end,
         execute = function(c) return try_cast(ACTION.Intercept, c.target, "[VANILLA FURY] Intercept") end
     })
 end
@@ -271,10 +314,23 @@ if ACTION.DeathWish then
     })
 end
 
--- 5. Sweeping Strikes cooldown
+-- 5. Sweeping Strikes cooldown (Battle-stance-only in Vanilla; skip when the
+--    buff is already up — recasting wastes 30 rage)
 if ACTION.SweepingStrikes then
     table.insert(strategies, { name = "SweepingStrikes",
-        matches = function(c, s) return s.sweeping_strikes_ready and (s.target_count or 0) >= 2 end,
+        matches = function(c, s)
+            if c.stance ~= nil and c.stance ~= STANCE.BATTLE then return false end
+            if s.has_sweeping_strikes then return false end
+            if (s.target_count or 0) < 2 then return false end
+            -- Near-target check (TARGET_8, like Cleave): a nearby second target,
+            -- not 40yd zone density
+            if c and c.target and NS.aoe_target_meets
+                and not NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, c.target, c, s)
+            then
+                return false
+            end
+            return s.sweeping_strikes_ready
+        end,
         execute = function() return try_cast(ACTION.SweepingStrikes, PLAYER_UNIT, "[VANILLA FURY] Sweeping Strikes", { skip_range = true }) end
     })
 end
@@ -295,10 +351,11 @@ if ACTION.Overpower then
     })
 end
 
--- 8. Whirlwind (main cooldown)
+-- 8. Whirlwind (main cooldown; Berserker-stance-only in Vanilla)
 if ACTION.Whirlwind then
     table.insert(strategies, { name = "Whirlwind",
         matches = function(c, s)
+            if c.stance ~= nil and c.stance ~= STANCE.BERSERKER then return false end
             return s.whirlwind_ready and (s.rage or 0) >= WHIRLWIND_RESERVE
         end,
         execute = function(c) return try_cast(ACTION.Whirlwind, c.target, "[VANILLA FURY] Whirlwind") end
@@ -348,11 +405,17 @@ if ACTION.Hamstring then
     })
 end
 
--- 12. Slam filler (Classic 1.5s cast)
+-- 12. Slam filler (Classic 1.5s cast; 2H-only — resets the swing timer, so DW
+--     never uses it. Mirror arms' swing-window gate: cast only when the MH
+--     swing lands in (0.7, 1.5] so the cast lands right after the autoattack.)
 if ACTION.Slam then
     table.insert(strategies, { name = "Slam",
         matches = function(c, s)
-            return s.slam_ready and (s.rage or 0) >= SLAM_RAGE_COST
+            if not s.slam_ready or (s.rage or 0) < SLAM_RAGE_COST then return false end
+            if s.has_offhand then return false end  -- DW: Slam would clip autos
+            if (s.mh_until or 999) <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
+            if (s.mh_until or 999) > 1.5 then return false end
+            return true
         end,
         execute = function(c) return try_cast(ACTION.Slam, c.target, "[VANILLA FURY] Slam") end
     })
@@ -379,6 +442,33 @@ if ACTION.Cleave then
     })
 end
 
-NS.rotation_registry:register("fury", strategies, { get_state = build_state })
+-- 2a. Battle Shout (top of priority per guide; pre-combat buff, recast when
+--     expired — was defined in ACTION but never cast)
+if ACTION.BattleShout then
+    table.insert(strategies, { name = "BattleShout",
+        matches = function(c, s)
+            if s.has_battle_shout then return false end
+            if (s.rage or 0) < 10 then return false end
+            return s.battle_shout_ready
+        end,
+        execute = function() return try_cast(ACTION.BattleShout, PLAYER_UNIT, "[VANILLA FURY] Battle Shout", { skip_range = true }) end
+    })
+end
+
+-- 2b. Bloodrage (rage opener per guide; OOC use only at high HP, like arms)
+if ACTION.Bloodrage then
+    table.insert(strategies, { name = "Bloodrage",
+        matches = function(c, s)
+            if (s.rage or 0) >= 20 then return false end
+            if not c.in_combat and (s.hp or 100) < 90 then return false end
+            return s.bloodrage_ready
+        end,
+        execute = function() return try_cast(ACTION.Bloodrage, PLAYER_UNIT, "[VANILLA FURY] Bloodrage", { skip_range = true }) end
+    })
+end
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("fury", strategies, { get_state = build_state })
+end
 -- [VANILLA] Warrior Fury rotation registered
 return strategies

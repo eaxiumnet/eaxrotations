@@ -31,7 +31,6 @@ local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 local RAGE_LOW = 15
 local RAGE_SWIPE = 20
-local RAGE_MAUL = 15
 local RAGE_DEMO_ROAR = 10
 local RAGE_FRENZIED_REGEN = 10
 local RAGE_CHALLENGING_ROAR = 5
@@ -108,7 +107,8 @@ local bear_state = {
     potion_ready = 0,
     recent_taunt = 0,
     last_rage_time = 0,
-    last_scan_time = 1,
+    -- Start below the throttle window so the FIRST frame scans immediately.
+    last_scan_time = -SCAN_INTERVAL,
 }
 
 local off_target_buffer = { n = 0 }
@@ -279,15 +279,6 @@ local function lazy_scan_pack(state)
     end
 end
 
-local function update_rage_tracking(state)
-    local now = state.now
-    local elapsed = now - (state.last_rage_time or 0)
-    if elapsed > 0 and elapsed < 5 then
-    else
-    end
-    state.last_rage_time = now
-end
-
 -- Throttle build_state to once per frame to avoid rebuilding state N times
 -- per frame (once per strategy match function). Uses context.now when
 -- available (real game); falls back to no caching in test environments.
@@ -314,6 +305,7 @@ local BEAR_VANILLA_SCHEMA = {
     loose_target = false,  group_pressure = false,
     last_rage_time = 0,  pack_needs_demo = false,
     pack_loose = 0,  pack_elites = 0,  last_scan_time = 0,
+    has_barkskin = false,  level = 60,
 }
 
 local function build_state(context)
@@ -368,16 +360,16 @@ local function build_state(context)
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     state.potion_ready = first_ready_item(HEALING_POTION_IDS)
 
-    scan_pack(state)
-
-    update_rage_tracking(state)
+    -- Wire the 0.5s throttle: scan_pack is a full get_visible_units(false, 50)
+    -- scan (~250 API calls) — running it every frame is a hot-path waste.
+    lazy_scan_pack(state)
 
     if NS.SnapThreat and type(NS.SnapThreat.check) == "function" and state.is_bear then
-        local snap_spell = NS.SnapThreat.check(state.me, state.target, context.settings, {
+        local ok, snap_spell = pcall(NS.SnapThreat.check, NS.SnapThreat, state.me, state.target, context.settings, {
             spell_id = SPELLS.Growl,
             fallback_id = SPELLS.Maul,
         })
-        if snap_spell and NS.try_cast and state.target then
+        if ok and snap_spell and NS.try_cast and state.target then
             pcall(NS.try_cast, snap_spell, state.target, "[BEAR] Snap Threat opener")
         end
     end
@@ -600,7 +592,7 @@ local ACTIONS = {
     -- Swipe requires a hostile melee target (not self) — self-cast spam-loops.
     { name = "SwipeAoE", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 3, hit_radius = 8, hit_origin = "target", matches = swipe_aoe_matches },
     { name = "Swipe", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, hit_radius = 8, hit_origin = "target", matches = swipe_cleave_matches },
-    { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
+    { name = "Maul", spell = SPELLS.Maul, required_form = "bear", matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
     -- FerociousBite REMOVED: Ferocious Bite is a cat-form ability requiring combo
     -- points. A bear tank has no combo points and cannot cast it. Vanilla bear uses

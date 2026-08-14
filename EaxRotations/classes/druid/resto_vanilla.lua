@@ -12,6 +12,10 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
+-- Dead-ally discovery for Rebirth (mirrors balance_vanilla's _find_dead chain).
+local _fnd_mod = require("shared/find_dead_party_ally_sylvanas")
+local _find_dead_helper = _fnd_mod and _fnd_mod.find_dead_party_ally or nil
+local _find_dead = NS.find_dead_party_ally or _find_dead_helper
 
 local PLAYER_UNIT = NS.PLAYER_UNIT
 local STANCE_BEAR = 1
@@ -90,10 +94,6 @@ local resto_state = {
     mana_pct = 100,
     mana_conserve = false,
     mana_emergency = false,
-    melee_pressure_count = 0,
-    melee_target = nil,
-    enemy_healer = nil,
-    root_target = nil,
 }
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
@@ -166,11 +166,15 @@ local function needs_regrowth(entry)
 end
 
 local function scan_pvp_pressure(context, state)
-    if not context or not context.me then return end
+    -- Always reset the fields first (persistent-state hygiene); the
+    -- GetEnemiesInRange scan itself is PvP-only (throttle: the PvP lanes are
+    -- is_pvp-gated anyway, so non-PvP frames must not burn the scan).
     state.melee_pressure_count = 0
     state.melee_target = nil
     state.enemy_healer = nil
     state.root_target = nil
+    if not context or not context.me then return end
+    if not context.is_pvp then return end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
     local enemy_count = type(enemies) == "table" and (enemies.n or #enemies) or 0
     for i = 1, enemy_count do
@@ -236,6 +240,11 @@ local function build_state(context)
     local entries, count = Healing.scan_healing_targets()
     local settings = context.settings or NS.settings or {}
 
+    -- MUST-FIX (2026-08-13): should_move_form was set but NEVER reset — once
+    -- the healer shifted into cat/travel form mid-fight it stayed flagged
+    -- forever. Reset every frame; the reposition lanes below also gate on
+    -- context.is_moving as belt-and-braces.
+    resto_state.should_move_form = false
     resto_state.lowest = NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(entries, count, 100) or nil
     resto_state.lowest_tank = nil
     resto_state.lowest_healer = nil
@@ -303,14 +312,25 @@ local strategies = {
     { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and (state.melee_pressure_count or 0) > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },
     { name = "RemoveCurse", matches = function(_, state) return state.cursed_target and NS.spell_ready(SPELLS.RemoveCurse, state.cursed_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
     { name = "AbolishPoison", matches = function(_, state) return state.poison_target and NS.spell_ready(SPELLS.AbolishPoison, state.poison_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
-    { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "ManaPotionFloor", matches = function(context, s) if not context.in_combat then return false end; return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     { name = "InnervateSelf", matches = function(context, state) if NS.should_use_long_cd and not NS.should_use_long_cd(context, 360) then return false end; return state.innervate_target and NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, INNERVATE_OPTS) end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[RESTO] Innervate self", INNERVATE_OPTS) end },
     { name = "InnervateHealer", matches = function(context, state) if NS.should_use_long_cd and not NS.should_use_long_cd(context, 360) then return false end; return state.innervate_target and not NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, INNERVATE_OPTS) end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[RESTO] Innervate healer", INNERVATE_OPTS) end },
     { name = "RebirthBattleRez", matches = function(context)
         local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
         local group_ok = (not group_aware) or (NS.is_in_party and NS.is_in_party() or NS.is_in_raid and NS.is_in_raid())
-        return context.in_combat and group_ok and NS.spell_ready(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
-    end, execute = function() return NS.try_cast(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end },
+        if not (context.in_combat and group_ok) then return false end
+        -- Rebirth needs a DEAD ally target (2026-08-13): the old lane cast on
+        -- self (PLAYER_UNIT) with no dead-ally discovery. Mirror balance's
+        -- find_dead_party_ally chain.
+        local dead = _find_dead and _find_dead() or nil
+        if not dead then return false end
+        if not (dead.is_player and dead:is_player()) then return false end
+        return NS.spell_ready(LOCAL_SPELLS.Rebirth, dead, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
+    end, execute = function(context)
+        local dead = _find_dead and _find_dead() or nil
+        if not dead then return false end
+        return NS.try_cast(LOCAL_SPELLS.Rebirth, dead, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
+    end },
     { name = "SwiftmendEmergency", matches = function(_, state) return state.swiftmend_target and NS.spell_ready(SPELLS.Swiftmend, state.swiftmend_target.unit, SWIFTMEND_OPTS) end, execute = function(_, state) return NS.try_cast(SPELLS.Swiftmend, state.swiftmend_target.unit, "[RESTO] Swiftmend triage") end },
     { name = "NaturesSwiftness", matches = function(_, state) return state.ns_target and not state.has_natures_swiftness and (state.ns_target.time_to_die or 999) <= 3.5 and NS.spell_ready(SPELLS.NaturesSwiftness, PLAYER_UNIT, NS_OPTS) end, execute = function() return NS.try_cast(SPELLS.NaturesSwiftness, PLAYER_UNIT, "[RESTO] Nature's Swiftness", NS_OPTS) end },
     { name = "NaturesSwiftnessHealingTouch", matches = function(_, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(SPELLS.HealingTouch, state.ns_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
@@ -340,8 +360,8 @@ local strategies = {
     { name = "SoloMoonfire", matches = function(context, state) return solo_damage_enabled(context, state) and not state.mana_emergency and (state.moonfire_remains or 0) <= 3 and NS.spell_ready(SPELLS.Moonfire, context.target) end, execute = function(context) return NS.try_cast(SPELLS.Moonfire, context.target, "[RESTO] Solo Moonfire") end },
     { name = "SoloInsectSwarm", matches = function(context, state) return solo_damage_enabled(context, state) and not context.is_moving and not state.mana_emergency and (state.insect_swarm_remains or 0) <= 3 and NS.spell_ready(SPELLS.InsectSwarm, context.target) end, execute = function(context) return NS.try_cast(SPELLS.InsectSwarm, context.target, "[RESTO] Solo Insect Swarm") end },
     { name = "SoloWrath", matches = function(context, state) return solo_damage_enabled(context, state) and not context.is_moving and not state.mana_emergency and NS.spell_ready(SPELLS.Wrath, context.target) end, execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[RESTO] Solo Wrath") end },
-    { name = "TravelFormReposition", matches = function(context, state) return state.should_move_form and context.stance ~= STANCE_TRAVEL and context.stance ~= STANCE_CAT and NS.spell_ready(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, "[RESTO] Travel Form reposition", SKIP_RANGE) end },
-    { name = "CatFormRepositionFallback", matches = function(context, state) return state.should_move_form and context.stance ~= STANCE_CAT and NS.spell_ready(SPELLS.CatForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.CatForm, PLAYER_UNIT, "[RESTO] Cat Form reposition", SKIP_RANGE) end },
+    { name = "TravelFormReposition", matches = function(context, state) return state.should_move_form and context.is_moving and context.stance ~= STANCE_TRAVEL and context.stance ~= STANCE_CAT and NS.spell_ready(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, "[RESTO] Travel Form reposition", SKIP_RANGE) end },
+    { name = "CatFormRepositionFallback", matches = function(context, state) return state.should_move_form and context.is_moving and context.stance ~= STANCE_CAT and NS.spell_ready(SPELLS.CatForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.CatForm, PLAYER_UNIT, "[RESTO] Cat Form reposition", SKIP_RANGE) end },
     { name = "FallbackHealingTouch", matches = function(context, state) return not context.is_moving and state.lowest and effective_hp(state.lowest) <= 80 and NS.spell_ready(SPELLS.HealingTouch, state.lowest.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
 }
 

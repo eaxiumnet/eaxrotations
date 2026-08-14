@@ -57,6 +57,7 @@ local prot_state = {
     sunder_stacks = 0,
     sunder_remains = 0,
     demo_remains = 0,
+    tclap_remains = 0,
     hp = 100,
     rage = 0,
     stance = 2,
@@ -92,6 +93,7 @@ local PROT_VANILLA_SCHEMA = {
     sunder_stacks = 0,
     sunder_remains = 0,
     demo_remains = 0,
+    tclap_remains = 0,
     hp = 100,
     rage = 0,
     stance = 2,
@@ -136,10 +138,12 @@ local function build_state(context)
         prot_state.sunder_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SUNDER_DEBUFF) or 0
         prot_state.sunder_remains = NS.debuff_remains and NS.debuff_remains(target, SUNDER_DEBUFF) or 0
         prot_state.demo_remains = NS.debuff_remains and NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
+        prot_state.tclap_remains = NS.debuff_remains and NS.debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     else
         prot_state.sunder_stacks = 0
         prot_state.sunder_remains = 0
         prot_state.demo_remains = 0
+        prot_state.tclap_remains = 0
     end
     prot_state.hp = context.hp or 100
     prot_state.rage = context.rage or 0
@@ -194,6 +198,10 @@ end
 
 local function thunderclap_matches_fn(context, state)
     if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla TC requires Battle Stance
+    -- Vanilla TC debuff lasts ~30s: don't recast every 4s CD (20 rage burn)
+    if (state.tclap_remains or 0) > 5 then return false end
+    -- Thunder Clap costs 20 rage in Vanilla
+    if (state.rage or 0) < 20 then return false end
     -- Thunder Clap: 8yd self PBAoE
     if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
         return false
@@ -203,6 +211,7 @@ end
 
 local function demo_shout_matches_fn(context, state)
     if (state.demo_remains or 0) > 5 then return false end
+    if (state.rage or 0) < 10 then return false end  -- Vanilla Demo Shout costs 10 rage
     return true
 end
 
@@ -242,6 +251,7 @@ local function shield_wall_matches_fn(context, state)
 end
 
 local function last_stand_matches_fn(context, state)
+    if not state.in_combat then return false end  -- never pop OOC while drinking
     if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_last_stand then return false end
     return true
@@ -265,6 +275,17 @@ end
 
 local function taunt_matches_fn(context, state)
     if not state.taunt_ready then return false end
+    -- Rescue CD gate: skip when the target is ALREADY tanked by us.
+    -- context.has_aggro comes from the dispatcher's threat-situation check
+    -- (true = we hold aggro); absent (nil) the gate stays permissive.
+    if context.has_aggro == true then return false end
+    -- Belt-and-braces: skip when the target is currently attacking us
+    local me = context.me or NS.GetPlayer()
+    local target = context.target
+    if me and target and target.get_target then
+        local ok, enemy_target = pcall(function() return target:get_target() end)
+        if ok and NS.same_unit and NS.same_unit(enemy_target, me) then return false end
+    end
     -- Vanilla Taunt is a single-target rescue; works on any mob count (1+).
     -- The previous `enemy_count < 2` gate disabled single-boss taunt-swaps.
     return true
@@ -281,6 +302,9 @@ end
 local function challenging_shout_matches_fn(context, state)
     if not state.challenging_ready then return false end
     if (state.enemy_count or 0) < 3 then return false end
+    -- 3-min AoE rescue: skip while we already hold aggro (has_aggro true) so
+    -- it isn't wasted at pull; fires on aggro loss / incoming adds.
+    if context.has_aggro == true then return false end
     return true
 end
 
@@ -539,6 +563,8 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("protection", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("protection", strategies, { get_state = build_state })
+end
 -- Warrior protection_vanilla rotation registered (Classic Vanilla)
 return strategies

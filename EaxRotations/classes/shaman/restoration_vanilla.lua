@@ -20,6 +20,10 @@ local LIGHTNING_SHIELD_SPELL = SPELLS.LightningShield or nil
 local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
 local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
 local NATURES_SWIFTNESS_BUFF = { 16188 }
+-- Healing Way is a TBC talent — it does not exist in vanilla, so this stays
+-- empty and stacks/remains always read 0. The HealingWay lane is gated on the
+-- tank's real HP deficit instead (see healing_way_matches) so it cannot
+-- hard-cast HealingWave on every free GCD.
 local HEALING_WAY_BUFF = { }
 
 local function _ns_is_active(unit)
@@ -221,11 +225,12 @@ local function earth_shock_matches(context, state)
     if not state.earth_shock_ready then return false end
     if not state.target_casting then return false end
     if state.mana_emergency then return false end
-    -- Range check: Earth Shock is 20yd; validate target is in range
+    -- Range check: Earth Shock is 20yd; NS.unit_distance returns LINEAR yards
+    -- (core:3328-3362), so compare against 20, not 400.
     local target = context.target
     if target and NS.unit_distance then
-        local dist_sq = NS.unit_distance(context.me, target)
-        if dist_sq and dist_sq > 400 then return false end  -- 20yd squared = 400
+        local dist = NS.unit_distance(context.me, target)
+        if dist and dist > 20 then return false end
     end
     return true
 end
@@ -327,8 +332,21 @@ local function disease_cleansing_totem_matches(context, state)
     return true
 end
 
+-- ============================================================================
+-- Totem maintenance (slot-occupancy gated)
+-- ============================================================================
+-- Totems have no cooldown, so _totem_ready is always true — without a
+-- slot-occupancy check these lanes re-dropped every GCD, including OOC.
+-- Port of enhancement_vanilla's can_drop_totem slot gate (:309-315).
+-- Slots: fire=1, earth=2, water=3, air=4.
+local function _totem_slot_active(slot)
+    local info = NS.get_totem_info and NS.get_totem_info(slot) or nil
+    return info and info.have_totem == true
+end
+
 local function totem_strength_matches(context, state)
     if context.settings and context.settings.restoration_manage_totems == false then return false end
+    if _totem_slot_active(2) then return false end  -- earth slot occupied
     if _totem_ready(SPELLS.StrengthOfEarthTotem) then
         return true
     end
@@ -337,6 +355,7 @@ end
 
 local function totem_mana_spring_matches(context, state)
     if context.settings and context.settings.restoration_manage_totems == false then return false end
+    if _totem_slot_active(3) then return false end  -- water slot occupied
     if _totem_ready(SPELLS.ManaSpringTotem) then
         return true
     end
@@ -345,6 +364,7 @@ end
 
 local function totem_grace_air_matches(context, state)
     if context.settings and context.settings.restoration_manage_totems == false then return false end
+    if _totem_slot_active(4) then return false end  -- air slot occupied
     if _totem_ready(SPELLS.GraceOfAirTotem) then
         return true
     end
@@ -353,6 +373,7 @@ end
 
 local function totem_windfury_matches(context, state)
     if context.settings and context.settings.restoration_manage_totems == false then return false end
+    if _totem_slot_active(4) then return false end  -- air slot occupied
     if _totem_ready(SPELLS.WindfuryTotem) then
         return true
     end
@@ -360,13 +381,26 @@ local function totem_windfury_matches(context, state)
 end
 
 -- ============================================================================
--- Healing Way tracking: cast Healing Wave on tank to maintain stacks
+-- Tank Healing Wave (vanilla substitute for the TBC-only Healing Way talent)
 -- ============================================================================
+-- Vanilla has no Healing Way talent: HEALING_WAY_BUFF is empty so the stack
+-- gates below are inert. The old lane hard-cast HealingWave on the tank every
+-- free GCD (stacks 0 < 3, remains 0 < 8 always pass), starving
+-- FriendlyTarget/ChainHeal/SmartHeal below it. Gate on the tank's actual HP
+-- deficit + the same predictive-overheal gate ChainHeal uses.
+local HEALING_WAY_TANK_HP = 80
 local function healing_way_matches(context, state)
     if not state.tank then return false end
-    if (state.healing_way_stacks or 0) >= 3 then return false end
-    if (state.healing_way_remains or 0) > 8 then return false end
+    if (state.healing_way_stacks or 0) >= 3 then return false end  -- inert in vanilla (no talent)
+    if (state.healing_way_remains or 0) > 8 then return false end  -- inert in vanilla (no talent)
     if not state.healing_wave_ready then return false end
+    local tank_hp = state.tank.effective_hp or state.tank.hp_pct or 100
+    if tank_hp > HEALING_WAY_TANK_HP then return false end
+    -- Predictive overheal gate: skip a full Healing Wave if the tank doesn't
+    -- actually need the heal (mirrors ChainHeal).
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        if NS.HealerDeficit.gate_spell_overheal("HealingWave", state.tank.unit, 2.5, context.settings) then return false end
+    end
     return NS.spell_ready(SPELLS.HealingWave, state.tank.unit, { skip_range = true })
 end
 
@@ -417,9 +451,11 @@ local healing_strategies = {
             return true
         end,
         execute = function(context, state)
-            local target = context.target
-            if target and NS.start_attack then
-                NS.start_attack()
+            local target = context and context.target
+            if target and target.is_valid and target:is_valid() and not (target.is_dead and target:is_dead()) then
+                if NS.start_auto_attack then
+                    NS.start_auto_attack(target, NS.AUTO_ATTACK_WAND)
+                end
             end
             return true  -- Claim priority, block all other strategies
         end

@@ -3,6 +3,11 @@
 -- WHEN:  combat, when NS.is_vanilla() is true.
 -- WHY:   Vanilla Shadow has no Vampiric Touch; VT is TBC-only.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+-- NOTE:  the snapshot machinery (spell_damage/snapshot_*_dmg) is INERT in
+--   Classic: the dispatcher deliberately never provides context.spell_damage
+--   (main_sylvanas.lua:816-822), so spell_damage is always 0 and the upgrade
+--   path is vacuous. Phase 2 wires a `player_spell_damage` setting source;
+--   nothing is built here until that exists.
 
 local __eax_file = "classes/priest/shadow_vanilla.lua"
 local __eax_version = "1.1.1"
@@ -21,7 +26,11 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 -- ============================================================================
 -- What: Classic Vanilla Priest Shadow rotation with Mind Flay clipping and DoT cycling
 -- When: Per tick
--- Why: Snapshot-aware DoT refresh and channel clipping maximize damage
+-- Why: DoT refresh windows and channel clipping maximize damage.
+--   NOTE: the snapshot-aware refresh claim is aspirational — see the header:
+--   spell_damage is never populated by the dispatcher in Classic, so the
+--   snapshot upgrade path (SPELL_DMG_UPGRADE_RATIO / REFRESH_EXTRA_WINDOW) is
+--   inert until a spell-damage source exists (Phase 2 `player_spell_damage`).
 -- Safety: Per-target cast lockouts, nil-guarded target checks, conservative refresh windows
 -- ============================================================================
 
@@ -47,8 +56,8 @@ local WEAKENED_SOUL_DEBUFF = { 6788 }
 local INNER_FOCUS_BUFF = { 14751 }
 local VAMPIRIC_TOUCH_DEBUFF = { }  -- VT is TBC-only; empty in Classic
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
-local VAMPIRIC_EMBRACE_DEBUFF = { 15286 }
-local MIND_FLAY_IDS = { 18807, 17314, 17313, 17312, 17311, 15407 }
+local VAMPIRIC_EMBRACE_BUFF = { 15286 }  -- VE is a SELF buff in vanilla (not a target debuff)
+local MIND_FLAY_IDS = { 17314, 17313, 17312, 17311, 15407 }  -- 18807 is TBC rank 6
 local DEVOURING_PLAGUE_DEBUFF = { 19280, 19279, 19278, 19277, 19276, 2944 }
 local SHADOW_WEAVING_DEBUFF = { 15258 }  -- Shadow Weaving talent debuff (5-stack +2% shadow dmg/stack)
 
@@ -66,14 +75,31 @@ local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window f
 -- Per-target cast lockout: prevents double-queuing a DoT to the same target
 -- while a cast is in flight (matching parity's lockout tracking)
 local _cast_lockouts = {}  -- guid -> { spell_name = true, expires = time_ms }
+-- Bounded map: entries were only ever pruned on lookup of the CURRENT target,
+-- so long sessions with many targets grew the table without bound. Cap the
+-- guid count and sweep expired entries when the cap is exceeded.
+local _LOCKOUT_MAX_GUIDS = 64
+
+local function _prune_lockouts(now)
+    for guid, spells in pairs(_cast_lockouts) do
+        for name, expires in pairs(spells) do
+            if now >= expires then spells[name] = nil end
+        end
+        if next(spells) == nil then _cast_lockouts[guid] = nil end
+    end
+end
 
 local function _set_lockout(spell_name, duration_ms)
     local target = NS.GetTarget and NS.GetTarget()
     if not target then return end
     local guid = target.get_guid and target:get_guid()
     if not guid then return end
+    local now = NS.game_time_ms and NS.game_time_ms() or 0
     _cast_lockouts[guid] = _cast_lockouts[guid] or {}
-    _cast_lockouts[guid][spell_name] = (NS.game_time_ms and NS.game_time_ms() or 0) + duration_ms
+    _cast_lockouts[guid][spell_name] = now + duration_ms
+    local guid_count = 0
+    for _ in pairs(_cast_lockouts) do guid_count = guid_count + 1 end
+    if guid_count > _LOCKOUT_MAX_GUIDS then _prune_lockouts(now) end
 end
 
 local function _is_locked(spell_name)
@@ -109,7 +135,6 @@ local shadow_state = {
     should_clip_mf = false,
     vt_remaining = 0,
     swp_remaining = 0,
-    ve_remaining = 0,
     dp_remaining = 0,
     mb_ready = false,
     has_shadowform = false,
@@ -156,7 +181,7 @@ local shadow_state = {
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local SHADOW_VANILLA_SCHEMA = {
     mf_channeling = false,  mf_ticks = 0,  should_clip_mf = false,
-    vt_remaining = 0,  swp_remaining = 0,  ve_remaining = 0,  dp_remaining = 0,
+    vt_remaining = 0,  swp_remaining = 0,  dp_remaining = 0,
     mb_ready = false,  has_shadowform = false,
     shadowform_known = false,  swp_known = false,  vampiric_embrace_known = false,
     devouring_plague_known = false,  mind_flay_known = false,
@@ -191,7 +216,6 @@ local function build_state(context)
     
     shadow_state.vt_remaining = target and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF) or 0
     shadow_state.swp_remaining = target and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-    shadow_state.ve_remaining = target and NS.debuff_remains(target, VAMPIRIC_EMBRACE_DEBUFF) or 0
     shadow_state.dp_remaining = target and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
     shadow_state.mb_ready = target and NS.spell_ready(SPELLS.MindBlast, target, { expected_cooldown = 5.5 }) or false
     shadow_state.mf_channeling, shadow_state.mf_ticks = mf_tick.compute_channel_state(me, NS.game_time_ms(), MIND_FLAY_IDS)
@@ -218,6 +242,10 @@ local function build_state(context)
     shadow_state.starshards_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Starshards) or false
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
+    -- enemy_count must be assigned BEFORE the combat-mode computation below:
+    -- previously the mode read the stale previous-frame value (tick-1 was
+    -- always "st"), making mode detection lag one dispatch tick (fix 2026-08-13).
+    shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
     -- Combat mode: explicit setting or auto-detect
     local mode = spec_kit.setting(context, "shadow_combat_mode", "auto")
     if mode == "auto" then
@@ -261,12 +289,14 @@ local function build_state(context)
         shadow_state.threat_safe = true
     end
     shadow_state.in_combat = context.in_combat or false
-    shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
     shadow_state.target_creature_type = target_creature_type(target)
 
-    -- Current spell damage from NS (provided by middleware or character API)
+    -- Current spell damage from NS — INERT in Classic: the dispatcher
+    -- deliberately never provides context.spell_damage (main_sylvanas.lua:
+    -- 816-822), so this is always 0 and the snapshot upgrade path is vacuous
+    -- until a spell-damage source exists (Phase 2 `player_spell_damage`
+    -- setting; do not build that here).
     shadow_state.spell_damage = context.spell_damage or 0
-    -- Classic haste buff — enables more aggressive snapshot upgrade threshold
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
     local target_key = target and (target.get_guid and target:get_guid()) or nil
     if target_key ~= shadow_state.snapshot_target then
@@ -359,18 +389,40 @@ local function holy_nova_aoe_matches(context, s)
     -- Holy Nova: 10yd self PBAoE — not 40yd enemy_count
     if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not context.in_combat then return false end
-    return NS.spell_ready and NS.spell_ready(SPELLS.HolyNova, context.target, nil)
+    -- Self-centered PBAoE: readiness is checked on the player with skip_range
+    -- (mirrors smite_vanilla:451), not on the enemy target.
+    return NS.spell_ready and NS.spell_ready(SPELLS.HolyNova, NS.PLAYER_UNIT, { skip_range = true })
 end
 
-local function racial_matches(context, s)
+-- Racial burst: one matcher per racial, each gated on its own *_known flag.
+-- The previous shared matcher fired for ANY known racial, so the first
+-- registered lane (RacialBerserking) claimed every GCD even for races that
+-- lack the spell (e.g. trolls, humans) and the later lanes were unreachable.
+-- Written as explicit functions (not a factory) so the state-field audit sees
+-- the literal s.<field> reads.
+local function racial_gate(context, s)
     if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    if not s.berserking_known and not s.blood_fury_known and not s.arcane_torrent_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
     -- TTD gate: don't use racials if target is about to die
     if context.ttd and context.ttd > 0 and context.ttd < 8 then return false end
     return true
+end
+
+local function berserking_matches(context, s)
+    if not s.berserking_known then return false end
+    return racial_gate(context, s)
+end
+
+local function blood_fury_matches(context, s)
+    if not s.blood_fury_known then return false end
+    return racial_gate(context, s)
+end
+
+local function arcane_torrent_matches(context, s)
+    if not s.arcane_torrent_known then return false end
+    return racial_gate(context, s)
 end
 
 local function shadow_word_pain_matches(context, s)
@@ -393,7 +445,12 @@ end
 local function vampiric_embrace_matches(context, s)
     if not s.vampiric_embrace_known then return false end
     if not can_break_mind_flay(s) then return false end
-    if not context.has_valid_enemy_target or s.ve_remaining > 10 then return false end
+    if not context.has_valid_enemy_target then return false end
+    -- VE is a SELF buff in vanilla (no raid debuff slot); the old target-debuff
+    -- read (ve_remaining) could never be nonzero, so the lane re-cast VE every
+    -- eligible GCD. Gate on the self buff instead (leveling_vanilla:271).
+    local me = context.me or NS.GetPlayer()
+    if me and NS.buff_up and NS.buff_up(me, VAMPIRIC_EMBRACE_BUFF) then return false end
     return true
 end
 
@@ -444,11 +501,22 @@ local function silence_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if not context.in_combat then return false end
     if not s.silence_ready then return false end
-    if not context.target or not NS.unit_interruptible then
-        -- Fallback: check target casting state without native interruptible API
-        if not context.target_is_casting then return false end
+    -- Silence is an interrupt: it may only fire while the target is casting or
+    -- channeling. The old gate read NS.unit_interruptible (mock-only member)
+    -- plus context.target_is_casting (never set by the dispatcher), so the
+    -- lane could never fire live. NS.is_interruptible (core:3157) is the live
+    -- API; fall back to the raw unit cast check for unit-test environments.
+    if not context.target then return false end
+    if NS.is_interruptible and NS.is_interruptible(context.target) then return true end
+    if type(context.target.is_casting) == "function" then
+        local ok, casting = pcall(context.target.is_casting, context.target)
+        if ok and casting then return true end
     end
-    return true
+    if type(context.target.is_channeling) == "function" then
+        local ok, channelling = pcall(context.target.is_channeling, context.target)
+        if ok and channelling then return true end
+    end
+    return false
 end
 
 local function psychic_scream_matches(context, s)
@@ -515,9 +583,21 @@ end
 local strategies = {
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
     { name = "Silence", matches = silence_matches, execute = function(context) return NS.try_cast(SPELLS.Silence, context.target, "[SHADOW] Silence") end },
-    { name = "ManaBelow5Wand", matches = mana_below_5_wand_matches, execute = function(context) if NS.start_attack then NS.start_attack() end; return true end },
+    { name = "ManaBelow5Wand", matches = mana_below_5_wand_matches, execute = function(context)
+        -- Start wanding with the correct attack type: the bare NS.start_attack
+        -- member is mock-only, and NS.start_auto_attack() with no target
+        -- defaults to melee (6603). Pass the target + AUTO_ATTACK_WAND (5019)
+        -- so the emergency lane actually shoots (mirrors leveling.execute_wand).
+        if context and context.target then
+            if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+            if NS.start_auto_attack then
+                return NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true
+            end
+        end
+        return true
+    end },
     { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
+    { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, NS.PLAYER_UNIT, "[SHADOW] VampiricEmbrace") end },
     { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(SPELLS.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocus", { skip_range = true }) end },
     { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(SPELLS.MindBlast, context.target, "[SHADOW] MindBlast") end },
@@ -531,9 +611,9 @@ local strategies = {
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
     { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.HolyNova, context.target, "[SHADOW] HolyNova") end },
-    { name = "RacialBerserking", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
-    { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
-    { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
+    { name = "RacialBerserking", matches = berserking_matches, execute = function(context) return NS.try_cast(SPELLS.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
+    { name = "RacialBloodFury", matches = blood_fury_matches, execute = function(context) return NS.try_cast(SPELLS.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
+    { name = "RacialArcaneTorrent", matches = arcane_torrent_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
     { name = "Starshards", matches = starshards_matches, execute = function(context) return NS.try_cast(SPELLS.Starshards, context.target, "[SHADOW] Starshards") end },
 }
 

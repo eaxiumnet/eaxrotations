@@ -63,10 +63,16 @@ end
 local INNER_FIRE_BUFF = { 10952, 10951, 1006, 602, 7128, 588 }
 local FEAR_WARD_BUFF = { 6346 }
 local POWER_WORD_FORTITUDE_BUFF = { 10938, 10937, 2791, 1245, 1244, 1243 }
+-- Prayer of Fortitude (21564/21562) is a Vanilla 1.10+ group buff. Without
+-- this check pwf_matches recasts single-target PW:F over an active PoF group
+-- buff every GCD (era-correctness fix 2026-08-13).
+local PRAYER_OF_FORTITUDE_BUFF = { 21564, 21562 }
 local INNER_FOCUS_BUFF = { 14751 }
 -- parity feature constants
 local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+-- Vanilla healthstones only: 22103/22104/22105 are TBC ranks (Classic max is
+-- the Major Healthstone 19013).
+local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 19013, 19012, 19011, 5512 }
 
 -- ============================================================================
 -- Debuff check for self-dispel (Dispel Magic)
@@ -125,21 +131,27 @@ local disc_state = {
 }
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
+-- Aligned with the fields build_state actually writes (2026-08-13): dropped
+-- the never-written TBC-era keys (pom_ready, circle_of_healing_ready,
+-- prayer_of_mending_ready, target_casting), added subgroup_damaged_count /
+-- divine_spirit_ready / power_infusion_ready.
 local DISC_VANILLA_SCHEMA = {
     lowest = nil,  tank = nil,  group_damaged_count = 0,
+    subgroup_damaged_count = 0,
     has_inner_fire = false,  has_fear_ward = false,
     has_power_word_fortitude = false,
-    pws_ready = false,  pom_ready = false,
-    flash_heal_ready = false,  greater_heal_ready = false,
-    renew_ready = false,  circle_of_healing_ready = false,
-    prayer_of_healing_ready = false,  prayer_of_mending_ready = false,
+    pws_ready = false,  flash_heal_ready = false,
+    greater_heal_ready = false,  renew_ready = false,
+    prayer_of_healing_ready = false,
     shadow_word_pain_ready = false,  smite_ready = false,
     holy_fire_ready = false,  psychic_scream_ready = false,
     dispel_magic_ready = false,  shackle_undead_ready = false,
     mana_pct = 100,  hp_pct = 100,  in_combat = false,
-    target_creature_type = nil,  target_casting = false,
+    target_creature_type = nil,
     enemy_count = 0,  has_divine_spirit = false,
+    divine_spirit_ready = false,
     has_prayer_of_fortitude = false,
+    power_infusion_ready = false,
     inner_focus_ready = false,  has_inner_focus = false,
     healthstone_ready = false,  healthstone_id = nil,
     has_fade_buff = false,  fade_ready = false,
@@ -167,7 +179,7 @@ local function build_state(context)
     disc_state.has_fear_ward = me and NS.buff_up(me, FEAR_WARD_BUFF) or false
     disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
     disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
-    disc_state.has_prayer_of_fortitude = false  -- Prayer of Fortitude is TBC-only
+    disc_state.has_prayer_of_fortitude = me and NS.buff_up(me, PRAYER_OF_FORTITUDE_BUFF) or false
     disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     disc_state.divine_spirit_ready = me and NS.spell_ready(SPELLS.DivineSpirit, me, { skip_range = true }) or false
     disc_state.enemy_count = (NS.GetEnemiesCount and NS.GetEnemiesCount(10)) or (context.enemies_count or 0)
@@ -264,14 +276,40 @@ end
 -- ============================================================================
 -- PW:S on lowest non-tank ? gated by disc_shield_tank_only setting.
 -- When tank-only mode is active, this strategy never fires.
+-- Split into two reachable lanes (2026-08-13): both were merged on the
+-- identical matcher, so the second registration could never fire.
+--   * EmergencyPowerWordShield: lowest below the hard emergency floor (30%).
+--   * PowerWordShieldLowest:    lowest in the maintenance band [30, pws_hp).
+-- The cast (spell, target, label) is identical in both lanes.
 -- ============================================================================
+local PWS_EMERGENCY_FLOOR = 30
+
+local function pws_lowest_emergency_matches(context, s)
+    local settings = context.settings or EMPTY_SETTINGS
+    if settings.disc_shield_tank_only then return false end
+    if not s.lowest then return false end
+    -- Skip if the lowest target is already the tank (handled by pws_tank_matches)
+    if s.tank and s.lowest == s.tank then return false end
+    if (s.lowest.effective_hp or 100) >= PWS_EMERGENCY_FLOOR then return false end
+    if s.lowest.has_weakened_soul then return false end
+    if not s.pws_ready then return false end
+    if Healing.pws_absorb_remaining then
+        local absorb = Healing.pws_absorb_remaining(s.lowest.unit)
+        if absorb > 200 then return false end
+    end
+    return true
+end
+
 local function pws_lowest_matches(context, s)
     local settings = context.settings or EMPTY_SETTINGS
     if settings.disc_shield_tank_only then return false end
     if not s.lowest then return false end
     -- Skip if the lowest target is already the tank (handled by pws_tank_matches)
     if s.tank and s.lowest == s.tank then return false end
-    if (s.lowest.effective_hp or 100) > (settings.discipline_pws_hp or 35) then return false end
+    local hp = s.lowest.effective_hp or 100
+    -- The critical band below the emergency floor belongs to the emergency lane
+    if hp < PWS_EMERGENCY_FLOOR then return false end
+    if hp > (settings.discipline_pws_hp or 35) then return false end
     if s.lowest.has_weakened_soul then return false end
     if not s.pws_ready then return false end
     if Healing.pws_absorb_remaining then
@@ -483,6 +521,8 @@ end
 -- parity Feature: StopCast
 -- Mid-cast cancellation: if a higher-priority target emerges during a long cast,
 -- interrupt the current cast to switch to the higher-priority target.
+-- NS.stop_casting / NS.cancel_current_cast are mock-only members (never exist
+-- in core); NS.cancel_spells (core:2334) is the live interrupt API.
 -- ============================================================================
 local function stop_cast_matches(context, s)
     if not context.in_combat then return false end
@@ -558,7 +598,7 @@ end
 -- ============================================================================
 local healing_strategies = {
     { name = "PowerWordShieldTank", matches = pws_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.tank.unit, string.format("[DISCIPLINE] PW:S tank %.0f%%", s.tank.effective_hp or 0)) end },
-    { name = "EmergencyPowerWordShield", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
+    { name = "EmergencyPowerWordShield", matches = pws_lowest_emergency_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "PowerWordShieldLowest", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "EmergencyFlashHeal", matches = flash_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "FriendlyTarget", matches = function(context, s)
@@ -613,7 +653,7 @@ local healing_strategies = {
     { name = "PowerInfusion", matches = power_infusion_matches, execute = function() return NS.try_cast(10060, NS.PLAYER_UNIT, "[DISCIPLINE] Power Infusion", { skip_range = true }) end },
     { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
     -- parity Features
-    { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.stop_casting then return NS.stop_casting() end; if NS.cancel_current_cast then return NS.cancel_current_cast() end; return false end },
+    { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.cancel_spells then return NS.cancel_spells() end; return false end },
     { name = "PreHeal", matches = pre_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.GreaterHeal, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), string.format("[DISCIPLINE] PreHeal GH %.0f%%", (s.tank and s.tank.effective_hp) or (s.lowest and s.lowest.effective_hp) or 0)) end },
     { name = "Fade", matches = fade_matches, execute = function() return NS.try_cast(SPELLS.Fade, nil, "[DISCIPLINE] Fade (aggro drop)", { skip_range = true }) end },
     { name = "Healthstone", matches = healthstone_matches, execute = function(_, s) if s.healthstone_id and s.healthstone_ready and NS.use_item_by_id then return NS.use_item_by_id(s.healthstone_id) end; return false end },

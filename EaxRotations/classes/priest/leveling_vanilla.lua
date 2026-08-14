@@ -28,7 +28,8 @@ local SHADOWFORM_BUFF = { 15473 }
 local INNER_FOCUS_BUFF = { 14751 }
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }
-local MF_MANA_GATE = 12
+-- Mind Flay gates on the wand threshold (see mind_flay_matches): below it the
+-- conserve band is wand-only, so there is no separate MF mana gate constant.
 
 -- ============================================================================
 -- Helper functions
@@ -100,7 +101,9 @@ local LEVELING_VANILLA_SCHEMA = {
 }
 
 function build_state(context)
-    if not context then return nil end
+    -- Return the safe_state proxy consistently (Pattern 14): a nil context
+    -- previously bypassed the schema and returned a bare nil.
+    if not context then return spec_kit.safe_state({}, LEVELING_VANILLA_SCHEMA) end
 
     local state = {}
     leveling.build_common_state(context, state)
@@ -243,6 +246,9 @@ end
 local function mind_blast_matches(context, state)
     if not state then return false end
     if not state.target then return false end
+    -- Mana gate: Mind Blast is the most expensive leveling nuke — drop it in
+    -- the conserve band and let the wand carry (2026-08-13).
+    if (state.mana_pct or 100) < (state.wand_threshold or 20) then return false end
     return state.mind_blast_ready
 end
 
@@ -251,6 +257,9 @@ local function holy_nova_matches(context, state)
     if not state.target then return false end
     if not state.holy_nova_ready then return false end
     if state.is_moving then return false end
+    -- Mana gate: Holy Nova is mana-heavy (125/rank); conserve below the wand
+    -- threshold (2026-08-13).
+    if (state.mana_pct or 100) < (state.wand_threshold or 20) then return false end
     -- Holy Nova: 10yd self PBAoE — not global enemies density
     return NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
 end
@@ -295,7 +304,10 @@ local function mind_flay_matches(context, state)
     if not state.mf_ready then return false end
     if state.is_moving then return false end
     if state.is_channeling then return false end
-    return (state.mana_pct or 100) >= MF_MANA_GATE
+    -- Mana gate aligned with the wand threshold (was a hard 12% floor): below
+    -- wand_threshold the conserve band is wand-only, so Mind Flay stops at the
+    -- same point Smite does (12-20% band inconsistency fix, 2026-08-13).
+    return (state.mana_pct or 100) >= (state.wand_threshold or 20)
 end
 
 local function wand_matches_fn(context, state)

@@ -66,7 +66,17 @@ local BAL_VANILLA_SCHEMA = {
     target_range = 40,  wand_threshold = 30,
 }
 
+-- Frame-cache _build_state (2026-08-13): the party scan (GetPartyMembers +
+-- per-member safe_field reads) runs once per strategy match per frame
+-- otherwise (~14x/frame live). Same pattern as cat/bear: only caches when the
+-- caller provides context.now; inert in test environments.
+local _last_build_state_time = -1
+
 local function _build_state(ctx)
+    local now = ctx.now
+    if now and now == _last_build_state_time then return spec_kit.safe_state(_state, BAL_VANILLA_SCHEMA) end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if ctx.now then _last_build_state_time = now end
     local t = ctx.target
     if t then
         _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
@@ -127,7 +137,6 @@ local function _choose_nuke(s, ctx)
     local mana_floor = (settings and settings.balance_starfire_mana) or 40
     local m = _mana_now(s, ctx)
     if m < mana_floor then return "wrath" end
-    if s.natures_grace_active then return "starfire" end
     return "starfire"
 end
 
@@ -283,7 +292,16 @@ local _strategies = {
     {
         name="RemoveCurse",
         matches=function(ctx)
-            if not (ctx.settings and ctx.settings.balance_auto_dispel) then return false end
+            -- MUST-FIX (2026-08-13): the old lane cast Remove Curse on self
+            -- EVERY GCD with no curse-presence check. Gate on the player
+            -- actually having a curse (NS.has_dispel_type_debuff, engine
+            -- core_sylvanas.lua:4360). The setting gate is default-true via
+            -- spec_kit (self-cure only fires when the curse gate passes, so an
+            -- opt-in default would waste the GCD-safety intent; the battery's
+            -- friends_afflicted scenario keeps the lane observable).
+            if not spec_kit.setting_bool(ctx, "balance_auto_dispel", true) then return false end
+            local cursed = NS.has_dispel_type_debuff and NS.has_dispel_type_debuff(NS.PLAYER_UNIT, "Curse")
+            if cursed ~= true then return false end
             return NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()

@@ -9,6 +9,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.HunterSpells or {}
+local hunter_core = require("shared/hunter_core_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 
@@ -82,6 +83,9 @@ local sv_state = {
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
+    pre_steady_leveling = false,
+    fd_mode = "off",
+    threat_level = 0,
 }
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
@@ -100,6 +104,7 @@ local SV_VANILLA_SCHEMA = {
     volley_ready = false,  has_scorpid_sting = false,
     wing_clip_active = false,  mana_pct = 100,
     in_combat = false,  enemy_count = 1,
+    pre_steady_leveling = false,  fd_mode = "off",  threat_level = 0,
 }
 
 local function build_state(context)
@@ -129,7 +134,7 @@ local function build_state(context)
     sv_state.revive_pet_ready = me and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
     sv_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
+    sv_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target) or false
     sv_state.scorpid_sting_ready = target and NS.spell_ready(SPELLS.ScorpidSting, target) or false
     sv_state.raptor_strike_ready = target and NS.spell_ready(SPELLS.RaptorStrike, target) or false
     sv_state.wing_clip_ready = target and NS.spell_ready(SPELLS.WingClip, target) or false
@@ -137,6 +142,16 @@ local function build_state(context)
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
+    sv_state.threat_level = context.threat_level or 0
+    -- Feign Death mode (BM parity): defaults off unless use_threat_drop is on.
+    sv_state.fd_mode = spec_kit.setting(context, "fd_mode",
+        (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
+    -- Classic Era: no Steady Shot. Leveling lanes (Arcane/Sting) fire only
+    -- pre-20, when Aimed is unavailable, or while leveling (MM parity).
+    local player_level = context.level or context.player_level or 60
+    sv_state.pre_steady_leveling = (player_level < 20)
+        or (not sv_state.aimed_shot_ready)
+        or (context.is_leveling == true)
     return spec_kit.safe_state(sv_state, SV_VANILLA_SCHEMA)
 end
 
@@ -174,13 +189,22 @@ local function rapid_fire_matches(context, s)
     return true
 end
 
+-- Explosive Trap: AoE placed at the caster's feet — combat only, and only
+-- when the target is close enough that the 8yd detonation can connect.
 local function explosive_trap_matches(context, s)
+    if not s.in_combat then return false end
     if (s.enemy_count or 0) < 3 then return false end
     if not s.explosive_trap_ready then return false end
+    local target = context.target
+    if not target then return false end
+    local dist = context.distance or context.target_distance or 100
+    if dist > 8 then return false end
     return true
 end
 
 local function multi_shot_matches(context, s)
+    if not s.in_combat then return false end
+    if (s.enemy_count or 0) < 2 then return false end
     if not s.multi_shot_ready then return false end
     if context.has_breakable_cc_nearby then return false end
     if (s.mana_pct or 100) < 15 then return false end
@@ -231,8 +255,12 @@ local function revive_pet_matches(context, s)
     return true
 end
 
+-- Feign Death: threat-management (BM parity) — fires only when the configured
+-- fd_mode threshold is crossed, so it no longer dumps threat on a timer.
 local function feign_death_matches(context, s)
     if not s.in_combat then return false end
+    if s.fd_mode == "off" then return false end
+    if not hunter_core.should_feign_death(s.threat_level, s.fd_mode) then return false end
     if not s.feign_death_ready then return false end
     return true
 end
@@ -243,17 +271,36 @@ local function freezing_trap_matches(context, s)
     return true
 end
 
+-- Viper Sting: mana-drain — combat + valid target only, and skip when the
+-- target's mana pool is nearly empty (nothing left to drain). ViperSting has
+-- no cooldown; readiness is a plain spell_ready check.
 local function viper_sting_matches(context, s)
+    if not s.in_combat then return false end
     if not s.viper_sting_ready then return false end
+    if not context.target then return false end
+    local tm = nil
+    if context.target.get_mana_percentage then
+        local ok, v = pcall(context.target.get_mana_percentage, context.target)
+        if ok and type(v) == "number" then tm = v end
+    end
+    if tm ~= nil and tm < 20 then return false end
     return true
 end
 
+-- Leveling lanes: fire only while Aimed Shot is unavailable (pre-20, unlearned,
+-- or leveling), in combat, with a mana floor — so they never steal the shared
+-- 6s Arcane/Aimed cooldown from the primary Aimed Shot lane.
 local function leveling_arcane_shot_matches(context, s)
+    if not s.pre_steady_leveling then return false end
+    if not s.in_combat then return false end
     if not s.arcane_shot_ready then return false end
+    if (s.mana_pct or 100) < 10 then return false end
     return true
 end
 
 local function leveling_sting_matches(context, s)
+    if not s.pre_steady_leveling then return false end
+    if not s.in_combat then return false end
     if s.has_serpent_sting then return false end
     if (s.mana_pct or 100) < 25 then return false end
     if not s.serpent_sting_ready then return false end
@@ -379,7 +426,7 @@ local strategies = {
     { name = "AimedShot", matches = aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[SURVIVAL] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(SPELLS.MultiShot, context.target, "[SURVIVAL] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },
+    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[SURVIVAL] Viper Sting") end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting") end },
 }
 

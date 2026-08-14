@@ -1,7 +1,10 @@
 -- affliction_vanilla.lua — Warlock Affliction for Vanilla/Classic Anniversary (1.15.x).
 -- WHAT:  DoT DPS (Corruption, Siphon Life, Curse, Shadow Bolt filler).
 -- WHEN:  combat, when NS.is_vanilla() is true.
--- WHY:   Vanilla has no Unstable Affliction or Haunt; SM/Ruin is common.
+-- WHY:   Vanilla has no Unstable Affliction or Haunt. This rotation is
+--        pet-active — Demonic Sacrifice is NOT automated (no DS strategy
+--        exists here by design): per the guide, sacrifice the Succubus
+--        manually before pull; SM/Ruin is the build this rotation serves.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local __eax_file = "classes/warlock/affliction_vanilla.lua"
@@ -42,7 +45,9 @@ local CORRUPTION_DEBUFF      = { 11672, 11671, 7648, 6223, 6222, 172 }
 local CURSE_OF_AGONY_DEBUFF  = { 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_DOOM_DEBUFF   = { 603 }
 local SIPHON_LIFE_DEBUFF     = { 18881, 18880, 18879, 18265 }
-local IMMOLATE_DEBUFF        = { 11668, 11667, 11665, 2941, 1094, 707, 348 }	local SHADOW_EMBRACE_DEBUFF  = { }  -- Shadow Embrace is TBC-only; empty in Classic	local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
+local IMMOLATE_DEBUFF        = { 11668, 11667, 11665, 2941, 1094, 707, 348 }
+-- Shadow Embrace / Improved Shadow Bolt (ISB) are TBC-era mechanics (dead
+-- decls removed 2026-08-13): Classic has neither, so no stacks are tracked.
 local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local DEMON_ARMOR_BUFF       = { 11735, 11734, 11733, 1086, 706 }
@@ -104,8 +109,7 @@ local aff_state = {
     agony_remains = 0,
     doom_remains = 0,
     siphon_remains = 0,
-    immolate_remains = 0,	    -- Shadow Embrace stacks
-	    -- Improved Shadow Bolt (Shadow Vulnerability) stacks
+    immolate_remains = 0,
     -- Proc
     nightfall_active = false,
     -- Resources
@@ -123,7 +127,13 @@ local aff_state = {
     amplify_curse_ready = false,
     -- Soulstone / Wand
     has_soulstone = false,
-    wand_learned = false,    -- Snapshot state (spell damage when DoT was applied — persisted across build_state calls)
+    wand_learned = false,
+    -- Snapshot state (spell damage when DoT was applied — persisted across build_state calls).
+    -- INERT (2026-08-13, documented): the engine never provides
+    -- context.spell_damage, so current_dmg is always 0 and the
+    -- snapshot-upgrade machinery (should_snapshot_upgrade) only ever sees
+    -- "refresh normally". Phase 2 wires a player_spell_damage setting; do
+    -- not build the wiring now.
     spell_damage = 0,
     snapshot_corruption_dmg = 0,
     snapshot_siphon_dmg = 0,
@@ -136,15 +146,15 @@ local aff_state = {
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local AFFL_VANILLA_SCHEMA = {
     doom_remains = 0,  siphon_remains = 0,  immolate_remains = 0,
-    coe_remains = 0,  se_stacks = 0,  isb_stacks = 0,
+    coe_remains = 0,
     nightfall_active = false,  mana_pct = 100,  hp_pct = 100,
     target_hp = 100,  pet_alive = false,  pet_health = 100,
     pet_mana = 100,  mana_potion_id = nil,  healthstone_id = nil,
     healthstone_ready = false,  amplify_curse_ready = false,
     has_soulstone = false,  wand_learned = false,
-    spell_damage = 0,  snapshot_ua_dmg = 0,  snapshot_corruption_dmg = 0,
+    spell_damage = 0,  snapshot_corruption_dmg = 0,
     snapshot_siphon_dmg = 0,  snapshot_immolate_dmg = 0,
-    snapshot_target = nil,  enemy_count = 1,  has_bloodlust = false,
+    snapshot_target = nil,  enemy_count = 1,
 }
 
 local _last_build_state_time = -1
@@ -165,6 +175,7 @@ local function build_state(context)
 	    else
 	        aff_state.corruption_remains = 0
 	        aff_state.agony_remains = 0
+	        aff_state.doom_remains = 0
 	        aff_state.siphon_remains = 0
 	        aff_state.immolate_remains = 0
             aff_state.coe_remains = 0
@@ -273,8 +284,12 @@ local function select_curse(context, state)
     if curse_mode == "agony" then return "agony"
     elseif curse_mode == "doom" then return "doom"
     elseif curse_mode == "elements" then return "elements"
-    elseif curse_mode == "recklessness" then return "recklessness"
-    elseif curse_mode == "weakness" then return "weakness"
+    elseif curse_mode == "recklessness" or curse_mode == "weakness" then
+        -- No Curse of Recklessness/Weakness lanes exist in this vanilla
+        -- rotation (wowsims curse discipline; the TBC sibling owns those).
+        -- Reject the mode so no phantom curse is selected — assigned_
+        -- curse_blocks() below already blocks every curse lane for it.
+        return nil
     elseif curse_mode == "none" then return nil
     end
 
@@ -412,6 +427,27 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 5a. Pre-combat pull (Shadow Bolt pre-cast). Sits ABOVE the DoT/curse
+    -- lanes (2026-08-13): Corruption/Siphon/CoA/Immolate/CoE all fired OOC
+    -- and won the tick, so the pre-cast could never run. Prepull is
+    -- in_combat-gated, so in-combat DoT priority is unchanged.
+    -- ------------------------------------------------------------------------
+    {
+        name = "PreCombatPull",
+        matches = function(context)
+            if context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            -- Range check: Shadow Bolt has 30yd range
+            if context.target_range and context.target_range > 28 then return false end
+            -- Pre-cast Shadow Bolt on pull timer targets
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 6. Corruption (instant DoT)
     -- ------------------------------------------------------------------------
     {
@@ -449,6 +485,35 @@ local strategies = {
             local ok = NS.try_cast(SPELLS.SiphonLife, context.target, "[AFFL] Siphon Life")
             if ok then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
             return ok
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 7a. Amplify Curse (before CoD/CoA/CoE — 3 min cooldown). Sits ABOVE the
+    -- curse lanes (2026-08-13): it was ordered after CurseOfDoom/CurseOfAgony
+    -- and only fired when a curse was "about to be applied" — the curse lane
+    -- won the tick first, so the amplifier could never precede its target
+    -- curse. Fires when a curse is about to be applied and is off cooldown.
+    -- ------------------------------------------------------------------------
+    {
+        name = "AmplifyCurse",
+        matches = function(context, state)
+            if not context.target then return false end
+            if not state.amplify_curse_ready then return false end
+            -- Gate: setting check
+            if context.settings and context.settings.aff_use_amplify_curse == false then return false end
+            -- Only use on targets that live long enough (60s+ to warrant 3min CD)
+            if context.ttd and context.ttd < 60 then return false end
+            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
+            local about_to_curse = false
+            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
+            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
+            -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
+            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
+            return about_to_curse
+        end,
+        execute = function()
+            return NS.try_cast(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, "[AFFL] Amplify Curse", { skip_range = true })
         end,
     },
 
@@ -515,32 +580,6 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 9a. Amplify Curse (before CoD/CoA/CoE — 3 min cooldown)
-    -- ------------------------------------------------------------------------
-    -- Fires when a curse is about to be applied and Amplify Curse is off cooldown
-    {
-        name = "AmplifyCurse",
-        matches = function(context, state)
-            if not context.target then return false end
-            if not state.amplify_curse_ready then return false end
-            -- Gate: setting check
-            if context.settings and context.settings.aff_use_amplify_curse == false then return false end
-            -- Only use on targets that live long enough (60s+ to warrant 3min CD)
-            if context.ttd and context.ttd < 60 then return false end
-            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
-            local about_to_curse = false
-            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 8 then about_to_curse = true end
-            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd and context.ttd >= 62 then about_to_curse = true end
-            -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
-            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
-            return about_to_curse
-        end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, "[AFFL] Amplify Curse", { skip_range = true })
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
     -- 11. Drain Soul (execute <25%)
     -- ------------------------------------------------------------------------
     {
@@ -558,36 +597,11 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 12. Shadow Bolt (filler)
-    -- ------------------------------------------------------------------------
-    {
-        name = "PreCombatPull",
-        matches = function(context)
-            if context.in_combat then return false end
-            if not context.has_valid_enemy_target then return false end
-            -- Range check: Shadow Bolt has 30yd range
-            if context.target_range and context.target_range > 28 then return false end
-            -- Pre-cast Shadow Bolt on pull timer targets
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
-        end,
-    },
-
-    {
-        name = "ShadowBoltFiller",
-        matches = function(context)
-            if not context.has_valid_enemy_target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 13. Life Tap (HP → Mana)
+    -- 12. Mana regen lanes. Moved ABOVE the Shadow Bolt filler (2026-08-13):
+    -- LifeTap/DarkPact/ManaPotion sat below the always-true filler, so regen
+    -- only triggered once Shadow Bolt became uncastable — the rotation drained
+    -- to near-zero mana (5SR dead zone) before tapping. Now regen fires as
+    -- soon as the thresholds are crossed, in and out of combat.
     -- ------------------------------------------------------------------------
     {
         name = "LifeTap",
@@ -604,7 +618,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 14. Dark Pact (pet mana drain)
+    -- 13. Dark Pact (pet mana drain)
     -- ------------------------------------------------------------------------
     {
         name = "DarkPact",
@@ -621,7 +635,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 16. Mana potion
+    -- 14. Mana potion
     -- ------------------------------------------------------------------------
     {
         name = "ManaPotion",
@@ -633,6 +647,20 @@ local strategies = {
         execute = function(_, state)
             if NS.use_item_by_id then NS.use_item_by_id(state.mana_potion_id) end
             return true
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 15. Shadow Bolt (filler)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ShadowBoltFiller",
+        matches = function(context)
+            if not context.has_valid_enemy_target then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
         end,
     },
 

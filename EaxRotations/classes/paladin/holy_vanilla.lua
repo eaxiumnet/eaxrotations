@@ -1,8 +1,12 @@
 -- holy_vanilla.lua — Paladin Holy healing for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  tank/raid healing (Flash of Light, Holy Light, Divine Favor).
+-- WHAT:  tank/raid healing (Flash of Light, Holy Light, Divine Favor) + blessing
+--        refresh (Light/Wisdom/Kings) and aura management.
 -- WHEN:  combat or pre-combat, when NS.is_vanilla() is true.
 -- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
--- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+-- SAFETY: nil-guards on NS, SPELLS, Healing, and state fields per Pattern 14.
+--        Blessing of Salvation is NOT implemented in any vanilla paladin file —
+--        threat-management (Salvation) is intentionally left to the raid leader
+--        in Classic; only Light/Wisdom/Kings are refreshed here.
 
 
 local NS = _G.EaxRotations
@@ -32,7 +36,18 @@ end
 
 -- Classic Vanilla Holy spells not exposed by the base Paladin class map.
 local BlessingOfLight = SPELLS.BlessingOfLight or spell_action({ 19979, 19978, 19977 }, "BlessingOfLight")
-local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 19979, 19978, 19977 }, "GreaterBlessingOfLight")
+-- Greater Blessings: the class map's SPELLS.GreaterBlessing* ranks are TBC-era
+-- (27145/25890, 27143/25918/25894, 25898) and unlearnable in Classic — prefer
+-- them only when actually learned, otherwise fall back to the local vanilla
+-- ranks so party/raid blessing refresh still fires (previously the SPELLS.*
+-- entries shadowed these fallbacks and refresh silently never happened).
+local function resolve_greater_blessing(tbc_spell, vanilla_ids, label)
+    if tbc_spell and NS.spell_exists and NS.spell_exists(tbc_spell) then return tbc_spell end
+    return spell_action(vanilla_ids, label)
+end
+local GreaterBlessingOfLight = resolve_greater_blessing(SPELLS.GreaterBlessingOfLight, { 19979, 19978, 19977 }, "GreaterBlessingOfLight")
+local GreaterBlessingOfWisdom = resolve_greater_blessing(SPELLS.GreaterBlessingOfWisdom, { 19854, 19853, 19852, 19850, 19742 }, "GreaterBlessingOfWisdom")
+local GreaterBlessingOfKings = resolve_greater_blessing(SPELLS.GreaterBlessingOfKings, { 20217 }, "GreaterBlessingOfKings")
 local BlessingOfFreedom = SPELLS.BlessingOfFreedom or spell_action({ 1044 }, "BlessingOfFreedom")
 local BlessingOfProtection = SPELLS.BlessingOfProtection or spell_action({ 10278, 5599, 1022 }, "BlessingOfProtection")
 local BlessingOfSacrifice = SPELLS.BlessingOfSacrifice or spell_action({ 20729, 6940 }, "BlessingOfSacrifice")
@@ -46,7 +61,7 @@ local Purify = SPELLS.Purify or spell_action({ 1152 }, "Purify") -- DB2: learned
 local HolyLightRank11 = spell_action({ 10329 }, "HolyLightRank8")
 local HolyLightRank9 = spell_action({ 10329 }, "HolyLightRank8")
 local HolyLightRank7 = spell_action({ 10328 }, "HolyLightRank7")
-local HolyLightRank4 = spell_action({ 1042 }, "HolyLightRank4")
+local HolyLightRank4 = spell_action({ 1042 }, "HolyLightRank5") -- 1042 is rank 5, not rank 4
 local FlashOfLightRank6 = spell_action({ 19943 }, "FlashOfLightRank6")
 
 local BUFF_DIVINE_FAVOR = { 20216 }
@@ -60,7 +75,7 @@ local BUFF_BLESSING_KINGS = { 20217 }
 local BUFF_BLESSING_FREEDOM = { 1044 }
 local BUFF_BLESSING_PROTECTION = { 10278, 5599, 1022 }
 local BUFF_BLESSING_SACRIFICE = { 20729, 6940 }
-local BUFF_LIGHTS_GRACE = { }
+local BUFF_LIGHTS_GRACE = { }  -- Light's Grace (16886) is TBC-only; never active in Classic (kept for schema parity)
 local BUFF_CONCENTRATION_AURA = { 19746 }
 local BUFF_DEVOTION_AURA = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
 local BUFF_FIRE_RESIST_AURA = { 19900, 19899, 19891 }
@@ -89,6 +104,7 @@ local TANK_HEAL_TARGET_HP = 92
 local LIGHT_HEAL_DEFICIT = 900
 local MEDIUM_HEAL_DEFICIT = 1900
 local LARGE_HEAL_DEFICIT = 3200
+local DIVINE_FAVOR_FOLLOWUP_MAX_HP = 60
 
 -- ============================================================================
 -- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
@@ -235,11 +251,28 @@ local function entry_needs_cleanse(entry)
     return entry.needs_cleanse or entry.has_poison or entry.has_disease or entry.has_magic
 end
 
+-- Mana-using classes (paladin, hunter, priest, shaman, mage, warlock, druid).
+-- build_healing_entries never sets power_type/mana_pct/is_caster/role — entries
+-- only carry unit/hp/effective_hp/deficit/incoming_*/is_tank + decorate fields —
+-- so the field checks below can never fire live (Blessing of Wisdom was
+-- unreachable). The unit's class is the real signal (pcall-guarded); tanks are
+-- excluded because they already receive Blessing of Light.
+local MANA_CLASS_IDS = { [2] = true, [3] = true, [5] = true, [7] = true, [8] = true, [9] = true, [11] = true }
+
 local function entry_is_mana_user(entry)
     if not can_help(entry) then return false end
-    if entry.power_type == NS.POWER_MANA then return true end
+    if entry.power_type == (NS.POWER_MANA or -1) then return true end
     if type(entry.mana_pct) == "number" then return true end
-    return entry.is_caster == true or entry.role == "healer" or entry.role == "caster"
+    if entry.is_caster == true or entry.role == "healer" or entry.role == "caster" then return true end
+    -- Real mana-user signal: the unit's class (pcall-guarded; unit API can be broken).
+    local unit = entry.unit
+    if unit and type(unit.get_class) == "function" then
+        local ok, class_id = pcall(unit.get_class, unit)
+        if ok then return MANA_CLASS_IDS[class_id] == true end
+    end
+    -- No class API (tests/edge): non-tank entries are the best proxy — the tank
+    -- slot is covered by Blessing of Light, everyone else gets Wisdom.
+    return entry.is_tank ~= true
 end
 
 local function should_use_greater_blessing(s)
@@ -261,13 +294,13 @@ local function choose_holy_light_rank(context, entry)
     local mode = spec_kit.setting(context, "holy_light_rank", "max")
     local hp = hp_of(entry)
     local deficit = deficit_of(entry)
-    if mode == "rank4" then return HolyLightRank4, "Holy Light R4" end
+    if mode == "rank4" then return HolyLightRank4, "Holy Light R5" end
     if mode == "rank7" then return HolyLightRank7, "Holy Light R7" end
-    if mode == "rank9" then return HolyLightRank9, "Holy Light R9" end
-    if hp <= EMERGENCY_HP or deficit >= LARGE_HEAL_DEFICIT then return HolyLightRank11, "Holy Light R9" end
-    if hp <= 45 or deficit >= MEDIUM_HEAL_DEFICIT then return HolyLightRank9, "Holy Light R9" end
+    if mode == "rank9" then return HolyLightRank9, "Holy Light Max" end
+    if hp <= EMERGENCY_HP or deficit >= LARGE_HEAL_DEFICIT then return HolyLightRank11, "Holy Light Max" end
+    if hp <= 45 or deficit >= MEDIUM_HEAL_DEFICIT then return HolyLightRank9, "Holy Light Max" end
     if hp <= 65 or deficit >= LIGHT_HEAL_DEFICIT then return HolyLightRank7, "Holy Light R7" end
-    return HolyLightRank4, "Holy Light R4"
+    return HolyLightRank4, "Holy Light R5"
 end
 
 local function choose_smart_heal(context, s, entry)
@@ -286,7 +319,8 @@ local function choose_smart_heal(context, s, entry)
         s.heal_label = "Holy Shock emergency"
         return SPELLS.HolyShock
     end
-    -- Light's Grace reduces Holy Light cast time to 2.0s, making it more efficient
+    -- Light's Grace is TBC-only (16886) — the 2.0s Holy Light cast is a TBC
+    -- mechanic; the branch is inert in Classic (has_lights_grace stays false).
     local hl_hp_threshold = s.has_lights_grace and 80 or 70
     if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
         s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, entry)
@@ -295,7 +329,7 @@ local function choose_smart_heal(context, s, entry)
         return s.heal_spell
     end
     if hp <= flash_hp then
-        -- Flash of Light downranking: use rank 6 [25297] for mana conservation < 15%
+        -- Flash of Light downranking: use rank 6 [19943] for mana conservation < 15%
         if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
             s.heal_spell = FlashOfLightRank6
             s.heal_label = "Flash of Light R6 conserve"
@@ -328,7 +362,7 @@ local function choose_blessing(context, s)
             local entry = s.entries[i]
             if entry_is_mana_user(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_WISDOM, threshold) then
                 s.blessing_target = entry
-                s.blessing_spell = use_greater and SPELLS.GreaterBlessingOfWisdom or SPELLS.BlessingOfWisdom
+                s.blessing_spell = use_greater and GreaterBlessingOfWisdom or SPELLS.BlessingOfWisdom
                 s.blessing_label = use_greater and "Greater Blessing of Wisdom" or "Blessing of Wisdom"
                 return
             end
@@ -338,7 +372,7 @@ local function choose_blessing(context, s)
         local entry = s.entries[i]
         if can_help(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_KINGS, threshold) then
             s.blessing_target = entry
-            s.blessing_spell = use_greater and SPELLS.GreaterBlessingOfKings or SPELLS.BlessingOfKings
+            s.blessing_spell = use_greater and GreaterBlessingOfKings or SPELLS.BlessingOfKings
             s.blessing_label = use_greater and "Greater Blessing of Kings" or "Blessing of Kings"
             return
         end
@@ -390,12 +424,21 @@ local function try_use_item(item_ids, reason)
     return false
 end
 
+local function scan_healing_entries()
+    -- Type-guard the heal-scan: the module (or its method) can be absent in
+    -- partial mocks/loaders; every other NS call in this file is guarded.
+    if type(Healing) == "table" and type(Healing.scan_healing_targets) == "function" then
+        return Healing.scan_healing_targets()
+    end
+    return nil, 0
+end
+
 local function build_state(context)
-    local entries, count = Healing.scan_healing_targets()
+    local entries, count = scan_healing_entries()
     state.entries = entries
     state.count = count or 0
-    state.lowest = NS.healing_get_lowest_hp(entries, count, DEFAULT_SCAN_HP)
-    state.tank = NS.healing_get_tank(entries, count)
+    state.lowest = NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(entries, count, DEFAULT_SCAN_HP) or nil
+    state.tank = NS.healing_get_tank and NS.healing_get_tank(entries, count) or nil
     state.cleanse_target = nil
     state.purify_target = nil
     state.mana_target = nil
@@ -579,6 +622,8 @@ local strategies = {
         name = "DivineFavorHolyLightFollowup",
         matches = function(context, s)
             if not s.has_divine_favor or not can_help(s.lowest) then return false end
+            -- Don't waste the guaranteed crit on a near-full target (overheal).
+            if hp_of(s.lowest) > DIVINE_FAVOR_FOLLOWUP_MAX_HP then return false end
             s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
             return NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)
         end,

@@ -89,7 +89,6 @@ local cat_state = {
     last_shift_time = -100,
     tick_confident = false,
     should_powershift = false,
-    should_execute = false,
 }
 
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
@@ -100,12 +99,13 @@ local CAT_VANILLA_SCHEMA = {
     target_range = 0,  in_combat = false,  is_pvp = false,
     is_behind = false,  clearcasting = false,  has_tigers_fury = false,
     has_dash = false,  has_barkskin = false,  has_track_humanoids = false,
-    has_wolfshead = false,
+    has_wolfshead = false,  is_stealthed = false,  is_cat = false,
     faerie_fire_remains = 0,  pounce_remains = 0,  rip_ap = 0,  rake_ap = 0,
+    rip_remains = 0,  rake_remains = 0,
     attack_power = 0,  next_tick_in = ENERGY_TICK_INTERVAL,
     last_energy = 0,  last_tick_time = 0,  last_shift_time = -100,
     tick_confident = false,  pooling = false,  should_powershift = false,
-    should_execute = false,  should_tab_rake = false,  should_aoe = false,
+    should_tab_rake = false,  should_aoe = false,
     level = 60,
 }
 
@@ -169,13 +169,15 @@ local function get_energy(context)
     local from_unit = safe_method_arg(me, "get_power", NS.POWER_ENERGY or 3, nil)
     if type(from_unit) == "number" then return from_unit end
     if NS.power_current and NS.POWER_ENERGY then return NS.power_current(NS.POWER_ENERGY) or 0 end
-    if NS.energy then return NS.energy() or 0 end
     return 0
 end
 
 local function get_mana_pct(context)
     if type(context.mana_pct) == "number" then return context.mana_pct end
-    if NS.power_pct and NS.POWER_MANA then return NS.power_pct(NS.POWER_MANA) or 100 end
+    -- NS.power_pct is a mock-only battery member (never callable in production);
+    -- NS.mana_pct(me) is the engine read (core_sylvanas.lua:2764).
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if NS.mana_pct then return NS.mana_pct(me) or 100 end
     return 100
 end
 
@@ -195,7 +197,7 @@ local function get_target_range(me, target, context)
     return safe_method_arg(me, "get_distance", target, 0)
 end
 
-local function is_behind_target(target, context, settings)
+local function is_behind_target(target, context)
     if spec_kit.setting_bool(context, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
     if NS.is_behind_target then return NS.is_behind_target(target) == true end
@@ -219,12 +221,6 @@ local function update_energy_tick(state)
     end
     state.last_energy = state.energy or 0
     state.next_tick_in = estimate_next_tick(state)
-end
-
-local function should_wait_for_tick(state, required_energy)
-    if (state.energy or 0) >= required_energy then return false end
-    if (state.next_tick_in or 999) > 0.45 then return false end
-    return (state.energy or 0) + ENERGY_PER_TICK >= required_energy
 end
 
 local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refresh_window, ratio)
@@ -264,7 +260,7 @@ local function build_state(context)
     state.target_range = get_target_range(state.me, state.target, context)
     state.in_combat = context.in_combat == true
     state.is_pvp = context.is_pvp == true
-    state.is_behind = is_behind_target(state.target, context, settings)
+    state.is_behind = is_behind_target(state.target, context)
 
     if NS.has_form then
         state.is_cat = NS.has_form("cat")
@@ -307,7 +303,6 @@ local function build_state(context)
             and (state.mana_pct or 100) >= POWERSHIFT_MIN_MANA
             and useful_after
     end
-    state.should_execute = (state.target_hp or 100) <= EXECUTE_HP
 
     return spec_kit.safe_state(state, CAT_VANILLA_SCHEMA)
 end
@@ -397,7 +392,9 @@ local _strategies = {
     {
         name = "Barkskin",
         matches = function(ctx, s)
-            local threshold = (s.settings and s.settings.cat_barkskin_hp) or 25
+            -- state.settings is never assigned in build_state; read the menu
+            -- setting via spec_kit (TBC sibling pattern), default 85.
+            local threshold = spec_kit.setting_number(ctx, "cat_barkskin_hp", 85)
             if (s.hp or 100) > threshold then return false end
             if s.has_barkskin then return false end
             return spell_ready(SPELLS.Barkskin, ctx.me or NS.PLAYER_UNIT, { skip_range = true })
@@ -511,7 +508,6 @@ local _strategies = {
             if not ctx.has_valid_enemy_target then return false end
             if (s.target_hp or 100) > EXECUTE_HP then return false end
             if (s.combo_points or 0) < 1 then return false end
-            if not s.should_execute then return false end
             if (s.energy or 0) < BITE_COST then return false end
             return action_ready(SPELLS.FerociousBite, s.target)
         end,
@@ -524,7 +520,15 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if s.has_tigers_fury then return false end
-            if (s.energy or 0) < TIGERS_FURY_ENERGY then return false end
+            -- Gate fix (2026-08-13): the old `energy >= 30` gate was INVERTED —
+            -- it required full energy to press an energy-GAIN cooldown. Mirror
+            -- the TBC sibling (cat_sylvanas.lua:832-839): burn Tiger's Fury when
+            -- energy is LOW (gain fits under the cap, not near-cap with an
+            -- imminent tick), in combat, and not stealthed.
+            if not s.in_combat then return false end
+            if s.is_stealthed then return false end
+            if (s.energy or 0) + TIGERS_FURY_ENERGY > ENERGY_CAP then return false end
+            if (s.energy or 0) > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and (s.next_tick_in or 999) <= 0.6 then return false end
             return spell_ready(SPELLS.TigersFury, ctx.me or NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(ctx)

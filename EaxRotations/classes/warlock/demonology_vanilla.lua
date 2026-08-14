@@ -1,5 +1,8 @@
 -- demonology_vanilla.lua — Warlock Demonology for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  DS/Ruin or pet-active (Demonic Sacrifice, Corruption, Shadow Bolt).
+-- WHAT:  pet-active rotation (Corruption, Shadow Bolt, pet management).
+--        Demonic Sacrifice is NOT automated — no DS strategy exists here by
+--        design; per the guide, sacrifice the Succubus manually before pull
+--        (DS/Ruin is the raid-meta build this rotation serves).
 -- WHEN:  combat, when NS.is_vanilla() is true.
 -- WHY:   Vanilla has no Felguard or Metamorphosis; DS/Ruin is raid meta.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
@@ -149,6 +152,7 @@ local DEMO_VANILLA_SCHEMA = {
     drain_soul_ready = false,  drain_life_ready = false,
     fear_ready = false,  howl_ready = false,  shadow_ward_ready = false,
     amplify_curse_ready = false,  soulshatter_ready = false,
+    demon_armor_ready = false,
 }
 
 local _last_build_state_time = -1
@@ -276,15 +280,51 @@ local function should_snapshot_upgrade(current_dmg, snapshotted_dmg, remains, re
 end
 
 -- ============================================================================
--- Helper: select curse based on context
+-- Helper: select curse based on context + settings
 -- ============================================================================
+-- Mirrors affliction_vanilla's settings handling (2026-08-13): the previous
+-- version IGNORED warlock_curse_mode / warlock_assigned_curse entirely, so a
+-- raid-assigned Elements (or Recklessness) got overwritten with Agony.
+local function _setting(context, key, default)
+    local s = context and context.settings
+    if s and s[key] ~= nil then return s[key] end
+    return default
+end
+
 local function select_curse(context, state)
+    local assigned = _setting(context, "warlock_assigned_curse", "none")
+    if assigned and assigned ~= "none" then return assigned end
+
+    local curse_mode = _setting(context, "warlock_curse_mode", "auto")
+    if curse_mode == "agony" then return "agony"
+    elseif curse_mode == "doom" then return "doom"
+    elseif curse_mode == "elements" then return "elements"
+    elseif curse_mode == "recklessness" or curse_mode == "weakness" then
+        -- No Curse of Recklessness/Weakness lanes in this vanilla rotation
+        -- (wowsims curse discipline); reject the mode (assigned_curse_blocks
+        -- blocks every curse lane for it).
+        return nil
+    elseif curse_mode == "none" then return nil
+    end
+
     if context.is_pvp then
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
-    if (state.enemy_count or 0) >= 3 then return "elements" end
-    return "agony"
+    if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
+    return "agony"  -- default: damage
+end
+
+--- True when settings forbid casting this curse (group overwrite / mode lock).
+local function assigned_curse_blocks(context, desired)
+    local assigned = _setting(context, "warlock_assigned_curse", "none")
+    if assigned and assigned ~= "none" then
+        return assigned ~= desired
+    end
+    local mode = _setting(context, "warlock_curse_mode", "auto")
+    if mode == "none" then return true end
+    if mode ~= "auto" and mode ~= desired then return true end
+    return false
 end
 
 -- ============================================================================
@@ -438,6 +478,7 @@ local strategies = {
     {
         name = "CurseOfDoom",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "doom") then return false end
             if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
@@ -453,6 +494,7 @@ local strategies = {
     {
         name = "CurseOfAgony",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "agony") then return false end
             if not context.has_valid_enemy_target then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
@@ -468,6 +510,7 @@ local strategies = {
     {
         name = "CurseOfElements",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "elements") then return false end
             if not context.target then return false end
             local curse = select_curse(context, state)
             if curse ~= "elements" then return false end
@@ -509,19 +552,10 @@ local strategies = {
                 string.format("[DEMONOLOGY] Drain Soul execute (%.0f%%)", (context.target_hp) or 0))
         end,
     },
-    -- Shadow Bolt (filler)
-    {
-        name = "ShadowBoltFiller",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if context.is_moving then return false end
-            return state.shadow_bolt_ready
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt filler")
-        end,
-    },
-    -- Life Tap (HP -> Mana)
+    -- Life Tap (HP -> Mana). Mana-regen lanes sit ABOVE the Shadow Bolt
+    -- filler (2026-08-13, mirror of the affliction fix): they were below it,
+    -- so regen only triggered once Shadow Bolt became uncastable — the
+    -- rotation drained into the 5SR dead zone before tapping.
     {
         name = "LifeTap",
         matches = function(context, state)
@@ -546,6 +580,30 @@ local strategies = {
             return NS.try_cast(LOCAL_SPELLS.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true })
         end,
     },
+    -- Mana potion
+    {
+        name = "ManaPotion",
+        matches = function(context, state)
+            if (state.mana_pct or 100) > 15 then return false end
+            return state.mana_potion_id ~= nil
+        end,
+        execute = function(_, state)
+            if NS.use_item_by_id then NS.use_item_by_id(state.mana_potion_id) end
+            return true
+        end,
+    },
+    -- Shadow Bolt (filler)
+    {
+        name = "ShadowBoltFiller",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if context.is_moving then return false end
+            return state.shadow_bolt_ready
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt filler")
+        end,
+    },
     -- Drain Life (sustain)
     {
         name = "DrainLife",
@@ -557,18 +615,6 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[DEMONOLOGY] Drain Life sustain")
-        end,
-    },
-    -- Mana potion
-    {
-        name = "ManaPotion",
-        matches = function(context, state)
-            if (state.mana_pct or 100) > 15 then return false end
-            return state.mana_potion_id ~= nil
-        end,
-        execute = function(_, state)
-            if NS.use_item_by_id then NS.use_item_by_id(state.mana_potion_id) end
-            return true
         end,
     },
     -- Racial abilities
@@ -585,10 +631,10 @@ local strategies = {
     -- PvP: Fear
     {
         name = "PvP_Fear",
-        matches = function(context)
+        matches = function(context, state)
             if not context.is_pvp then return false end
             if not context.target then return false end
-            return demo_state.fear_ready
+            return state and state.fear_ready or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.Fear, context.target, "[DEMONOLOGY PvP] Fear")
@@ -597,10 +643,10 @@ local strategies = {
     -- PvP: Howl of Terror
     {
         name = "PvP_HowlOfTerror",
-        matches = function(context)
+        matches = function(context, state)
             if not context.is_pvp then return false end
             if not context.melee_on_you then return false end
-            return demo_state.howl_ready
+            return state and state.howl_ready or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.HowlOfTerror, context.me, "[DEMONOLOGY PvP] Howl of Terror")
@@ -635,10 +681,10 @@ local strategies = {
     -- Demon Armor (out of combat)
     {
         name = "DemonArmorBuff",
-        matches = function(context)
+        matches = function(context, state)
             if context.in_combat then return false end
-            if demo_state.has_demon_armor then return false end
-            return demo_state.demon_armor_ready
+            if state and state.has_demon_armor then return false end
+            return state and state.demon_armor_ready or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DemonArmor, context.me, "[DEMONOLOGY] Demon Armor", { skip_range = true })
@@ -656,7 +702,13 @@ local strategies = {
             return NS.try_cast(LOCAL_SPELLS.CreateSoulstone, context.me, "[DEMONOLOGY] Create Soulstone (self-buff)", { skip_range = true })
         end,
     },
-    -- Health Funnel (heal pet - fallback if no Fel Domination)
+    -- Health Funnel (heal pet - fallback if no Fel Domination). NOTE: this
+    -- lane is a byte-identical duplicate of the HealthFunnel strategy above
+    -- (matcher + execute), so it can never fire first — it is kept for
+    -- era-pair parity: tests/era_pair_seed.lua pins "HealthFunnelFallback"
+    -- as a vanilla-era divergence (missing in the sylvanas/wotlk siblings).
+    -- Removing it requires regenerating the era-pair seed in the same change
+    -- (python EaxRotations/tools/generate_era_pair_seed.py).
     {
         name = "HealthFunnelFallback",
         matches = function(context, state)
@@ -676,7 +728,7 @@ local strategies = {
     -- Shadow Ward (PvP - vs shadow damage)
     {
         name = "ShadowWard",
-        matches = function(context)
+        matches = function(context, state)
             if not context.is_pvp then return false end
             if not context.enemy_shadow_caster then
                 -- Engine never sets enemy_shadow_caster; fall back to the
@@ -689,7 +741,7 @@ local strategies = {
                     return false
                 end
             end
-            return demo_state.shadow_ward_ready
+            return state and state.shadow_ward_ready or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.ShadowWard, context.me, "[DEMONOLOGY PvP] Shadow Ward", { skip_range = true })

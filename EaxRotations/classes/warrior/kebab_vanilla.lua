@@ -43,6 +43,12 @@ local SUNDER_DEBUFF = { 7386, 7405, 8380, 11596, 11597 }
 local THUNDER_CLAP_DEBUFF = { 6343, 8198, 8204, 8205, 11580, 11581 }
 local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
 local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or { 11551, 11550, 11549, 6192, 5242, 6673 }
+-- Vanilla Sweeping Strikes buff id, hardcoded: class_sylvanas's
+-- BUFF_ID.SWEEPING_STRIKES is the TBC id (12328), so the old
+-- `Constants.BUFF_ID.SWEEPING_STRIKES or 12292` fallback NEVER fired here —
+-- the buff was never detected AND Death Wish's vanilla id (12328) caused a
+-- false-positive skip while DW was up. This vanilla file always uses 12292.
+local SWEEPING_STRIKES_BUFF_ID = 12292
 
 local try_cast, spell_exists, spell_ready, debuff_remains, debuff_stacks, buff_remains, health_pct, player_control_locked, has_player_buff, has_breakable_cc_nearby, can_attack_target = NS.import_helpers(
     "try_cast", "spell_exists", "spell_ready", "debuff_remains",
@@ -97,7 +103,7 @@ local function should_reserve_for_sweeping(context)
     if (context.enemy_count or 0) < 2 then return false end
     if settings.kebab_use_sweeping_strikes == false then return false end
     if not spell_exists(SPELLS.SweepingStrikes) then return false end
-    if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12292) then return false end
+    if has_player_buff(SWEEPING_STRIKES_BUFF_ID) then return false end
     local ss_cd = get_cooldown(SPELLS.SweepingStrikes)
     if ss_cd > SS_POOL_WINDOW then return false end
     if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
@@ -214,6 +220,9 @@ local strategies = {
             if not state.target_below_20 then return false end
             if (context.rage or 0) < 15 then return false end
             if not general_use_kebab(context, state) then
+                -- Not general-use (DW/1H priority): when the WW/MS execute-phase
+                -- spenders are enabled and ready, hold the rage for them instead
+                -- of spending it on Execute (intentional double-negative gate).
                 if settings.kebab_use_ww_execute ~= false and (context.rage or 0) >= 25 and (state.ww_cd or 0) <= 0 then return false end
                 if settings.kebab_use_ms_execute ~= false and (context.rage or 0) >= 30 and (state.ms_cd or 0) <= 0 then return false end
             end
@@ -237,7 +246,7 @@ local strategies = {
             if not can_attack_target(context) then return false end
             if settings.kebab_use_sweeping_strikes == false then return false end
             if (context.enemy_count or 0) < 2 then return false end
-            if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12292) then return false end
+            if has_player_buff(SWEEPING_STRIKES_BUFF_ID) then return false end
             if (context.rage or 0) < 30 then return false end
             if context.stance ~= Constants.STANCE.BATTLE then
                 return spell_exists(SPELLS.BattleStance) and spell_ready(SPELLS.BattleStance, NS.PLAYER_UNIT)
@@ -465,9 +474,11 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("kebab", strategies, {
-    context_builder = build_kebab_state,
-})
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("kebab", strategies, {
+        context_builder = build_kebab_state,
+    })
+end
 
 -- Kebab_vanilla (DW Arms) rotation registered (Classic Vanilla)
 return strategies

@@ -98,7 +98,33 @@ local function get_equipped_item(slot)
     return item_slot.object or item_slot.item or item_slot[1]
 end
 
+-- Shaman weapon-imbue enchant ids (Windfury/Rockbiter/Flametongue/Frostbrand —
+-- the same lists enhancement_vanilla.lua matches against
+-- get_mainhand_enchant_info()). A regular enchant (e.g. +15 Agility) is NOT an
+-- imbue and must not suppress imbue application.
+local MAINHAND_IMBUE_ENCHANT_IDS = {
+    16362, 10486, 8235, 8232,                                   -- Windfury Weapon
+    16316, 16315, 16314, 10399, 8019, 8018, 8017,               -- Rockbiter Weapon
+    16342, 16341, 16339, 8030, 8027, 8024,                      -- Flametongue Weapon
+    16356, 16355, 10456, 8038, 8033,                            -- Frostbrand Weapon
+}
+local MAINHAND_IMBUE_MAP = {}
+for _idx = 1, #MAINHAND_IMBUE_ENCHANT_IDS do
+    MAINHAND_IMBUE_MAP[MAINHAND_IMBUE_ENCHANT_IDS[_idx]] = true
+end
+
 local function mainhand_has_imbue()
+    -- Prefer the enchant-info API: GetWeaponEnchantInfo reports the actual
+    -- temporary enchant id, so only a real shaman imbue counts. Fall back to
+    -- the generic "any temporary enchant" item probe when the API is missing.
+    local imbue = NS.WeaponImbueManager
+    if imbue and type(imbue.get_mainhand_enchant_info) == "function" then
+        local ok, info = pcall(imbue.get_mainhand_enchant_info)
+        if ok and info then
+            if info.has ~= true then return false, true end
+            return info.enchant_id ~= nil and MAINHAND_IMBUE_MAP[info.enchant_id] == true, true
+        end
+    end
     local item = get_equipped_item(MAIN_HAND_SLOT)
     if not item then return false, false end
     if item.item_has_enchant then
@@ -279,15 +305,6 @@ local earth_shock_dps_matches = function(context, state)
     if (state.default_shock or "flame") ~= "earth" then return false end
     return true
 end
-local earth_shock_dps_matches = function(context, state)
-    if not state then return false end
-    if not has_enemy_target(context, state) then return false end
-    if not state.earth_shock_ready then return false end
-    if not state.use_shocks then return false end
-    if not state.target then return false end
-    if (state.default_shock or "flame") ~= "earth" then return false end
-    return true
-end
 
 --- Stormstrike — enhancement melee attack (instant, boosts next nature spells)
 local stormstrike_matches = function(context, state)
@@ -366,6 +383,10 @@ local tremor_totem_matches = function(context, state)
     if not state then return false end
     if not state.tremor_totem_ready then return false end
     if not state.in_combat then return false end
+    -- Tremor pulses fear/charm/sleep breaks — only drop when a control effect
+    -- is actually nearby (context.fear_nearby is populated by the engine
+    -- party scan; same gate as enhancement/restoration).
+    if not context.fear_nearby then return false end
     return can_drop_totem(state, "earth", 0)
 end
 
@@ -382,12 +403,22 @@ local ghost_wolf_matches = function(context, state)
     if not state then return false end
     if state.in_combat then return false end
     if not state.ghost_wolf_ready then return false end
-    if not context.target then return false end
-    local dist = NS.get_distance and NS.get_distance(context.target)
+    -- No target requirement: Ghost Wolf is a travel/escape form and must work
+    -- with no hostile target selected. Only skip when a target is close.
+    local target = context.target
+    local dist = target and NS.get_distance and NS.get_distance(target)
     if dist and dist < 20 then return false end
     return true
 end
 
+-- ============================================================================
+-- Strategy order note: LightningBolt sits BELOW the utility totems
+-- (Searing/Strength/Water/Grounding/Tremor) and the shock lanes on purpose —
+-- leveling mana economy prefers shocks + totem upkeep over hard-cast LB, and
+-- LB already has its own mana-threshold philosophy via the shock gates. Keep
+-- LB after the shocks; move it above the totems only if APL research shows
+-- LB-first for a level band. (2026-08-13 W1.3 campaign documentation.)
+-- ============================================================================
 local strategies = {
     { name = "WeaponImbue", matches = weapon_imbue_matches,
       execute = function(context, state)

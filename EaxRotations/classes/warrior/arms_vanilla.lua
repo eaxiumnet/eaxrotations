@@ -68,10 +68,12 @@ local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
 local SWEEPING_STRIKES_BUFF = { 12292 }  -- Vanilla ID (TBC=12328; different ID per expansion)
 local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
 
-local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22116, 22105, 22104, 22103, 22102, 22101 }
+-- Healthstone ids: Vanilla/Classic healthstone rank set (no TBC global read).
+-- (Vanilla lacks the TBC.ITEMS table; the hardcoded list is the era-correct set.)
+local HEALTHSTONE_IDS = { 22116, 22105, 22104, 22103, 22102, 22101 }
 
 local HEALTHSTONE_HP_THRESHOLD = 35
-local EXECUTE_DEFAULT_RAGE = 25
+local EXECUTE_DEFAULT_RAGE = 15  -- Vanilla Execute costs 15 rage (was 25)
 local HEROIC_STRIKE_RAGE = 60
 local CLEAVE_RAGE = 55
 local MORTAL_STRIKE_RAGE = 30
@@ -182,7 +184,8 @@ local function desired_stance(context)
 end
 
 local function preserved_rage_after_swap(rage)
-    if NS.get_tactical_mastery_cap then return NS.get_tactical_mastery_cap() end
+    -- Tactical Mastery cap (25): no NS hook exists (dead member removed) —
+    -- the vanilla constant is authoritative.
     return rage < TACTICAL_MASTERY_CAP and rage or TACTICAL_MASTERY_CAP
 end
 
@@ -306,7 +309,7 @@ local function execute_matches(context, state)
 end
 
 local function mortal_strike_matches(context, state)
-    if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
+    -- Rage-cap and normal branches were identical (dead duplicate); keep one.
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
 end
 
@@ -361,7 +364,9 @@ local function sunder_armor_matches(context, state)
     if (state.sunder_stacks or 0) >= 5 then return false end
     if (state.rage or 0) < 15 then return false end
     if state.execute_phase then return false end
-    return action(context, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.DEFENSIVE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }))
+    -- Sunder Armor is stance-free in Classic (usable in all three stances) —
+    -- the previous DEFENSIVE gate made the lane dead outside Defensive.
+    return action(context, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }))
 end
 
 local function whirlwind_matches(context, state)
@@ -577,7 +582,6 @@ end
 
 local function healthstone_matches(context, state)
     if not state.healthstone_ready then return false end
-    if (state.hp or 100) > HEALTHSTONE_HP_THRESHOLD then return false end
     local hs_hp = setting(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
     if (state.hp or 100) > hs_hp then return false end
     return true
@@ -632,7 +636,7 @@ local STRATEGY_SPECS = {
     { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },
     { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
-    { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.DEFENSIVE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }) },
+    { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }) },
     { "Healthstone", healthstone_matches, build_action("Healthstone", nil, { target = "self", requires_target = false }), function(context)
         local s = build_state(context or {})
         if s.healthstone_id and NS.use_item_by_id then

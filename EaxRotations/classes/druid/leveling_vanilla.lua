@@ -77,8 +77,20 @@ local LEVELING_DRUID_VANILLA_SCHEMA = {
     heal_hp = 40,  bear_hp = 40,  use_feral = true,  wand_threshold = 30,
 }
 
+-- Frame-cache build_state (2026-08-13): the dispatcher calls get_state per
+-- strategy match, so the ~30 spell_ready() calls inside build_state would run
+-- ~28x/frame live. Same guard as bear/cat: cache only when the caller
+-- provides context.now; inert in test environments.
+local _last_build_state_time = -1
+local _cached_state = nil
+
 function druid_leveling.build_state(context)
     if not context then return nil end
+    local now = context.now
+    if now and now == _last_build_state_time and _cached_state then
+        return spec_kit.safe_state(_cached_state, LEVELING_DRUID_VANILLA_SCHEMA)
+    end
+    now = now or (NS.time_now and NS.time_now() or 0)
     local state = {}
     leveling.build_common_state(context, state)
 
@@ -133,8 +145,11 @@ function druid_leveling.build_state(context)
     state.target_ttd = context.ttd or context.target_ttd or 999
     state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_hp = context.target_hp or 100
-    state.in_melee = context.in_melee_range == true or (state.target_range or 40) <= MELEE_RANGE
+    -- MUST-FIX (2026-08-13): target_range must be assigned BEFORE in_melee is
+    -- computed — the old order read the schema default (40), making the
+    -- in_melee branch dead whenever in_melee_range wasn't set.
     state.target_range = context.target_distance or 40
+    state.in_melee = context.in_melee_range == true or (state.target_range or 40) <= MELEE_RANGE
 
     state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)
     state.has_thorns = has_buff(THORNS_BUFF)
@@ -144,6 +159,10 @@ function druid_leveling.build_state(context)
     state.use_feral = spec_kit.setting_bool(context, "leveling_use_feral", true)
     state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
 
+    if context.now then
+        _last_build_state_time = now
+        _cached_state = state
+    end
     return spec_kit.safe_state(state, LEVELING_DRUID_VANILLA_SCHEMA)
 end
 

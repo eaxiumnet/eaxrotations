@@ -65,7 +65,10 @@ local SummonFelhunter = NS.spell_action({ 691 }, "SummonFelhunter")
 local FelDomination = NS.spell_action({ 18708 }, "FelDomination")
 
 -- Constants
-local IMMOLATE_PANDEMIC_WINDOW = 3.5
+-- No-pandemic refresh discipline (2026-08-13): Classic has no pandemic
+-- (refresh never extends a DoT), so a >1.5s refresh window is pure clipping
+-- waste. Affliction_vanilla is the reference (DOT_REFRESH_WINDOW = 1.5).
+local IMMOLATE_PANDEMIC_WINDOW = 1.5
 -- (destruction_vanilla) Immolate min-SP gate removed 2026-08 (read-side
 -- audit): the engine never populates context.spell_damage, so state.spell_damage
 -- was always 0 and the gate blocked Immolate (and therefore Conflagrate) for
@@ -76,6 +79,9 @@ local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- Classic Vanilla Soul Shard reagent (moved before first use in shadowburn_matches)
+-- Priest (5) / Warlock (9) — shadow-caster detection for the ShadowWard PvP
+-- gate (mirrors shared/warlock_shadow_ward_sylvanas.lua + affliction/demonology).
+local SHADOW_CASTER_CLASS_IDS = { [5] = true, [9] = true }
 
 -- build_state: compute per-update aura and timing state once for all strategies
 -- Pre-allocated state (Pattern 4: no per-tick table allocation)
@@ -146,21 +152,29 @@ local ACTIONS = {
     { name = "DemonArmor", spell = DemonArmorSpell, target = "self", kind = "buff", buff = DEMON_ARMOR_BUFF, requires_target = false },
     { name = "ShadowWard", spell = ShadowWardSpell, target = "self", kind = "buff", buff = SHADOW_WARD_BUFF, requires_target = false, cooldown = 30 },
     { name = "CreateHealthstone", spell = CreateHealthstone, target = "self", ooc = true, requires_target = false },
-    { name = "LifeTap", spell = SPELLS.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
+    { name = "LifeTap", spell = SPELLS.LifeTap, target = "self", max_mana = 35, min_hp = 40, requires_target = false },
     { name = "DrainLife", spell = DrainLife, not_moving = true, min_hp = 40 },
-    { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 60, requires_target = false },
-    -- Curses (CurseOfDoom before Immolate per regression test)
-    { name = "CurseOfDoom", spell = SPELLS.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
-    { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
+    { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 50, requires_target = false },
+    -- Curses (CurseOfDoom before Immolate per regression test). No curse
+    -- assignment (warlock_assigned_curse / warlock_curse_mode) support in the
+    -- vanilla mirror — the rotation always casts CoD (long TTD) or CoA; raid
+    -- curse assignment is a TBC-era middleware feature (documented gap).
+    { name = "CurseOfDoom", spell = SPELLS.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 1.5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
+    { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 1.5 },
     -- DoTs
-    { name = "Corruption", spell = SPELLS.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
-    { name = "Immolate", spell = SPELLS.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
+    { name = "Corruption", spell = SPELLS.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 1.5 },
+    { name = "Immolate", spell = SPELLS.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 1.5, not_moving = true },
     -- Burst / Procs
+    -- BacklashShadowBolt: Backlash is TBC-only — BACKLASH_BUFF is empty in
+    -- Classic, so this lane is a dead marker by design (never fires; kept for
+    -- era-parity with the TBC sibling).
     { name = "BacklashShadowBolt", spell = SPELLS.ShadowBolt, priority = 100 },
     { name = "Conflagrate", spell = SPELLS.Conflagrate, moving = true, cooldown = 10 },
     -- Execute (classic warlock APL: Shadowburn on low TTD; Soul Fire is not a shard spam filler)
     { name = "Shadowburn", spell = SPELLS.Shadowburn, cooldown = 15 },
     { name = "SoulFire", spell = SoulFire, not_moving = true },
+    -- Movement filler: matches only while moving (see searing_pain_matches);
+    -- stationary ticks fall through to the Shadow Bolt filler.
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- Filler
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
@@ -197,21 +211,28 @@ end
 local function shadowburn_matches(context, action, state)
     if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    if NS.gate_cooldown and NS.gate_cooldown(context, "Shadowburn", action.cooldown or 15) then return false end
-    if NS.should_burst and context.settings and context.settings.destro_shadowburn_burst_only then
-        if not NS.should_burst(context) then return false end
+    -- Burst-only setting (real engine field; NS.gate_cooldown/NS.should_burst
+    -- were battery-mock-only members and the gate silently never fired).
+    if context.settings and context.settings.destro_shadowburn_burst_only then
+        if not context.should_burst then return false end
     end
     local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
     if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
-    return NS.spell_ready(action.spell, context.target)
+    return NS.spell_ready(action.spell, context.target, { expected_cooldown = action.cooldown or 15 })
 end
 
 local function curse_of_doom_matches(context, action, state)
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
+    if not context.target then return false end
+    if not context.has_valid_enemy_target then return false end
     if not state then return false end
     state = state or {}
-    if (state.cod_remains or 0) > 5 then return false end
-    return true
+    if (state.cod_remains or 0) > (action.refresh or 1.5) then return false end
+    -- Enforce the ACTIONS-declared TTD gate (min_ttd = 62, require_ttd = true):
+    -- CoD costs 1500 mana and holds a debuff slot for 60s — never on adds.
+    -- (Mirrors affliction_vanilla:468 / demonology_vanilla:445.)
+    if context.ttd and context.ttd < (action.min_ttd or 62) then return false end
+    return NS.spell_ready(action.spell, context.target, { expected_cooldown = action.cooldown or 60 })
 end
 
 local function backlash_matches(context, action, state)
@@ -223,8 +244,12 @@ end
 
 local function searing_pain_matches(context, action, state)
     if not context.target then return false end
-    if not NS.spell_ready(action.spell, context.target) then return false end
-    return true
+    -- Movement filler only: Searing Pain exists for cast-while-moving ticks.
+    -- Stationary ticks prefer the Shadow Bolt filler below (its own comment);
+    -- without this gate SP out-damaged Shadow Bolt inside 20yd (sustained DPS
+    -- and mana loss — the 2026-08-13 wave-1.3 audit finding).
+    if not context.is_moving then return false end
+    return NS.spell_ready(action.spell, context.target)
 end
 
 
@@ -240,14 +265,14 @@ end
 local function corruption_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if (state.corruption_remains or 0) > 3 then return false end
+    if (state.corruption_remains or 0) > (action.refresh or 1.5) then return false end
     return true
 end
 
 local function curse_of_agony_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if (state.coa_remains or 0) > 3 then return false end
+    if (state.coa_remains or 0) > (action.refresh or 1.5) then return false end
     if (state.cod_remains or 0) > 0 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
@@ -268,6 +293,7 @@ local function health_funnel_matches(context, action, state)
 end
 
 local function demon_armor_matches(context, action, state)
+    if context.in_combat then return false end
     if not state then return false end
     state = state or {}
     if state.has_demon_armor then return false end
@@ -275,10 +301,35 @@ local function demon_armor_matches(context, action, state)
 end
 
 local function shadow_ward_matches(context, action, state)
+    -- PvP-only + shadow-caster gate (mirrors affliction/demonology): without
+    -- it the buff recast every 30s in PvE. The engine never sets
+    -- context.enemy_shadow_caster, so fall back to target:get_class().
+    if not context.is_pvp then return false end
     if not state then return false end
     state = state or {}
     if state.has_shadow_ward then return false end
+    if not context.enemy_shadow_caster then
+        if context.target then
+            local class_id
+            pcall(function() class_id = context.target:get_class() end)
+            if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
+        else
+            return false
+        end
+    end
     return true
+end
+
+-- Fel Domination (instant summon, 15-min cooldown): gate on "no live pet" so
+-- the cooldown is never burned on ticks with a pet already out (the generic
+-- `return true` matcher fired every tick in AND out of combat — the wave-1.3
+-- Critical). Mirrors demonology_vanilla:377-387 (has_pet == false gate).
+local function fel_domination_matches(context, action, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, action.cooldown or 900) then return false end
+    local pet = NS.GetPet and NS.GetPet()
+    if pet and NS.unit_alive and NS.unit_alive(pet) then return false end
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+    return NS.spell_ready(action.spell, me, { skip_range = true, expected_cooldown = action.cooldown or 900 })
 end
 
 local function create_healthstone_matches(context, action, state)
@@ -305,12 +356,12 @@ local function summon_pet_matches(context, action, state)
 end
 
 local function death_coil_matches(context, action, state)
+    if not context.has_valid_enemy_target then return false end
     if not state then return false end
     state = state or {}
     local hp = state.hp_pct or state.hp or 100
     if hp > 35 then return false end
-    if NS.gate_cooldown and NS.gate_cooldown(context, "DeathCoil", action.cooldown or 120) then return false end
-    return true
+    return NS.spell_ready(action.spell, context.target, { expected_cooldown = action.cooldown or 120 })
 end
 
 local function fear_matches(context, action, state)
@@ -386,6 +437,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return fear_matches(context, action, state) end
     elseif action.name == "SummonImp" or action.name == "SummonVoidwalker" or action.name == "SummonSuccubus" or action.name == "SummonFelhunter" then
         custom_matches = function(context, state) return summon_pet_matches(context, action, state) end
+    elseif action.name == "FelDomination" then
+        custom_matches = function(context, state) return fel_domination_matches(context, action, state) end
     elseif action.enemy_count then
         custom_matches = function(context, state) return aoe_matches(context, action, state) end
     else
@@ -453,23 +506,31 @@ table.insert(strategies, 8, {
     end,
 })
 
--- Trinket on burst / execute windows
+-- Trinket on burst / execute windows. Real engine fields only (2026-08-13):
+-- NS.use_trinket was battery-mock-only and NS.TrinketManager.try_use does not
+-- exist — the burst half of this lane never fired in live play. The engine
+-- writes context.should_burst (main_sylvanas.lua:850); trinket_manager
+-- exports on_update() (shared/trinket_manager_sylvanas.lua:298) as the
+-- registered-callback entry that runs the offensive/defensive strategies.
+-- The try_use fallback is kept only for battery-mock compatibility.
 table.insert(strategies, 9, {
     name = "Trinket",
     matches = function(context, state)
         if not context.in_combat then return false end
-        if not NS.use_trinket and not (NS.TrinketManager and NS.TrinketManager.try_use) then return false end
+        local tm = NS.TrinketManager
+        if not tm or not (type(tm.on_update) == "function" or type(tm.try_use) == "function") then return false end
         local in_execute = NS.is_execute_phase and NS.is_execute_phase(context.target_hp, SHADOWBURN_HP_PCT)
-        local burst = NS.should_burst and NS.should_burst(context)
+        local burst = context.should_burst == true
         if not in_execute and not burst then return false end
         return true
     end,
     execute = function(context, state)
-        if NS.TrinketManager and NS.TrinketManager.try_use then
-            return NS.TrinketManager.try_use(context) == true
+        local tm = NS.TrinketManager
+        if tm and type(tm.on_update) == "function" then
+            return tm.on_update(context) == true
         end
-        if NS.use_trinket then
-            return NS.use_trinket(context) == true
+        if tm and type(tm.try_use) == "function" then
+            return tm.try_use(context) == true
         end
         return false
     end,

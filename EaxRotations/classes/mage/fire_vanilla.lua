@@ -20,6 +20,22 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 
 local SCORCH_DEBUFF = { 22959 }
 
+-- Buff ID tables (full rank ladders; rank 1 must be present or a rank-1
+-- barrier/shield is undetected and the lane recasts every cycle)
+local ICE_BARRIER_BUFF = { 11426, 13031, 13032, 13033 }
+local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
+
+-- Curse debuff IDs a Mage can dispel from self (Vanilla warlock curses + raid
+-- curses). All verified present in the 2.5.5 DBC.
+local CURSE_DEBUFFS = {
+    702, 1108, 6205, 7646, 11707, 11708,   -- Curse of Weakness R1-R6
+    1714, 11719, 12889, 13338, 15470,      -- Curse of Tongues R1-R5
+    704, 7658, 7659, 11717,                -- Curse of Recklessness R1-R4
+    980, 1014, 6217, 11711, 11712, 11713,  -- Curse of Agony R1-R6
+    1490, 11721, 11722,                    -- Curse of the Elements R1-R3
+    603, 18223,                            -- Curse of Doom / Curse of Exhaustion
+}
+
 -- Mana Gem item IDs (highest to lowest rank)
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }  -- Ruby, Citrine, Jade, Agate
 
@@ -61,6 +77,18 @@ local function use_mana_gem()
     return ok and used == true
 end
 
+--- True when the unit carries a curse, false when definitively not afflicted,
+--- nil when the affliction cannot be determined (unit API surface absent).
+local function curse_present(unit)
+    if not unit then return nil end
+    if type(unit.has_debuff) ~= "function" then return nil end
+    for i = 1, #CURSE_DEBUFFS do
+        local ok, present = pcall(unit.has_debuff, unit, CURSE_DEBUFFS[i])
+        if ok and present then return true end
+    end
+    return false
+end
+
 local function build_state(context)
     local target = context.target
     if target then
@@ -87,7 +115,6 @@ local function combustion_matches_fn(context, state)
     if not context.in_combat then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not NS.gate_cooldown_boss_only(context) then return false end
-    if context.should_burst then return true end
     return true
 end
 
@@ -161,7 +188,9 @@ end
 local function ice_barrier_matches_fn(context, state)
     if (context.hp or 100) > 60 then return false end
     if context.settings and (context.settings.use_defensives == false or context.settings.use_ice_barrier == false) then return false end
-    if NS.has_player_buff(11426) then return false end
+    -- Full rank ladder (11426/13031/13032/13033): rank 1 was missed before,
+    -- so a rank-1 barrier was never detected and the lane recast every cycle.
+    if NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, ICE_BARRIER_BUFF) then return false end
 
     return NS.spell_ready(SPELLS.IceBarrier, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -169,6 +198,9 @@ end
 local function mana_shield_matches_fn(context, state)
     if (context.hp or 100) > 40 then return false end
     if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
+    -- Mana Shield has no cooldown: without a buff check the lane recasts
+    -- every cycle and drains mana permanently.
+    if NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, MANA_SHIELD_BUFF) then return false end
 
     return NS.spell_ready(SPELLS.ManaShield, NS.PLAYER_UNIT, { skip_range = true })
 end
@@ -243,9 +275,13 @@ local function presence_of_mind_matches_fn(context, state)
 end
 
 local function remove_curse_matches_fn(context, state)
-    -- Gate on user toggle (following Frost pattern: simple ready check, middleware handles curse detection)
-    if context.settings and context.settings.use_remove_curse_fire == false then return false end
+    -- Curse detection is NOT middleware-handled on Vanilla: gate on combat
+    -- and on an actual curse affliction (documented unit API me:has_debuff;
+    -- nil = cannot determine, keep the ready-check behavior).
+    if context.settings and (context.settings.use_remove_curse_fire == false or context.settings.auto_remove_curse == false) then return false end
     if not (state and state.remove_curse_ready) then return false end
+    if not context.in_combat then return false end
+    if curse_present(context.me or NS.GetPlayer()) == false then return false end
     return true
 end
 
@@ -270,6 +306,12 @@ local strategies = {
     { name = "ManaShield",
       matches = mana_shield_matches_fn,
       execute = function() return NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[FIRE] Mana Shield") end },
+    -- Mana recovery must sit ABOVE the nuke lanes: Fireball/FireBlast/Scorch
+    -- match unconditionally when ready, so a bottom-placed Evocation (which
+    -- needs mana <= 20%) was starved and the mana economy never recovered.
+    { name = "Evocation",
+      matches = evocation_matches_fn,
+      execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },
     -- Interrupt
     { name = "Counterspell",
       matches = counterspell_matches_fn,
@@ -322,7 +364,7 @@ local strategies = {
     { name = "Polymorph",
       matches = polymorph_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.cc_target or context.target, "[FIRE] Polymorph") end },
-    -- Utility: Remove Curse (curse detection via mage middleware; Fire toggle gates execution)
+    -- Utility: Remove Curse (combat + curse-affliction gated on Vanilla)
     { name = "RemoveCurse",
       matches = remove_curse_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.RemoveCurse, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[FIRE] Remove Curse") end },
@@ -333,9 +375,6 @@ local strategies = {
     { name = "ManaGem",
       matches = mana_gem_matches_fn,
       execute = function() return use_mana_gem() end },
-    { name = "Evocation",
-      matches = evocation_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

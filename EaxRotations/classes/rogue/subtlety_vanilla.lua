@@ -78,7 +78,6 @@ local FEINT_THREAT_DEFAULT = 90
 local SUB_VANILLA_SCHEMA = {
     stealth_up = false,  slice_remains = 0,  rupture_remains = 0,
     hemo_remains = 0,  expose_remains = 0,  garrote_remains = 0,
-    shadowstep_buff = false,  master_of_subtlety = false,
     combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
     hp = 100,  target_hp = 100,  target_distance = 40,  target_count = 1,
     is_behind = false,  is_caster_target = false,
@@ -93,8 +92,6 @@ local subtlety_state = {
     hemo_remains = 0,
     expose_remains = 0,
     kidney_remains = 0,
-    shadowstep_buff = false,
-    master_of_subtlety = false,
     combo = 0,
     energy = 0,
     energy_low = false,
@@ -153,9 +150,15 @@ local function build_state(context)
     subtlety_state.is_behind = NS.is_behind_target and NS.is_behind_target(target) or false
     subtlety_state.is_caster_target = target_is_casting(target)
     subtlety_state.threat_pct = context.threat_pct or 0
-    subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
-    subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0
-    subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Evasion) or 0
+    -- Cooldown reads for the Preparation reset (has_cd_burned gate). Prefer
+    -- NS.get_spell_cd ONLY as a mock fallback — it never exists live (battery
+    -- stub is bank-aware); production falls through to the real
+    -- NS.get_spell_cooldown (core_sylvanas.lua:1694). Mirrors the TBC
+    -- sibling subtlety_sylvanas.lua:248-251.
+    local cd_remaining = NS.get_spell_cd or NS.get_spell_cooldown
+    subtlety_state.vanish_cd = cd_remaining and cd_remaining(SPELLS.Vanish) or 0
+    subtlety_state.sprint_cd = cd_remaining and cd_remaining(SPELLS.Sprint) or 0
+    subtlety_state.evasion_cd = cd_remaining and cd_remaining(SPELLS.Evasion) or 0
     return spec_kit.safe_state(subtlety_state, SUB_VANILLA_SCHEMA)
 end
 
@@ -206,6 +209,16 @@ local function sap_matches(context, state)
     if context.in_combat then return false end
     if not state.stealth_up then return false end
     if not has_enemy(context) then return false end
+    -- Sap works on humanoids only; a failed cast burns stealth. Mirror the
+    -- leveling_vanilla.lua creature-type probe (7 = humanoid).
+    if context.target then
+        local ctype = context.target_creature_type
+        if not ctype and context.target.get_creature_type then
+            local ok_ctype, val = pcall(context.target.get_creature_type, context.target)
+            if ok_ctype then ctype = val end
+        end
+        if ctype and ctype ~= 7 then return false end
+    end
     return NS.spell_ready(SPELLS.Sap, context.target)
 end
 
@@ -218,6 +231,10 @@ end
 
 local function ambush_opener_matches(context, state)
     if not state.stealth_up then return false end
+    -- Behind gate: state.is_behind is computed in build_state but was never
+    -- consumed — from stealth in front the cast fails and stealth is wasted
+    -- (requires_behind metadata is ignored by the dispatcher, wave 1.3).
+    if not state.is_behind then return false end
     local opener = opener_preference(context, state)
     if opener ~= "ambush" then return false end
     if not enough_energy(state, ENERGY_AMBUSH) then return false end
@@ -226,6 +243,8 @@ end
 
 local function garrote_opener_matches(context, state)
     if not state.stealth_up then return false end
+    -- Behind gate (see ambush_opener_matches).
+    if not state.is_behind then return false end
     local opener = opener_preference(context, state)
     if opener ~= "garrote" then return false end
     if not enough_energy(state, ENERGY_GARROTE) then return false end
@@ -291,8 +310,11 @@ local function preparation_matches(context, state)
     local in_burst = context.should_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
     if (state.hp or 100) > setting(context, "subtlety_prep_hp", 40) then return false end
-    -- Only use when at least one major cooldown is actually on cooldown
-    if NS.get_spell_cd then
+    -- Only use when at least one major cooldown is actually on cooldown.
+    -- (Same fallback as build_state: get_spell_cd is mock-only; live uses
+    -- NS.get_spell_cooldown. Without this the gate silently never ran.)
+    local cd_remaining = NS.get_spell_cd or NS.get_spell_cooldown
+    if cd_remaining then
         local has_cd_burned = (state.vanish_cd or 0) > 0 or (state.sprint_cd or 0) > 0 or (state.evasion_cd or 0) > 0
         if not has_cd_burned then return false end
     end
@@ -330,6 +352,9 @@ end
 
 local function expose_armor_matches(context, state)
     if (state.combo or 0) < 4 then return false end
+    -- Assignment gate (same key as the TBC sibling, subtlety_sylvanas.lua:530):
+    -- only apply Expose Armor when assigned — conflicts with Sunder Armor.
+    if not setting(context, "subtlety_expose_assigned", false) then return false end
     if context.has_sunder then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
@@ -342,7 +367,9 @@ local function eviscerate_kill_matches(context, state)
     if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
     if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
-    if (state.target_hp or 100) > 30 and not state.shadowstep_buff then return false end
+    -- (wave 1.3: dropped the `and not state.shadowstep_buff` operand — the
+    -- field was never assigned, so the operand was a permanent no-op.)
+    if (state.target_hp or 100) > 30 then return false end
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
@@ -402,13 +429,17 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+    -- Stealth is lane 3 (wave 1.3): it previously sat AFTER the OOC defensive
+    -- lanes (Evasion hp<=35, GhostlyStrike hp<=55), so defensives burned their
+    -- CDs before the pull. Stealth only matches OOC + not stealthed, so it is
+    -- harmless ahead of the combat lanes.
+    { name = "Stealth", matches = stealth_matches, execute = function() return cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[SUBTLETY] Stealth", { skip_range = true }) end },
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
 
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },
     { name = "Blind", matches = blind_matches, execute = function(context) return cast(SPELLS.Blind, context.target, "[SUBTLETY] Blind") end },
     { name = "Gouge", matches = gouge_matches, execute = function(context) return cast(SPELLS.Gouge, context.target, "[SUBTLETY] Gouge") end },
-    { name = "Stealth", matches = stealth_matches, execute = function() return cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[SUBTLETY] Stealth", { skip_range = true }) end },
     { name = "Sap", matches = sap_matches, execute = function(context) return cast(SPELLS.Sap, context.target, "[SUBTLETY] Sap") end },
     { name = "Premeditation", matches = premeditation_matches, execute = function(context) return cast(SPELLS.Premeditation, context.target, "[SUBTLETY] Premeditation", { skip_range = true }) end },
     { name = "Ambush", spell = SPELLS.Ambush, requires_buff = { 1787, 1786, 1785, 1784 }, requires_behind = true, min_energy = ENERGY_AMBUSH, matches = ambush_opener_matches, execute = function(context) return cast(SPELLS.Ambush, context.target, "[SUBTLETY] Ambush") end },

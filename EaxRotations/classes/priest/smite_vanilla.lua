@@ -37,7 +37,13 @@ local PLAYER_UNIT = NS.PLAYER_UNIT
 -- Debuff / Buff IDs
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local DEVOURING_PLAGUE_DEBUFF = { 2944, 19276, 19277, 19278, 19279, 19280 }
--- Surge of Light (33151) is TBC-only; not available in Classic Vanilla
+-- Surge of Light (33151) is TBC-only; not available in Classic Vanilla.
+-- NOTE (2026-08-13): SURGE_OF_LIGHT_BUFF stays 0 and the per-build buff_up
+-- read stays — the SurgeOfLightSmite lane is era-mirror parity and the
+-- vanilla battery drives it through the buffs_up state bank; removing the
+-- read would structurally dead the lane (battery pin: smite 0 never-firing).
+-- Live Classic always sees false (id 0 can never be a buff), so the lane
+-- correctly stays silent in game.
 local SURGE_OF_LIGHT_BUFF = 0
 local INNER_FOCUS_BUFF = 14751
 -- max Classic rank 6 = 10952; TBC rank 7 excluded
@@ -51,6 +57,10 @@ local HF_CAST_BASE = 3.0
 local EMPTY_SETTINGS = {}
 local SKIP_RANGE = { skip_range = true }
 local PSYCHIC_SCREAM_OPTS = { skip_range = true, expected_cooldown = 30 }
+-- Shadowfiend (34433) is TBC-only: the lane is a solo/leveling parity
+-- placeholder and spell_exists fails in Classic, so shadowfiend_ready is
+-- always false there. 300s = the live 5-minute cooldown.
+local SHADOWFIEND_OPTS = { skip_range = true, expected_cooldown = 300 }
 
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, buff_up, buff_remains, health_pct, player_control_locked = NS.import_helpers(
@@ -110,7 +120,9 @@ local function build_smite_state(context)
 
     context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
-    context.mana_pct = context.mana_pct or context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
+    context.mana_pct = context.mana_pct or context.player_mana_pct
+        or (type(NS.unit_mana_pct) == "function" and NS.unit_mana_pct(player))
+        or (player.mana_pct and player:mana_pct()) or 100
     context.hp = health_pct(NS.PLAYER_UNIT)
 
     local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
@@ -144,9 +156,16 @@ local function build_smite_state(context)
     -- Mana conservation tiers (Research: <30% downrank, <15% HF only, <5% wand only)
     smite_state.mana_low = smite_state.mana_pct < (context.settings.smite_mana_floor or 30)
     smite_state.mana_emergency = smite_state.mana_pct < (context.settings.smite_wand_floor or 5)
+    -- NOTE (2026-08-13): below the 5% wand floor the rotation intentionally
+    -- goes quiet (no wand lane here — wanding is the engine's auto-shoot /
+    -- the leveling rotation's job). This is a documented period gap, not a bug.
 
-    -- Threat safety (NS.is_threat_safe when available)
-    smite_state.threat_safe = type(NS.is_threat_safe) == "function" and NS.is_threat_safe() or true
+    -- Threat safety: NS.is_threat_safe(context) — the bare no-arg call
+    -- previously read the nil context path (always true), so the
+    -- smite_threat_safe setting could never block optional shadow spells.
+    -- NOTE: must NOT use the `X and F(ctx) or true` shape — a `false` return
+    -- would be swallowed by the `or true` fallback (fix 2026-08-13).
+    smite_state.threat_safe = (type(NS.is_threat_safe) ~= "function") or (NS.is_threat_safe(context) ~= false)
 
     -- Holy Fire Weave window: SW:P will fall off during HF cast but NOT during Smite cast
     smite_state.in_weave_window = smite_state.swp_active

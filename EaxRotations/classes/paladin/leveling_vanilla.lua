@@ -1,8 +1,13 @@
 -- leveling_vanilla.lua — Paladin Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
 -- WHAT:  adaptive leveling rotation (seal, judgement, healing, buffs).
 -- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
--- WHY:   handles sub-60 content and mana efficiency.
+-- WHY:   handles sub-60 content and mana efficiency. Damage lanes gate on a
+--        live seal (has_any_seal) so the engine never fights seal-less —
+--        Judgement without a seal is wasted and the Seal lane (last) would
+--        otherwise starve during execute/demon phases.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+--        Blessing of Salvation is intentionally absent (threat management is
+--        the raid leader's job in Classic).
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -13,6 +18,7 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local BLESSING_MIGHT_BUFF = { 19838, 19837, 19836, 19835, 19834, 19740 }
 local BLESSING_WISDOM_BUFF = { 19854, 19853, 19852, 19850 }
 local DEVOTION_AURA_BUFF = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
+local RETRIBUTION_AURA_BUFF = { 10301, 10300, 10299, 10298, 7294 }
 local ANY_SEAL_BUFF = { 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154, 20920, 20919, 20918, 20915, 20375, 20308, 20307, 20306, 20305, 21082, 20162, 20164, 20349, 20348, 20347, 20165, 20357, 20356, 20166 }
 local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 
@@ -21,7 +27,7 @@ local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 -- ============================================================================
 local LEVELING_VANILLA_SCHEMA = {
     -- Resources: assume full → skip defensives (Pattern 14)
-    hp = 100,  hp_pct = 100,  mana_pct = 100,
+    hp = 100,  hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,
     -- Counts: assume zero → skip AoE (Pattern 14)
     enemies = 0,  enemy_count = 0,
     -- Movement / combat
@@ -62,11 +68,21 @@ local function choose_seal_action(state)
     return nil
 end
 
+local function unit_hp_pct(unit, fallback)
+    if not unit then return fallback or 100 end
+    if type(unit.get_health_percentage) == "function" then
+        local ok, hp = pcall(unit.get_health_percentage, unit)
+        if ok and type(hp) == "number" then return hp end
+    end
+    return fallback or 100
+end
+
 local function build_state(context)
     if not context then return nil end
     leveling.build_common_state(context, leveling_state)
     leveling_state.has_any_seal = false
     leveling_state.needs_cleanse = needs_cleanse(context.me)
+    leveling_state.target_hp_pct = unit_hp_pct(context.target, context.target_hp or 100)
 
     leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
     leveling_state.has_blessing_wisdom = safe_buff_up(context.me, BLESSING_WISDOM_BUFF)
@@ -107,6 +123,8 @@ local function holy_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
+    -- Vanilla Holy Light is a 2.5s cast — never attempt while moving.
+    if state.is_moving then return false end
     if (state.hp or 100) > 35 then return false end
     return state.holy_light_ready
 end
@@ -149,6 +167,10 @@ local function judgement_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    -- Judgement with no seal up is wasted damage and mana — the Seal lane is
+    -- last in priority, so without this gate it starves every tick. Only
+    -- yield when a seal is actually castable (selected_seal set by build_state).
+    if not state.has_any_seal and state.selected_seal ~= nil then return false end
     return state.judgement_ready
 end
 
@@ -157,12 +179,11 @@ local function hammer_wrath_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    local target_hp = 100
-    if state.target then
-        local ok, hp = pcall(function() return state.target:get_health_percentage() end)
-        if ok and hp then target_hp = hp end
-    end
-    if target_hp > 20 then return false end
+    -- Seal-up gate (damage lane): prefer casting the missing seal over spending
+    -- the GCD on execute damage while seal-less (state.target_hp_pct from
+    -- build_state; no per-tick pcall closure).
+    if not state.has_any_seal and state.selected_seal ~= nil then return false end
+    if (state.target_hp_pct or 100) > 20 then return false end
     return state.hammer_wrath_ready
 end
 
@@ -172,6 +193,8 @@ local function exorcism_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     if state.is_moving then return false end
+    -- Seal-up gate (damage lane): don't spend the GCD seal-less.
+    if not state.has_any_seal and state.selected_seal ~= nil then return false end
     local type = creature_type(state.target)
     if not DEMON_OR_UNDEAD[type] then return false end
     return state.exorcism_ready
@@ -184,6 +207,8 @@ local function consecration_matches(context, state)
     if not state.in_combat then return false end
     if (state.enemies or 0) < 2 then return false end
     if state.is_moving then return false end
+    -- Seal-up gate (damage lane): don't spend the GCD seal-less.
+    if not state.has_any_seal and state.selected_seal ~= nil then return false end
     return state.consecration_ready
 end
 
@@ -219,13 +244,16 @@ local function flash_light_matches(context, state)
     return state.flash_light_ready
 end
 
---- Holy Shield — defensive block-chance buff for protection leveling
+--- Holy Shield — defensive block-chance buff for protection leveling.
+--- Proactive: cast while healthy (before the pull damage lands); the old gate
+--- only fired once already damaged, which is the wrong direction for a
+--- 10s/8-charge buff.
 local function holy_shield_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
     if not state.holy_shield_ready then return false end
-    if (state.hp or 100) > 70 then return false end
+    if (state.hp or 100) < 70 then return false end
     if (state.enemies or 0) < 2 then return false end
     return true
 end
@@ -237,7 +265,6 @@ local function retribution_aura_matches(context, state)
     if state.in_combat then return false end
     if not state.retribution_aura_ready then return false end
     if state.has_devotion_aura then return false end  -- dont override devotion
-    local RETRIBUTION_AURA_BUFF = { 10301, 10300, 10299, 10298, 7294 }
     if safe_buff_up(context.me, RETRIBUTION_AURA_BUFF) then return false end
     return true
 end

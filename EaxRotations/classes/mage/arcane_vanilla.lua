@@ -14,7 +14,6 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 -- ============================================================================
 -- Buff / Debuff IDs
 -- ============================================================================
-local ARCANE_BLAST_DEBUFF = { }  -- AB debuff: increases mana cost, reduces cast time
 local ARCANE_POWER_BUFF = { 12042 }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
@@ -25,14 +24,11 @@ local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentrat
 -- ============================================================================
 -- Constants
 -- ============================================================================
-local AB_BASE_MANA_COST = 195              -- AB rank 1 (~20% of ~975 base mana)
-local AB_MANA_MULT_PER_STACK = 0.75         -- Each stack: +75% mana cost
-local AB_BASE_CAST_TIME = 2.5               -- Base cast time (seconds)
-local AB_CAST_REDUCTION_PER_STACK = 0.1     -- Each stack: -0.1s cast time
 
--- MTTE constants (conservative estimates including Fire Blast / AM filler)
-local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
-local MTTE_CONSERVE_MPS = 100               -- ~100 mana/sec during conserve (AM filler + regen)
+-- MTTE constants (conservative estimates including Fire Blast / AM filler).
+-- Vanilla has no Arcane Blast: burn drains at a fixed rate (AP-boosted
+-- Frostbolt spam + instant-cast weave), so no AB-stack fiction is needed.
+local MTTE_BURN_MPS = 135               -- ~135 mana/sec during burn
 
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
 
@@ -47,7 +43,6 @@ local PHASE_EMERGENCY = "emergency"
 -- Schema for safe_state: Pattern 14 nil-guard defaults.
 local ARCANE_VANILLA_SCHEMA = {
     phase = PHASE_CONSERVE,
-    ab_stacks = 0,  ab_remains = 0,
     has_arcane_power = false,  has_presence_of_mind = false,
     has_ice_barrier = false,  has_mana_shield = false,
     mana_pct = 100,  hp_pct = 100,  max_mana = 15000,
@@ -59,7 +54,6 @@ local ARCANE_VANILLA_SCHEMA = {
 
 local arcane_state = {
     phase = PHASE_CONSERVE,
-    ab_stacks = 0,
     has_arcane_power = false,
     has_presence_of_mind = false,
     has_ice_barrier = false,
@@ -82,14 +76,6 @@ local arcane_state = {
 -- Helper Functions
 -- ============================================================================
 
---- Get current Arcane Blast stack count and remaining duration
-local function get_ab_stacks(me)
-    if not me then return 0, 0 end
-    local stacks = NS.debuff_stacks and NS.debuff_stacks(me, ARCANE_BLAST_DEBUFF) or 0
-    local remains = NS.debuff_remains and NS.debuff_remains(me, ARCANE_BLAST_DEBUFF) or 0
-    return stacks, remains
-end
-
 local function first_ready_mana_gem()
     if not NS.is_item_ready then return nil end
     for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
@@ -106,24 +92,17 @@ local function use_mana_gem()
     return ok and used == true
 end
 
---- Calculate MTTE at a given AB stack level using actual player max mana.
+--- Calculate MTTE (seconds until mana empty) at the current mana level using
+--- actual player max mana. Vanilla has no Arcane Blast, so the burn rate is
+--- a fixed conservative estimate (AP-boosted Frostbolt spam + instants).
 --- @param mana_pct number Current mana percentage (0-100)
---- @param ab_stacks number Current AB stacks (0-3)
 --- @param max_mana number Player's maximum mana pool
---- @return number mtte Seconds until empty at this stack level (999 if indefinitely sustainable)
-local function calc_mtte(mana_pct, ab_stacks, max_mana)
+--- @return number mtte Seconds until empty (999 if indefinitely sustainable)
+local function calc_mtte(mana_pct, max_mana)
     if mana_pct <= 0 then return 0 end
     local est_mana = max_mana * (mana_pct / 100)
-    if ab_stacks <= 0 then
-        -- Conserve: AM filler costs ~310 mana per 5s channel, plus regen
-        if MTTE_CONSERVE_MPS <= 0 then return 999 end
-        return est_mana / MTTE_CONSERVE_MPS
-    end
-    local mana_cost = AB_BASE_MANA_COST * (1 + AB_MANA_MULT_PER_STACK * ab_stacks)
-    local cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * ab_stacks)
-    local mps = (mana_cost / cast_time) * MTTE_BURN_MPS_MULT
-    if mps <= 0 then return 999 end
-    return est_mana / mps
+    if MTTE_BURN_MPS <= 0 then return 999 end
+    return est_mana / MTTE_BURN_MPS
 end
 
 -- Settings access via spec_kit
@@ -143,8 +122,8 @@ local function build_state(context)
     s.target_casting = context.target and context.target.is_casting and context.target:is_casting() or false
 
     if me then
-        -- Actual max mana for realistic MTTE
-        s.max_mana = (me.get_max_mana and me:get_max_mana()) or (NS.unit_max_mana and NS.unit_max_mana(me)) or 15000
+        -- Actual max mana for realistic MTTE (documented unit API; no mock-only fallbacks)
+        s.max_mana = (me.get_max_mana and me:get_max_mana()) or 15000
         if s.max_mana <= 0 then s.max_mana = 15000 end
 
         s.has_arcane_power = NS.buff_up and NS.buff_up(me, ARCANE_POWER_BUFF) or false
@@ -160,9 +139,8 @@ local function build_state(context)
     if me then s.mana_gem_available = first_ready_mana_gem() ~= nil end
     s.has_clearcasting = NS.buff_up and NS.buff_up(me, CLEARCASTING_BUFF) or false
 
-    -- MTTE calculations using actual max mana
-    local cur_stacks = s.ab_stacks
-    s.mtte_burn = calc_mtte(s.mana_pct, math.max(cur_stacks, 2), s.max_mana)
+    -- MTTE calculations using actual max mana (no Arcane Blast in Vanilla)
+    s.mtte_burn = calc_mtte(s.mana_pct, s.max_mana)
 
     -- Phase decision
     local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
@@ -276,8 +254,6 @@ local function pom_matches(context, s)
     if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
     -- Only use PoM during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
-    -- Use PoM while moving to maintain DPS
-    if s.is_moving then return true end
     return true
 end
 
@@ -293,10 +269,6 @@ local function arcane_power_matches(context, s)
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
     -- Require sufficient mana to sustain the full duration
     if (s.mana_pct or 0) < 35 then return false end
-    -- Prefer high AB stacks for max value
-    if (s.ab_stacks or 0) >= 2 then return true end
-    -- Always cast AP during burn if we have the mana
-    if s.phase == PHASE_BURN and (s.mana_pct or 0) >= 50 then return true end
     return true
 end
 
@@ -375,12 +347,37 @@ local function arcane_missiles_matches(context, s)
     return false
 end
 
---- Low-level bolt (Fireball/Frostbolt for leveling before AB is learned)
+--- Low-level bolt (Fireball/Frostbolt for leveling before Arcane Blast is
+-- learned). The class file marks Arcane Blast as unavailable in Classic via
+-- the UnavailableClassicMageArcane sentinel (nil in Vanilla): a non-nil,
+-- learned sentinel means a hybrid client knows the spell, so the leveling
+-- bolts step aside. In Vanilla the sentinel is always nil and this gate never
+-- blocks. Each lane additionally gates on its own spell_ready (the old shared
+-- matcher had no readiness check at all and its spell_exists sentinel lookup
+-- was a silent no-op on a nil key).
+local function ab_blocks_leveling_bolt()
+    if SPELLS.UnavailableClassicMageArcane and NS.is_spell_learned
+        and NS.is_spell_learned(SPELLS.UnavailableClassicMageArcane) then
+        return true
+    end
+    return false
+end
+
 local function low_level_bolt_matches(context, s)
     if not context.is_leveling then return false end
     if s.is_moving then return false end
-    if NS.spell_exists(SPELLS.UnavailableClassicMageArcane) then return false end
+    if ab_blocks_leveling_bolt() then return false end
     return true
+end
+
+local function fireball_leveling_matches(context, s)
+    if not low_level_bolt_matches(context, s) then return false end
+    return NS.spell_ready(SPELLS.Fireball, context.target)
+end
+
+local function frostbolt_leveling_matches(context, s)
+    if not low_level_bolt_matches(context, s) then return false end
+    return NS.spell_ready(SPELLS.Frostbolt, context.target)
 end
 
 -- ============================================================================
@@ -442,10 +439,10 @@ local strategies = {
 
     -- Leveling fillers (pre-AB)
     { name = "FireballLeveling",
-      matches = function(context, s) return low_level_bolt_matches(context, s) end,
+      matches = fireball_leveling_matches,
       execute = function(context) return NS.try_cast(SPELLS.Fireball, context.target, "[ARCANE] Fireball") end },
     { name = "FrostboltLeveling",
-      matches = function(context, s) return low_level_bolt_matches(context, s) end,
+      matches = frostbolt_leveling_matches,
       execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
 }
 

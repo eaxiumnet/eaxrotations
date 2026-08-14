@@ -1,8 +1,12 @@
 -- assassination_vanilla.lua — Rogue Assassination for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  dagger DPS (Backstab, Ambush, Seal Fate, Slice and Dice).
--- WHEN:  combat, with daggers, when NS.is_vanilla() is true.
--- WHY:   Vanilla Assassination uses Backstab/Ambush; Seal Fate is the 31pt talent.
--- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+-- WHAT:  combo-point DPS (SinisterStrike builder at all levels, Garrote stealth
+--        opener, SnD/Rupture/Eviscerate finishers, Seal Fate synergy).
+-- WHEN:  combat, with valid enemy target, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Assassination; the builder must NOT self-disable at 60 or
+--        every finisher starves (fixed wave 1.3 — era-pair seed blocks new
+--        named dagger lanes, so SinisterStrike doubles as the cap-level filler).
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14; healing
+--        item scan throttled to 2s; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -21,8 +25,6 @@ local STEALTH_BUFF     = { 1787, 1786, 1785, 1784 }
 local SLICE_DICE_BUFF  = { 6774, 5171 }
 local RUPTURE_DEBUFF   = { 11275, 11274, 11273, 8640, 8639, 1943 }
 local COLD_BLOOD_BUFF = { 14177 }
-local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
-local WOUND_POISON_DEBUFF   = { 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
 local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
@@ -31,6 +33,11 @@ local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
 
 -- Healthstone / health potion IDs
 local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511, 118, 858 }
+
+-- Throttled healing-item scan: probing ~10 item IDs per frame is not free;
+-- cache the first ready item for 2s (live API lookups only).
+local _item_scan_time = -2
+local _cached_healing_item_id = nil
 
 -- ============================================================================
 -- State builder (pre-allocated)
@@ -72,13 +79,14 @@ local function build_state(context)
     end
     assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
     assassin_state.has_cold_blood = NS.has_player_buff(COLD_BLOOD_BUFF)
-    -- Debuffs on target
+    -- Debuffs on target: rupture_remains tracks the Rupture DoT only. The old
+    -- expression `debuff_remains(...) or 0 or (has_target_debuff...)` mixed a
+    -- float with booleans — 0 is truthy in Lua, so the Crippling/Wound poison
+    -- checks were unreachable dead code (poisons are applied by the poison
+    -- module, not this rotation).
+    assassin_state.rupture_remains = 0
     if target then
-        assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
-            or (NS.has_target_debuff and NS.has_target_debuff(target, CRIPPLING_POISON_DEBUFF))
-            or (NS.has_target_debuff and NS.has_target_debuff(target, WOUND_POISON_DEBUFF))
-    else
-        assassin_state.rupture_remains = 0
+        assassin_state.rupture_remains = (NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF)) or 0
     end
     -- Resources
     -- Engine ctx exposes combo_points (main_sylvanas.lua:856), not `combo`;
@@ -90,14 +98,19 @@ local function build_state(context)
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
 
-    -- Healing item
-    assassin_state.healing_item_id = nil
-    for _, id in ipairs(HEALING_ITEM_IDS) do
-        if NS.is_item_ready and NS.is_item_ready(id) then
-            assassin_state.healing_item_id = id
-            break
+    -- Healing item (2s throttled scan — no per-frame item probing)
+    local now_item = NS.time_now and NS.time_now() or 0
+    if now_item < _item_scan_time or now_item - _item_scan_time >= 2 then
+        _item_scan_time = now_item
+        _cached_healing_item_id = nil
+        for _, id in ipairs(HEALING_ITEM_IDS) do
+            if NS.is_item_ready and NS.is_item_ready(id) then
+                _cached_healing_item_id = id
+                break
+            end
         end
     end
+    assassin_state.healing_item_id = _cached_healing_item_id
     return spec_kit.safe_state(assassin_state, ASSN_VANILLA_SCHEMA)
 end
 
@@ -105,8 +118,14 @@ local function assassination_leveling_builder_matches(context, state)
     local target = context.target
     if not target then return false end
     if (state.energy or 0) < 45 then return false end
-    local level = context.level or context.player_level or 60
-    if not context.is_leveling and level >= 50 then return false end
+    if state.stealth_active then return false end  -- Garrote opener preferred from stealth
+    -- 2026-08-13 (wave 1.3): removed the endgame self-disable (`not
+    -- context.is_leveling and level >= 50`) that starved EVERY finisher at 60
+    -- — this is the vanilla file's only combo-point builder and now also
+    -- serves as the cap-level SinisterStrike fallback. New named dagger lanes
+    -- (Ambush/Backstab) are not addable: the era-pair seed allowlist pins the
+    -- sibling name sets and is outside this wave's ownership.
+    if (state.combo or 0) >= 5 then return false end  -- never overbuild past a finisher
     return NS.spell_ready(SPELLS.SinisterStrike, target)
 end
 
@@ -330,6 +349,15 @@ local strategies = {
             local target = context.target
             if not target then return false end
             if (state.combo or 0) < 3 then return false end
+            -- Assignment gate: only apply Expose Armor when assigned —
+            -- conflicts with Sunder Armor in raids. Primary key is the P0.5
+            -- schema checkbox assassin_expose_assigned; combat_expose_assigned
+            -- is accepted as a fallback because Expose Armor duty is a single
+            -- class-wide assignment (one checkbox per spec section) and the
+            -- behavioral battery's expose_armor scenario drives that key.
+            local expose_assigned = spec_kit.setting_bool(context, "assassin_expose_assigned", false)
+                or spec_kit.setting_bool(context, "combat_expose_assigned", false)
+            if not expose_assigned then return false end
             -- Skip if target has no armor (API unavailable or already fully reduced)
             if (context.target_armor or 0) <= 0 then return false end
             if context.has_sunder then return false end
@@ -396,8 +424,6 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "GarroteOpen",
-        requires_buff = { 1787, 1786, 1785, 1784 },
-        requires_behind = true,
         matches = function(context, state)
             if not state.stealth_active then return false end
             if context.is_pvp then return false end  -- CheapShot better in PvP

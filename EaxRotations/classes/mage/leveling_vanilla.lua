@@ -18,8 +18,21 @@ local SPELLS = NS.MageSpells or {}
 local ARCANE_INTELLECT_BUFF = { 23028, 10157, 10156, 1461, 1460, 1459 }
 local FROST_ARMOR_BUFF = { 12544, 12543, 10174, 10173, 7301, 7300, 168 }
 local ICE_BARRIER_BUFF = { 13033, 13032, 13031, 11426 }
-local MANA_SHIELD_BUFF = { 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
+-- Vanilla Mana Shield ranks only (the old list mixed in non-shield spell IDs:
+-- 8492 is a cone attack, 13003-13008 are unrelated spells)
+local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
 local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
+
+-- Curse debuff IDs a Mage can dispel from self (Vanilla warlock curses + raid
+-- curses). All verified present in the 2.5.5 DBC.
+local CURSE_DEBUFFS = {
+    702, 1108, 6205, 7646, 11707, 11708,   -- Curse of Weakness R1-R6
+    1714, 11719, 12889, 13338, 15470,      -- Curse of Tongues R1-R5
+    704, 7658, 7659, 11717,                -- Curse of Recklessness R1-R4
+    980, 1014, 6217, 11711, 11712, 11713,  -- Curse of Agony R1-R6
+    1490, 11721, 11722,                    -- Curse of the Elements R1-R3
+    603, 18223,                            -- Curse of Doom / Curse of Exhaustion
+}
 
 local CONJURE_MANA_GEM_SPELLS = { 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 8008, 8007, 5513, 5514 }
@@ -63,6 +76,18 @@ local function safe_use_item(item_id)
     return ok and used
 end
 
+--- True when the unit carries a curse, false when definitively not afflicted,
+--- nil when the affliction cannot be determined (unit API surface absent).
+local function curse_present(unit)
+    if not unit then return nil end
+    if type(unit.has_debuff) ~= "function" then return nil end
+    for i = 1, #CURSE_DEBUFFS do
+        local ok, present = pcall(unit.has_debuff, unit, CURSE_DEBUFFS[i])
+        if ok and present then return true end
+    end
+    return false
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -73,7 +98,7 @@ local LEVELING_VANILLA_SCHEMA = {
     in_combat = false,  is_moving = false,  target = nil,
     has_ai = false,  has_frost_armor = false,  has_ice_barrier = false,
     has_mana_shield = false,  has_fire_ward = false,
-    wand_threshold = 30,  polymorph_hp = 40,
+    wand_threshold = 50,  polymorph_hp = 40,
     use_arcane_missiles = true,  use_scorch = true,
     use_interrupt = true,  use_fire_blast = true,
     use_fireball = true,  use_mana_gem = true,
@@ -90,11 +115,14 @@ local LEVELING_VANILLA_SCHEMA = {
     cone_of_cold_ready = false,  blink_ready = false,
 }
 
+-- Static state table (Pattern 4 reuse — no fresh table per frame)
+local leveling_state = {}
+
 function build_state(context)
     if not context then return nil end
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
-    local state = {}
+    local state = leveling_state
 
     state.has_ai = safe_buff_up(me, ARCANE_INTELLECT_BUFF)
     state.has_frost_armor = safe_buff_up(me, FROST_ARMOR_BUFF)
@@ -108,7 +136,7 @@ function build_state(context)
     state.target = context.target
     state.is_moving = context.is_moving or false
 
-    state.wand_threshold = settings.leveling_wand_threshold or 30
+    state.wand_threshold = settings.leveling_wand_threshold or 50
     state.polymorph_hp = settings.leveling_polymorph_hp or 40
     state.use_arcane_missiles = settings.leveling_arcane_missiles_use ~= false
     state.use_scorch = settings.leveling_scorch_use ~= false
@@ -206,9 +234,11 @@ end
 local function polymorph_matches(context, state)
     if not state then return false end
     if not state.target then return false end
-    if state.in_combat then return false end
+    -- CC belongs in combat on dangerous (high-HP) targets — the old matcher
+    -- was inverted (OOC-only, nearly-dead mobs only) and never CC'd a real pull.
+    if not state.in_combat then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
-    if ok and hp and hp >= (state.polymorph_hp or 40) then return false end
+    if ok and hp and hp < (state.polymorph_hp or 40) then return false end
     local remains = safe_debuff_remains(state.target, POLYMORPH_IDS)
     if remains >= 10 then return false end
     return state.polymorph_ready
@@ -315,7 +345,10 @@ end
 
 local function remove_curse_matches(context, state)
     if not state then return false end
-    if state.in_combat then return false end
+    -- In-combat + actual curse affliction only (the old matcher was inverted:
+    -- OOC-only, no curse-presence check, so it spammed GCDs outside combat).
+    if not state.in_combat then return false end
+    if curse_present(context.me) == false then return false end
     return state.remove_curse_ready
 end
 

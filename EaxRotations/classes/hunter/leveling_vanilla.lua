@@ -32,6 +32,7 @@ local LEVELING_HUNTER_VANILLA_SCHEMA = {
     aspect_cheetah_ready = false,  has_aspect_cheetah = false,
     concussive_shot_ready = false,  wing_clip_ready = false,
     raptor_strike_ready = false,  mongoose_bite_ready = false,
+    in_melee = false,
     rapid_fire_ready = false,  scare_beast_ready = false,
     freezing_trap_ready = false,  feign_death_ready = false,
     pet_hp = 100,
@@ -83,6 +84,10 @@ local function build_state(context)
     leveling_state.scare_beast_ready = safe_spell_ready(SPELLS.ScareBeast, context.target)
     leveling_state.freezing_trap_ready = safe_spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true, expected_cooldown = 30 })
     leveling_state.feign_death_ready = safe_spell_ready(SPELLS.FeignDeath, nil, { skip_range = true })
+    -- Melee-lane gate (WingClip/RaptorStrike/MongooseBite): populated from the
+    -- dispatcher's is_in_melee_range check (main_sylvanas:858, 5yd). Without
+    -- this the three melee strategies were permanently dead in production.
+    leveling_state.in_melee = context.in_melee_range == true
 
     if context.pet then
         local ok, pet_hp = pcall(function() return context.pet:get_health_percentage() end)
