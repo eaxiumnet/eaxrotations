@@ -45,7 +45,8 @@ if not _planner_ok or type(planner) ~= "table" then planner = nil end
 -- ============================================================================
 -- Buff / Debuff IDs
 -- ============================================================================
-local ARCANE_BLAST_DEBUFF = { 36032, 36033, 36034 }  -- AB debuff: increases mana cost, reduces cast time
+local ARCANE_BLAST_BUFF = { 36032 }  -- AB stack aura — a SELF BUFF, not a target debuff.
+-- Only 36032 exists as the Arcane Blast stack aura in TBC (36033/36034 are not AB ranks).
 local ARCANE_POWER_BUFF = { 12042 }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
@@ -59,6 +60,10 @@ local AB_BASE_MANA_COST = 195              -- AB rank 1 (~20% of ~975 base mana)
 local AB_MANA_MULT_PER_STACK = 0.75         -- Each stack: +75% mana cost
 local AB_BASE_CAST_TIME = 2.5               -- Base cast time (seconds)
 local AB_CAST_REDUCTION_PER_STACK = 0.1     -- Each stack: -0.1s cast time
+local AB_BURN_MAX_STACKS_DEFAULT = 4        -- Default max AB stacks during burn (single source)
+local MAGE_COMBAT_MANA_REGEN = 49           -- Fixed in-combat regen assumption (mana/sec).
+-- me.get_power_regen is NOT part of the unit API (dead code — mana_regen was
+-- always 0), so burn eligibility uses this fixed assumption instead.
 
 -- MTTE constants (conservative estimates including Fire Blast / Frostbolt filler)
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
@@ -136,11 +141,17 @@ local arcane_state = {
 -- Helper Functions
 -- ============================================================================
 
---- Get current Arcane Blast stack count and remaining duration
+--- Get current Arcane Blast stack count and remaining duration.
+-- Arcane Blast's stack aura (36032) is a SELF BUFF, not a target debuff —
+-- reading only the debuff side always returned 0 in live play, silently
+-- killing FrostboltConserve (needs stacks >= 3) and the max-stack skip.
+-- Read NS.buff_stacks / NS.buff_remains (defined in core_sylvanas 2026-08-11
+-- for exactly this caller); the behavioral battery's ab_stack_conserve
+-- scenario drives the buff side via buff_remains_map (2026-08-13).
 local function get_ab_stacks(me)
     if not me then return 0, 0 end
-    local stacks = NS.debuff_stacks and NS.debuff_stacks(me, ARCANE_BLAST_DEBUFF) or 0
-    local remains = NS.debuff_remains and NS.debuff_remains(me, ARCANE_BLAST_DEBUFF) or 0
+    local stacks = NS.buff_stacks and NS.buff_stacks(me, ARCANE_BLAST_BUFF) or 0
+    local remains = NS.buff_remains and NS.buff_remains(me, ARCANE_BLAST_BUFF) or 0
     return stacks, remains
 end
 
@@ -208,9 +219,6 @@ local function build_state(context)
             -- Fallback: undocumented but sometimes present
             local ok, val = pcall(me.get_max_mana, me)
             if ok and type(val) == "number" and val > 0 then s.max_mana = val end
-        elseif NS.unit_max_mana and type(NS.unit_max_mana) == "function" then
-            local ok, val = pcall(NS.unit_max_mana, me)
-            if ok and type(val) == "number" and val > 0 then s.max_mana = val end
         end
         if s.max_mana <= 0 then s.max_mana = 15000 end
 
@@ -229,11 +237,7 @@ local function build_state(context)
             local ok, val = pcall(me.get_power, me, NS.POWER_MANA or 0)
             if ok and type(val) == "number" then s.current_mana = val end
         end
-        s.mana_regen = 0
-        if me.get_power_regen and type(me.get_power_regen) == "function" then
-            local ok, val = pcall(me.get_power_regen, me, NS.POWER_MANA or 0)
-            if ok and type(val) == "number" then s.mana_regen = val end
-        end
+        s.mana_regen = MAGE_COMBAT_MANA_REGEN  -- fixed assumption; get_power_regen is not in the unit API
     end
 
     -- Cooldown availability
@@ -263,7 +267,7 @@ local function build_state(context)
     end
 
     -- Determine if we can sustain a burn phase (wowsims: AvailableMana >= BurnManaNeeded)
-    local available_mana = s.current_mana + (s.mana_regen + 49) * ((context.ttd or 180) / 2)
+    local available_mana = s.current_mana + MAGE_COMBAT_MANA_REGEN * ((context.ttd or 180) / 2)
     local burn_mana_needed = 760 * ((context.ttd or 180) / 1.5)
     s.can_burn = burn_enabled
         and s.mana_pct >= CONSERVE_START_PCT + 10  -- ~30% to start burn
@@ -340,7 +344,7 @@ local function arcane_blast_matches(context, s)
     -- Phase-based stack limits
     local max_stacks
     if s.phase == PHASE_BURN then
-        max_stacks = spec_kit.setting_number(context, "arcane_burn_max_stacks", 4)
+        max_stacks = spec_kit.setting_number(context, "arcane_burn_max_stacks", AB_BURN_MAX_STACKS_DEFAULT)
     else
         max_stacks = spec_kit.setting_number(context, "arcane_conserve_max_stacks", 3)
         -- Emergency: always 0 stacks
@@ -358,15 +362,17 @@ local function arcane_blast_matches(context, s)
         end
     end
 
+    -- Clearcasting: always consume on AB (highest mana cost) per research
+    -- Angle 5 — checked BEFORE the max-stack skip so a fresh max-stack buff
+    -- does not waste the proc.
+    if s.has_clearcasting then return true end
+
     -- If we're already at max stacks for our phase, only cast AB to maintain them
     if (s.ab_stacks or 0) >= max_stacks then
         if (s.ab_remains or 0) > 1.5 then return false end  -- Not about to drop
     end
 
     -- Don't build stacks if mana is critically low
-    -- Clearcasting: always consume on AB (highest mana cost) per research Angle 5
-    if s.has_clearcasting then return true end
-
     if (s.mana_pct or 100) < 15 then
         if (s.ab_stacks or 0) >= max_stacks then return false end
         -- Allow building to 1 stack max when below 15% mana
@@ -376,18 +382,18 @@ local function arcane_blast_matches(context, s)
     return NS.spell_ready(ACTION.ArcaneBlast, context.target)
 end
 
---- Fire Blast: instant filler, use on cooldown or while moving
+--- Fire Blast: instant filler, gated to burn / moving / execute windows.
+-- Live-correctness fix: the old matcher returned true unconditionally, so in
+-- conserve phase FireBlast fired before FrostboltConserve and the Clearcasting
+-- ArcaneMissiles lane, starving the filler and defeating mana-saving.
 local function fire_blast_matches(context, s)
     if not context.target then return false end
-    -- Priority while moving (instant cast)
+    -- Instant cast: highest value while moving
     if s.is_moving then return true end
-    -- Priority when AB is at max stacks (weave instant between AB casts)
-    local max_stacks = s.phase == PHASE_BURN
-        and spec_kit.setting_number(context, "arcane_burn_max_stacks", 3)
-        or spec_kit.setting_number(context, "arcane_conserve_max_stacks", 0)
-    if (s.ab_stacks or 0) >= max_stacks then return true end
-    -- Otherwise fire blast as filler
-    return true
+    -- Burn phase: weave instants between AB casts
+    if s.phase == PHASE_BURN then return true end
+    -- Conserve/emergency: never starve FrostboltConserve or Clearcasting-AM
+    return false
 end
 
 --- Arcane Missiles: Clearcasting consumer only (wowsims does not use AM as filler).

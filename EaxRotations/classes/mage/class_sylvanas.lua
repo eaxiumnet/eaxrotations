@@ -251,7 +251,10 @@ local SPELLS = {
     }),
     IceBlock = NS.spell_action({
         name = "IceBlock",
-        ids = {45438},  -- 45438=TBC Ice Block (11958 is Cold Snap, not Ice Block; 27619 unverified)
+        -- 11958 = Ice Block R1 (Vanilla + TBC 2.5.5; verified in wowsims.db), 27619 = Ice Block R2 (TBC).
+        -- 12472 = Cold Snap (NOT Ice Block — the old comment was factually wrong);
+        -- 45438 is the WotLK-only Ice Block and does NOT exist in the 2.5.5 DBC.
+        ids = {11958, 27619},
         levels = {30},
         cast_time = 0,
         cooldown = 300,
