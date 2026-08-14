@@ -22,8 +22,8 @@
 --   NS.spell_id_is_known / NS.izi at CALL time, so installing early is safe.
 --
 -- CONTRACT
---   - install(NS): wires NS.log, NS.log_warning, NS.log_error,
---     NS.is_api_health_broken, NS.reset_api_health, NS.dump_class_spells.
+--   - install(NS): wires NS.log, NS.log_warning, NS.is_api_health_broken,
+--     NS.reset_api_health, NS.dump_class_spells.
 --   - Reads the `core` global via _G.core (same pattern as aura_cache).
 --   - Behavior identical to the pre-extract inline definitions.
 -- =============================================================================
@@ -44,10 +44,6 @@ local function emit(kind, prefix, msg)
     end
     if kind == "log_warning" and NS and NS.izi and type(NS.izi.log_warning) == "function" then
         pcall(NS.izi.log_warning, "[EaxRotations] " .. msg)
-        return
-    end
-    if kind == "log_error" and NS and NS.izi and type(NS.izi.log_error) == "function" then
-        pcall(NS.izi.log_error, "[EaxRotations] " .. msg)
         return
     end
 

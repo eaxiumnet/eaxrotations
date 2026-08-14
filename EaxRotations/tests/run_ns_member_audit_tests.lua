@@ -42,6 +42,15 @@
 --        (the crash direction, not a guard) — the `not` early-return idiom
 --        is still covered via the ` then` pattern.
 
+-- MOCK-PARITY (2026-08-13, --mock-parity): the battery mock's build_ns
+-- mirrors the runtime NS surface, so a member it defines that PRODUCTION
+-- code references but production does not define and no engine surface
+-- documents is the live-nil crash class (the spec calls NS.<name> in-game,
+-- live NS.<name> is nil). The mode flags mock-defined ∧ production-referenced
+-- ∧ repo-unassigned ∧ not-allowlisted ∧ not-whitelisted members; the 9 KNOWN
+-- mock-only members are pinned on MOCK_ONLY_WHITELIST (below). Opt-in like
+-- --self-test/--ci-parity; never part of the default run.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;" .. package.path
 
 local CLASS_ROOT = "EaxRotations/classes"
@@ -165,6 +174,33 @@ local ALLOWLIST = {
     --                     repo reference is that one guarded site.
     me                    = "mock: battery ns.me (behavioral_audit.lua:2956) — documented engine wrapper (AGENTS.md:212); all 46 real sites nil-safe (NS.me or (NS.GetPlayer...) with GetPlayer defined core/units.lua:147, or NS.me and ... guards)",
     get_item_count        = "guarded: cat_sylvanas:134-135 (`if NS.get_item_count then` previous-line guard over the pcall); core/items.lua exposes no count query — the guard is the nil-safety (fail-open fix 2026-08-11)",
+}
+
+-- ============================================================================
+-- MOCK_ONLY_WHITELIST — the 9 KNOWN mock-only members (2026-08-13, Top-Tier
+-- Parsing Campaign phase 0.1). The battery mock's build_ns defines these but
+-- production (the repo assignment census) defines none of them, and the
+-- 2026-08-12 live-fix campaign verified them absent from the live engine and
+-- migrated the specs that used them: retribution_sylvanas:348/409 dropped
+-- NS.unit_faction (Seal of the Martyr branch); frost_sylvanas:161-165 /
+-- fire_sylvanas:241-243 dropped NS.aoe_cone_meets for AoeHV.aoe_cone_meets
+-- (shared/aoe_hit_volume_sylvanas.lua); cat_sylvanas:436 documents
+-- NS.power_pct as test-mock only; rogue's Preparation CD read goes through
+-- the NS.get_spell_cd fallback. Pinned so --mock-parity flags ONLY NEW
+-- mock-only members. EXACTLY these 9 — adding a name requires the dated
+-- evidence in this comment block; the check is enforced by mock_parity_list
+-- and exercised by the --self-test cases (whitelist-removal fires).
+-- ============================================================================
+local MOCK_ONLY_WHITELIST = {
+    get_spell_cd        = true,
+    start_attack        = true,
+    power_pct           = true,
+    unit_faction        = true,
+    unit_max_mana       = true,
+    aoe_cone_meets      = true,
+    stop_casting        = true,
+    cancel_current_cast = true,
+    can_cast_in_form    = true,
 }
 
 -- ============================================================================
@@ -737,6 +773,37 @@ local function never_called_list(assigned, refs, imported, def_sites)
 end
 
 -- ============================================================================
+-- Mock-parity decision (2026-08-13): a member the battery mock's build_ns
+-- defines is a mock-only violation iff production code REFERENCES it (called
+-- or value-read by a classes/shared/core/root-runtime file), production does
+-- NOT define it (absent from the repo assignment census), it is NOT covered
+-- by the engine-surface ALLOWLIST, and it is NOT on the MOCK_ONLY_WHITELIST.
+-- The referenced filter is deliberate: members the mock defines that no
+-- production file uses are inert mock surface (the mock legitimately carries
+-- extra members to simulate the engine) and would drown the real signal. Pure
+-- decision over synthetic tables so --self-test can pin both firing cases.
+-- ============================================================================
+local function mock_parity_list(mock, assigned, allowlist, referenced, whitelist)
+    local v = {}
+    for name in pairs(mock or {}) do
+        if referenced and referenced[name]
+            and not (assigned and assigned[name])
+            and not (allowlist and allowlist[name])
+            and not (whitelist and whitelist[name]) then
+            v[#v + 1] = {
+                name = name,
+                why = "mock-only: battery build_ns defines ns." .. name
+                    .. " but production neither defines nor allowlists it,"
+                    .. " and production references it (live NS." .. name
+                    .. " would be nil)",
+            }
+        end
+    end
+    table.sort(v, function(a, b) return a.name < b.name end)
+    return v
+end
+
+-- ============================================================================
 -- Full scan: every .lua under classes/ + shared/
 -- ============================================================================
 local function run_scan(engine_dirs)
@@ -1131,6 +1198,41 @@ local function run_self_tests()
         { }, { can_attack_target = true }, { setting_number = { file = "x.lua", line = 1 } })
     expect(#dead2, 0, "never-called: exempt member and import-covered member kept")
 
+    -- ---- MOCK-PARITY rule (--mock-parity, 2026-08-13) ----
+    -- Non-vacuity: (a) removing a whitelisted member fires the check;
+    -- (b) an unknown mock-only member (mock defines, production lacks AND
+    -- references it, not whitelisted) fires; repo-assigned, allowlisted, and
+    -- unreferenced members never fire. Synthetic tables — the pure decision
+    -- takes allowlist/whitelist as parameters, so the REAL ALLOWLIST and
+    -- MOCK_ONLY_WHITELIST are not consulted here.
+    local mp_ok = mock_parity_list(
+        { get_spell_cd = true },          -- mock defines
+        { },                              -- production assigns nothing
+        { },                              -- no allowlist coverage
+        { get_spell_cd = true },          -- production references it
+        { get_spell_cd = true })          -- whitelisted
+    expect(#mp_ok, 0, "mock-parity: whitelisted member passes")
+    local mp_removed = mock_parity_list(
+        { get_spell_cd = true }, { }, { },
+        { get_spell_cd = true }, { })     -- whitelist WITHOUT the member
+    expect(#mp_removed, 1, "mock-parity: removing a whitelisted member fires (self-test a)")
+    expect(mp_removed[1].name, "get_spell_cd", "mock-parity: removed member named")
+    local mp_unknown = mock_parity_list(
+        { new_mock_only = true }, { }, { },
+        { new_mock_only = true }, MOCK_ONLY_WHITELIST)
+    expect(#mp_unknown, 1, "mock-parity: unknown mock-only member fires (self-test b)")
+    expect(mp_unknown[1].name, "new_mock_only", "mock-parity: unknown member named")
+    local mp_resolved = mock_parity_list(
+        { defined_member = true, allowlisted_member = true, unused_member = true },
+        { defined_member = true },        -- repo-assigned
+        { allowlisted_member = true },    -- engine-surface allowlist
+        { defined_member = true, allowlisted_member = true },  -- referenced
+        MOCK_ONLY_WHITELIST)
+    expect(#mp_resolved, 0, "mock-parity: assigned/allowlisted/unreferenced members pass")
+    local mp_unreferenced = mock_parity_list(
+        { dead_mock_surface = true }, { }, { }, { }, MOCK_ONLY_WHITELIST)
+    expect(#mp_unreferenced, 0, "mock-parity: mock-only member nothing references passes")
+
     print("[PASS] NS-member audit self-tests: binding detection (NS vs param "
         .. "ns), string/line/block-comment exclusion, whitespace parens, "
         .. "inline + block guard detection, bare-call flagging, allowlist "
@@ -1139,7 +1241,10 @@ local function run_self_tests()
         .. "reference), type()-guard recognition pin, guarded= value-read "
         .. "verification (previous-line guard shape), never-called rule "
         .. "(defined-but-unreferenced members flagged; referenced / "
-        .. "import-covered / exempt members kept)")
+        .. "import-covered / exempt members kept), mock-parity rule "
+        .. "(whitelisted member passes; whitelist-removal fires; unknown "
+        .. "mock-only member fires; assigned/allowlisted/unreferenced "
+        .. "members never fire)")
     os.exit(0)
 end
 
@@ -1178,6 +1283,84 @@ local function run_ci_parity()
 end
 
 -- ============================================================================
+-- Mock-parity run (2026-08-13, --mock-parity): every member the battery
+-- mock's build_ns defines that PRODUCTION code references must exist in
+-- production — resolved by the repo assignment census (collect_assignments),
+-- by the engine-surface ALLOWLIST, or on the MOCK_ONLY_WHITELIST. A mock-only
+-- member that production depends on is the live-nil crash class: the spec
+-- calls NS.<name> in-game, live NS.<name> is nil. Members the mock defines
+-- but production never references are inert mock surface and are NOT flagged.
+-- ============================================================================
+local function run_mock_parity()
+    local assigned, mock = collect_assignments()
+    local referenced = {}
+    local pipe = io.popen("find " .. REPO_ROOT .. " -name '*.lua'")
+    for line in pipe:lines() do
+        local p = line:gsub("\\", "/")
+        if not (p:find("/tests/") or p:find("/tools/")) then
+            local f = io.open(p, "rb")
+            if f then
+                local content = f:read("*a")
+                f:close()
+                local res = scan_content(content)
+                for name in pairs(res.calls) do referenced[name] = true end
+                for name in pairs(res.value_reads or {}) do referenced[name] = true end
+            end
+        end
+    end
+    pipe:close()
+    local bad = mock_parity_list(mock, assigned, ALLOWLIST, referenced, MOCK_ONLY_WHITELIST)
+    -- mock ∩ production-referenced ∩ repo-unassigned = the mock-only-referenced
+    -- surface; of those, the members ALSO not allowlist-covered are the ones
+    -- the MOCK_ONLY_WHITELIST guards (currently none — the 9 pins are forward
+    -- guards for the known engine-absent names).
+    local mock_ref, pinned = {}, {}
+    for name in pairs(mock) do
+        if referenced[name] and not assigned[name] then
+            mock_ref[#mock_ref + 1] = name
+            if not ALLOWLIST[name] then pinned[#pinned + 1] = name end
+        end
+    end
+    table.sort(mock_ref)
+    table.sort(pinned)
+    local whitelist_names = {}
+    for name in pairs(MOCK_ONLY_WHITELIST) do whitelist_names[#whitelist_names + 1] = name end
+    table.sort(whitelist_names)
+    local mock_n = 0
+    for _ in pairs(mock) do mock_n = mock_n + 1 end
+    print("=============================================================================")
+    print("  NS-MEMBER MOCK-PARITY: mock-defined members that production references")
+    print("  must exist in production (repo-assigned, engine-allowlisted, or whitelisted)")
+    print("=============================================================================")
+    print(string.format("  %-25s %d members defined by the battery build_ns", "Mock surface:", mock_n))
+    print(string.format("  %-25s %d referenced by production but repo-unassigned",
+        "Mock-only referenced:", #mock_ref))
+    print(string.format("    %-23s %d (engine-surface pins in ALLOWLIST)",
+        "allowlist-resolved:", #mock_ref - #pinned))
+    print(string.format("    %-23s %d (MOCK_ONLY_WHITELIST %d pins: %s)",
+        "whitelist-guarded:", #pinned, #whitelist_names, table.concat(whitelist_names, ", ")))
+    print(string.format("  %-25s %d", "Violations:", #bad))
+    print("=============================================================================")
+    if #bad > 0 then
+        print("  Mock-only members that production references resolve nowhere:")
+        for _, v in ipairs(bad) do
+            print(string.format("    NS.%s  -- %s", v.name, v.why))
+        end
+        print("")
+        print("  Fix: define NS.<member> in the repo (core_sylvanas.lua / core/ /")
+        print("  shared/), add it to ALLOWLIST with engine-surface evidence, or pin")
+        print("  it on MOCK_ONLY_WHITELIST with the dated evidence (2026-08-13).")
+        os.exit(1)
+    end
+    print("  Every mock-defined member that production references resolves in")
+    print("  production (repo assignment census, engine-surface ALLOWLIST, or the")
+    print("  MOCK_ONLY_WHITELIST). A NEW mock-only member — mock defines it,")
+    print("  production lacks it, not allowlisted, not whitelisted — fails this")
+    print("  mode loudly.")
+    os.exit(0)
+end
+
+-- ============================================================================
 -- CLI
 -- ============================================================================
 if arg and arg[1] == "--self-test" then
@@ -1185,6 +1368,9 @@ if arg and arg[1] == "--self-test" then
 end
 if arg and arg[1] == "--ci-parity" then
     run_ci_parity()
+end
+if arg and arg[1] == "--mock-parity" then
+    run_mock_parity()
 end
 
 local scan = run_scan()

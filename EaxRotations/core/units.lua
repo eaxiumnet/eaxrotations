@@ -9,10 +9,8 @@
 -- core/units.lua
 --
 -- Units domain — extracted from EaxRotations/core_sylvanas.lua.
--- Owns GetPlayer / GetPet / GetTarget / GetFocus / GetPartyMembers /
--- unit_alive / unit_health_pct / same_unit / not_same_unit / safe_field
--- (renamed to NS.unit_safe_field so callers keep `safe_field` indirection
--- through NS).
+-- Owns GetPlayer / GetPet / get_friendly_target_entry (unit acquisition,
+-- pet access, and the friendly-target predicate used by healer specs).
 --
 -- WHY THIS EXTRACT
 --   core_sylvanas.lua mixed ~15 unrelated domains. centralising unit
@@ -21,7 +19,7 @@
 --
 -- CONTRACT
 --   - install(NS): wires GetPlayer, GetPet, get_pet, has_pet, get_pet_hp,
---     GetTarget, GetFocus, GetPartyMembers onto NS.
+--     get_friendly_target_entry onto NS.
 --   - Test mocks that supply these fields directly will still win
 --     (NS.<fn> = M.<fn> assignment overwrites whatever the mock had).
 -- =============================================================================
@@ -110,17 +108,6 @@ function M.GetPet(NS)
     return nil
 end
 
-function M.has_friendly_target(NS)
-    local me = NS.GetPlayer and NS.GetPlayer()
-    if not me then return false end
-    local target = NS.GetTarget and NS.GetTarget()
-    if not target then return false end
-    -- No native is_friendly(); "friendly" = alive and not hostile (can_attack /
-    -- is_enemy_with). NS.is_hostile_unit is defined in core_sylvanas and resolved
-    -- at CALL time, so install order here is safe.
-    if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return false end
-    return true
-end
 
 --- Returns { unit, hp_pct, effective_hp, is_player } for the player's current
 --- friendly target, or nil if target is missing/hostile/dead. effective_hp
@@ -152,7 +139,6 @@ function M.install(NS)
         local pet = NS.GetPet()
         return pet and NS.unit_health_pct and NS.unit_health_pct(pet) or 100
     end
-    function NS.has_friendly_target() return M.has_friendly_target(NS) end
     function NS.get_friendly_target_entry(context) return M.get_friendly_target_entry(NS, context) end
 end
 

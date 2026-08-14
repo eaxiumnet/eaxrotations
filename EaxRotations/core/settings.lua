@@ -20,7 +20,7 @@
 -- CONTRACT
 --   - install(NS, deps): wires up NS.get_setting, NS.set_setting,
 --     NS.setting, NS.setting_number, NS.setting_bool, NS.get_any_setting,
---     NS.refresh_settings_cache, NS.get_setting_cached, NS.register_izi_buff_events.
+--     NS.refresh_settings_cache.
 --   - dependencies passed in `deps`:
 --       deps.time_now(): callable that returns monotonic seconds.
 --       deps.settings_manager: optional module with :get(key)/:set(key, value).
