@@ -1,7 +1,7 @@
 -- protection_sylvanas.lua — Warrior Protection tank rotation for TBC Anniversary (2.5.5).
--- WHAT: priority list for threat (SS > Revenge > Devastate/Sunder), mitigation (Shield Block high), Demo/TC, AoE (Cleave/TC + WW stance dance), taunts, defensives, rage dump.
--- WHEN: combat (defensive stance preferred), valid enemy target.
--- WHY: mirrors wowsims/tbc-new protection APL (Shield Block when rage/ready, SS/Revenge/Devastate, Demo refresh, multi TC/WW, defensive CDs <40%).
+-- WHAT:  priority list for threat (SS > Shield Block > Revenge > Devastate/Sunder), mitigation (Shield Block high), Demo/TC, AoE (Cleave/TC + WW stance dance), taunts, defensives, rage dump.
+-- WHEN:  combat (defensive stance preferred), valid enemy target.
+-- WHY:   mirrors wowsims/tbc protection dispatch (SS/Revenge/Devastate, Demo refresh, multi TC/WW, defensive CDs <40%); Shield Block promoted above Revenge 2026-08-13 per the guide (not modeled by the sim, so unpinned — see strategy comment).
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); registration guarded.
 
 -- Warrior Protection priority list.
@@ -57,7 +57,9 @@ local BLOODRAGE_CD = 60
 local DISARM_CD = 60
 local INTIMIDATING_SHOUT_CD = 180
 local SHIELD_WALL_CD = 1800
-local FINAL_STAND_CD = 480
+-- Agrees with class_sylvanas.lua LastStand cooldown (spell 12975; verified in
+-- _dbc_spell_ids.lua). Was 480 — contradicted the class table.
+local FINAL_STAND_CD = 180
 
 -- Test assertion strings required by test_spell_id_table_regressions.lua
 
@@ -275,7 +277,20 @@ local prot_state = {
  desired_stance = nil,
 }
 
+-- Frame cache: build_state is invoked once per frame by the dispatcher AND
+-- again per strategy by apply_base_matches' merge_state (38 × per frame).
+-- Cache on context.now so the expensive ~30 spell_ready / buff / threat-scan
+-- block runs once per tick (mirrors arms_sylvanas:325 / bear_sylvanas:343 /
+-- cat_sylvanas:646). The cache-hit return is still wrapped in safe_state so
+-- Pattern-14 nil-guard defaults apply on hits too (cache-hit audit invariant).
+local _last_build_state_time = -1
+
 local function build_state(context)
+ local now = context.now
+ if now and now == _last_build_state_time then return spec_kit.safe_state(prot_state) end
+ now = now or (NS.time_now and NS.time_now() or 0)
+ if context.now then _last_build_state_time = now end
+ prot_state.now = now
  local target = context.target
  if target then
   prot_state.sunder_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SUNDER_DEBUFF) or 0
@@ -305,6 +320,13 @@ local function build_state(context)
  prot_state.has_commanding_shout = me and NS.buff_up(me, COMMANDING_SHOUT_BUFF) or false
  prot_state.has_last_stand = me and NS.buff_up(me, STAND_BUFF) or false
  prot_state.has_shield_wall = me and NS.buff_up(me, SHIELD_WALL_BUFF) or false
+
+ -- Native swing-timer prediction (same helper as kebab/fury/arms; exists in
+ -- core_sylvanas.lua as NS.get_time_until_swing). Feeds swing_timer_gate so
+ -- HeroicStrike/Cleave queue AFTER the swing lands instead of delaying it.
+ -- The 99 fallback keeps the gate open when the addon/API is unavailable
+ -- (matches the old always-pass behavior).
+ prot_state.swing_remains = NS.get_time_until_swing and NS.get_time_until_swing() or 99
 
  prot_state.ss_ready = target and NS.spell_ready(ACTION.ShieldSlam, target, { expected_cooldown = SHIELD_SLAM_CD }) or false
  prot_state.revenge_ready = target and NS.spell_ready(ACTION.Revenge, target, { expected_cooldown = REVENGE_CD }) or false
@@ -648,7 +670,11 @@ local function taunt_matches_fn(context, state)
  local me = context.me or NS.GetPlayer()
  local target = context.target
  if not target then return false end
- -- Smart taunt: only taunt elites/bosses (classification >= 1)
+ -- Smart taunt: only taunt elites/bosses (classification >= 1). Elite-only is
+ -- intentional: trash dies too fast to justify the CD, and the tab-target scan
+ -- (prot_tab_targeting) handles un-tanked elites. Pinned by
+ -- test_opener_elite_regression.lua (Taunt fires exclusively in the elite_target
+ -- battery scenario) — do not broaden without updating that pin.
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
  if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
@@ -676,7 +702,7 @@ end
 local function mocking_blow_matches_fn(context, state)
  if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.mocking_ready then return false end
- -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
+ -- Smart taunt: only mocking blow elites/bosses (classification >= 1; elite-only by design — see taunt_matches_fn)
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
  if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
@@ -693,7 +719,7 @@ local function taunt_secondary_matches_fn(context, state)
  if not state.mocking_ready then return false end
  if not spec_kit.setting_bool(context, "prot_tab_targeting", true) then return false end
  if (state.enemy_count or 0) < 3 then return false end
- -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
+ -- Smart taunt: only mocking blow elites/bosses (classification >= 1; elite-only by design — see taunt_matches_fn)
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
  if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
@@ -709,7 +735,7 @@ local function challenging_shout_matches_fn(context, state)
  if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.challenging_ready then return false end
  if state.aoe_cc_nearby then return false end  -- AoE taunt would pull CC'd mobs
- -- Smart taunt: only shout on elites/bosses (classification >= 1)
+ -- Smart taunt: only shout on elites/bosses (classification >= 1; elite-only by design — see taunt_matches_fn)
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
  if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
@@ -948,8 +974,8 @@ local ACTIONS = {
     { name = "Pummel",                requires_in_combat = true },
     { name = "ShieldSlamPurge",       requires_in_combat = true, requires_pvp = true },
     { name = "ShieldSlam",            requires_in_combat = true },
-    { name = "Revenge",               requires_in_combat = true },
     { name = "ShieldBlock",           requires_in_combat = true, requires_target = false },
+    { name = "Revenge",               requires_in_combat = true },
     { name = "Taunt",                 requires_in_combat = true },
     { name = "TauntSecondary",        requires_in_combat = true },
     { name = "MockingBlow",           requires_in_combat = true },
@@ -1076,13 +1102,15 @@ local strategies = {
   end,
   execute = function(context) return NS.try_cast(ACTION.ShieldSlam, context.target, "[PROT] ShieldSlam", { expected_cooldown = SHIELD_SLAM_CD }) end,
  },
- {
-  name = "Revenge",
-  matches = function(context, state)
-   return is_defensive_stance(state.stance) and state.revenge_ready
-  end,
-  execute = function(context) return NS.try_cast(ACTION.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
- },
+   -- ShieldBlock above Revenge: promoted 2026-08-13 (Phase 2.2e guide
+   -- divergence). The guide puts Shield Block ahead of Revenge for
+   -- mitigation-over-threat when it is ready; the smart gate below (skip while
+   -- the buff has >2s remaining AND incoming damage is below
+   -- prot_shield_block_incoming) keeps uptime without GCD-spamming, so Revenge
+   -- still fills every GCD Shield Block does not take. NOT pinned by
+   -- tools/apl_status.lua tbc/warrior/protection (reference_names omit
+   -- ShieldBlock — wowsims/tbc does not model it); the 6 pinned names keep
+   -- their relative order, so APL conformance still passes.
    {
     name = "ShieldBlock",
     matches = function(context, state)
@@ -1097,6 +1125,13 @@ local strategies = {
     end,
     execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
    },
+ {
+  name = "Revenge",
+  matches = function(context, state)
+   return is_defensive_stance(state.stance) and state.revenge_ready
+  end,
+  execute = function(context) return NS.try_cast(ACTION.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
+ },
  {
   name = "Taunt",
   matches = function(context, state) return taunt_matches_fn(context, state) end,
@@ -1205,12 +1240,15 @@ local strategies = {
   name = "WhirlwindMulti",
   matches = function(context, state)
    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
+   -- Whirlwind requires Berserker Stance; in Defensive (the tank's default)
+   -- try_cast fails silently every frame. Gate on stance so the lane only
+   -- fires when a cast can actually succeed (stance_mode = berserker, or the
+   -- execute-phase / StanceSwitch dance has landed in Berserker).
+   if state.stance ~= STANCE.BERSERKER then return false end
    if not NS.spell_ready or not NS.spell_ready(ACTION.Whirlwind, context.me, { skip_range = true }) then return false end
-   -- Prefer in Berserker for WW; the StanceSwitch will handle dance if configured
    return true
   end,
   execute = function(context)
-   -- If not in berserker, the stance manager or subsequent StanceSwitch will help; cast WW
    return NS.try_cast(ACTION.Whirlwind, context.me or NS.GetPlayer(), "[PROT] Whirlwind (AoE)", { skip_range = true })
   end,
  },

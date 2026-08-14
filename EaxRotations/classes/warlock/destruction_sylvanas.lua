@@ -80,12 +80,12 @@ local SummonFelguard = NS.spell_action({ 30146 }, "SummonFelguard")
 local FelDomination = NS.spell_action({ 18708 }, "FelDomination")
 
 -- Constants
-local IMMOLATE_PANDEMIC_WINDOW = 3.5
--- (destruction_sylvanas) Immolate min-SP gate removed 2026-08 (read-side
--- audit): the engine never populates context.spell_damage, so state.spell_damage
--- was always 0 and the gate blocked Immolate (and therefore Conflagrate) for
--- every level-40+ warlock in live play — same family as the balance/elemental
--- min-SP gates dropped in the 2026-08 vanilla sweep.
+-- (destruction_sylvanas) Immolate min-SP gate re-added 2026-08-13 (Phase 2.1),
+-- now gated on the player_spell_damage setting: the gate engages ONLY when the
+-- engine populates context.spell_damage (setting > 0). Default 0 → gate inert
+-- → Immolate/Conflagrate can never be blocked live (the 2026-08 removal reason
+-- still holds for the default configuration).
+local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (conservative GCD-positive threshold)
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local LIFE_TAP_MOVING_MIN_HP = 50   -- never Life Tap while moving below this HP (safety gate)
@@ -165,7 +165,7 @@ local function build_state(context)
     state.has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false
     state.hp = context.hp or 100
     state.mana_pct = context.mana_pct or 100
-    state.spell_damage = context.spell_damage or 0
+    state.spell_damage = context.spell_damage or 0  -- populated by the engine only when the player_spell_damage setting is > 0 (Phase 2.1)
     state.level = context.level or context.player_level or 70
     -- Find ready mana item
     state.mana_gem_id = nil
@@ -196,10 +196,10 @@ local ACTIONS = {
     { name = "FelArmor", spell = ACTION.FelArmor, target = "self", kind = "buff", buff = FEL_ARMOR_BUFF, requires_target = false },
     { name = "DemonArmor", spell = DemonArmorSpell, target = "self", kind = "buff", buff = DEMON_ARMOR_BUFF, requires_target = false },
     { name = "CreateHealthstone", spell = CreateHealthstone, target = "self", ooc = true, requires_target = false },
-    { name = "LifeTap", spell = ACTION.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
-    { name = "DarkPact", spell = DarkPact, target = "self", max_mana = 55, requires_target = false },
+    { name = "LifeTap", spell = ACTION.LifeTap, target = "self", max_mana = 20, min_hp = 40, requires_target = false },
+    { name = "DarkPact", spell = DarkPact, target = "self", max_mana = 45, requires_target = false },
     { name = "DrainLife", spell = DrainLife, not_moving = true, min_hp = 40 },
-    { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 60, requires_target = false },
+    { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 50, requires_target = false },
     -- Curses (CurseOfDoom before Immolate per regression test)
     { name = "CurseOfDoom", spell = ACTION.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = CURSE_REFRESH_WINDOW, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
     { name = "CurseOfAgony", spell = ACTION.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = CURSE_REFRESH_WINDOW },
@@ -238,7 +238,7 @@ local ACTIONS = {
     { name = "SummonSuccubus", spell = SummonSuccubus, target = "self", ooc = true, requires_target = false },
     { name = "SummonFelhunter", spell = SummonFelhunter, target = "self", ooc = true, requires_target = false },
     { name = "SummonFelguard", spell = SummonFelguard, target = "self", ooc = true, requires_target = false },
-    { name = "FelDomination", spell = FelDomination, target = "self", cooldown = 900, requires_target = false },
+    { name = "FelDomination", spell = FelDomination, target = "self", cooldown = 900, requires_target = false, ooc = true, no_pet = true },
 }
 
 local function select_curse(context, state)
@@ -432,6 +432,20 @@ local function death_coil_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if (state.hp or 100) > 35 then return false end
+    if not (NS.spell_ready and NS.spell_ready(action.spell, context.target)) then return false end
+    return true
+end
+
+local function fel_domination_matches(context, action, state)
+    -- 15-minute cooldown: only burn it OOC with NO live pet — otherwise the
+    -- default `return true` matcher fired it in combat with no valid target
+    -- and OOC with a live pet (all fillers failing). Mirrors demonology's
+    -- fel_domination_matches (OOC + no-pet gate).
+    if context.in_combat then return false end
+    local pet = NS.GetPet()
+    if pet and NS.unit_alive and NS.unit_alive(pet) then return false end
+    if not (NS.spell_ready and NS.spell_ready(action.spell,
+        context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT, { skip_range = true })) then return false end
     return true
 end
 
@@ -484,13 +498,33 @@ local DSL_DEFS = {
     {
         name = "Immolate",
         conditions = {
+            -- ACTIONS metadata carried `not_moving = true` but the DSL
+            -- substitution drops it — Immolate would fire while moving.
+            -- Nil-tolerant: only `is_moving == true` counts as moving.
+            { type = "custom", fn = function(context, state)
+                if context.is_moving == true then return false end
+                return true
+            end },
             { type = "custom", fn = function(context, state)
                 -- Toggle: skip Immolate entirely when disabled (speed kills / pure SB spam)
                 if not spec_kit.setting_bool(context, "destro_use_immolate", true) then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)
-                if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
+                -- Immolate min-SP gate (Phase 2.1, re-added gated on the
+                -- player_spell_damage setting): only engages when the engine
+                -- populated context.spell_damage (setting > 0). Default 0 →
+                -- gate inert, Immolate never blocked (2026-08 removal reason).
+                -- Immolate has ~0.57 combined spellpower coefficient (direct +
+                -- DoT); GCD-positive at ~400 SP (conservative).
+                local min_sp = spec_kit.setting_number(context, "destro_immolate_min_sp", IMMOLATE_MIN_SP_DEFAULT)
+                if (context.spell_damage or 0) > 0 and (state.level or 70) >= 40 and (state.spell_damage or 0) < min_sp then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                -- Refresh window is should_refresh_dot's 1.5s (the former
+                -- IMMOLATE_PANDEMIC_WINDOW=3.5 pre-check was dead: anything
+                -- above 1.5s is already rejected here).
                 return NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)
             end },
         },
@@ -629,6 +663,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return create_healthstone_matches(context, action, state) end
     elseif action.name == "DeathCoil" then
         custom_matches = function(context, state) return death_coil_matches(context, action, state) end
+    elseif action.name == "FelDomination" then
+        custom_matches = function(context, state) return fel_domination_matches(context, action, state) end
     elseif action.name == "Shadowfury" then
         custom_matches = function(context, state) return shadowfury_matches(context, action, state) end
     elseif action.name == "Fear" then
@@ -680,13 +716,16 @@ end
 -- ============================================================================
 
 -- ManaGem: auto-use mana items when mana is low (shared helper)
--- Insert at position 7 (after DarkPact=6, before DrainLife=7)
-table.insert(strategies, 7, mana_gem_helper.make_strategy("ManaGem", "destro_mana_gem_threshold", 35))
+-- Insert at position 6 (after DarkPact=5, before DrainLife=6): use the mana
+-- item BEFORE resorting to the DrainLife channel.
+table.insert(strategies, 6, mana_gem_helper.make_strategy("ManaGem", "destro_mana_gem_threshold", 35))
 
 -- Healthstone: auto-use healthstone when HP is low (shared helper)
 table.insert(strategies, 23, healthstone_helper.make_strategy("Healthstone", {
     use_state_id = true,
     label = "[DESTRUCTION]",
+    -- Parity with affliction/demonology: allow OOC use (default is combat-only).
+    require_in_combat = false,
 })) -- Soulshatter is provided centrally by warlock middleware (Soulshatter strategy).
 
 -- Replace imperative match functions with DSL-compiled equivalents.

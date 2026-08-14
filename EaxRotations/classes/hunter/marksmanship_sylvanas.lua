@@ -1,8 +1,13 @@
 -- marksmanship_sylvanas.lua — Hunter Marksmanship rotation for TBC Anniversary (2.5.5).
--- WHAT:  ranged DPS spec (Aimed Shot, Trueshot Aura, Rapid Fire, Steady Shot weave,
---         Aspect Hawk/Viper dynamic swap, pet management, melee weaving).
+-- WHAT:  ranged DPS spec (Aimed Shot precast opener, Trueshot Aura, Rapid Fire,
+--         Steady Shot filler weave, Aspect Hawk/Viper dynamic swap, pet management,
+--         melee weaving; OPT-IN in-combat Aimed Shot weave via mm_aimed_weave).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   mirrors wowsims APL: Aimed Shot > Multi-Shot > Steady Shot filler.
+-- WHY:   mirrors wowsims APL: Aimed Shot precast opener (0.5s combat window only),
+--         then Multi-Shot (AoE) > Steady Shot filler. The guide-divergence opt-in
+--         (mm_aimed_weave, default off) adds the classic 3.0s auto-shot weave lane
+--         (Aimed Shot between auto-shots, swing-window gated) — off == byte-
+--         equivalent wowsims behavior.
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update allocs;
 --          registration guarded.
 local NS = _G.EaxRotations
@@ -40,12 +45,19 @@ local ACTION = {
 }
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
+local hunter_core = require("shared/hunter_core_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 local MULTI_SHOT_CAST_MS = 500
 local AIMED_SHOT_CAST_MS = 2500
+
+-- Aimed Shot prepull latch: fires at most once per combat cycle. Set on a
+-- successful precast; cleared in build_state when combat starts (see below).
+-- Without this, the prepull lane fired every OOC tick (live-correctness audit
+-- 2026-08) — in town it re-cast Aimed Shot every 6s on any OOC target.
+local _aimed_prepull_fired = false
 
 local function can_cast_steady()
     local tracker = NS.HunterClipTracker
@@ -80,7 +92,9 @@ local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
 
-local WING_CLIP_DEBUFF = { 2974 }
+local WING_CLIP_DEBUFF = { 2974, 14267, 14268 }
+-- Viper Sting full rank ladder (TBC ranks 1-4; DBC-verified in _dbc_spell_ids.lua)
+local VIPER_STING_DEBUFF = { 27018, 14280, 14279, 3034 }
 local RAPTOR_STRIKE_IDS = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
 
 local SERPENT_STING_REFRESH_SEC = 1.5
@@ -218,6 +232,12 @@ local MM_SCHEMA = {
     mana_pct = 100,  in_combat = false,  enemy_count = 1,  is_ooc = false,
     hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
     healthstone_ready = 0,  distance_sq = 10000,  is_group = false,
+    -- Threat management (mirrors BM): fd_mode defaults "off" — the middleware
+    -- ThreatDrop lane (use_threat_drop) owns always-on Feign Death.
+    threat_level = 0,  fd_mode = "off",
+    -- Aspect management (BM parity): hunter_auto_aspect setting gates the
+    -- in-combat Hawk/Viper swap lanes.
+    auto_aspect = true,
 }
 
 -- ============================================================================
@@ -263,6 +283,9 @@ local mm_state = {
     hunter_shot_timer_buffer = 150,
     healthstone_ready = 0,
     distance_sq = 10000,
+    threat_level = 0,
+    fd_mode = "off",
+    auto_aspect = true,
 }
 
 local function build_state(context)
@@ -323,6 +346,20 @@ local function build_state(context)
     -- 2026-08) — added here from the Deterrence buff (19263).
     mm_state.has_deterrence = me and safe_buff_up(me, { 19263 }) or false
     mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+    -- Threat management (mirrors BM): fd_mode defaults "off"; the middleware
+    -- ThreatDrop lane (use_threat_drop) owns always-on Feign Death. The live
+    -- dispatcher publishes has_aggro (get_threat_situation >= 2) rather than
+    -- threat_level, so aggro counts as threat level 2 — otherwise the lane
+    -- would be dead in live play (battery drives ctx.threat_level directly).
+    local tl = context.threat_level or context.threat_situation or 0
+    if tl < 2 and context.has_aggro then tl = 2 end
+    mm_state.threat_level = tl
+    mm_state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
+    -- Aspect management (BM parity): hunter_auto_aspect gates the Hawk/Viper lanes.
+    mm_state.auto_aspect = spec_kit.setting_bool(context, "hunter_auto_aspect", true)
+    -- Aimed Shot prepull latch: one-shot per combat cycle. Cleared at combat
+    -- start so the next pull re-arms; set on successful prepull cast.
+    if context.in_combat then _aimed_prepull_fired = false end
 
     return spec_kit.safe_state(mm_state, MM_SCHEMA)
 end
@@ -335,14 +372,28 @@ end
 -- Match functions
 -- ============================================================================
 local function aimed_shot_prepull_matches(context, s)
+    -- One-shot per combat cycle: once cast, stays latched until the next
+    -- combat start clears it (build_state). Prevents OOC recast every tick.
+    if _aimed_prepull_fired then return false end
     if not s.is_ooc then return false end
     if not s.aimed_shot_prepull_ready then return false end
+    -- Pull-imminence gate: need an actual target within Aimed Shot range
+    -- (35yd = 1225 sq). Unknown distance does not block (IZI enforces range
+    -- at cast time); only a KNOWN out-of-range target suppresses the precast.
+    if not context.target then return false end
+    local dsq = s.distance_sq
+    if dsq and dsq > 1225 then return false end
     if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
     return true
 end
 
 local function multi_shot_matches(context, s)
+    if not s.in_combat then return false end
     if not s.multi_shot_ready then return false end
+    -- AoE gate (BM parity): Multi-Shot only with enough enemies (aoe_threshold,
+    -- hunter menu default 3). Single-target combat now uses Steady/Arcane filler.
+    local threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(threshold, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s) then return false end
     if context.has_breakable_cc_nearby then return false end
     if (s.mana_pct or 100) < 15 then return false end
     if not can_cast_before_auto(MULTI_SHOT_CAST_MS) then return false end
@@ -369,6 +420,9 @@ local function serpent_sting_matches(context, s)
 end
 
 local function aspect_hawk_matches(context, s)
+    -- BM parity: honor the hunter_auto_aspect setting (nil-lenient so callers
+    -- that omit the field keep the historical default-on behavior).
+    if s.auto_aspect == false then return false end
     if s.has_aspect_hawk then return false end
     -- Wowsims-aligned: exit Viper at 25% (enter at 5% via aspect_viper_matches)
     if s.has_aspect_viper then
@@ -379,6 +433,8 @@ local function aspect_hawk_matches(context, s)
 end
 
 local function aspect_viper_matches(context, s)
+    -- BM parity: honor the hunter_auto_aspect setting (nil-lenient).
+    if s.auto_aspect == false then return false end
     if s.has_aspect_viper then return false end
     -- Wowsims-aligned: enter Viper at 5%
     if (s.mana_pct or 100) > 5 then return false end
@@ -411,8 +467,54 @@ local function in_combat_aimed_shot_matches(context, s)
     return true
 end
 
+-- In-combat Aimed Shot weave (guide divergence, opt-in via mm_aimed_weave).
+-- The guide weaves Aimed Shot between auto-shots (3.0s auto-shot rhythm, 2.5s
+-- cast) instead of precasting only; wowsims pins precast-only. Default OFF =
+-- current wowsims behavior, byte-equivalent (the setting gate is the matcher's
+-- first check). The swing-window gate reuses can_cast_before_auto (same design
+-- as the vanilla-era 3.0s weave lane). The <=0.5s opener window stays owned by
+-- the InCombatAimedShot lane above; this lane covers the rest of the fight.
+local function aimed_shot_weave_matches(context, s)
+    if spec_kit.setting_bool(context, "mm_aimed_weave", false) == false then return false end
+    if not s.in_combat then return false end
+    local combat_time = context.combat_time or 0
+    if combat_time <= 0.5 then return false end
+    if not s.aimed_shot_ready then return false end
+    if (s.mana_pct or 100) < 20 then return false end
+    if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
+    return true
+end
+
+-- Viper Sting: mana drain. The middleware owns the primary ViperSting lane
+-- (use_viper_sting_pve/pvp settings, power-type + HP gates); this spec lane
+-- mirrors its setting gates so it can never fire when the middleware is off,
+-- and adds the debuff-overlap + target-mana guards that stopped the recast
+-- spam (audit 2026-08: it re-cast over the live debuff every GCD).
 local function viper_sting_matches(context, s)
+    if not s.in_combat then return false end
     if not s.viper_sting_ready then return false end
+    -- Honor the middleware's use_viper_sting_pve/pvp settings (same defaults).
+    local pve = spec_kit.setting_bool(context, "use_viper_sting_pve", true)
+    local pvp = spec_kit.setting_bool(context, "use_viper_sting_pvp", true)
+    if not pve and not pvp then return false end
+    if context.is_pvp then
+        if not pvp then return false end
+    elseif not pve then
+        return false
+    end
+    if not context.target then return false end
+    -- No recast over a live Viper Sting debuff (full TBC rank ladder).
+    if NS.debuff_up and NS.debuff_up(context.target, VIPER_STING_DEBUFF) then return false end
+    -- Target-mana gate: with under 20% mana there is almost nothing left to
+    -- drain — skip. Unknown target mana does not block. The engine never
+    -- writes context.target_mana_pct (read-side audit), so read the real
+    -- IZI unit method directly.
+    local tm = nil
+    if context.target.get_mana_percentage then
+        local ok, v = pcall(context.target.get_mana_percentage, context.target)
+        if ok and type(v) == "number" then tm = v end
+    end
+    if tm ~= nil and tm < 20 then return false end
     return true
 end
 
@@ -572,7 +674,8 @@ local strategies = {
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(ACTION.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() _aimed_prepull_fired = true return true end return false end },
+    { name = "AimedShotWeave", matches = aimed_shot_weave_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (weave)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "KillCommand" },
     { name = "FeignDeath" },
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
@@ -649,6 +752,15 @@ local DSL_DEFS = {
         name = "FeignDeath",
         conditions = {
             { type = "state", field = "in_combat", value = true },
+            -- Threat-gated (mirrors BM): fd_mode defaults "off"; fires only at
+            -- high threat / aggro with the mode enabled. The middleware
+            -- ThreatDrop lane (use_threat_drop, default on) remains the
+            -- always-on threat drop.
+            { type = "custom", fn = function(context, state)
+                local mode = state.fd_mode or "off"
+                if mode == "off" then return false end
+                return hunter_core.should_feign_death(state.threat_level or 0, mode)
+            end },
             { type = "state", field = "feign_death_ready", value = true },
         },
         action = { type = "cast", spell = ACTION.FeignDeath, target = "self", opts = { skip_range = true, expected_cooldown = 30 }, label = "[MARKSMANSHIP] Feign Death" },
@@ -658,6 +770,16 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", value = false },
             { type = "state", field = "freezing_trap_ready", value = true },
+            -- Nearby-enemy gate: only drop the trap when a target is within
+            -- ~15yd (225 sq) — prevents dropping a trap every 30s OOC in town
+            -- with no enemy around. Unknown distance does not block (the trap
+            -- is placed at the feet; IZI enforces range at cast time).
+            { type = "custom", fn = function(context, state)
+                if not context.target then return false end
+                local dsq = state.distance_sq
+                if dsq and dsq > 225 then return false end
+                return true
+            end },
         },
         action = { type = "cast", spell = ACTION.FreezingTrap, target = "self", opts = { skip_range = true, expected_cooldown = 30 }, label = "[MARKSMANSHIP] Freezing Trap" },
     },

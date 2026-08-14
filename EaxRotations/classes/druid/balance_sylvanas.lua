@@ -1,10 +1,13 @@
 -- balance_sylvanas.lua — Druid Balance (moonkin) rotation for TBC Anniversary (2.5.5).
 -- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Faerie Fire, Starfire filler with Wrath for mana,
---         optional multi-DoT spread via TSHelper.get_dps_targets, Starfall, Force of Nature).
+--         optional multi-DoT spread via TSHelper.get_dps_targets, Force of Nature).
 --         6 strategies use the declarative strategy DSL (fourth DSL adopter, first mana-based caster).
 -- WHEN:  combat, in Moonkin form, with valid enemy target.
 -- WHY:   mirrors wowsims/tbc-new balance APL and TBC guides (dots up, Faerie Fire, Starfire primary filler,
---         Starfall on CD, self-Innervate low mana, treants on CD; multi-DoT when enabled).
+--         Force of Nature on CD, healer-priority Innervate then self-Innervate low mana, treants on CD;
+--         multi-DoT when enabled; balance_wrath_conserve opt-out frees Wrath filler for parse — P2.2b).
+--         NOTE: "Starfall on CD" was removed from the header — Starfall (WotLK spell 48505) does not
+--         exist in TBC / the 2.5.5 client.
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 local NS = _G.EaxRotations
@@ -177,6 +180,12 @@ local ACTION = {
     MarkOfTheWild   = define("MarkOfTheWild", { 26990,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
+-- Min-SP gates (Phase 2.1, re-added gated on the player_spell_damage setting):
+-- the balance_insect_swarm_min_sp / balance_moonfire_min_sp menu settings
+-- (schema_sylvanas.lua) skip the DoT when current spell damage is below the
+-- floor. The gate engages ONLY when the engine populated context.spell_damage
+-- (setting > 0); default 0 → gate inert, byte-identical to the 2026-08
+-- gate-free behavior.
 local _INSECT_MIN_SP = 800
 local _MOONFIRE_MIN_SP = 800
 
@@ -220,6 +229,7 @@ local _state = {
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil,
     healthstone_ready=0,
+    spell_damage=0,  -- populated by the engine only when the player_spell_damage setting is > 0 (Phase 2.1)
     multidot_enabled=false, multidot_max=3, multidot_range=30,
     dotted_moonfire_count=0, dotted_insect_count=0,
 }
@@ -236,6 +246,7 @@ local BALANCE_SCHEMA = {
     target_ttd = 999,
     innervate_target = nil,
     healthstone_ready = 0,
+    spell_damage = 0,
     is_group = false,
     multidot_enabled = false,
     multidot_max = 3,
@@ -259,6 +270,7 @@ local function build_state(ctx)
     _state.barkskin_active = NS.has_player_buff(_BARKSKIN_BUFF)
     _state.is_group = ctx.is_group or false
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
+    _state.spell_damage = ctx.spell_damage or 0  -- populated by the engine only when the player_spell_damage setting is > 0 (Phase 2.1)
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
     _state.innervate_target = nil
@@ -327,6 +339,15 @@ local function _choose_nuke(s, ctx)
     local m = _mana_now(s, ctx)
     -- Nature's Grace active: Starfire for burst (NG reduces cast time).
     if s.natures_grace_active then return "starfire" end
+    -- Guide divergence (P2.2b): balance_wrath_conserve is an opt-OUT
+    -- (default true = current mana-conservation gating). When OFF, Wrath is
+    -- cast freely as filler whenever mana allows (aggressive parse filler),
+    -- bypassing the mana-tier gate below. At the default the branch is never
+    -- taken — byte-equivalent to the pre-2.2b behavior.
+    if not spec_kit.setting_bool(ctx, "balance_wrath_conserve", true) then
+        if m >= 10 then return "wrath" end
+        return "starfire"
+    end
     -- Mana conservation: Wrath has higher DPM (damage per mana) than Starfire.
     -- Wowsims/tbc-new and guides default to Starfire (higher DPCT) and use Wrath for mana conservation or filler.
     local mana_floor = (settings and settings.balance_wrath_mana) or 35
@@ -374,6 +395,25 @@ local strategies = {
         end,
     },
     {
+        -- Pattern 13 split: the smart-Innervate party scan (build_state) hands
+        -- the first low-mana healer-class member to this lane; InnervateSelf
+        -- owns the self fallback. The two matchers are mutually exclusive on
+        -- NS.same_unit(innervate_target, me), so order between them is
+        -- semantically irrelevant (kept adjacent, mirroring resto).
+        name="InnervateHealer",
+        matches=function(ctx, s)
+            if not ctx or not ctx.in_combat then return false end
+            if not s.innervate_target then return false end
+            local me = ctx.me or NS.GetPlayer()
+            if not me then return false end
+            if NS.same_unit and NS.same_unit(s.innervate_target, me) then return false end
+            return NS.spell_ready(ACTION.Innervate, s.innervate_target, { skip_range = true })
+        end,
+        execute=function(_, s)
+            return NS.try_cast(ACTION.Innervate, s.innervate_target, "[BALANCE] Innervate healer")
+        end,
+    },
+    {
         name="RebirthBattleRez",
         matches=function(ctx)
             if not ctx.in_combat then return false end
@@ -381,6 +421,10 @@ local strategies = {
             local dead = find_dead and find_dead() or nil
             if not dead then return false end
             if not (dead.is_player and dead:is_player()) then return false end
+            -- ctx.tank_alive semantics (verified main_sylvanas.lua:954/1129):
+            -- true = tank alive, false = tank died. Blocking the rez when the
+            -- tank is dead is intentional (the dead ally found is usually the
+            -- tank itself; don't burn the 20-min cooldown into a likely wipe).
             if ctx.tank_alive==false then return false end
             return NS.spell_ready(ACTION.Rebirth, dead)
         end,
@@ -448,7 +492,12 @@ local strategies = {
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
             if settings.balance_use_insect_swarm == false then return false end
+            -- Min-SP gate (Phase 2.1, gated on the player_spell_damage setting):
+            -- engages only when the engine populated ctx.spell_damage (setting
+            -- > 0); default 0 → gate inert, byte-identical to the 2026-08
+            -- gate-free behavior.
             local min_sp = settings.balance_insect_swarm_min_sp or _INSECT_MIN_SP
+            if (ctx.spell_damage or 0) > 0 and (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_IS)
         end,
@@ -461,7 +510,10 @@ local strategies = {
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
+            -- Min-SP gate (Phase 2.1, gated on the player_spell_damage setting)
+            -- — see InsectSwarmDoT for the semantics.
             local min_sp = settings.balance_moonfire_min_sp or _MOONFIRE_MIN_SP
+            if (ctx.spell_damage or 0) > 0 and (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_MF)
         end,

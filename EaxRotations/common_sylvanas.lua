@@ -95,4 +95,10 @@ function NS.common_predictive_healing_section()
     }, "Estimates future health deficit from recent damage intake to stop healers from overhealing.")
 end
 
+function NS.common_spell_damage_section()
+    return section("Spell Damage Snapshot", {
+        { type = "slider", key = "player_spell_damage", default = 0, min = 0, max = 2000, label = "Player Spell Damage", tooltip = "Your current spell damage/healing value (0 = off). When > 0 the engine exposes context.spell_damage and activates the DoT snapshot-upgrade engines (affliction/destruction/shadow/elemental/balance). Default 0 keeps prior behavior byte-identical." },
+    }, "Optional user-provided spell power that powers DoT snapshot-upgrade gates and min-SP gates. Off by default.")
+end
+
 -- common schema initialized

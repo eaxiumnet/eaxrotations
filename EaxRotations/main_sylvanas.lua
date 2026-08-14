@@ -25,6 +25,11 @@ local _manual_target_lockout_until = 0 -- Timestamp when 3s manual target grace 
 local _pet_cache_data = nil
 local _pet_cache_timestamp = 0
 local _cached_inventory_time = 0
+-- player_spell_damage setting cache (Phase 2.1): read with a 2s TTL, like the
+-- pet cache below. Populates context.spell_damage ONLY when the setting is > 0;
+-- default 0 leaves the field absent (byte-equivalent to prior behavior).
+local _cached_spell_damage = 0
+local _spell_damage_cache_time = 0
 local _sod_ctx_ok, sod_context = pcall(require, "shared/sod_context_sylvanas")
 if not _sod_ctx_ok or type(sod_context) ~= "table" or type(sod_context.enrich) ~= "function" then sod_context = nil end
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
@@ -813,6 +818,21 @@ local function build_context()
     _context.focus = _api.power_current(NS.POWER_FOCUS)
     -- Attack power for cat druid AP snapshotting (falls back to 0 if unit method unavailable)
     _context.attack_power = unit_number(me, "get_attack_power") or 0
+    -- context.spell_damage (Phase 2.1): populated ONLY when the
+    -- player_spell_damage menu setting is > 0 — the user provides their spell
+    -- power value because the API exposes no player spell-power accessor
+    -- (core.spell_book.get_spell_damage was deprecated/removed and
+    -- spell_helper.get_spell_damage is per-spell tooltip parsing). Default 0 =
+    -- setting off = field absent = byte-equivalent to prior behavior (every
+    -- consumer reads `context.spell_damage or 0`). Setting read throttled to
+    -- 2s (Pattern 6) so the menu lookup never runs per frame.
+    local now_sd = _api.time_now and _api.time_now() or 0
+    if now_sd - _spell_damage_cache_time >= 2 then
+        _spell_damage_cache_time = now_sd
+        _cached_spell_damage = spec_kit.setting_number(nil, "player_spell_damage", 0)
+        if type(_cached_spell_damage) ~= "number" then _cached_spell_damage = 0 end
+    end
+    if _cached_spell_damage > 0 then _context.spell_damage = _cached_spell_damage end
     -- Spell crit chance for paladin Illumination mana-return calculations.
     -- Expected as percentage (0-100); consumer divides by 100. Falls back to 0 if API unavailable.
     _context.crit_chance = unit_number(me, "get_spell_crit_chance") or 0

@@ -185,7 +185,31 @@ end
 -- of recasting on context.target (which already has the DoT).
 -- Priority: TSHelper.get_dps_targets (target_selector) → ActiveFightTracker
 -- (engagement-aware, GUID model, setting-gated) → legacy GetEnemiesInRange → IZI enemies().
+-- The full pick (enemy list enumeration + debuff scans) is expensive and was
+-- running up to 2x per tick in cleave/aoe; it is throttled to 1s per debuff
+-- set (keyed by the first debuff ID), mirroring the 1s-throttled multidot
+-- counts in build_state. The cached candidate is re-validated per tick by the
+-- matcher's post-picker gates (debuff_remains, snapshot upgrade).
+local _last_multidot_pick = {}        -- debuff_key -> last pick time (NS.time_now)
+local _cached_multidot_target = {}    -- debuff_key -> last picked target
+local _MULTIDOT_PICK_TTL = 1.0
+
+-- Throttled wrapper: within the TTL reuse the last pick for the debuff set
+-- instead of re-enumerating enemies every tick (mirrors _last_multidot_scan).
+local _pick_multidot_target  -- forward declaration (defined below)
 local function _find_multidot_target(context, debuff_ids, range)
+    local pick_key = debuff_ids and debuff_ids[1] or "default"
+    local now_t = NS.time_now and NS.time_now() or 0
+    if now_t - (_last_multidot_pick[pick_key] or -1) < _MULTIDOT_PICK_TTL then
+        return _cached_multidot_target[pick_key]
+    end
+    _last_multidot_pick[pick_key] = now_t
+    local t = _pick_multidot_target(context, debuff_ids, range)
+    _cached_multidot_target[pick_key] = t
+    return t
+end
+
+_pick_multidot_target = function(context, debuff_ids, range)
     local current = context and context.target
     local function is_valid_target(enemy)
         if not enemy then return false end
@@ -595,7 +619,8 @@ local function build_state(context)
         end
     end
 
-    -- Current spell damage from NS (provided by middleware or character API)
+    -- Current spell damage: populated by the engine only when the
+    -- player_spell_damage setting is > 0 (Phase 2.1)
     shadow_state.spell_damage = context.spell_damage or 0
     -- Bloodlust/Heroism buff â€” enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFFS) or false
@@ -772,10 +797,13 @@ local function shadow_swp_spread_matches(context, s)
     local target = _find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
     if not target then return false end
     context._shadow_swp_spread_target = target
-    -- Allow refresh on the picked target if it is currently active but snapshot-upgradeable or in pandemic
+    -- Allow refresh on the picked target if it is currently active but snapshot-upgradeable or in pandemic.
+    -- Snapshot engine (Phase 2.1, gated on the player_spell_damage setting):
+    -- only engages when context.spell_damage > 0 (setting on); at 0 the guard
+    -- is skipped, byte-identical to prior behavior (snapshots stay 0).
     local swp_window = s.swp_refresh_window or 3
     local swp_remains = NS.debuff_remains and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-    if swp_remains > 0 and swp_remains > swp_window then
+    if swp_remains > 0 and swp_remains > swp_window and (context.spell_damage or 0) > 0 then
         if not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, swp_remains, swp_window, SPELL_DMG_UPGRADE_RATIO) then
             return false
         end
@@ -798,10 +826,12 @@ local function shadow_vt_spread_matches(context, s)
     local target = _find_multidot_target(context, VAMPIRIC_TOUCH_DEBUFF)
     if not target then return false end
     context._shadow_vt_spread_target = target
-    -- Allow refresh on the picked target if currently active but snapshot-upgradeable or in pandemic
+    -- Allow refresh on the picked target if currently active but snapshot-upgradeable or in pandemic.
+    -- Snapshot engine (Phase 2.1, gated on the player_spell_damage setting) —
+    -- see shadow_swp_spread_matches for the semantics.
     local vt_window = s.vt_refresh_window or 3
     local vt_remains = NS.debuff_remains and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF) or 0
-    if vt_remains > 0 and vt_remains > vt_window then
+    if vt_remains > 0 and vt_remains > vt_window and (context.spell_damage or 0) > 0 then
         if not should_snapshot_upgrade(s.spell_damage, s.snapshot_vt_dmg, vt_remains, vt_window, SPELL_DMG_UPGRADE_RATIO) then
             return false
         end
@@ -862,11 +892,23 @@ end
 local function devouring_plague_matches(context, s)
     if not s.devouring_plague_known then return false end
     if not can_break_mind_flay(s) then return false end
-    if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
+    if not context.has_valid_enemy_target then return false end
+    local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+    -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+    -- setting): setting off → plain window guard (byte-identical to prior
+    -- behavior). Setting on → refresh in the extended window (dp_window +
+    -- REFRESH_EXTRA_WINDOW) only when current spell damage beats the snapshot
+    -- by the upgrade ratio.
+    local dp_window = s.dp_refresh_window or 3
+    if (s.dp_remaining or 0) > dp_window then
+        if (context.spell_damage or 0) <= 0 then return false end
+        if not should_snapshot_upgrade(s.spell_damage, s.snapshot_dp_dmg, s.dp_remaining, dp_window, ratio) then return false end
+    end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
-    -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-    local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+    -- Snapshot-aware (within window): hold refresh if current spell damage is
+    -- not an upgrade over snapshotted (no-op while the setting is off —
+    -- snapshots stay 0, so the helper always refreshes)
     if s.dp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_dp_dmg, s.dp_remaining, 3, ratio) then return false end
     if (s.dp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     return true
@@ -1023,8 +1065,8 @@ local function mana_emergency_wand_matches(context, s)
     if not context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
     if not s.wand_learned then return false end
-    -- Only start if not already wanding (let existing auto-attack run)
-    if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+    -- Always claim the lane while in mana emergency: the execute side keeps an
+    -- already-running wand going or starts one (is_auto_attacking distinction).
     return true
 end
 
@@ -1040,8 +1082,8 @@ end
 
 local function swd_cc_break_execute(context, s)
     if s.mf_channeling then
-        if NS.stop_casting then NS.stop_casting() end
-        if NS.cancel_current_cast then NS.cancel_current_cast() end
+        -- Real API: NS.cancel_spells wraps core.input.cancel_spells (nil-guarded).
+        if NS.cancel_spells then NS.cancel_spells() end
     end
     return NS.try_cast(ACTION.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break -> %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC"))
 end
@@ -1201,7 +1243,17 @@ local DSL_DEFS = {
             { type = "context", field = "is_moving", op = "falsy" },
             { type = "context", field = "has_valid_enemy_target", op = "truthy" },
             { type = "custom", fn = function(context, state)
-                if (state.vt_remaining or 0) > vt_clip_threshold(context) then return false end
+                -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+                -- setting): setting off → plain clip guard (byte-identical to
+                -- prior behavior). Setting on → refresh in the extended window
+                -- (clip + REFRESH_EXTRA_WINDOW) only when current spell damage
+                -- beats the snapshot by the upgrade ratio.
+                local clip = vt_clip_threshold(context)
+                if (state.vt_remaining or 0) > clip then
+                    if (context.spell_damage or 0) <= 0 then return false end
+                    local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+                    if not should_snapshot_upgrade(state.spell_damage, state.snapshot_vt_dmg, state.vt_remaining, clip, ratio) then return false end
+                end
                 return true
             end },
             { type = "custom", fn = function(context, state)
@@ -1250,14 +1302,20 @@ local DSL_DEFS = {
                 return true
             end },
             { type = "custom", fn = function(context, state)
+                -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+                -- setting): setting off → plain window guard (byte-identical to
+                -- prior behavior). Setting on → refresh in the extended window
+                -- only when current spell damage beats the snapshot by the
+                -- upgrade ratio (window here is the effective weaving-aware
+                -- window, so the upgrade ratio is reachable in (window, window
+                -- + REFRESH_EXTRA_WINDOW]).
                 local sw_window = swp_clip_threshold(context)
                 local effective_window = (state.weaving_stacks > 0 and state.weaving_stacks < 5) and 5 or sw_window
-                if state.swp_remaining > effective_window then return false end
-                return true
-            end },
-            { type = "custom", fn = function(context, state)
-                local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-                if state.swp_remaining > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_swp_dmg, state.swp_remaining, swp_clip_threshold(context), ratio) then return false end
+                if (state.swp_remaining or 0) > effective_window then
+                    if (context.spell_damage or 0) <= 0 then return false end
+                    local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+                    if not should_snapshot_upgrade(state.spell_damage, state.snapshot_swp_dmg, state.swp_remaining, effective_window, ratio) then return false end
+                end
                 return true
             end },
             { type = "custom", fn = function(context, state)

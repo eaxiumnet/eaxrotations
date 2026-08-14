@@ -296,6 +296,9 @@ if class_schema and NS and NS.common_auto_aoe_section then
         if NS.common_predictive_healing_section then
             table.insert(class_schema[1].sections, NS.common_predictive_healing_section())
         end
+        if NS.common_spell_damage_section then
+            table.insert(class_schema[1].sections, NS.common_spell_damage_section())
+        end
     elseif type(class_schema) == "table" then
         -- Flat format: append individual settings directly
         local auto_aoe = NS.common_auto_aoe_section()
@@ -319,6 +322,12 @@ if class_schema and NS and NS.common_auto_aoe_section then
         local predict_section = NS.common_predictive_healing_section and NS.common_predictive_healing_section()
         if predict_section and predict_section.settings then
             for _, setting in ipairs(predict_section.settings) do
+                table.insert(class_schema, setting)
+            end
+        end
+        local spell_damage_section = NS.common_spell_damage_section and NS.common_spell_damage_section()
+        if spell_damage_section and spell_damage_section.settings then
+            for _, setting in ipairs(spell_damage_section.settings) do
                 table.insert(class_schema, setting)
             end
         end

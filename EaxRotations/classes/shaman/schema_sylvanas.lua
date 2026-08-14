@@ -190,6 +190,8 @@ return {
                 header = "Elemental – Rotation & Mana",
                 settings = {
                     { key = "elemental_cl_min_targets", type = "slider", label = "Chain Lightning Min Targets", min = 2, max = 5, default = 3 },
+                    { key = "elemental_cl_single_target", type = "checkbox", label = "Chain Lightning on Single Target", default = false, tooltip = "Guide divergence (default OFF): allow Chain Lightning on single-target fights where it outperforms Lightning Bolt filler. When OFF, Chain Lightning stays AoE-only" },
+                    { key = "elemental_fs_maintain", type = "checkbox", label = "Maintain Flame Shock (refresh <3s)", default = false, tooltip = "Guide divergence (default OFF): refresh Flame Shock on the current target at <3s remaining even in single-target rotation, keeping the DoT up for the Lava Burst crit synergy. When OFF, Flame Shock stays clip-window-only (<=1s)" },
                     { key = "elemental_cl_cluster_radius", type = "slider", label = "Chain Lightning Cluster Radius (yds)", min = 5, max = 20, default = 10 },
                     { key = "elemental_aoe_threshold", type = "slider", label = "AoE Totem Min Targets", min = 2, max = 6, default = 4 },
                     { key = "elemental_mana_low_pct", type = "slider", label = "Mana Low (% switch to lower Lightning Bolt)", min = 10, max = 50, default = 30 },

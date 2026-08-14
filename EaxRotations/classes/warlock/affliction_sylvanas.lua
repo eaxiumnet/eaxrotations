@@ -1,7 +1,9 @@
 -- affliction_sylvanas.lua -- Warlock Affliction DPS for TBC Anniversary (2.5.5).
 -- WHAT:  multi-DoT priority list with snapshot-aware refresh, Nightfall proc
 --         consumption, execute-phase Drain Soul, curse mode selection, and
---         IZI spread_dot multi-target cycling.
+--         IZI spread_dot multi-target cycling. OPT-IN aff_curse_first (default
+--         off) lifts the selected curse ABOVE the DoT setup at combat start
+--         (guide divergence §2.2g: curse-first parse opener).
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL + TBC affliction consensus: UA > Corruption >
 --         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoR/CoW) > Shadow Bolt filler.
@@ -172,7 +174,7 @@ end
 --- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
 --- Perf: results cached per-tick keyed by spell_id (Pattern 4: no redundant scans).
 ---       3 spread strategies × 2 calls each (matches+execute) = 6 scans → 3 max.
----@param spell_id number DoT spell ID to check
+---@param spell_id number|table DoT spell ID or full rank-ladder table to check
 ---@param radius number|nil Search radius (default 40)
 ---@return game_object|nil target Missing the DoT, or nil
 local _dot_target_cache = {}     -- [spell_id] = target|false
@@ -187,6 +189,10 @@ local function find_dot_target(spell_id, radius)
     if _dot_target_cache[spell_id] ~= nil then
         return _dot_target_cache[spell_id] or nil  -- false→nil
     end
+    -- Accept a full rank-ladder table (checks every rank via NS.debuff_up) or
+    -- a single numeric id — callers pass the whole *_DEBUFF constant so a
+    -- low-rank debuff is never mistaken for "missing DoT".
+    local ids = type(spell_id) == "table" and spell_id or { spell_id }
 
     local me = NS.GetPlayer and NS.GetPlayer() or nil
     local result = nil
@@ -215,7 +221,7 @@ local function find_dot_target(spell_id, radius)
                         if not skip_immune then
                             local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
                             if not (ok_hp and hp and hp < 20) then
-                                local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                                local has_dot = NS.debuff_up and NS.debuff_up(unit, ids)
                                 if not has_dot then
                                     result = unit
                                     break
@@ -247,7 +253,7 @@ local function find_dot_target(spell_id, radius)
                         if not skip_immune then
                             local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
                             if not (ok_hp and hp and hp < 20) then
-                                local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                                local has_dot = NS.debuff_up and NS.debuff_up(unit, ids)
                                 if not has_dot then
                                     result = unit
                                     break
@@ -274,6 +280,10 @@ local UNSTABLE_AFFL_DEBUFF   = { 30405, 30404, 30108 }
 local SIPHON_LIFE_DEBUFF     = { 30911, 27264, 18881, 18880, 18879, 18265 }
 local IMMOLATE_DEBUFF        = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local SHADOW_EMBRACE_DEBUFF  = { 32386, 32388, 32389, 32390, 32391 }
+-- Shadow Embrace TALENT spells (all 5 ranks — the learnable passives, unlike
+-- the debuffs above). ShadowEmbraceMaintenance is gated on these so non-SE
+-- builds (se_stacks always 0) never fire it as an unconditional filler.
+local SHADOW_EMBRACE_TALENT  = { 32385, 32387, 32392, 32393, 32394 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
@@ -485,7 +495,7 @@ local function build_state(context)
             aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
             -- Amplify Curse readiness
             aff_state.amplify_curse_ready = NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true }) or false
-	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
+	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage: populated by the engine only when the player_spell_damage setting is > 0 (Phase 2.1)
 	    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
 	    aff_state.has_bloodlust = context.me and NS.buff_up and NS.buff_up(context.me, BLOODLUST_BUFFS) or false
 	    -- Maintain snapshot state: reset snapshots if DoT expired (stale)
@@ -615,6 +625,19 @@ local function other_curse_active(state, this_curse)
     return curse_helper.other_curse_active(state, this_curse)
 end
 
+-- CurseFirst opener map (guide divergence §2.2g): mirrors the regular curse
+-- lanes' spell choices and TTD sanity gates (agony: 8s ramp, doom: 1min CD)
+-- so the opt-in lane only changes ORDER (curse before DoT setup), never curse
+-- selection. `remains` is the state field holding the curse's debuff time;
+-- `min_ttd` is optional and replicates the matching regular lane's gate.
+local CURSE_FIRST = {
+    agony        = { spell = ACTION.CurseOfAgony,        remains = "agony_remains",        min_ttd = 8 },
+    doom         = { spell = ACTION.CurseOfDoom,         remains = "doom_remains",         min_ttd = 62 },
+    elements     = { spell = LOCAL_SPELLS.CurseElements, remains = "coe_remains" },
+    recklessness = { spell = ACTION.CurseOfRecklessness, remains = "recklessness_remains" },
+    weakness     = { spell = ACTION.CurseOfWeakness,     remains = "weakness_remains" },
+}
+
 -- Racial ability match gate for all racial strategies
 local function racial_matches(context, state)
     if not context.has_valid_enemy_target then return false end
@@ -676,21 +699,30 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[AFFL] Nightfall instant Shadow Bolt" },
     },
-    {
-        name = "NightfallProc",
-        conditions = {
-            { type = "context", field = "has_valid_enemy_target", op = "==", value = true },
-            { type = "state", field = "nightfall_active", op = "==", value = true },
-            { type = "spell_ready", spell = ACTION.ShadowBolt, target = "target" },
-        },
-        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[AFFL] Nightfall instant Shadow Bolt" },
-    },
 }
 
 -- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
+
+    -- Pre-combat pull: MUST sit ABOVE the DoT lane. Out of combat with a
+    -- manually selected target the DoT strategies match first (remains = 0,
+    -- TTD unknown → not skipped), which made this lane unreachable and the
+    -- intended pull-timer Shadow Bolt never fired. In combat it returns false
+    -- and play falls through to the DoT lane unchanged.
+    { name = "PreCombatPull",
+      matches = function(context)
+          if context.in_combat then return false end
+          if not context.has_valid_enemy_target then return false end
+          -- Range check: Shadow Bolt has 30yd range
+          if context.target_range and context.target_range > 28 then return false end
+          -- Pre-cast Shadow Bolt on pull timer targets
+          return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
+      end,
+      execute = function(context)
+          return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
+      end },
 
     -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
     { name = "DamagePotion",
@@ -767,13 +799,58 @@ local strategies = {
         end,
     },
     -- ------------------------------------------------------------------------
+    -- 4a. Curse First (guide divergence §2.2g, opt-in aff_curse_first).
+    -- When ON, the selected curse is applied BEFORE the DoT setup at combat
+    -- start (the curse benefits all shadow/fire damage — parse opener). The
+    -- setting gate is the matcher's FIRST statement, so unset (default false)
+    -- the lane never matches: byte-identical to the pre-opt-in rotation.
+    -- Ownership is "curse fully absent" (opener + full falloff) — refresh
+    -- windows stay with the regular curse lanes below the DoT setup, so this
+    -- lane only changes ORDER, never curse selection or refresh timing.
+    -- ------------------------------------------------------------------------
+    {
+        name = "CurseFirst",
+        matches = function(context, state)
+            if not spec_kit.setting_bool(context, "aff_curse_first", false) then return false end
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            local curse = select_curse(context, state)
+            local entry = curse and CURSE_FIRST[curse]
+            if not entry then return false end
+            -- Opener ownership: only while the curse is fully absent from the
+            -- target. While it is up (including the refresh window), the
+            -- regular curse lanes below the DoTs own reapplication.
+            if (state[entry.remains] or 0) > 0 then return false end
+            if other_curse_active(state, curse) then return false end
+            -- Replicate the regular lane's TTD sanity gate (agony 8s, doom 62s).
+            if entry.min_ttd and context.ttd_known and context.ttd and context.ttd < entry.min_ttd then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(entry.spell, context.target) or false
+        end,
+        execute = function(context, state)
+            local curse = select_curse(context, state)
+            local entry = curse and CURSE_FIRST[curse]
+            if not entry then return false end
+            return NS.try_cast(entry.spell, context.target, "[AFFL] Curse first (opener)")
+        end,
+    },
+    -- ------------------------------------------------------------------------
     {
         name = "UnstableAffliction",
         matches = profiled_matches("UnstableAffliction", function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+            -- setting): setting off (context.spell_damage absent → 0) is
+            -- byte-identical to the plain window guard — beyond
+            -- DOT_REFRESH_WINDOW the refresh is held. Setting on → refresh in
+            -- the extended window (DOT_REFRESH_WINDOW + REFRESH_EXTRA_WINDOW)
+            -- only when current spell damage is an upgrade over the snapshot.
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then
+                if (context.spell_damage or 0) <= 0 then return false end
+                if not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            end
+            -- Within the plain window: refresh as usual (no-op upgrade check
+            -- while the setting is off — snapshots stay 0 and the helper refreshes)
             if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
@@ -793,12 +870,12 @@ local strategies = {
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.ua_remains or 0) <= DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF)
             if not target then return false end
             return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
         end,
@@ -812,9 +889,13 @@ local strategies = {
         name = "CorruptionDoT",
         matches = profiled_matches("CorruptionDoT", function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+            -- setting) — see UnstableAffliction for the semantics.
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then
+                if (context.spell_damage or 0) <= 0 then return false end
+                if not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            end
             if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
@@ -834,12 +915,12 @@ local strategies = {
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.corruption_remains or 0) <= DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(CORRUPTION_DEBUFF)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(CORRUPTION_DEBUFF)
             if not target then return false end
             return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
         end,
@@ -870,9 +951,13 @@ local strategies = {
         name = "SiphonLife",
         matches = profiled_matches("SiphonLife", function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+            -- setting) — see UnstableAffliction for the semantics.
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then
+                if (context.spell_damage or 0) <= 0 then return false end
+                if not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_siphon_dmg or 0, state.siphon_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            end
             if (state.siphon_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_siphon_dmg or 0, state.siphon_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
@@ -893,12 +978,12 @@ local strategies = {
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.siphon_remains or 0) <= DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF)
             if not target then return false end
             return NS.try_cast(ACTION.SiphonLife, target, "[AFFL] Siphon Life Spread")
         end,
@@ -911,12 +996,16 @@ local strategies = {
         name = "ImmolateDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware refresh (Phase 2.1, gated on the player_spell_damage
+            -- setting) — see UnstableAffliction for the semantics.
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then
+                if (context.spell_damage or 0) <= 0 then return false end
+                if not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            end
+            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- Skip if target TTD is very short
             if context.ttd_known and context.ttd < 5 then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.immolate, ttd_threshold) then return false end
@@ -936,12 +1025,12 @@ local strategies = {
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.immolate_remains or 0) <= DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 5 then return false end
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(IMMOLATE_DEBUFF)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(IMMOLATE_DEBUFF)
             if not target then return false end
             return NS.try_cast(ACTION.Immolate, target, "[AFFL] Immolate Spread")
         end,
@@ -960,10 +1049,12 @@ local strategies = {
             if not spec_kit.setting_bool(context, "aff_use_amplify_curse", true) then return false end
             -- Only use on targets that live long enough (60s+ to warrant 3min CD)
             if context.ttd_known and context.ttd < 60 then return false end
-            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
+            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements).
+            -- The early gate above guarantees ttd >= 60 when ttd_known, so the
+            -- former `ttd >= 8` / `ttd >= 62` sub-checks were dead — remains only.
             local about_to_curse = false
-            if (state.agony_remains or 0) <= CURSE_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
-            if (state.doom_remains or 0) <= CURSE_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
+            if (state.agony_remains or 0) <= CURSE_REFRESH_WINDOW then about_to_curse = true end
+            if (state.doom_remains or 0) <= CURSE_REFRESH_WINDOW then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
             if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready and NS.spell_ready(ACTION.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse
@@ -1077,12 +1168,12 @@ local strategies = {
             -- Inverted from previous to match intended multi-dot behavior for the chosen curse.
             if (state.agony_remains or 0) <= CURSE_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 8 then return false end
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF)
             if not target then return false end
             return NS.try_cast(ACTION.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
         end,
@@ -1137,7 +1228,7 @@ local strategies = {
             if NS.cast_ground_aoe then
                 return NS.cast_ground_aoe(LOCAL_SPELLS.RainOfFire, t, r, 35, "[AFFL] Rain of Fire")
             end
-            local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(LOCAL_SPELLS.RainOfFire, t, r, 35)
+            local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(LOCAL_SPELLS.RainOfFire), t, r, 35)
             if pos and NS.try_cast_position then
                 return NS.try_cast_position(LOCAL_SPELLS.RainOfFire, pos, t, "[AFFL] Rain of Fire")
             end
@@ -1196,25 +1287,20 @@ local strategies = {
     -- Shadow Bolt and Life Tap is unsafe, falls through to Wand instead.
     -- ------------------------------------------------------------------------
     {
-        name = "PreCombatPull",
-        matches = function(context)
-            if context.in_combat then return false end
-            if not context.has_valid_enemy_target then return false end
-            -- Range check: Shadow Bolt has 30yd range
-            if context.target_range and context.target_range > 28 then return false end
-            -- Pre-cast Shadow Bolt on pull timer targets
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
-        end,
-        execute = function(context)
-            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
-        end,
-    },
-
-    {
         name = "ShadowEmbraceMaintenance",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            -- Talent gate: without Shadow Embrace, se_stacks is always 0 and
+            -- this lane would ALWAYS match — an unconditional ~380-mana filler
+            -- above LifeTap/DarkPact/ManaPotion/Wand. Only fire if the talent
+            -- is actually known (any rank).
+            if not (NS.spell_exists and NS.spell_exists(SHADOW_EMBRACE_TALENT)) then return false end
             if (state.se_stacks or 0) >= 5 then return false end
+            -- Same low-mana guard as ShadowBoltFiller: don't attempt the cast
+            -- when Life Tap is unsafe (critically low mana + low HP).
+            local mana = state and state.mana_pct or (context.mana_pct or 100)
+            local hp = state and state.hp_pct or (context.hp or 100)
+            if mana < 5 and hp < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
@@ -1288,8 +1374,8 @@ local strategies = {
             return state.mana_potion_id ~= nil
         end,
         execute = function(_, state)
-            if NS.use_item_by_id then NS.use_item_by_id(state.mana_potion_id) end
-            return true
+            if not NS.use_item_by_id then return false end
+            return NS.use_item_by_id(state.mana_potion_id) or false
         end,
     },
 
@@ -1431,7 +1517,6 @@ local strategies = {
         name = "SummonFelhunter",
         matches = function(context, state)
             if context.in_combat then return false end
-            if context.has_valid_enemy_target then return false end
             if state and state.has_pet then return false end
             -- Do NOT re-summon if Demonic Sacrifice aura is already active
             if state and state.has_demonic_sacrifice then return false end

@@ -3,6 +3,9 @@
 -- WHEN: combat or pre-combat, with valid friendly targets.
 -- WHY:   mirrors TBC support healing: emergency shields respect Weakened Soul; Holy-only Circle of Healing is excluded.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
+-- DECISION: guide ranks PoH/BindingHeal ABOVE the GH/FH tier, but the pinned order
+--           (test_discipline_dsl_priority.lua) keeps them below; disc_poh_priority
+--           (default off) raises them at runtime via matcher yield (_poh_priority_yield).
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
@@ -89,10 +92,15 @@ end
 -- Tracks recent damage taken to gate long-cast heals during pushback
 --- Checks if the player is taking damage or in pushback using available API.
 --- Uses fallback detection when standard enemy scanner isn't exposed.
+--- PERF: result is tick-cached in build_state (state.has_pushback) — this
+--- scans all 8yd enemies with pcalls and was previously invoked up to 3x/tick.
 ---@param context table The combat context.
+---@param me unit|nil Player unit (defaults to context.me).
 ---@return boolean has_pushback True if pushback is likely active.
-local function _check_pushback(context)
- if not (context and context.me) then return false end
+local function _check_pushback(context, me)
+ if not context then return false end
+ me = me or context.me
+ if not me then return false end
  local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(8) or {}
  for _, enemy in ipairs(enemies) do
   if enemy then
@@ -102,7 +110,7 @@ local function _check_pushback(context)
 
    -- Fallback: can_attack check
    local ok2, can_attack = pcall(function()
-    if context.me.can_attack then return enemy:can_attack(context.me) end
+    if me.can_attack then return enemy:can_attack(me) end
     return false
    end)
    if ok2 and can_attack then return true end
@@ -126,8 +134,8 @@ local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 -- Debuff check for self-dispel (Dispel Magic)
 -- ============================================================================
 local DISPEL_MAGIC_DEBUFF_IDS = {
- 1010, 1014, 1022, -- Curses
- 589, 594, 6074, -- Magic DoTs
+ 1010, 1014, -- Curses
+ 589, 594, -- Magic DoTs
  118, 12824, 12825, 12826, -- Magic CC
  27819,   -- Mana Detonation (KT)
 }
@@ -183,6 +191,8 @@ local DISC_SCHEMA = {
     has_power_word_fortitude = false,
     has_prayer_of_fortitude = false,
     player_control_locked = false,
+    -- Pushback (tick-cached; see _check_pushback)
+    has_pushback = false,
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
@@ -232,6 +242,7 @@ local disc_state = {
  power_word_fortitude_ready = false,
  friendly_target = nil,
  friendly_target_ready = false,
+ has_pushback = false,
 }
 
 local function build_state(context)
@@ -239,10 +250,13 @@ local function build_state(context)
  local me = context.me or NS.GetPlayer()
  if not me then return spec_kit.safe_state(disc_state, DISC_SCHEMA) end
  disc_state.player_control_locked = context.player_control_locked == true
+ disc_state.has_pushback = false
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if me.is_mounted and me:is_mounted() then
   return spec_kit.safe_state(disc_state, DISC_SCHEMA)
  end
+ -- Pushback: tick-cached (was _check_pushback() up to 3x/tick in matches)
+ disc_state.has_pushback = _check_pushback(context, me)
  local target = context.target
  local entries, count = Healing.scan_healing_targets()
 
@@ -324,7 +338,7 @@ local function build_state(context)
  disc_state.smite_ready = me and NS.spell_ready(ACTION.Smite, me, { expected_cooldown = 2.5 }) or false
  disc_state.holy_fire_ready = me and NS.spell_ready(ACTION.HolyFire, me, { expected_cooldown = 10 }) or false
  disc_state.psychic_scream_ready = me and NS.spell_ready(ACTION.PsychicScream, me, { expected_cooldown = 30 }) or false
- disc_state.shadowfiend_ready = me and (NS.spell_exists and NS.spell_exists(ACTION.Shadowfiend) or true) and NS.spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT) or false
+ disc_state.shadowfiend_ready = me and (not NS.spell_exists or NS.spell_exists(ACTION.Shadowfiend)) and NS.spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT) or false
  disc_state.dispel_magic_ready = me and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
  disc_state.mass_dispel_ready = me and NS.spell_ready(ACTION.MassDispel, me, { skip_range = true }) or false
  disc_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
@@ -402,11 +416,28 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
+-- Guide-divergence opt-in (parse-spec tbc/priest/discipline): the rotation
+-- guide ranks Prayer of Healing + Binding Heal ABOVE the GH/FH tier, but the
+-- pinned strategy order (test_discipline_dsl_priority.lua) keeps them below
+-- Greater Heal. disc_poh_priority (default off) closes the gap at runtime:
+-- when enabled, the GH/FH-tier matchers yield whenever PoH/BindingHeal would
+-- fire, effectively raising them above the tier without reordering the pins.
+-- Forward-declared so _poh_priority_yield can call the heal matchers defined
+-- below (Lua upvalue resolution: declared local, assigned later).
+local binding_heal_matches
+local prayer_of_healing_matches
+local function _poh_priority_yield(context, s)
+ if not spec_kit.setting_bool(context, "disc_poh_priority", false) then return false end
+ if binding_heal_matches and binding_heal_matches(context, s) then return true end
+ if prayer_of_healing_matches and prayer_of_healing_matches(context, s) then return true end
+ return false
+end
 -- ============================================================================
 -- PW:S on tank — always allowed, ignores tank-only setting.
 -- This is the primary tank mitigation tool.
 -- ============================================================================
 local function greater_heal_matches(context, s)
+ if _poh_priority_yield(context, s) then return false end
  if not context.in_combat then return false end
  if context.is_moving then return false end
  if not s.lowest then return false end
@@ -414,7 +445,7 @@ local function greater_heal_matches(context, s)
  if (s.mana_pct or 100) < 30 then return false end
  -- Pushback gate: skip GH when taking damage (cast time gets pushed back, inefficient)
  -- Falls back to faster heals (Flash Heal) during pushback windows
- if _check_pushback(context) then return false end
+ if s.has_pushback then return false end
  local hp = s.lowest.effective_hp or 100
  if hp > spec_kit.setting_number(context, "discipline_greater_heal_hp", 82) then return false end
  if hp <= spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
@@ -430,27 +461,31 @@ local function renew_lowest_matches(context, s)
  if not s.lowest then return false end
  if s.lowest.has_renew then return false end
  if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_renew_hp", 90) then return false end
+ -- Mana conservation (CONSUME_MANA_FLOOR contract): below the floor, shield only
+ if (s.mana_pct or context.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  if not s.renew_ready then return false end
  return true
 end
 
-local function binding_heal_matches(context, s)
+binding_heal_matches = function(context, s)
  if context.is_moving then return false end
  if not s.lowest then return false end
  if (s.lowest.effective_hp or 100) > 50 then return false end
  if (s.hp_pct or 100) > 70 then return false end
+ -- Mana conservation (CONSUME_MANA_FLOOR contract): below the floor, shield only
+ if (s.mana_pct or context.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  if not s.binding_heal_ready then return false end
   -- Predictive overheal gate: don't cast BH if predicted deficit is smaller than the heal
   if gate_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings, _spell_id(ACTION.BindingHeal)) then return false end
  return true
 end
 
-local function prayer_of_healing_matches(context, s)
+prayer_of_healing_matches = function(context, s)
  if context.is_moving then return false end
  if (s.mana_pct or context.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  -- Advanced: prefer party_injured_count from core.party frames for accurate PoH subgroup
  local poh_count = s.party_injured_count or s.subgroup_damaged_count or s.group_damaged_count or 0
- if poh_count < 4 then return false end
+ if poh_count < 3 then return false end
  if not s.prayer_of_healing_ready then return false end
   -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
   local poh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
@@ -573,16 +608,26 @@ local function shackle_undead_matches(context, s)
  return true
 end
 
+-- Dispel target selection: tank first, then lowest ally, then self
+-- (mirrors holy DispelMagic).
+local function _dispel_target(context, s)
+ if s.tank and s.tank.unit then return s.tank.unit end
+ if s.lowest and s.lowest.unit then return s.lowest.unit end
+ return context.me or NS.GetPlayer()
+end
+
 local function dispel_magic_matches(context, s)
  if not s.dispel_magic_ready then return false end
- -- Dungeon opt: if control_risk (from researched MC/fear), dispel to speed and save
- local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
- if context.control_risk or context.fear_nearby or (group_aware and context.is_group) then
-  return true
+ -- Live-correctness fix: never match on control_risk / fear_nearby / group
+ -- presence alone — that fired every tick in any group and always self-cast.
+ -- Require an actual dispellable debuff (curse/disease/magic/poison) on the
+ -- affected unit (tank/lowest with the debuff, self only as fallback).
+ local target = _dispel_target(context, s)
+ if not target then return false end
+ if Healing.has_dangerous_dispel then
+  return Healing.has_dangerous_dispel(target)
  end
- local me = context.me or NS.GetPlayer()
- if not has_magic_debuff(me) then return false end
- return true
+ return has_magic_debuff(target)
 end
 
 -- ============================================================================
@@ -641,7 +686,7 @@ local function pre_heal_matches(context, s)
  if not s.tank then return false end
  local tank_hp = s.tank.effective_hp or 100
  if tank_hp < 60 or tank_hp > 95 then return false end
- if not _check_pushback(context) then return false end
+ if not s.has_pushback then return false end
  if context.me then
   local ok, casting = pcall(function() return context.me:is_casting() end)
   if ok and casting then return false end
@@ -767,6 +812,7 @@ local DSL_DEFS = {
             { type = "context", field = "is_moving", op = "falsy" },
             { type = "state", field = "flash_heal_ready", op = "truthy" },
             { type = "custom", fn = function(context, s)
+                if _poh_priority_yield(context, s) then return false end
                 if not s.lowest then return false end
                 if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
                 if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
@@ -828,7 +874,7 @@ local healing_strategies = {
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not s.greater_heal_ready then return false end
-   if _check_pushback(context) then return false end
+   if s.has_pushback then return false end
    local mana_pct = s.mana_pct or context.mana_pct or 100
    local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
    if gate_overheal and gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings, spell_id) then return false end
@@ -849,6 +895,7 @@ local healing_strategies = {
  { name = "PrayerOfMendingTank" },
  { name = "EmergencyFlashHeal" },
  { name = "PreemptiveGreaterHeal", matches = function(context, s)
+  if _poh_priority_yield(context, s) then return false end
   if not context.in_combat then return false end
   if context.is_moving then return false end
   local threshold = spec_kit.setting_number(context, "discipline_preemptive_threshold", PreemptiveHeal.DEFAULT_THRESHOLD)
@@ -918,11 +965,15 @@ end },
  { name = "PrayerOfFortitude", matches = pof_matches, execute = function() return NS.try_cast(ACTION.PrayerOfFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfFortitude") end },
  { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(ACTION.PsychicScream, context.target, "[DISCIPLINE] PsychicScream", { expected_cooldown = 30 }) end },
  { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(ACTION.ShackleUndead, context.target, "[DISCIPLINE] ShackleUndead", { expected_cooldown = 1.5 }) end },
- { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(ACTION.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
+ { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context, s)
+   -- Cast at the affected unit (tank/lowest with the debuff), not self.
+   local target = (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit) or NS.PLAYER_UNIT
+   return NS.try_cast(ACTION.DispelMagic, target, "[DISCIPLINE] DispelMagic")
+  end },
  { name = "MassDispel", matches = function(context, s)
    if not context.in_combat then return false end
    if not s.mass_dispel_ready then return false end
-   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end    if context.mana_pct < 30 then return false end
+   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end    if (context.mana_pct or 100) < 30 then return false end
     -- Dungeon opt: Mass for AoE magic (WoWHead TBC: efficient for packs, removes tough magic, speeds clear, saves lives)
     local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
     if group_aware and not context.is_group then return false end
@@ -937,7 +988,7 @@ end },
  end },
  { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(ACTION.InnerFocus, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
  -- parity Features
- { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.stop_casting then return NS.stop_casting() end; if NS.cancel_current_cast then return NS.cancel_current_cast() end; return false end },
+ { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.cancel_spells then return NS.cancel_spells() end; return false end },
  { name = "PreHeal", matches = pre_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.GreaterHeal, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), string.format("[DISCIPLINE] PreHeal GH %.0f%%", (s.tank and s.tank.effective_hp) or (s.lowest and s.lowest.effective_hp) or 0)) end },
  { name = "Fade", matches = fade_matches, execute = function() return NS.try_cast(ACTION.Fade, nil, "[DISCIPLINE] Fade (aggro drop)", { skip_range = true }) end },
  { name = "Shadowfiend", is_gcd_gated = false, is_burst = true, matches = function(context, s)

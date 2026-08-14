@@ -156,6 +156,7 @@ return {
                 settings = {
                     { key = "hunter_shot_timer_buffer", type = "slider", label = "Shot Timer Buffer (ms)", min = 0, max = 300, default = 150, tooltip = "Delay Steady Shot if auto-shot is within this buffer" },
                     { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
+                    { key = "mm_aimed_weave", type = "checkbox", label = "Aimed Shot Weave (in combat)", default = false, tooltip = "Opt-in guide playstyle: weave Aimed Shot between auto-shots in combat (swing-window gated). Default off = wowsims precast-only behavior." },
                 },
             },
         },

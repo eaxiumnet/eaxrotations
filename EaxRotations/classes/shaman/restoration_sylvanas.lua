@@ -1,5 +1,6 @@
 -- restoration_sylvanas.lua -- Shaman Restoration healer for TBC Anniversary (2.5.5).
 -- WHAT:  chain-heal-based group healer with Earth Shield tank maintenance,
+--         Lesser Healing Wave emergency saves (lowest <30% HP + short TTD),
 --         Mana Tide + Bloodlust CDs, Water Shield mana management, and
 --         totem auto-management (tremor/grounding/cleansing/stat totems).
 -- WHEN:  combat or pre-combat, with valid friendly targets.
@@ -90,6 +91,27 @@ local function _totem_ready(spell)
  return spell and me and NS.spell_ready and NS.spell_ready(spell, me, { skip_range = true }) or false
 end
 
+-- Totem drop guards (mirror enhancement's can_drop_totem): never re-drop a
+-- totem whose slot is still occupied or whose party aura is up. Without these
+-- each totem lane re-dropped its totem every GCD (permanent GCD + mana drain).
+-- Aura IDs verified against _dbc_spell_ids.lua + the TBC spell index bridge.
+local STRENGTH_OF_EARTH_AURA = { 25527, 25362, 10441, 8163, 8162, 8076 }  -- r6..r1
+local MANA_SPRING_AURA = { 25569, 10494, 10493, 10491, 5677 }             -- r5..r1
+local GRACE_OF_AIR_AURA = { 25360, 10626, 8836 }                          -- r3..r1
+
+local function _totem_slot_active(slot)
+    if not NS.get_totem_info then return false end
+    local info = NS.get_totem_info(slot)
+    -- Some API shims return a bare number/boolean instead of a table
+    return type(info) == "table" and info.have_totem == true
+end
+
+local function _totem_drop_ok(spell, slot, buff_ids)
+    if _totem_slot_active(slot) then return false end
+    if buff_ids and NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, buff_ids) then return false end
+    return _totem_ready(spell)
+end
+
 -- Mana conservation tier defaults (configurable via schema)
 local MANA_LOW_DEFAULT = 30
 
@@ -174,6 +196,7 @@ local resto_state = {
  water_shield_charges = 0,
  chain_heal_ready = false,
  healing_wave_ready = false,
+ lesser_healing_wave_ready = false,
  earth_shock_ready = false,
  flame_shock_ready = false,
  lightning_bolt_ready = false,
@@ -289,6 +312,7 @@ local function build_state(context)
  resto_state.water_shield_charges = (me and NS.buff_stacks and NS.buff_stacks(me, WATER_SHIELD_BUFF)) or 0
  resto_state.chain_heal_ready = me and NS.spell_ready(ACTION.ChainHeal, me, { skip_range = true }) or false
  resto_state.healing_wave_ready = me and NS.spell_ready(ACTION.HealingWave, me, { skip_range = true }) or false
+ resto_state.lesser_healing_wave_ready = me and NS.spell_ready(ACTION.LesserHealingWave, me, { skip_range = true }) or false
  resto_state.earth_shock_ready = me and NS.spell_ready(ACTION.EarthShock, me, { expected_cooldown = 6 }) or false
  resto_state.flame_shock_ready = me and NS.spell_ready(ACTION.FlameShock, me, { expected_cooldown = 6 }) or false
  resto_state.lightning_bolt_ready = me and NS.spell_ready(ACTION.LightningBolt, me, { expected_cooldown = 2.5 }) or false
@@ -418,6 +442,29 @@ local function natures_swiftness_matches(context, state)
 end
 
 
+-- LesserHealingWaveEmergency: fast single-target emergency save, placed ABOVE
+-- the ChainHeal lane so a dying ally never waits on AoE cluster gating. Gates
+-- mirror NaturesSwiftness exactly (lowest < 30% HP + time-to-die < 3s) but
+-- cast the cheap 1.5s Lesser Healing Wave instead of consuming the NS buff —
+-- the two lanes stack (NS buff stays up for a follow-up emergency big heal).
+local function lesser_healing_wave_emergency_matches(context, state)
+ if state.mana_emergency then return false end
+ if not state.lowest or not state.lowest.unit then return false end
+ if (state.lowest.effective_hp or 100) > 30 then return false end
+ if (state.lowest_time_to_die or 999) > 3 then return false end
+ if not state.lesser_healing_wave_ready then return false end
+ local me = context.me or NS.GetPlayer()
+ if not me or not NS.spell_ready(ACTION.LesserHealingWave, state.lowest.unit, { skip_range = true }) then return false end
+ return true
+end
+
+local function lesser_healing_wave_emergency_execute(context, state)
+ if not state.lowest or not state.lowest.unit then return false end
+ local label = string.format("[RESTO] LesserHealingWave emergency %.0f%%", state.lowest.effective_hp or 0)
+ return NS.try_cast(ACTION.LesserHealingWave, state.lowest.unit, label)
+end
+
+
 local function bloodlust_matches(context, state)
  if not cooldowns_enabled(context) then return false end
  if not state.in_combat then return false end
@@ -474,11 +521,11 @@ local function earth_shock_matches(context, state)
  if not state.earth_shock_ready then return false end
  if not state.target_casting then return false end
  if state.mana_emergency then return false end
- -- Range check: Earth Shock is 20yd; validate target is in range
+ -- Range check: Earth Shock is 20yd; NS.unit_distance returns YARDS (not squared)
  local target = context.target
  if target and NS.unit_distance then
-  local dist_sq = NS.unit_distance(context.me, target)
-  if dist_sq and dist_sq > 400 then return false end -- 20yd squared = 400
+  local dist = NS.unit_distance(context.me, target)
+  if dist and dist > 20 then return false end
  end
  return true
 end
@@ -539,34 +586,24 @@ end
 
 local function totem_strength_matches(context, state)
  if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
- if _totem_ready(ACTION.StrengthOfEarthTotem) then
-  return true
- end
- return false
+ return _totem_drop_ok(ACTION.StrengthOfEarthTotem, 2, STRENGTH_OF_EARTH_AURA)
 end
 
 local function totem_mana_spring_matches(context, state)
  if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
- if _totem_ready(ACTION.ManaSpringTotem) then
-  return true
- end
- return false
+ return _totem_drop_ok(ACTION.ManaSpringTotem, 3, MANA_SPRING_AURA)
 end
 
 local function totem_grace_air_matches(context, state)
  if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
- if _totem_ready(ACTION.GraceOfAirTotem) then
-  return true
- end
- return false
+ return _totem_drop_ok(ACTION.GraceOfAirTotem, 4, GRACE_OF_AIR_AURA)
 end
 
 local function totem_windfury_matches(context, state)
  if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
- if _totem_ready(ACTION.WindfuryTotem) then
-  return true
- end
- return false
+ -- Windfury shares the air slot with Grace of Air; buff list mirrors the
+ -- WindfuryTotem rank family (enhancement's _wf_buff_remains convention).
+ return _totem_drop_ok(ACTION.WindfuryTotem, 4, ACTION.WindfuryTotem)
 end
 
 -- ============================================================================
@@ -706,8 +743,10 @@ local healing_strategies = {
   end,
   execute = function(context, state)
    local target = context.target
-   if target and NS.start_attack then
-    NS.start_attack()
+   if target and target.is_valid and target:is_valid() and not target:is_dead() then
+    if NS.start_auto_attack then
+     NS.start_auto_attack(target)
+    end
    end
    return true -- Claim priority, block all other strategies
   end
@@ -754,6 +793,7 @@ local healing_strategies = {
     execute = function(_, state)
      return true
     end },
+  { name = "LesserHealingWaveEmergency", matches = lesser_healing_wave_emergency_matches, execute = lesser_healing_wave_emergency_execute },
   { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
   { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
   local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)

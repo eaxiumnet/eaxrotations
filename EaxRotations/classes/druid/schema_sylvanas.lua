@@ -90,6 +90,7 @@ return {
                 header = "Balance",
                 settings = {
                     { key = "balance_starfire_mana", type = "slider", label = "Starfire Mana Floor", min = 0, max = 100, default = 40 },
+                    { key = "balance_wrath_conserve", type = "checkbox", label = "Wrath Mana Conservation", default = true, tooltip = "ON (default): Wrath filler is gated by the mana floor (conservation). OFF (parse divergence): Wrath is cast freely as filler whenever mana allows." },
                     { key = "balance_barkskin_hp", type = "slider", label = "Barkskin HP%", min = 0, max = 100, default = 40 },
                     { key = "balance_innervate_mana", type = "slider", label = "Innervate Mana%", min = 0, max = 100, default = 30 },
                     { key = "balance_moonkin_auto", type = "checkbox", label = "Moonkin Form", default = true },

@@ -121,6 +121,7 @@ return {
                 settings = {
                     { key = "aff_seed_targets", type = "slider", label = "Seed of Corruption Min", min = 3, max = 10, default = 3 },
                     { key = "aff_use_amplify_curse", type = "checkbox", label = "Amplify Curse", default = true },
+                    { key = "aff_curse_first", type = "checkbox", label = "Curse First (Opener)", default = false, tooltip = "Guide-divergence opener: apply the selected curse before the DoT setup at combat start (the curse benefits all shadow/fire damage). Default off = standard wowsims UA-first opener." },
                     { key = "dot_ttd_threshold", type = "slider", label = "DoT TTD Threshold (%)", min = 0, max = 100, default = 50, tooltip = "Skip DoT reapplication if target dies before this % of DoT duration" },
                 },
             },

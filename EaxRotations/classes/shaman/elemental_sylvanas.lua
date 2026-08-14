@@ -1,7 +1,10 @@
 -- elemental_sylvanas.lua -- Shaman Elemental DPS for TBC Anniversary (2.5.5).
 -- WHAT:  ranged caster DPS with Lightning Bolt filler, Flame Shock DoT,
 --         Chain Lightning cleave, Elemental Mastery burst, totem maintenance,
---         mana-aware rank switching, and weapon buff upkeep.
+--         mana-aware rank switching, and weapon buff upkeep. Two guide
+--         divergences are opt-in (default OFF — byte-identical when off):
+--         elemental_cl_single_target (CL on single-target fights) and
+--         elemental_fs_maintain (Flame Shock refresh at <3s remaining).
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors TBC elemental consensus: totems > Flame Shock > CL > LB.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
@@ -41,7 +44,7 @@ local ACTION = {
     LightningBolt        = define("LightningBolt",        { 25449, 25448, 15208, 15207, 10392, 10391, 6041, 943, 915, 548, 529, 403 }, "LightningBolt"),
     LightningBoltLowerRank = define("LightningBoltLowerRank", { 25448 }, "LightningBoltLowerRank"),
     LightningShield      = define("LightningShield",      { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, "LightningShield"),
-    MagmaTotem           = define("MagmaTotem",           { 25550, 10587, 10586, 10585, 8190 }, "MagmaTotem"),
+    MagmaTotem           = define("MagmaTotem",           { 25552, 10587, 10586, 10585, 8190 }, "MagmaTotem"),  -- 25552 = Magma Totem V (25550 is the item "Redcap Toadstool" spell)
     ManaSpringTotem      = define("ManaSpringTotem",      { 25570, 10497, 10496, 10495, 5675 }, "ManaSpringTotem"),
     ManaTideTotem        = define("ManaTideTotem",        { 16190 }, "ManaTideTotem"),
     NaturesSwiftness     = define("NaturesSwiftness",     { 16188 }, "NaturesSwiftness"),
@@ -62,7 +65,7 @@ local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 local TOTEM_OF_WRATH_BUFF = { 30708 }
 local WRATH_OF_AIR_BUFF = { 3738 }
-local MANA_SPRING_BUFF = { 25570, 10491, 10490, 5676 }  -- Mana Spring Totem aura ranks
+local MANA_SPRING_BUFF = { 25569, 10494, 10493, 10491, 5677 }  -- Mana Spring aura ranks r5..r1 (25570 is the summon spell; 10490/5676 are not auras — verified in _dbc_spell_ids.lua)
 local CLEARCAST_BUFF = { 12536 }  -- Clearcasting from Elemental Focus talent
 local SHIELD_REFRESH_UNKNOWN_MS = 30000
 local WEAPON_BUFF_REFRESH_MS = 1500000  -- 25 minutes
@@ -74,8 +77,12 @@ local MANA_CONSERVE_DEFAULT = 15   -- No Chain Lightning, Flame Shock only
 local MANA_EMERGENCY_DEFAULT = 5   -- All spells forbidden
 local WATER_SHIELD_MANA_DEFAULT = 50
 
--- SP-aware DoT gating: skip Flame Shock below this spell damage threshold
--- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient; breakpoint ~400 SP pre-raid
+-- Flame Shock DoT refresh. SP-aware gating (Phase 2.1) engages ONLY when the
+-- engine populates context.spell_damage (player_spell_damage setting > 0);
+-- default 0 keeps the refresh-window-only behavior (byte-identical). Flame
+-- Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at
+-- ~400 SP.
+local FLAME_SHOCK_MIN_SP_DEFAULT = 400
 
 -- Chain Lightning defaults (DB2: EffectChainTargets=3, EffectChainAmplitude=0.70)
 local CL_MIN_TARGETS = 3
@@ -147,7 +154,8 @@ local function build_state(context)
     ele_state.hp_pct = context.hp or 100
     ele_state.target_count = context.enemy_count or 1
     ele_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
-    -- Current spell damage from NS (provided by middleware or character API)
+    -- Current spell damage: populated by the engine only when the
+    -- player_spell_damage setting is > 0 (Phase 2.1)
     ele_state.spell_damage = context.spell_damage or 0
     -- Weapon buff freshness
     ele_state.has_flametongue = (ele_state.now_ms - runtime.last_flametongue_ms) < WEAPON_BUFF_REFRESH_MS
@@ -204,22 +212,28 @@ local function chain_lightning_matches_fn(context, state)
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
 end
 
-local _el_lb_count = 0
+-- Guide divergence (Phase 2.2a, opt-in default OFF): Chain Lightning on
+-- single-target fights. The first statement returns false when the setting is
+-- off, so the rotation is byte-identical to the AoE-only CL behavior. When
+-- ON, this lane fires only when the AoE lane's min-target gate FAILS — the
+-- multi-target case stays owned by the ChainLightning lane above.
+local function chain_lightning_single_target_matches_fn(context, state)
+    if not spec_kit.setting_bool(context, "elemental_cl_single_target", false) then return false end
+    if context.is_moving then return false end
+    if state.mana_emergency then return false end
+    if state.mana_conserve then return false end
+    -- CC safety: skip if it might break nearby CC (nil-safe: only fires when
+    -- cc_safe is explicitly false, mirroring the ChainLightning lane)
+    if context.cc_safe == false then return false end
+    -- Threat safety: mirror the ChainLightning lane's 80% gate
+    if context.threat_pct and context.threat_pct > 80 then return false end
+    -- Single-target only: the AoE lane owns the 3+ target case.
+    local min_targets = spec_kit.setting_number(context, "elemental_cl_min_targets", CL_MIN_TARGETS)
+    if NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context.target, context, state) then return false end
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
+end
+
 local function lightning_bolt_matches_fn(context, state)
-    _el_lb_count = _el_lb_count + 1
-    if _el_lb_count <= 3 and NS.log then
-        NS.log(string.format(
-            "[ELEMENTAL][LightningBolt] call #%d: state=%s, ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, state.target=%s, state.is_moving=%s, state.mana_emergency=%s, state.lightning_bolt_ready=%s",
-            _el_lb_count,
-            tostring(state ~= nil),
-            tostring(context and context.in_combat),
-            tostring(context and context.has_valid_enemy_target),
-            tostring(context and context.target ~= nil),
-            tostring(state and state.target ~= nil),
-            tostring(context and context.is_moving),
-            tostring(state and state.mana_emergency),
-            tostring(state and state.lightning_bolt_ready)))
-    end
     if context.is_moving then return false end
     if state.mana_emergency then return false end
     -- Threat safety: hold Lightning Bolt if threat > 90%
@@ -235,9 +249,32 @@ end
 local function flame_shock_matches_fn(context, state)
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
-    if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
-    -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
+    if (state.flame_remains or 0) > 1 then return false end
+    -- SP-aware gating (Phase 2.1, re-added gated on the player_spell_damage
+    -- setting): skip Flame Shock when spell damage is below the configured
+    -- minimum. Engages only when the engine populated context.spell_damage
+    -- (setting > 0); default 0 → gate inert, byte-identical to prior behavior.
+    local min_sp = spec_kit.setting_number(context, "elemental_flame_shock_min_sp", FLAME_SHOCK_MIN_SP_DEFAULT)
+    if (context.spell_damage or 0) > 0 and (state.spell_damage or 0) < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlameShock, context.target) or false
+end
+
+-- Guide divergence (Phase 2.2a, opt-in default OFF): maintain Flame Shock on
+-- the current target at <3s remaining even in single-target rotation. The
+-- first statement returns false when the setting is off, so the rotation is
+-- byte-identical to the clip-window-only Flame Shock behavior. The clip lane
+-- (<=1s, above) keeps priority; this lane owns the (1, 3) maintain window.
+local function flame_shock_maintain_matches_fn(context, state)
+    if not spec_kit.setting_bool(context, "elemental_fs_maintain", false) then return false end
+    if not context.target then return false end
+    if (state.flame_remains or 0) >= 3 then return false end
+    -- The clip-window FlameShock lane owns the <=1s refresh
+    if (state.flame_remains or 0) <= 1 then return false end
+    -- SP-aware gating parity with the FlameShock lane (Phase 2.1): engages
+    -- only when the engine populated context.spell_damage (setting > 0).
+    local min_sp = spec_kit.setting_number(context, "elemental_flame_shock_min_sp", FLAME_SHOCK_MIN_SP_DEFAULT)
+    if (context.spell_damage or 0) > 0 and (state.spell_damage or 0) < min_sp then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlameShock, context.target) or false
 end
 
@@ -486,6 +523,16 @@ return true
             { type = "custom", fn = function(context, state) return context.target ~= nil end },
             { type = "state", field = "flame_remains", op = "<=", value = 1 },
             { type = "custom", fn = function(context, state)
+                -- SP-aware gating (Phase 2.1, gated on the player_spell_damage
+                -- setting): skip Flame Shock when spell damage is below the
+                -- configured minimum. Engages only when the engine populated
+                -- context.spell_damage (setting > 0); default 0 → gate inert,
+                -- byte-identical to prior behavior.
+                local min_sp = spec_kit.setting_number(context, "elemental_flame_shock_min_sp", FLAME_SHOCK_MIN_SP_DEFAULT)
+                if (context.spell_damage or 0) > 0 and (state.spell_damage or 0) < min_sp then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
                 if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
                 return true
             end },
@@ -569,9 +616,12 @@ local strategies = {
         if not state.mana_emergency then return false end
         return true
       end,
-      execute = function()
-        if NS.start_attack then
-          NS.start_attack()
+      execute = function(context)
+        local target = context and context.target
+        if target and target.is_valid and target:is_valid() and not target:is_dead() then
+          if NS.start_auto_attack then
+            NS.start_auto_attack(target)
+          end
         end
         return true
       end },
@@ -613,12 +663,35 @@ local strategies = {
       execute = function() return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[ELEMENTAL] Bloodlust") end },
     -- Chain Lightning (test assertion string: cooldown = 6)
     { name = "ChainLightning" },
+    -- Chain Lightning single-target (guide-divergence opt-in, default OFF:
+    -- elemental_cl_single_target) — fires CL on single-target fights when the
+    -- AoE lane's min-target gate fails, replacing LB filler (parse gain).
+    { name = "ChainLightningSingleTarget",
+      matches = chain_lightning_single_target_matches_fn,
+      execute = function(context) return NS.try_cast(ACTION.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning (single-target)") end },
     -- Flame Shock DoT maintenance (before filler to keep it up)
     { name = "FlameShock" },
-    -- Lightning Bolt main nuke
+    -- Flame Shock maintain (guide-divergence opt-in, default OFF:
+    -- elemental_fs_maintain) — refreshes at <3s remaining (the clip lane
+    -- above owns <=1s), keeping the DoT up for the Lava Burst crit synergy.
+    { name = "FlameShockMaintain",
+      matches = flame_shock_maintain_matches_fn,
+      execute = function(context) return NS.try_cast(ACTION.FlameShock, context.target, "[ELEMENTAL] Flame Shock (maintain)") end },
+    -- Lightning Bolt main nuke (downranked to 25448 while mana_low — same
+    -- rank resolution the matches fn uses for readiness)
     { name = "LightningBolt",
       matches = lightning_bolt_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.LightningBolt, context.target, "[ELEMENTAL] Lightning Bolt") end },
+      execute = function(context, state)
+          local spell = ACTION.LightningBolt
+          if state and state.mana_low then
+              local lower_rank = ACTION.LightningBoltLowerRank
+              local lower_id = (type(lower_rank) == "table" and lower_rank.ids and lower_rank.ids[1]) or lower_rank
+              if lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id) then
+                  spell = lower_rank
+              end
+          end
+          return NS.try_cast(spell, context.target, "[ELEMENTAL] Lightning Bolt")
+      end },
     -- Chain Heal emergency
     { name = "ChainHeal",
       matches = chain_heal_matches_fn,

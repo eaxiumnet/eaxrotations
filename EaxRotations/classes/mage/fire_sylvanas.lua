@@ -1,8 +1,11 @@
 -- fire_sylvanas.lua — Mage Fire DPS for TBC Anniversary (2.5.5).
--- WHAT:  fire DPS spec (Scorch 5-stack maintenance, Fireball filler, Combustion burst,
---         AoE tools, mana sustain, defensives).
+-- WHAT:  fire DPS spec (Scorch 5-stack maintenance, mana sustain above the
+--         damage fillers, Fireball filler, Combustion burst, AoE tools, defensives).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   mirrors wowsims APL: Scorch (5-stack) > Fireball > Fire Blast (moving).
+-- WHY:   mirrors wowsims APL: Scorch (5-stack) > Evocation (mana<=20) >
+--         ManaGem (mana<=70) > Fireball > Fire Blast — wowsims casts Evocation
+--         in-combat at mana <= 20% max (sim/mage/evocation.go), so mana
+--         recovery preempts the fillers instead of sitting below them.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -132,16 +135,16 @@ local function build_state(context)
         fire_state.scorch_stacks = 0
         fire_state.scorch_remains = 0
     end
-    fire_state.combustion_ready = NS.spell_ready(ACTION.Combustion, NS.PLAYER_UNIT, { skip_range = true })
+    fire_state.combustion_ready = NS.spell_ready and NS.spell_ready(ACTION.Combustion, NS.PLAYER_UNIT, { skip_range = true }) or false
     fire_state.mana_pct = context.mana_pct or 100
     -- Dead-lane fix (battery triage 2026-08-07): hp_pct was never assigned, so
     -- Healthstone (hp<=28), IceBarrier (hp<=60) and ManaShield (hp<=40) all
     -- read the 100 default forever and could never fire in live play.
     fire_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
-    fire_state.remove_curse_ready = NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
+    fire_state.remove_curse_ready = NS.spell_ready and NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true }) or false
     fire_state.mana_gem_available = first_ready_mana_gem() ~= nil
     if target then
-        fire_state.pyroblast_ready = NS.spell_ready(ACTION.Pyroblast, target)
+        fire_state.pyroblast_ready = NS.spell_ready and NS.spell_ready(ACTION.Pyroblast, target) or false
     end
     fire_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     -- Major power-window awareness for cooldown alignment
@@ -238,8 +241,10 @@ local function dragons_breath_matches_fn(context, state)
     -- Frontal cone when casting Dragon's Breath; Blast Wave fallback uses self circle.
     local has_db = ACTION.DragonsBreath and NS.spell_ready(ACTION.DragonsBreath, context.target, { skip_range = true })
     if has_db then
-        if NS.aoe_cone_meets then
-            if not NS.aoe_cone_meets(2, r, nil, context, state) then return false end
+        -- aoe_cone_meets lives in shared/aoe_hit_volume_sylvanas (required
+        -- above as AoeHV); NS.aoe_cone_meets is mock-only, never engine-side.
+        if AoeHV and AoeHV.aoe_cone_meets then
+            if not AoeHV.aoe_cone_meets(2, r, nil, context, state) then return false end
         elseif not NS.aoe_self_meets or not NS.aoe_self_meets(2, r, context, state) then
             return false
         end
@@ -256,6 +261,8 @@ local function polymorph_matches_fn(context, state)
     local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.cc_target then return false end
+    -- Polymorph has a 1.5s cast — never attempt it while moving (mirrors arcane)
+    if context.is_moving then return false end
     -- IZI SDK: skip Polymorph if target is already CC'd
     local cc_t = context.cc_target
     if cc_t and type(cc_t.is_cc) == "function" then
@@ -414,6 +421,13 @@ local strategies = {
       execute = function(context) return NS.try_cast(ACTION.Pyroblast, context.target, "[FIRE] Pyroblast") end },
     -- Scorch 5-stack maintenance
     { name = "Scorch" },  -- DSL-substituted at runtime
+    -- Mana sustain (guide position: ABOVE the damage fillers — Evocation at
+    -- mana<=20 and ManaGem at mana<=70 preempt Fireball/FireBlast, mirroring
+    -- wowsims where Evocation is a combat mana CD at 20% max mana)
+    { name = "Evocation" },  -- DSL-substituted at runtime
+    { name = "ManaGem",
+      matches = mana_gem_matches_fn,
+      execute = function() return use_mana_gem() end },
     -- Main nuke
     { name = "Fireball",
       matches = fireball_matches_fn,
@@ -472,14 +486,10 @@ local strategies = {
     { name = "RemoveCurse",
       matches = remove_curse_matches_fn,
       execute = function(context) return NS.try_cast(ACTION.RemoveCurse, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[FIRE] Remove Curse") end },
-    -- Mana sustain
+    -- Mana sustain (OOC conjure only; in-combat Evocation/ManaGem sit above the fillers)
     { name = "ManaGemConjure",
       matches = mana_gem_conjure_matches_fn,
       execute = function() return NS.try_cast(ACTION.ConjureManaEmerald, NS.PLAYER_UNIT, "[FIRE] Conjure Mana Gem") end },
-    { name = "ManaGem",
-      matches = mana_gem_matches_fn,
-      execute = function() return use_mana_gem() end },
-    { name = "Evocation" },  -- DSL-substituted at runtime
     { name = "HitCapPriority",
       matches = function(context, s)
           if not s.hit_cap_rating_needed then return false end

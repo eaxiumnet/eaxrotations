@@ -142,7 +142,6 @@ local BARKSKIN_BUFF = { 22812 }
 local TRACK_HUMANOIDS_BUFF = { 5225 }
 local WOLFSHEAD_BUFF = { 29940, 17770 }
 local WOLFSHEAD_HELM_ID = 8345
-local CLEARCASTING_COST_FLOOR = 0
 -- Numeric creature-type IDs (matches the codebase convention, e.g.
 -- protection DEMON_OR_UNDEAD = { [3]=true, [6]=true }): 7=Humanoid, 1=Beast.
 -- Was string-keyed ("Humanoid"/"Beast") while get_creature_type() returns a
@@ -434,7 +433,16 @@ end
 
 local function get_mana_pct(context)
     if type(context.mana_pct) == "number" then return context.mana_pct end
-    if NS.power_pct and NS.POWER_MANA then return NS.power_pct(NS.POWER_MANA) or 100 end
+    -- NS.power_pct is NOT part of the production NS surface (test-mock only,
+    -- core_sylvanas.lua defines no power_pct) — reading it made state.mana_pct
+    -- always 100 live: the POWERSHIFT_MIN_MANA gate never blocked and the
+    -- ManaPotion DSL condition (mana_pct <= 20) never fired. The real query is
+    -- NS.mana_pct(unit) (core_sylvanas.lua:2764; mirrors caster_sylvanas.lua:57).
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if NS.mana_pct then
+        local ok, pct = pcall(NS.mana_pct, me)
+        if ok and type(pct) == "number" then return pct end
+    end
     return 100
 end
 
@@ -485,7 +493,6 @@ local function update_energy_tick(state)
     local me = state.me
     -- IZI SDK fast path: use native energy prediction when available
     if me and type(me.energy_predicted) == "function" then
-            math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
         state.tick_confident = true
         -- Try to get time-to-next-tick from IZI
         if type(me.energy_time_to_x) == "function" then
@@ -707,8 +714,6 @@ build_state = function(context)
     state.has_high_ap_window = state.has_bloodlust or (ap > 0 and state.rip_ap > 0 and ap >= state.rip_ap * AP_UPGRADE_RATIO) or (ap > 0 and state.rake_ap > 0 and ap >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
     state.should_execute = state.target_hp <= spec_kit.setting_number(context, "cat_execute_hp", EXECUTE_HP)
-    local aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
-        or (state.enemy_count >= aoe_threshold)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
     state.should_pool_for_rip = (state.combo_points or 0) >= spec_kit.setting_number(context, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
     state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
@@ -819,11 +824,12 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if not state.me and not NS.GetPlayer then return false end
                 if state.has_tigers_fury then return false end
-                -- Cooldown check: buff lasts 6s but CD is 30s; don't spam after buff expires
-                if type(ACTION.TigersFury) == "table" and ACTION.TigersFury.cooldown_remaining then
-                    local ok, cd = pcall(ACTION.TigersFury.cooldown_remaining, ACTION.TigersFury)
-                    if ok and type(cd) == "number" and cd > 0 then return false end
-                end
+                -- Cooldown check: buff lasts 6s but CD is 30s; don't spam after buff expires.
+                -- NS.cooldown_remains is the live engine surface (spell_action objects expose
+                -- only id/IsReady/IsInRange/Cast — cooldown_remaining existed only in test mocks,
+                -- so this guard short-circuited in production and TF could re-fire after the
+                -- 6s buff expired while the 30s CD was still up).
+                if NS.cooldown_remains and NS.cooldown_remains(ACTION.TigersFury) > 0 then return false end
                 if not state.in_combat then return false end
                 if state.is_stealthed then return false end
                 if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
@@ -1189,7 +1195,8 @@ local function clearcasting_shred_matches(context, action)
     if not state.clearcasting then return false end
     if state.target and not state.is_behind then return false end
     if (state.combo_points or 0) >= 5 then return false end
-    action.min_energy = CLEARCASTING_COST_FLOOR
+    -- NOTE: previously mutated action.min_energy (shared ACTIONS entry) — a
+    -- state leak across frames; the ShredOmen entry has no min_energy anyway.
     return true
 end
 
@@ -1262,6 +1269,11 @@ end
 
 local function execute_bite(context)
     -- Execute phase: target is dying — spend combo points on FerociousBite immediately.
+    -- Pooling gate: when energy < BITE_COST the engine rejects the cast, so return
+    -- false WITHOUT casting and let the dispatcher fall through (the pool no-op
+    -- must not block lower-priority spenders with a doomed cast attempt).
+    local state = build_state(context)
+    if (state.energy or 0) < BITE_COST then return false end
     local target = context.target
     _opts.expected_cooldown = nil
     _opts.skip_gcd = nil

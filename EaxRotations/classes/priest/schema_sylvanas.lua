@@ -68,6 +68,7 @@ return {
                     { key = "discipline_flash_hp", type = "slider", label = "Flash Heal HP (%)", min = 20, max = 80, default = 55 },
                     { key = "discipline_greater_heal_hp", type = "slider", label = "Greater Heal HP (%)", min = 30, max = 95, default = 82 },
                     { key = "discipline_renew_hp", type = "slider", label = "Renew HP (%)", min = 50, max = 100, default = 90 },
+                    { key = "disc_poh_priority", type = "checkbox", label = "PoH/BindingHeal Above GH/FH Tier", default = false, tooltip = "When enabled, Prayer of Healing and Binding Heal take priority over Greater Heal / Flash Heal (guide rank). Off by default to keep the pinned priority order." },
                 },
             },
             {
