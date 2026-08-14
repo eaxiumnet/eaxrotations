@@ -182,6 +182,10 @@ jobs:
           TITLE="$(cat release-title.txt)"
           # Tag message convention (v2.18.1): "vX.Y.Z — <subject>" — the full
           # release title, matching the GitHub Release title exactly.
+          # CI runners have no git identity by default; without it `git tag -a`
+          # aborts with "Committer identity unknown" (hit on 2.24.0).
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "v${VERSION}" -m "${TITLE}"
           git push origin "v${VERSION}"
           echo "Created and pushed annotated tag v${VERSION}"
