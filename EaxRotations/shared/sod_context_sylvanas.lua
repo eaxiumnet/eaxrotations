@@ -95,6 +95,14 @@ function M_enrich(ctx)
     ctx.hp_pct = ctx.hp
     ctx.target_hp_pct = ctx.target_hp
 
+    -- Healer-injury alias: the engine's lazy party_scan produces
+    -- party_injured_count (main_sylvanas.lua:1237); the _sod resto files read
+    -- context.injured_count (druid/restoration_sod:29 + shaman/restoration_sod:31).
+    -- Without this alias, WildGrowth / Chain Heal / Healing Stream Totem lanes
+    -- gated on injured_count >= 2/3 never fired in production (the guarded
+    -- fallback degrades to 0). Wired 2026-08-14 (W4.1).
+    ctx.injured_count = type(ctx.party_injured_count) == "number" and ctx.party_injured_count or 0
+
     -- Druid / warlock forms.
     if me then
         if NS and type(NS.has_form) == "function" then

@@ -183,15 +183,6 @@ local NO_WRITER_ALLOWLIST = {
         -- target_is_boss). The engine never produces context.is_boss. Targeted
         -- fix (W3.4 triage addendum): delete the legacy line in both files.
         is_boss = "legacy battery-mock compat read behind produced context.target_is_boss; inert live (W3.4 addendum)",
-        -- injured_count (druid/restoration_sod:29 + shaman/restoration_sod:31):
-        -- Season-of-Discovery era files — a separate runtime contract from the
-        -- sylvanas/wotlk/vanilla eras (ns.is_sod; the battery never loads
-        -- _sod files). Every read is guarded
-        -- (`type(context.injured_count) == "number" and ... or 0`) and the
-        -- real healer-injury field is context.party_injured_count
-        -- (main_sylvanas.lua:1237). Verify against the SoD engine field set
-        -- when the SoD rotation gets a live pass (W3.4 triage addendum).
-        injured_count = "SOD-era guarded read; real field is party_injured_count (out of the three battery eras)",
 
         -- SOD context contract: the _sod files' rotation-state fields. The
         -- 2026-08 read-side audit flagged ~25 as read-but-unproduced (every
