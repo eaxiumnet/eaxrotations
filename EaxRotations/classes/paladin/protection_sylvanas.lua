@@ -591,7 +591,7 @@ local function build_state(context)
 
     end
 
-    if not prot_state.ally_threatened and (ally.threat_status and ally.threat_status >= 2 or ally.has_aggro) then
+    if not prot_state.ally_threatened and NS.threat_status and NS.threat_status(ally, context.target) >= 2 then
 
      prot_state.ally_threatened = ally
 

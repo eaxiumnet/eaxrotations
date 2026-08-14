@@ -744,7 +744,17 @@ function M.build_ns(class_key, era)
     ns.unit_is_boss = function() return false end
     ns.unit_interruptible = function() return true end
     ns.unit_creature_type = function() return ns._bstate("target_creature_type", 7) end
-    ns.threat_status = function() return 0 end
+    -- W5.2: bank/unit-aware threat. prot's peel scan and holy's
+    -- entry_needs_protection now call NS.threat_status(unit, target) (the
+    -- phantom .threat_status FIELDS were removed from the specs). The battery
+    -- friend mock carries threat_status as a unit field (prot_party_peel);
+    -- the threat_high / holy_bop_focused scenarios bank ctx.threat_status.
+    ns.threat_status = function(unit, target)
+        if type(unit) == "table" and unit.threat_status ~= nil then return unit.threat_status end
+        local banked = ns._bstate("threat_status", nil)
+        if banked ~= nil then return banked end
+        return 0
+    end
     ns.is_threat_safe = function() return true end
     ns.get_pet = function() return nil end
     ns.GetPet = function() return nil end
@@ -1027,12 +1037,6 @@ function M.build_ns(class_key, era)
                 unit = _friend(hp, 30, friend_class), hp = hp, effective_hp = hp, max_hp = 10000,
                 time_to_die = ttd, future_hp = hp, death_risk = 0, will_die_soon = false,
                 is_snared = (ns._bstate("snared_friend", false) == true and i == 1) or nil,
-                -- Threat-family close-out (2026-08-10): friendly_target_threat
-                -- marks the lowest ally entry threatened (holy:332
-                -- entry_needs_protection ORs threat_status >= 2). Only holy
-                -- BoPFocusedAlly reads it; default nil is a no-op for every
-                -- other heal-scan consumer.
-                threat_status = (i == 1) and ns._bstate("friendly_target_threat", nil) or nil,
                 -- Deficit must mirror the real scan semantics (heal modules set
                 -- deficit = max_hp - current_hp): a low-HP entry needs a
                 -- positive deficit or every deficit_of(...) > 0 gate (paladin
@@ -3022,7 +3026,7 @@ M.SCENARIOS = {
     { name = "prot_party_peel",    overrides = { target_classification = 1, party_members = { _friend(30, 5, nil, { threat_status = 2 }) } } },
     -- holy BoP focused-ally: heal-scan entry hp <= 38 + threat_status >= 2
     -- (entry_needs_protection holy:326-333) → protection_target set.
-    { name = "holy_bop_focused",   overrides = { friends_hp = { 30, 70, 85 }, friendly_target_threat = 2 } },
+    { name = "holy_bop_focused",   overrides = { friends_hp = { 30, 70, 85 }, threat_status = 2 } },
     -- BM FeignDeath: fd_mode defaults "off" (use_threat_drop off); the setting
     -- override flips it so should_feign_death(threat 2, "high_threat") passes.
     { name = "bm_feign_death",     overrides = { threat_level = 2, setting_overrides = { fd_mode = "high_threat" } } },
@@ -3478,7 +3482,7 @@ function M.build_context_for(class_key, scenario, era)
         -- FriendlyTarget lanes (disc + holy priest, holy paladin, resto druid
         -- + shaman) become observable; it is the unit's pct (must be < the 90
         -- threshold). No separate boolean — the hp presence is the signal.
-        friendly_target_hp=true, friendly_target_threat=true,
+        friendly_target_hp=true,
         max_mana=true,
         -- Threat context (ranked #12): high-threat scenarios make the threat-
         -- drop lanes (Soulshatter, priest Fade, rogue Feint) observable. These
@@ -3876,9 +3880,10 @@ function M.apply_battery_state(ns, ctx, class_key)
         -- friendly unit below the 90 threshold. Keyed on the hp alone (no
         -- boolean — avoids colliding with context.friendly_target-as-unit).
         friendly_target_hp = ctx.friendly_target_hp,
-        -- Threat-family close-out (2026-08-10): friendly_target_threat marks
-        -- the lowest heal-scan ally threatened for holy BoPFocusedAlly.
-        friendly_target_threat = ctx.friendly_target_threat,
+        -- W5.2: threat_status banked for NS.threat_status consumers (holy
+        -- BoPFocusedAlly via heal-scan entries, resto Tranquility guard);
+        -- prot's peel reads the friend unit's own threat_status field.
+        threat_status = ctx.threat_status,
     }
     -- Party members: holy MassDispel (holy_sylvanas.lua:1031) scans
     -- context.party_members for dangerous magic via Healing.has_dangerous_dispel.

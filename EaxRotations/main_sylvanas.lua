@@ -758,11 +758,15 @@ local function build_context()
     _context.target = target
     _context.target_casting = target and (unit_bool(target, "is_casting") or unit_bool(target, "is_channeling") or false) or false
     _context.has_aggro = false
+    _context.threat_level = 0
     if target and me then
         local get_threat = _api.safe_field and _api.safe_field(target, "get_threat_situation")
         if get_threat then
             local ok, result = pcall(get_threat, target, me)
-            _context.has_aggro = ok and type(result) == "number" and result >= 2
+            if ok and type(result) == "number" then
+                _context.threat_level = result
+                _context.has_aggro = result >= 2
+            end
         end
     end
     _context.in_combat = in_combat
@@ -778,6 +782,7 @@ local function build_context()
         _context.target_casting = false
         _context.target_ttd = nil
         _context.has_aggro = false
+        _context.threat_level = 0
         enemy_ok = false
     end
     _context.has_target = target ~= nil

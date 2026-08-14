@@ -243,7 +243,7 @@ local function entry_needs_protection(entry, context)
     if hp_of(entry) > 38 then return false end
     if context and context.in_combat == false then return false end
     if has_any_debuff(entry.unit, PHYSICAL_FOCUS_DEBUFFS) then return true end
-    return entry.threat_status and entry.threat_status >= 2 or false
+    return (NS.threat_status and NS.threat_status(entry.unit, context and context.target) >= 2) or false
 end
 
 local function entry_needs_cleanse(entry)
