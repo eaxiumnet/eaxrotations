@@ -50,7 +50,12 @@ local MAELSTROM_WEAPON = { 53817, 53816, 53815, 53814, 53813 }
 local LIGHTNING_SHIELD = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 local WATER_SHIELD = { 33736, 24398 }
 local RIPTIDE = { 408521 }
-local LIFEBLOOM = { 33763 }
+-- Lifebloom: the SoD rune spell (409824) applies its own aura, so the buff
+-- table must carry the rune id — Riptide precedent directly above (rune
+-- 408521 tracked as 408521). 33763 is the TBC rank-3 id; buff_up against it
+-- never matched live, so has_lifebloom stayed false and the restoration_sod
+-- Lifebloom lane re-cast every tick (fix 2026-08-14).
+local LIFEBLOOM = { 409824 }
 -- Weakened Soul debuff id (mirrors healing_sylvanas.lua:41 WEAKENED_SOUL_DEBUFF_IDS).
 local WEAKENED_SOUL = { 6788 }
 -- Totem slots (player:get_totem_info): 1 = fire, 2 = earth, 3 = water, 4 = air

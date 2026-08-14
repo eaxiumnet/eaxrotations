@@ -302,6 +302,11 @@ end
 ns.mana_pct = function(u) return 20 end  -- low mana -> eligible for Innervate
 ns.GetPlayer = function() return me_unit end
 ns.spell_ready = function() return true end
+-- Rebirth requires a dead ally (find_dead_party_ally, 2026-08-14): the lane
+-- no longer casts on the player, so the mock provides a dead party member.
+ns.find_dead_party_ally = function()
+    return { is_player = function() return true end, get_health = function() return 0 end }
+end
 
 local balance_ctx_on = druid_ctx(true, { in_combat = true, me = me_unit, mana_pct = 100 })
 local state_on = balance_mod.build_state(balance_ctx_on)

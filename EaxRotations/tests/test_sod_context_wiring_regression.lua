@@ -212,13 +212,15 @@ assert_true(contains_id_set(buff_calls, { 25485, 25479, 16316, 16315, 16314, 103
     "rockbiter id set passed (repo enhancement_sylvanas:104)")
 assert_eq(last_points_ids[1], 53817, "maelstrom id set starts with 53817 (repo enhancement_wotlk:32)")
 
--- Druid resto HoTs on the heal target.
+-- Druid resto HoTs on the heal target. Lifebloom buff id = the SoD rune
+-- spell id (409824), not the TBC rank-3 aura 33763 — the rune applies its
+-- own aura (Riptide precedent, sod_context_sylvanas.lua:52-57).
 reset_mock()
-buff_flags[33763] = true
+buff_flags[409824] = true
 buff_flags[25299] = true
 ctx = fresh_ctx()
 sod.enrich(ctx)
-assert_eq(ctx.has_lifebloom, true, "has_lifebloom from Lifebloom 33763")
+assert_eq(ctx.has_lifebloom, true, "has_lifebloom from Lifebloom rune 409824")
 assert_eq(ctx.has_rejuvenation, true, "has_rejuvenation from Rejuvenation 25299")
 
 -- Swing timers.

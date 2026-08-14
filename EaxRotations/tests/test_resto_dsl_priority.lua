@@ -43,6 +43,10 @@ NS.gate_overheal = function() return false end
 NS.same_unit = function(a, b) return a == b end
 NS.is_in_party = function() return false end
 NS.is_in_raid = function() return false end
+-- Rebirth requires a dead ally (find_dead_party_ally, 2026-08-14): provide
+-- one for the positive cases — the negative cases gate on in_combat/party.
+local dead_ally_unit = { is_player = function() return true end, get_health = function() return 0 end }
+NS.find_dead_party_ally = function() return dead_ally_unit end
 NS.has_dispel_type_debuff = function() return false end
 NS.healing_get_tank = function(entries, count)
     for i = 1, count do

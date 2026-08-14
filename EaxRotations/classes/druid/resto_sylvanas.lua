@@ -669,10 +669,21 @@ local DSL_DEFS = {
                 if not in_group then return false end
                 return true
             end },
-            { type = "spell_ready", spell = ACTION.Rebirth, target = "self", opts = { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD } },
+            { type = "custom", fn = function(context, state)
+                -- Rebirth needs a DEAD ally target (2026-08-14): the old lane
+                -- cast on PLAYER_UNIT with no dead-ally discovery, so the cast
+                -- always failed live. Mirror resto_vanilla.lua:318's
+                -- find_dead_party_ally chain.
+                local dead = NS.find_dead_party_ally and NS.find_dead_party_ally() or nil
+                if not dead then return false end
+                if not (dead.is_player and dead:is_player()) then return false end
+                return NS.spell_ready and NS.spell_ready(ACTION.Rebirth, dead, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
+            end },
         },
-        action = { type = "custom", fn = function()
-            return NS.try_cast(ACTION.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
+        action = { type = "custom", fn = function(context, state)
+            local dead = NS.find_dead_party_ally and NS.find_dead_party_ally() or nil
+            if not dead then return false end
+            return NS.try_cast(ACTION.Rebirth, dead, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
         end },
     },
 }
