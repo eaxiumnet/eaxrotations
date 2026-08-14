@@ -120,9 +120,9 @@ local strategies = fire.strategies
 -- ============================================================================
 local expected_order = {
     "ManaPotion", "IceBarrier", "ManaShield", "Healthstone", "PresenceOfMind",
-    "Combustion", "Pyroblast", "Scorch", "Fireball", "FireBlast", "Flamestrike",
-    "FlamestrikeRank6", "ArcaneExplosion", "Blizzard", "BlastWave", "DragonsBreath",
-    "Polymorph", "RemoveCurse", "ManaGemConjure", "ManaGem", "Evocation",
+    "Combustion", "Pyroblast", "Scorch", "Evocation", "ManaGem", "Fireball",
+    "FireBlast", "Flamestrike", "FlamestrikeRank6", "ArcaneExplosion", "Blizzard",
+    "BlastWave", "DragonsBreath", "Polymorph", "RemoveCurse", "ManaGemConjure",
     "HitCapPriority",
 }
 assert_true(#strategies == #expected_order, "strategy count matches (" .. #strategies .. " vs " .. #expected_order .. ")")
@@ -139,7 +139,11 @@ assert_true(dsl_indices["ManaShield"] == 3, "ManaShield at index 3")
 assert_true(dsl_indices["PresenceOfMind"] == 5, "PresenceOfMind at index 5")
 assert_true(dsl_indices["Combustion"] == 6, "Combustion at index 6")
 assert_true(dsl_indices["Scorch"] == 8, "Scorch at index 8")
-assert_true(dsl_indices["Evocation"] == 21, "Evocation at index 21")
+-- 2026-08-13 guide-divergence resolution (Phase 2.2h): Evocation/ManaGem moved
+-- ABOVE the damage fillers (Fireball/FireBlast) per the wowsims TBC mage guide
+-- (Evocation is a combat mana CD at mana <= 20% max). Pin the new positions.
+assert_true(dsl_indices["Evocation"] == 9, "Evocation at index 9")
+assert_true(dsl_indices["ManaGem"] == 10, "ManaGem at index 10")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -266,7 +270,7 @@ assert_false(strategies[idx_scorch].matches(no_target_ctx, make_state({ scorch_s
 -- ============================================================================
 -- Evocation: in combat, use_evocation enabled, mana <= 20
 -- ============================================================================
-local idx_evo = 21
+local idx_evo = 9
 assert_true(strategies[idx_evo].matches(make_ctx(), make_state({ mana_pct = 15 })),
     "Evocation matches when mana is low and in combat")
 assert_false(strategies[idx_evo].matches(make_ctx(), make_state({ in_combat = false, mana_pct = 15 })),

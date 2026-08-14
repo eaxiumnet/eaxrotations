@@ -99,14 +99,27 @@ local state_refresh = blood.build_state(ctx)
 assert_true(icy_touch.matches(ctx, state_refresh), "IcyTouch should match when Frost Fever is about to expire")
 assert_true(plague_strike.matches(ctx, state_refresh), "PlagueStrike should match when Blood Plague is about to expire")
 
--- Strike priority: DeathStrike only when HP < 80%
+-- Strike priority: DeathStrike when HP < 80% AND Frost Fever is up. The
+-- disease-uptime guard (W3.3 register) exists because DeathStrike burns a
+-- frost rune; casting it unconditionally at hp<80 starves the frost rune
+-- IcyTouch needs to re-apply Frost Fever on a disease-dependent spec.
 local state_high_hp = blood.build_state({ in_combat = true, target = { get_health_percentage = function() return 80 end }, settings = {} })
 state_high_hp.hp = 90
 assert_false(death_strike.matches(ctx, state_high_hp), "DeathStrike should not match when HP >= 80%")
 
+-- Diseases healthy (debuff_remains 10): self-heal fires at low HP.
+_G.EaxRotations.debuff_remains = function(unit, ids) return 10 end
 local state_low_hp = blood.build_state({ in_combat = true, target = { get_health_percentage = function() return 80 end }, settings = {} })
 state_low_hp.hp = 70
-assert_true(death_strike.matches(ctx, state_low_hp), "DeathStrike should match when HP < 80%")
+assert_true(death_strike.matches(ctx, state_low_hp), "DeathStrike should match when HP < 80% and Frost Fever is up")
+
+-- Diseases down (2s remains): DeathStrike must NOT fire at low HP (the W3.3
+-- guard — otherwise it steals the frost rune from the disease refresh).
+_G.EaxRotations.debuff_remains = function(unit, ids) return 2 end
+local state_low_hp_no_disease = blood.build_state({ in_combat = true, target = { get_health_percentage = function() return 80 end }, settings = {} })
+state_low_hp_no_disease.hp = 70
+assert_false(death_strike.matches(ctx, state_low_hp_no_disease),
+    "DeathStrike should not match when HP < 80% but Frost Fever is down")
 
 -- HeartStrike is the default filler and should always match
 local state_filler = blood.build_state(ctx)

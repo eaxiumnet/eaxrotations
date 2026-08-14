@@ -101,6 +101,15 @@ package.loaded["shared/potion_helper_sylvanas"] = {
     MANA_POTION_IDS = {},
 }
 package.loaded["common/utility/inventory_helper"] = { has_item = function() return nil end }
+-- FeignDeath threat gate (live-correctness fix) uses hunter_core.should_feign_death
+package.loaded["shared/hunter_core_sylvanas"] = {
+    should_feign_death = function(threat_level, mode)
+        if mode == "off" or not mode then return false end
+        if mode == "high_threat" and threat_level >= 2 then return true end
+        if mode == "aggro_only" and threat_level >= 3 then return true end
+        return false
+    end,
+}
 
 -- Load the real DSL engine so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
@@ -222,15 +231,21 @@ assert_false(strategies[idx_freeze].matches(make_ctx({ in_combat = false }), mak
     "FreezingTrap skips when spell not ready")
 
 -- ============================================================================
--- FeignDeath: in combat, ready
+-- FeignDeath: in combat, fd_mode enabled (defaults off), threat >= mode
+-- threshold, ready. (Live-correctness fix 2026-08: the lane used to fire
+-- unconditionally in combat every tick; now threat-gated like BM.)
 -- ============================================================================
 local idx_feign = found.FeignDeath
-assert_true(strategies[idx_feign].matches(make_ctx(), make_state()),
-    "FeignDeath matches when in combat and ready")
-assert_false(strategies[idx_feign].matches(make_ctx({ in_combat = false }), make_state({ in_combat = false })),
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state()),
+    "FeignDeath skips by default (fd_mode off)")
+assert_true(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 2 })),
+    "FeignDeath matches when high_threat mode and threat level >= 2")
+assert_false(strategies[idx_feign].matches(make_ctx({ in_combat = false }), make_state({ in_combat = false, fd_mode = "high_threat", threat_level = 2 })),
     "FeignDeath skips when not in combat")
-assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ feign_death_ready = false })),
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 2, feign_death_ready = false })),
     "FeignDeath skips when spell not ready")
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 1 })),
+    "FeignDeath skips when threat below high_threat threshold")
 
 -- ============================================================================
 -- Summary

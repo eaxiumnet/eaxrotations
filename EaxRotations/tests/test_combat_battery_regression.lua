@@ -4,9 +4,10 @@
 -- WHAT:  behavioral_audit.lua now (a) adds a `wand_low_mana` scenario
 --        (mana_pct 4 + hp 15 — warlock/affliction Wand fires only when mana
 --        < 30 AND hp < LIFE_TAP_SAFETY_HP 35, i.e. Life Tap is unsafe),
---        (b) adds an `ab_stack_conserve` scenario (buffs_up + debuff_stacks 4
---        + AB aura ids {36032, 36033, 36034} — mage/arcane FrostboltConserve
---        fires at phase conserve + ab_stacks >= 3 + ab_remains > cast time),
+--        (b) adds an `ab_stack_conserve` scenario (buffs_up + buff_remains_map
+--        { [36032] = 4 } — the AB stack aura is a SELF BUFF, so mage/arcane
+--        FrostboltConserve reads NS.buff_stacks/buff_remains (fires at phase
+--        conserve + ab_stacks >= 3 + ab_remains > cast time)),
 --        and (c) makes ns.buff_up map-aware via buff_remains_map and adds a
 --        `battle_ready` scenario (SnD {6774, 5171} up, BF 13877 down, 3
 --        enemies) so rogue/combat BladeFlurry's has_snd true + has_blade_flurry
@@ -97,8 +98,9 @@ print("PASS: warlock/affliction Wand (wand_low_mana, mana+hp mechanism)")
 -- ============================================================================
 -- Mage/arcane FrostboltConserve (ab_stack_conserve): phase conserve +
 -- ab_stacks >= 3 + ab_remains > cast time (~1.0). The scenario must drive
--- ab_stacks via debuff_stacks + AB aura ids and ab_remains via the buffs_up
--- fallback; other scenarios keep ab_stacks 0 so the lane stays silent.
+-- ab_stacks via the SELF-BUFF side — buff_remains_map { [36032] = 4 } feeds
+-- both NS.buff_stacks (4) and NS.buff_remains (4); other scenarios keep
+-- ab_stacks 0 (or the buffs_up fallback 1) so the lane stays silent.
 -- ============================================================================
 local arc, arc_err, arc_ns = aud.load_spec("mage", "arcane")
 assert_true(arc ~= nil, "mage/arcane load failed: " .. tostring(arc_err))
@@ -112,11 +114,12 @@ assert_true(a_state.phase == "conserve",
     "mage/arcane: ab_stack_conserve must stay in conserve phase, got " .. tostring(a_state.phase))
 assert_true((a_state.ab_remains or 0) > 1.0,
     "mage/arcane: ab_stack_conserve must keep ab_remains > cast_time, got " .. tostring(a_state.ab_remains))
-assert_true(arc_ns.debuff_stacks(arc_ns.PLAYER_UNIT, { 36032, 36033, 36034 }) == 4,
-    "mage/arcane: battery debuff_stacks must return 4 for the AB aura ids")
--- Id-scoping guard: the AB stacks must NOT leak to other specs' debuff ids
--- (poison stacks stay readable only with their own aura ids).
-assert_true(arc_ns.debuff_stacks(arc_ns.PLAYER_UNIT, { 27187 }) == 0,
+assert_true(arc_ns.buff_stacks(arc_ns.PLAYER_UNIT, { 36032, 36033, 36034 }) == 4,
+    "mage/arcane: battery buff_stacks must return 4 for the AB self-buff aura ids")
+-- Id-scoping guard: the AB-stack map must NOT leak to other specs' buff ids
+-- (poison stacks stay readable only with their own aura ids — the buffs_up
+-- fallback yields 1, never the scenario's 4).
+assert_true(arc_ns.buff_stacks(arc_ns.PLAYER_UNIT, { 27187 }) ~= 4,
     "mage/arcane: AB-stack scenario must not leak stacks to poison ids (27187)")
 assert_never(arc, arc_ns, "mage", "standard", "FrostboltConserve",
     "mage/arcane FrostboltConserve must NOT match in standard (ab_stacks 0)")

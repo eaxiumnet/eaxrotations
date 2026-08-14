@@ -171,10 +171,11 @@ local expected_order = {
     "FriendlyTarget", "ManaPotion", "Healthstone", "ManaEmergencyWand",
     "WaterShield", "LightningShield", "EarthShieldTank", "NaturesSwiftness",
     "ManaTideTotem", "Bloodlust", "HealingWay", "PreemptiveChainHeal", "FSRPause",
-    "ChainHeal", "SmartHeal", "Purge", "TremorTotem", "GroundingTotem",
-    "StrengthOfEarthTotem", "ManaSpringTotem", "GraceOfAirTotem", "WindfuryTotem",
-    "CurePoison", "CureDisease", "PoisonCleansingTotem", "DiseaseCleansingTotem",
-    "EarthShock", "FlameShock", "ChainLightning", "LightningBolt",
+    "LesserHealingWaveEmergency", "ChainHeal", "SmartHeal", "Purge", "TremorTotem",
+    "GroundingTotem", "StrengthOfEarthTotem", "ManaSpringTotem", "GraceOfAirTotem",
+    "WindfuryTotem", "CurePoison", "CureDisease", "PoisonCleansingTotem",
+    "DiseaseCleansingTotem", "EarthShock", "FlameShock", "ChainLightning",
+    "LightningBolt",
 }
 assert_true(#strategies == #expected_order, "strategy count matches (" .. #strategies .. " vs " .. #expected_order .. ")")
 for i = 1, math.min(#strategies, #expected_order) do
@@ -182,15 +183,15 @@ for i = 1, math.min(#strategies, #expected_order) do
         string.format("priority[%d] = %s (expected %s)", i, strategies[i].name or "?", expected_order[i]))
 end
 
--- DSL position checks â verify the 6 DSL-converted strategies are at expected indices
+-- DSL position checks — verify the 6 DSL-converted strategies are at expected indices
 local dsl_indices = {}
 for i = 1, #strategies do dsl_indices[strategies[i].name] = i end
 assert_true(dsl_indices["ManaTideTotem"] == 9, "ManaTideTotem at index 9")
-assert_true(dsl_indices["Purge"] == 16, "Purge at index 16")
-assert_true(dsl_indices["TremorTotem"] == 17, "TremorTotem at index 17")
-assert_true(dsl_indices["GroundingTotem"] == 18, "GroundingTotem at index 18")
-assert_true(dsl_indices["CurePoison"] == 23, "CurePoison at index 23")
-assert_true(dsl_indices["CureDisease"] == 24, "CureDisease at index 24")
+assert_true(dsl_indices["Purge"] == 17, "Purge at index 17")
+assert_true(dsl_indices["TremorTotem"] == 18, "TremorTotem at index 18")
+assert_true(dsl_indices["GroundingTotem"] == 19, "GroundingTotem at index 19")
+assert_true(dsl_indices["CurePoison"] == 24, "CurePoison at index 24")
+assert_true(dsl_indices["CureDisease"] == 25, "CureDisease at index 25")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -229,6 +230,52 @@ local function make_state(overrides)
 end
 
 -- ============================================================================
+-- LesserHealingWaveEmergency (Phase 2.2d): sits ABOVE ChainHeal; mirrors the
+-- NaturesSwiftness gates (lowest < 30% HP + TTD < 3s) but casts LHW directly.
+-- ============================================================================
+local lhw_idx = dsl_indices["LesserHealingWaveEmergency"]
+local ch_idx = dsl_indices["ChainHeal"]
+assert_true(lhw_idx ~= nil and ch_idx ~= nil, "LesserHealingWaveEmergency + ChainHeal present")
+assert_true(lhw_idx < ch_idx, "LesserHealingWaveEmergency above ChainHeal (" .. lhw_idx .. " < " .. ch_idx .. ")")
+local lhw_emergency = strategies[lhw_idx]
+local emergency_ctx = make_ctx({})
+-- Positive: lowest 20% HP, TTD 2s, spell ready -> matches
+assert_true(lhw_emergency.matches(emergency_ctx, {
+    mana_emergency = false,
+    lowest = { unit = NS.PLAYER_UNIT, effective_hp = 20 },
+    lowest_time_to_die = 2,
+    lesser_healing_wave_ready = true,
+}), "LHW emergency matches at 20% HP + 2s TTD")
+-- Negative: lowest above 30% HP
+assert_false(lhw_emergency.matches(emergency_ctx, {
+    mana_emergency = false,
+    lowest = { unit = NS.PLAYER_UNIT, effective_hp = 40 },
+    lowest_time_to_die = 2,
+    lesser_healing_wave_ready = true,
+}), "LHW emergency skips above 30% HP")
+-- Negative: TTD not short
+assert_false(lhw_emergency.matches(emergency_ctx, {
+    mana_emergency = false,
+    lowest = { unit = NS.PLAYER_UNIT, effective_hp = 20 },
+    lowest_time_to_die = 10,
+    lesser_healing_wave_ready = true,
+}), "LHW emergency skips when TTD is not short")
+-- Negative: spell not ready
+assert_false(lhw_emergency.matches(emergency_ctx, {
+    mana_emergency = false,
+    lowest = { unit = NS.PLAYER_UNIT, effective_hp = 20 },
+    lowest_time_to_die = 2,
+    lesser_healing_wave_ready = false,
+}), "LHW emergency skips when spell not ready")
+-- Negative: mana emergency
+assert_false(lhw_emergency.matches(emergency_ctx, {
+    mana_emergency = true,
+    lowest = { unit = NS.PLAYER_UNIT, effective_hp = 20 },
+    lowest_time_to_die = 2,
+    lesser_healing_wave_ready = true,
+}), "LHW emergency skips during mana emergency")
+
+-- ============================================================================
 -- ManaTideTotem: requires cooldowns enabled, in combat, mana below threshold,
 --                group mana below threshold, group healthy, spell ready
 -- ============================================================================
@@ -249,7 +296,7 @@ assert_false(strategies[idx_mt].matches(make_ctx(), make_state({ mana_pct = 90 }
 -- ============================================================================
 -- Purge: requires spell ready, target exists, PvP or purge_target
 -- ============================================================================
-local idx_pg = 16
+local idx_pg = 17
 -- Positive: PvP mode
 assert_true(strategies[idx_pg].matches(make_ctx({ is_pvp = true }), make_state()),
     "Purge matches in PvP with target")
@@ -269,7 +316,7 @@ assert_false(strategies[idx_pg].matches(make_ctx({ is_pvp = true }), make_state(
 -- ============================================================================
 -- TremorTotem: requires spell ready, in combat, fear/control nearby
 -- ============================================================================
-local idx_tr = 17
+local idx_tr = 18
 -- Positive: fear nearby
 assert_true(strategies[idx_tr].matches(make_ctx({ fear_nearby = true }), make_state()),
     "TremorTotem matches when fear nearby + in combat")
@@ -290,7 +337,7 @@ assert_false(strategies[idx_tr].matches(make_ctx({ fear_nearby = true }), make_s
 -- GroundingTotem: requires spell ready, in combat, enemy_count >= 1,
 --                 PvP or target casting
 -- ============================================================================
-local idx_gr = 18
+local idx_gr = 19
 -- Positive: PvP
 assert_true(strategies[idx_gr].matches(make_ctx({ is_pvp = true }), make_state()),
     "GroundingTotem matches in PvP + in combat")
@@ -311,7 +358,7 @@ assert_false(strategies[idx_gr].matches(make_ctx({ is_pvp = true }), make_state(
 -- CurePoison: requires spell ready, not broken_api, not mana_emergency,
 --             cleanse target with poison, lowest HP not critical
 -- ============================================================================
-local idx_cp = 23
+local idx_cp = 24
 local mock_cleanse_poison = { unit = NS.PLAYER_UNIT, has_poison = true, has_disease = false }
 -- Positive: has poison target
 assert_true(strategies[idx_cp].matches(make_ctx(), make_state({ cleanse_target = mock_cleanse_poison })),
@@ -336,7 +383,7 @@ assert_false(strategies[idx_cp].matches(make_ctx(), make_state({ cleanse_target 
 -- CureDisease: requires spell ready, not broken_api, not mana_emergency,
 --              cleanse target with disease, lowest HP not critical
 -- ============================================================================
-local idx_cd = 24
+local idx_cd = 25
 local mock_cleanse_disease = { unit = NS.PLAYER_UNIT, has_poison = false, has_disease = true }
 -- Positive: has disease target
 assert_true(strategies[idx_cd].matches(make_ctx(), make_state({ cleanse_target = mock_cleanse_disease })),

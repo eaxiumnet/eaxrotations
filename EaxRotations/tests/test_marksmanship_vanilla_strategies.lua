@@ -83,10 +83,14 @@ assert_false(prepull.matches({}, { is_ooc = false, aimed_shot_prepull_ready = tr
 assert_true(prepull.matches({}, { is_ooc = true, aimed_shot_prepull_ready = true }),
     "AimedShotPrepull matches OOC when ready")
 
-assert_false(multi.matches({ has_breakable_cc_nearby = true }, { multi_shot_ready = true, mana_pct = 80 }),
+assert_false(multi.matches({ has_breakable_cc_nearby = true }, { in_combat = true, enemy_count = 2, multi_shot_ready = true, mana_pct = 80 }),
     "MultiShot must not match near breakable CC")
-assert_true(multi.matches({}, { multi_shot_ready = true, mana_pct = 80 }),
-    "MultiShot matches when ready with mana")
+assert_false(multi.matches({}, { in_combat = false, enemy_count = 2, multi_shot_ready = true, mana_pct = 80 }),
+    "MultiShot must not match OOC (BM-parity gate)")
+assert_false(multi.matches({}, { in_combat = true, enemy_count = 1, multi_shot_ready = true, mana_pct = 80 }),
+    "MultiShot must not match on a single enemy (BM-parity gate)")
+assert_true(multi.matches({}, { in_combat = true, enemy_count = 2, multi_shot_ready = true, mana_pct = 80 }),
+    "MultiShot matches in combat with 2+ enemies and mana")
 
 ms_until_auto_val = 50
 assert_true(rapid.matches({ settings = {} }, {

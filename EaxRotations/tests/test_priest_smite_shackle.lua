@@ -127,9 +127,12 @@ assert_eq(shackle.name, "ShackleUndead", "strategy name should be ShackleUndead"
 assert_true(shackle.matches(make_ctx(), make_state()), "should match undead target with all conditions met")
 
 -- ============================================================================
--- Test 3: Match TRUE — demon target (creature_type=3)
+-- Test 3: Match FALSE — demon target (creature_type=3)
+-- Shackle Undead affects Undead only (creature type 6); demons are not
+-- shackleable. Restricted 2026-08-12 to mirror shadow/discipline (the old
+-- demon allowance was a live bug — the cast silently did nothing).
 -- ============================================================================
-assert_true(shackle.matches(make_ctx(), make_state({ target_creature_type = 3 })), "should match demon target (creature_type=3)")
+assert_false(shackle.matches(make_ctx(), make_state({ target_creature_type = 3 })), "should NOT match demon target (creature_type=3)")
 
 -- ============================================================================
 -- Test 4: Match FALSE — setting disabled
@@ -137,7 +140,7 @@ assert_true(shackle.matches(make_ctx(), make_state({ target_creature_type = 3 })
 assert_false(shackle.matches(make_ctx({ settings = { smite_auto_shackle = false } }), make_state()), "should not match when smite_auto_shackle is false")
 
 -- ============================================================================
--- Test 5: Match FALSE — creature_type not undead/demon (e.g., type=1 human)
+-- Test 5: Match FALSE — creature_type not undead (e.g., type=1 human)
 -- ============================================================================
 assert_false(shackle.matches(make_ctx(), make_state({ target_creature_type = 1 })), "should not match human target (creature_type=1)")
 

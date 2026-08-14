@@ -21,7 +21,13 @@ local player = {
     get_class = function() return 9 end,
     get_target = function() return target end,
     can_attack = function(_, unit) return unit == target end,
-    is_in_combat = function() return true end,
+    -- OOC dispatch (2026-08 live-fix alignment): the in-combat cast proxy was
+    -- FelDomination's default-`return true` matcher (the 15-min CD burn bug,
+    -- now gated OOC + no-pet). OOC with a target selected the dispatcher
+    -- still runs the playstyle rotation, and the destruction-only SummonImp
+    -- self-cast proves the schema playstyle won over stale active_playstyle
+    -- (affliction has no SummonImp strategy).
+    is_in_combat = function() return false end,
     is_alive = function() return true end,
     is_valid = function() return true end,
     gcd_remains = function() return 0 end,

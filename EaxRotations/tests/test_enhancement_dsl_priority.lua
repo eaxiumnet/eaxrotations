@@ -309,11 +309,19 @@ assert_true(strategies[idx_fs].matches(make_ctx(), make_state({ target_has_flame
     "FlameShock matches when debuff about to drop")
 
 -- ============================================================================
--- FrostShock: ready, not mana_low, not hold_shocks_focus OOC
+-- FrostShock: ready, not mana_low, not hold_shocks_focus OOC, and either
+--             PvP/moving or Flame Shock debuff up (PvE GCD economy gate,
+--             2026-08-12 live-fix campaign)
 -- ============================================================================
 local idx_frs = dsl_indices["FrostShock"]
-assert_true(strategies[idx_frs].matches(make_ctx(), make_state()),
-    "FrostShock matches when ready + enough mana")
+assert_true(strategies[idx_frs].matches(make_ctx({ is_pvp = true }), make_state()),
+    "FrostShock matches in PvP")
+assert_true(strategies[idx_frs].matches(make_ctx({ is_moving = true }), make_state({ is_moving = true })),
+    "FrostShock matches while moving")
+assert_true(strategies[idx_frs].matches(make_ctx(), make_state({ target_has_flame_shock = true })),
+    "FrostShock matches with Flame Shock debuff up")
+assert_false(strategies[idx_frs].matches(make_ctx(), make_state()),
+    "FrostShock skips in single-target PvE without Flame Shock")
 assert_false(strategies[idx_frs].matches(make_ctx(), make_state({ frost_shock_ready = false })),
     "FrostShock skips when not ready")
 assert_false(strategies[idx_frs].matches(make_ctx(), make_state({ mana_low = true })),

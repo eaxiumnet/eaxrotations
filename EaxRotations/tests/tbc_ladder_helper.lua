@@ -128,6 +128,13 @@ function M.setup(opts)
         is_vanilla = function() return false end,
         is_tbc = function() return true end,
         is_wotlk = function() return false end,
+        -- Explicit is_threat_safe (NOT the generic is_* false stub below):
+        -- core's contract is fail-open — "unknown threat degrades to safe"
+        -- (core_sylvanas.lua NS.is_threat_safe). Ladder contexts carry no
+        -- has_aggro, so a real call returns true; the generic is_* -> false
+        -- auto-stub would wrongly pin every spec as holding aggro and make
+        -- the live threat gates (shadow/smite MindBlast+SWD) permanently inert.
+        is_threat_safe = function() return true end,
         CLASS_ID = M.CLASS_ID,
         PLAYER_UNIT = {},
         GetPlayer = function()

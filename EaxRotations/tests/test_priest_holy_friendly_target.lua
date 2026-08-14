@@ -43,11 +43,7 @@ _G.EaxRotations = {
     is_hostile_unit = function(me, target) return _ft_hostile end,
     unit_alive = function(u) return u ~= nil end,
     unit_health_pct = function(u) if u == _ft_unit then return _ft_hp end return 100 end,
-    -- Friendly-target helpers under test (units domain) — install the real ones:
-    has_friendly_target = function()
-        local t = _ft_present and _ft_unit or nil
-        return t and not _ft_hostile or false
-    end,
+    -- Friendly-target helper under test (units domain) — install the real one:
     get_friendly_target_entry = function(context)
         if not _ft_present or _ft_hostile then return nil end
         return { unit = _ft_unit, hp_pct = _ft_hp, effective_hp = _ft_hp, is_player = true }

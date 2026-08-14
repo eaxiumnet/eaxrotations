@@ -1,12 +1,15 @@
 -- test_vanilla_sweep_regression.lua — pins the vanilla sweep close-out
--- (2026-08-11): battery harness gaps + six live-game defect fixes that took
--- the vanilla battery from 58 → 13 never-firing lanes.
--- WHAT:  (1) end-to-end never-count pins per spec (13 total); (2) matcher-level
---        fired/silent non-vacuity for each genuine defect fix: restoration
---        idle-DPS merge, assassination combo_points read, demonology
---        demon_armor_ready computation, warlock ShadowWard get_class fallback
---        (affliction + demonology), fury Overpower dodge fixture; (3) the new
---        scenario shapes (dodge_proc, holy_cure_on_cd) stay present.
+-- (2026-08-11) + the wave 1.4 battery extension (2026-08-13).
+-- WHAT:  (1) end-to-end never-count pins per spec (12 total across ALL 40
+--        vanilla spec files — the 9 leveling_vanilla files joined the battery
+--        manifest in wave 1.4, so the 31-spec era pin moved to 40); (2)
+--        matcher-level fired/silent non-vacuity for each genuine defect fix:
+--        restoration idle-DPS merge, assassination combo_points read,
+--        demonology demon_armor_ready computation, warlock ShadowWard
+--        get_class fallback (affliction + demonology — the demonology side now
+--        reads state.shadow_ward_ready, so the fixture builds real state),
+--        fury Overpower dodge fixture; (3) the wave-1.4 scenario shapes stay
+--        present.
 -- WHEN:  rotation suite execution (run_rotation_tests.lua).
 -- WHY:   a future edit that re-deads a lane (drops a mock seed, reverts a
 --        defect fix, removes a fixture scenario) must fail loudly instead of
@@ -37,22 +40,28 @@ local function scenario_named(name)
     error("scenario not found: " .. name, 2)
 end
 
--- Per-spec expected never counts AFTER the sweep (58 → 13). Each remaining
--- lane is classified in the run_verify_all.lua vanilla pin comment.
+-- Per-spec expected never counts AFTER the sweep (58 → 13) and the wave 1.4
+-- reclassification (13 → 13 with changed CONTENT, 2026-08-13: AbolishDisease
+-- + Ambush cleared; priest/leveling Fade pinned — the Fade lane gates on
+-- threat_pct >= 99 while the battery's threat channel is capped at 95 by the
+-- Soulshatter fires-ONLY-in-threat_high exclusivity contract). Each remaining
+-- lane is classified in docs/never_strategy_triage_vanilla_2026-08-13.md.
 local EXPECTED_NEVER = {
     { "druid", "bear", 2 },              -- FaerieFirePull, PrePullEnrage (OOC pre-pull)
-    { "mage", "fire", 1 },               -- ManaGemConjure (OOC conjure)
-    { "mage", "frost", 1 },              -- ManaGemConjure (OOC conjure)
-    { "priest", "holy", 3 },             -- AbolishDisease, EncounterReactions, MountedProtection
-    { "rogue", "subtlety", 1 },          -- Ambush (opener auto-resolve)
+    { "mage", "fire", 1 },               -- ManaGemConjure (OOC conjure, gem always available)
+    { "mage", "frost", 1 },              -- ManaGemConjure (OOC conjure, gem always available)
+    { "mage", "leveling", 1 },           -- ConjureManaGem (OOC conjure, gem always available)
+    { "priest", "holy", 2 },             -- EncounterReactions (era gate), MountedProtection (mounted OOC)
+    { "priest", "leveling", 1 },         -- Fade (threat_pct >= 99, battery threat channel capped at 95)
     { "shaman", "elemental", 2 },        -- MagmaTotem, WrathOfAirTotem (inert/TBC-only)
-    { "shaman", "enhancement", 2 },      -- FireNovaReplacement, GraceOfAirTotemTwist
+    { "shaman", "enhancement", 2 },      -- FireNovaReplacement, GraceOfAirTotemTwist (module-local state)
     { "warlock", "affliction", 1 },      -- RacialArcaneTorrent (blood elf)
 }
 
 -- ============================================================================
 -- (1) End-to-end: the vanilla battery must report exactly 13 never-firing
--- lanes, and every spec that the sweep cleared must be at 0.
+-- lanes across ALL 40 vanilla specs (31 non-leveling + 9 leveling, wave 1.4),
+-- and every spec that the sweep + wave 1.4 cleared must be at 0.
 -- ============================================================================
 local agg = aud.run_all("vanilla")
 local total_never = 0
@@ -63,16 +72,27 @@ for _, rep in ipairs(agg.reports or {}) do
     total_never = total_never + #(rep.never or {})
 end
 assert_eq(total_never, 13, "vanilla battery must report exactly 13 never-firing lanes, got " .. total_never)
-print("PASS: vanilla battery total never-fires = 13")
+print("PASS: vanilla battery total never-fires = 13 (reclassified content, 40-spec battery)")
 
--- Specs fully cleared by the sweep (harness + defect fixes) must be at 0.
+-- The battery manifest must cover all 40 vanilla spec files (wave 1.4
+-- extension: 31 non-leveling + 9 leveling_vanilla).
+local spec_count = 0
+for _, rep in ipairs(agg.reports or {}) do spec_count = spec_count + 1 end
+assert_eq(spec_count, 40, "vanilla battery must cover 40 specs, got " .. spec_count)
+print("PASS: vanilla battery covers all 40 vanilla spec files (incl. 9 leveling)")
+
+-- Specs fully cleared by the sweep + wave 1.4 (harness seeds, defect fixes,
+-- scenario fixtures) must be at 0.
 local CLEARED_TO_ZERO = {
-    "druid/balance", "druid/cat", "druid/resto",
-    "hunter/beast_mastery", "hunter/marksmanship", "hunter/survival",
-    "mage/arcane", "priest/discipline", "priest/shadow", "priest/smite",
-    "rogue/assassination", "rogue/combat",
-    "shaman/restoration", "warlock/demonology", "warlock/destruction",
-    "warrior/arms", "warrior/fury", "warrior/kebab", "warrior/protection",
+    "druid/balance", "druid/cat", "druid/leveling", "druid/resto",
+    "hunter/beast_mastery", "hunter/leveling", "hunter/marksmanship", "hunter/survival",
+    "mage/arcane",
+    "paladin/leveling",
+    "priest/discipline", "priest/shadow", "priest/smite",
+    "rogue/assassination", "rogue/combat", "rogue/leveling", "rogue/subtlety",
+    "shaman/leveling", "shaman/restoration",
+    "warlock/demonology", "warlock/destruction", "warlock/leveling",
+    "warrior/arms", "warrior/fury", "warrior/kebab", "warrior/leveling", "warrior/protection",
 }
 for _, key in ipairs(CLEARED_TO_ZERO) do
     assert_eq(by_spec[key], 0, "spec " .. key .. " must have 0 never-firing lanes after the sweep (got "
@@ -193,7 +213,13 @@ print("PASS: demonology demon_armor_ready computed; DemonArmorBuff fires OOC, si
 -- (2d) warlock ShadowWard get_class fallback (affliction + demonology): the
 -- engine never sets context.enemy_shadow_caster, so the matcher must fall
 -- back to target:get_class() (priest 5 / warlock 9). PvP + priest target ->
--- fires; PvP + warrior target -> silent; non-PvP -> silent.
+-- fires; PvP + warrior target -> silent; non-PvP -> silent. The wave-1.3
+-- fixer reconciled demonology to the shared contract: its matcher now reads
+-- state.shadow_ward_ready (demonology_vanilla:730-747) instead of calling
+-- NS.spell_ready directly like affliction, so the fixture builds REAL state
+-- via the recovered build_state (the old bare matches(ctx) call passed nil
+-- state and silently false'd the demo side — the fixture must exercise the
+-- new state-driven contract, not a weaker one).
 local affl_mod, _, affl_ns = aud.load_spec("warlock", "affliction", "vanilla")
 assert_true(affl_mod ~= nil, "warlock/affliction vanilla load failed")
 local affl_strategies = (type(affl_mod) == "table") and (affl_mod.strategies or affl_mod) or {}
@@ -201,10 +227,19 @@ local function sw_matches(mod, ns, target_class, is_pvp)
     local sc = { name = "sw_probe", overrides = { is_pvp = is_pvp, target_class = target_class } }
     local ctx = aud.build_context_for("warlock", sc)
     aud.apply_battery_state(ns, ctx, "warlock")
-    -- The strategy matcher takes only context (no state).
+    -- Recover the real state builder (plain-style vanilla files register it
+    -- via the registry mock) so the demonology matcher's
+    -- state.shadow_ward_ready read is exercised, not bypassed.
+    local build = get_state_for(mod, ns)
+    local state
+    if build then
+        local ok_st, st = pcall(build, ctx)
+        assert_true(ok_st, "ShadowWard build_state crashed: " .. tostring(st))
+        state = st
+    end
     for _, s in ipairs(mod.strategies or mod) do
         if type(s) == "table" and s.name == "ShadowWard" then
-            local ok, m = pcall(s.matches, ctx)
+            local ok, m = pcall(s.matches, ctx, state)
             assert_true(ok, "ShadowWard matcher crashed: " .. tostring(m))
             return m
         end
@@ -218,10 +253,12 @@ assert_eq(sw_matches(affl_mod, affl_ns, 1, true), false,
 assert_eq(sw_matches(affl_mod, affl_ns, 5, false), false,
     "affliction ShadowWard must stay silent outside PvP")
 assert_eq(sw_matches(demo_mod, demo_ns, 5, true), true,
-    "demonology ShadowWard must fire in PvP vs a priest target (get_class fallback)")
+    "demonology ShadowWard must fire in PvP vs a priest target (state.shadow_ward_ready contract)")
 assert_eq(sw_matches(demo_mod, demo_ns, 1, true), false,
     "demonology ShadowWard must stay silent vs a non-shadow-caster class")
-print("PASS: ShadowWard get_class fallback (priest fires, warrior silent, non-PvP silent) in affliction + demonology")
+assert_eq(sw_matches(demo_mod, demo_ns, 5, false), false,
+    "demonology ShadowWard must stay silent outside PvP (PvP gate)")
+print("PASS: ShadowWard get_class fallback + PvP gate (priest fires, warrior silent, non-PvP silent) in affliction + demonology")
 
 -- (2e) fury Overpower dodge fixture: the dodge_proc scenario drives
 -- target:get_dodge_chance() > 0, so state.overpower_window is true and the
@@ -294,4 +331,47 @@ assert_true(cure.overrides and cure.overrides.on_cd and cure.overrides.on_cd[528
     "holy_cure_on_cd scenario must exist with on_cd { [528] = CureDisease }")
 print("PASS: dodge_proc + holy_cure_on_cd fixture scenarios present")
 
-print("PASS: vanilla sweep regression (13 pins, 6 defect fixes, 2 fixture shapes)")
+-- Wave 1.4 fixture-shape pins (2026-08-13): each scenario that cleared a
+-- wave-1.4 lane must stay present, or the lane silently re-deads.
+local WAVE14_SHAPES = {
+    cat_lev_claw = function(s)
+        return s.overrides and s.overrides.is_behind == false
+            and s.overrides.debuff_remains_map and s.overrides.debuff_remains_map[9904] ~= nil
+    end,
+    ambush_opener = function(s)
+        return s.overrides and s.overrides.setting_overrides
+            and s.overrides.setting_overrides.opener_preference == "ambush"
+            and s.overrides.buff_remains_map and s.overrides.buff_remains_map[1784] ~= nil
+    end,
+    pal_lev_seal = function(s)
+        return s.overrides and s.overrides.buff_remains_map
+            and s.overrides.buff_remains_map[20375] ~= nil
+            and s.overrides.target_hp == 15 and s.overrides.target_creature_type == 6
+    end,
+    priest_ve = function(s)
+        return s.overrides and s.overrides.buff_remains_map
+            and s.overrides.buff_remains_map[15473] ~= nil
+    end,
+    lev_shock_earth = function(s)
+        return s.overrides and s.overrides.setting_overrides
+            and s.overrides.setting_overrides.leveling_default_shock == "earth"
+    end,
+    lev_shock_frost = function(s)
+        return s.overrides and s.overrides.setting_overrides
+            and s.overrides.setting_overrides.leveling_default_shock == "frost"
+    end,
+    pvp_cc_gate = function(s)
+        return s.overrides and s.overrides.enemy_cc_nearby == true
+    end,
+    ooc_afflicted = function(s)
+        return s.overrides and s.overrides.in_combat == false
+            and s.overrides.friends_afflicted == true
+    end,
+}
+for name, check in pairs(WAVE14_SHAPES) do
+    assert_true(check(scenario_named(name)),
+        "wave-1.4 fixture scenario " .. name .. " must exist with its shape (a future edit that drops it re-deads the lane it cleared)")
+end
+print("PASS: wave-1.4 fixture scenarios (cat_lev_claw/ambush_opener/pal_lev_seal/priest_ve/lev_shock_earth/lev_shock_frost/pvp_cc_gate/ooc_afflicted) present")
+
+print("PASS: vanilla sweep regression (13 pins, 40-spec battery, 6 defect fixes, 10 fixture shapes)")

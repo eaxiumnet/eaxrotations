@@ -225,10 +225,11 @@ end
 local idx_imm = dsl_indices["Immolate"]
 assert_true(strategies[idx_imm].matches(make_ctx(), make_state()),
     "Immolate matches with no debuff, high SP, stationary")
--- Immolate DSL preserves original match-function behavior: it does NOT gate on
--- is_moving (the not_moving flag in ACTIONS is handled by the framework).
-assert_true(strategies[idx_imm].matches(make_ctx({ is_moving = true }), make_state()),
-    "Immolate matches while moving (original behavior preserved)")
+-- Immolate DSL preserves the ACTIONS `not_moving` gate: the DSL substitution
+-- drops the ACTIONS metadata, so the DSL definition carries its own is_moving
+-- check (2026-08 live audit: without it Immolate fired while moving).
+assert_false(strategies[idx_imm].matches(make_ctx({ is_moving = true }), make_state()),
+    "Immolate skips while moving (not_moving restored)")
 assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ immolate_remains = 10 })),
     "Immolate skips when debuff has plenty of time")
 -- 2026-08 read-side audit: the spell-damage min-SP gate was REMOVED (the

@@ -5,11 +5,13 @@
 --        opt-in lanes. Keys are spec-scoped (arms reads use_sunder_armor;
 --        fury reads sunder_mode; arms+prot read use_commanding_shout; combat
 --        reads combat_expose_assigned; subtlety reads subtlety_expose_assigned):
---          warrior/arms `SunderArmor`   — `use_sunder_armor` + DEFENSIVE
---            stance (its build_action has required_stance = STANCE.DEFENSIVE,
---            so the battle-stance default blocks it even with the setting).
+--          warrior/arms `SunderArmor`   — `use_sunder_armor` + BATTLE stance
+--            (2026-08-12 live-correctness fix: its build_action now has
+--            required_stance = STANCE.BATTLE — arms plays in Battle and no
+--            strategy swaps to Defensive, so the old DEFENSIVE gate made the
+--            lane unreachable in live play).
 --            arms_sunder = { setting_overrides = { use_sunder_armor = true },
---            stance = 2 }.
+--            stance = 1 }.
 --          warrior/fury `SunderArmor`   — `sunder_mode \"maintain\"` (default
 --            \"off\" blocks; rage 70 default clears the min_rage 15 gate).
 --            fury_sunder = { setting_overrides = { sunder_mode = \"maintain\" } }.
@@ -77,16 +79,16 @@ local function assert_lane(spec_mod, ns, class_key, scenario_name, lane, want, l
 end
 
 -- ============================================================================
--- warrior/arms: SunderArmor (setting + defensive stance) + CommandingShout
+-- warrior/arms: SunderArmor (setting + battle stance) + CommandingShout
 -- ============================================================================
 local arms, arms_err, arms_ns = aud.load_spec("warrior", "arms")
 assert_true(arms ~= nil, "warrior/arms load failed: " .. tostring(arms_err))
 _G.EaxRotations = arms_ns
 
 local sa_ctx, sa_state = assert_lane(arms, arms_ns, "warrior", "arms_sunder", "SunderArmor", true,
-    "arms SunderArmor must match in arms_sunder (setting + defensive stance)")
-assert_true(sa_state.stance == 2,
-    "arms_sunder must be defensive stance, got stance=" .. tostring(sa_state.stance))
+    "arms SunderArmor must match in arms_sunder (setting + battle stance)")
+assert_true(sa_state.stance == 1,
+    "arms_sunder must be battle stance, got stance=" .. tostring(sa_state.stance))
 -- Negative: battle_stance has stance 1 but no setting — the setting gate blocks.
 assert_lane(arms, arms_ns, "warrior", "battle_stance", "SunderArmor", false,
     "arms SunderArmor must NOT match in battle_stance (use_sunder_armor unset)")

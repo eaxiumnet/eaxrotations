@@ -104,6 +104,15 @@ package.loaded["shared/spell_queue_helper_sylvanas"] = {
     queue_spell_target = function() return false end,
 }
 package.loaded["common/utility/inventory_helper"] = { has_item = function() return nil end }
+-- FeignDeath threat gate (live-correctness fix) uses hunter_core.should_feign_death
+package.loaded["shared/hunter_core_sylvanas"] = {
+    should_feign_death = function(threat_level, mode)
+        if mode == "off" or not mode then return false end
+        if mode == "high_threat" and threat_level >= 2 then return true end
+        if mode == "aggro_only" and threat_level >= 3 then return true end
+        return false
+    end,
+}
 
 -- Load the real DSL engine so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
@@ -127,13 +136,15 @@ for name, _ in pairs(dsl_names) do
     assert_true(found[name] ~= nil, name .. " is present in strategies")
 end
 
--- Verify expected priority positions
+-- Verify expected priority positions. NOTE (2026-08-13): the opt-in
+-- AimedShotWeave lane was inserted after AimedShotPrepull (guide-divergence
+-- campaign, default off), shifting KillCommand 21->22 and FeignDeath 22->23.
 assert_true(found.MendPet == 4, "MendPet at priority index 4")
 assert_true(found.FreezingTrap == 13, "FreezingTrap at priority index 13")
 assert_true(found.HuntersMark == 14, "HuntersMark at priority index 14")
 assert_true(found.RapidFire == 15, "RapidFire at priority index 15")
-assert_true(found.KillCommand == 21, "KillCommand at priority index 21")
-assert_true(found.FeignDeath == 22, "FeignDeath at priority index 22")
+assert_true(found.KillCommand == 22, "KillCommand at priority index 22")
+assert_true(found.FeignDeath == 23, "FeignDeath at priority index 23")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -225,15 +236,21 @@ assert_false(strategies[idx_kc].matches(make_ctx(), make_state({ kill_command_re
     "KillCommand skips when spell not ready")
 
 -- ============================================================================
--- FeignDeath: in combat, ready
+-- FeignDeath: in combat, fd_mode enabled (defaults off), threat >= mode
+-- threshold, ready. (Live-correctness fix 2026-08: the lane used to fire
+-- unconditionally in combat every tick; now threat-gated like BM.)
 -- ============================================================================
 local idx_feign = found.FeignDeath
-assert_true(strategies[idx_feign].matches(make_ctx(), make_state()),
-    "FeignDeath matches when in combat and ready")
-assert_false(strategies[idx_feign].matches(make_ctx({ in_combat = false }), make_state({ in_combat = false })),
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state()),
+    "FeignDeath skips by default (fd_mode off)")
+assert_true(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 2 })),
+    "FeignDeath matches when high_threat mode and threat level >= 2")
+assert_false(strategies[idx_feign].matches(make_ctx({ in_combat = false }), make_state({ in_combat = false, fd_mode = "high_threat", threat_level = 2 })),
     "FeignDeath skips when not in combat")
-assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ feign_death_ready = false })),
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 2, feign_death_ready = false })),
     "FeignDeath skips when spell not ready")
+assert_false(strategies[idx_feign].matches(make_ctx(), make_state({ fd_mode = "high_threat", threat_level = 1 })),
+    "FeignDeath skips when threat below high_threat threshold")
 
 -- ============================================================================
 -- FreezingTrap: out of combat, ready

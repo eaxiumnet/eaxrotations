@@ -126,7 +126,8 @@ local expected_order = {
     "TotemOfWrath", "WrathOfAirTotem",
     "LightningShield", "WaterShield", "GhostWolf", "TremorTotem", "EarthbindTotem",
     "ManaTideTotem", "ElementalMastery", "NaturesSwiftness", "Bloodlust",
-    "ChainLightning", "FlameShock", "LightningBolt", "ChainHeal",
+    "ChainLightning", "ChainLightningSingleTarget", "FlameShock", "FlameShockMaintain",
+    "LightningBolt", "ChainHeal",
     "FlameShockMoving", "EarthShockMoving", "FrostShockMoving",
     "ManaSpringTotem",
     "FireNovaTotem", "MagmaTotem",
@@ -148,10 +149,16 @@ assert_true(dsl_indices["EarthbindTotem"] == 10, "EarthbindTotem at index 10")
 assert_true(dsl_indices["ManaTideTotem"] == 11, "ManaTideTotem at index 11")
 assert_true(dsl_indices["ElementalMastery"] == 12, "ElementalMastery at index 12")
 assert_true(dsl_indices["ChainLightning"] == 15, "ChainLightning at index 15")
-assert_true(dsl_indices["FlameShock"] == 16, "FlameShock at index 16")
+-- Phase 2.2a guide-divergence lanes (default OFF, byte-identical when off):
+-- ChainLightningSingleTarget sits right after the AoE CL lane and
+-- FlameShockMaintain right after the clip-window FlameShock lane, both
+-- before Lightning Bolt filler.
+assert_true(dsl_indices["ChainLightningSingleTarget"] == 16, "ChainLightningSingleTarget at index 16")
+assert_true(dsl_indices["FlameShock"] == 17, "FlameShock at index 17")
+assert_true(dsl_indices["FlameShockMaintain"] == 18, "FlameShockMaintain at index 18")
 -- Mana Spring Totem is demoted below the DPS/moving-shock block (guide position ~21)
 -- while Totem of Wrath + Wrath of Air stay high for buff uptime.
-assert_true(dsl_indices["ManaSpringTotem"] == 22, "ManaSpringTotem demoted to index 22")
+assert_true(dsl_indices["ManaSpringTotem"] == 24, "ManaSpringTotem demoted to index 24")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -271,7 +278,7 @@ assert_false(strategies[idx_cl].matches(make_ctx({ threat_pct = 90 }), make_stat
 -- ============================================================================
 -- FlameShock: target exists, flame_remains <= 1, should_refresh_dot true, spell_ready target
 -- ============================================================================
-local idx_fs = 16
+local idx_fs = 17
 assert_true(strategies[idx_fs].matches(make_ctx(), make_state({ flame_remains = 0 })),
     "FlameShock matches when debuff absent and should_refresh_dot agrees")
 assert_false(strategies[idx_fs].matches(make_ctx(), make_state({ flame_remains = 5 })),
@@ -280,6 +287,46 @@ local no_target_ctx = make_ctx()
 no_target_ctx.target = nil
 assert_false(strategies[idx_fs].matches(no_target_ctx, make_state({ flame_remains = 0 })),
     "FlameShock skips when no target")
+
+-- ============================================================================
+-- ChainLightningSingleTarget (Phase 2.2a opt-in): setting ON + AoE gate FAILS
+-- -> CL fires as single-target nuke; setting OFF -> first statement false.
+-- ============================================================================
+local idx_cl_st = 16
+local _orig_aoe = NS.aoe_target_meets
+NS.aoe_target_meets = function() return false end
+assert_true(strategies[idx_cl_st].matches(
+    make_ctx({ settings = { elemental_cl_single_target = true } }), make_state()),
+    "ChainLightningSingleTarget matches when opt-in on and AoE gate fails")
+assert_false(strategies[idx_cl_st].matches(make_ctx(), make_state()),
+    "ChainLightningSingleTarget skips when opt-in off (byte-identical)")
+assert_false(strategies[idx_cl_st].matches(
+    make_ctx({ settings = { elemental_cl_single_target = true }, is_moving = true }), make_state()),
+    "ChainLightningSingleTarget skips while moving")
+assert_false(strategies[idx_cl_st].matches(
+    make_ctx({ settings = { elemental_cl_single_target = true } }), make_state({ mana_conserve = true })),
+    "ChainLightningSingleTarget skips during mana conserve")
+NS.aoe_target_meets = _orig_aoe
+assert_false(strategies[idx_cl_st].matches(
+    make_ctx({ settings = { elemental_cl_single_target = true } }), make_state()),
+    "ChainLightningSingleTarget skips when the AoE gate passes (owned by ChainLightning)")
+
+-- ============================================================================
+-- FlameShockMaintain (Phase 2.2a opt-in): setting ON + flame_remains in the
+-- (1, 3) maintain window -> refresh; setting OFF -> first statement false.
+-- ============================================================================
+local idx_fsm = 18
+assert_true(strategies[idx_fsm].matches(
+    make_ctx({ settings = { elemental_fs_maintain = true } }), make_state({ flame_remains = 2 })),
+    "FlameShockMaintain matches at 2s remaining when opt-in on")
+assert_false(strategies[idx_fsm].matches(make_ctx(), make_state({ flame_remains = 2 })),
+    "FlameShockMaintain skips when opt-in off (byte-identical)")
+assert_false(strategies[idx_fsm].matches(
+    make_ctx({ settings = { elemental_fs_maintain = true } }), make_state({ flame_remains = 5 })),
+    "FlameShockMaintain skips above the 3s refresh threshold")
+assert_false(strategies[idx_fsm].matches(
+    make_ctx({ settings = { elemental_fs_maintain = true } }), make_state({ flame_remains = 0 })),
+    "FlameShockMaintain skips the <=1s window (owned by FlameShock clip lane)")
 
 -- ============================================================================
 -- Summary

@@ -147,7 +147,7 @@ local strategies = balance.strategies
 -- ============================================================================
 -- Test 1: Strategy count
 -- ============================================================================
-assert_eq(#strategies, 26, "strategy count = 26")
+assert_eq(#strategies, 27, "strategy count = 27")
 
 -- ============================================================================
 -- Test 2: Full priority order
@@ -158,27 +158,28 @@ local expected_order = {
     "ForceOfNature",           -- 3
     "MoonkinForm",             -- 4 (DSL)
     "InnervateSelf",           -- 5
-    "RebirthBattleRez",        -- 6
-    "PreHurricaneBarkskin",    -- 7
-    "HurricaneAoE",            -- 8
-    "FaerieFireDebuff",        -- 9
-    "InsectSwarmDoT",          -- 10
-    "MoonfireDoT",             -- 11
-    "MoonfireSpread",          -- 12
-    "InsectSwarmSpread",       -- 13
-    "MovingMoonfire",          -- 14
-    "StarfirePrimary",         -- 15
-    "WrathFiller",             -- 16
-    "RemoveCurse",             -- 17
-    "ManaGem",                 -- 18
-    "ManaPotion",              -- 19 (DSL)
-    "PvP_NaturesGrasp",        -- 20 (DSL)
-    "PvP_EntanglingRoots",     -- 21
-    "PvP_Cyclone",             -- 22
-    "WarStomp",                -- 23 (DSL)
-    "Healthstone",             -- 24 (DSL)
-    "MarkOfTheWild",           -- 25
-    "ThornsBuff",              -- 26
+    "InnervateHealer",         -- 6 (Pattern 13 split, P2.2b)
+    "RebirthBattleRez",        -- 7
+    "PreHurricaneBarkskin",    -- 8
+    "HurricaneAoE",            -- 9
+    "FaerieFireDebuff",        -- 10
+    "InsectSwarmDoT",          -- 11
+    "MoonfireDoT",             -- 12
+    "MoonfireSpread",          -- 13
+    "InsectSwarmSpread",       -- 14
+    "MovingMoonfire",          -- 15
+    "StarfirePrimary",         -- 16
+    "WrathFiller",             -- 17
+    "RemoveCurse",             -- 18
+    "ManaGem",                 -- 19
+    "ManaPotion",              -- 20 (DSL)
+    "PvP_NaturesGrasp",        -- 21 (DSL)
+    "PvP_EntanglingRoots",     -- 22
+    "PvP_Cyclone",             -- 23
+    "WarStomp",                -- 24 (DSL)
+    "Healthstone",             -- 25 (DSL)
+    "MarkOfTheWild",           -- 26
+    "ThornsBuff",              -- 27
 }
 
 for i = 1, #expected_order do
@@ -191,10 +192,10 @@ end
 local dsl_positions = {
     ManaPotionEmergency = 2,
     MoonkinForm = 4,
-    ManaPotion = 19,
-    PvP_NaturesGrasp = 20,
-    WarStomp = 23,
-    Healthstone = 24,
+    ManaPotion = 20,
+    PvP_NaturesGrasp = 21,
+    WarStomp = 24,
+    Healthstone = 25,
 }
 
 for name, pos in pairs(dsl_positions) do
@@ -243,7 +244,7 @@ assert_false(strategies[idx_mpe].matches(make_ctx(), make_state({ mana_pct = 20 
 assert_false(strategies[idx_mpe].matches(make_ctx(), make_state({ mana_pct = 100 })), "ManaPotionEmergency skips at mana=100")
 
 -- ManaPotion: mana <= 25 should match
-local idx_mp = 19
+local idx_mp = 20
 assert_true(strategies[idx_mp].matches(make_ctx(), make_state({ mana_pct = 20 })), "ManaPotion matches at mana=20")
 assert_false(strategies[idx_mp].matches(make_ctx(), make_state({ mana_pct = 30 })), "ManaPotion skips at mana=30")
 
@@ -259,7 +260,7 @@ mock_in_combat = false
 assert_false(strategies[idx_mf].matches(make_ctx({ settings = { balance_moonkin_auto = false } }), make_state()), "MoonkinForm skips when auto=false")
 
 -- WarStomp: requires in_combat, enemy_count >= 4, spell ready
-local idx_ws = 23
+local idx_ws = 24
 mock_in_combat = true
 mock_spell_ready_result = true
 assert_true(strategies[idx_ws].matches(make_ctx(), make_state({ enemy_count = 5 })), "WarStomp matches at 5 enemies in combat")
@@ -268,7 +269,7 @@ mock_in_combat = false
 assert_false(strategies[idx_ws].matches(make_ctx(), make_state({ enemy_count = 5 })), "WarStomp skips out of combat")
 
 -- Healthstone: requires in_combat, hp <= 28, healthstone_ready > 0
-local idx_hs = 24
+local idx_hs = 25
 mock_in_combat = true
 assert_true(strategies[idx_hs].matches(make_ctx({ hp = 25 }), make_state({ healthstone_ready = 1 })), "Healthstone matches at hp=25, ready=1")
 assert_false(strategies[idx_hs].matches(make_ctx({ hp = 30 }), make_state({ healthstone_ready = 1 })), "Healthstone skips at hp=30")
@@ -277,7 +278,7 @@ mock_in_combat = false
 assert_false(strategies[idx_hs].matches(make_ctx({ hp = 25 }), make_state({ healthstone_ready = 1 })), "Healthstone skips out of combat")
 
 -- PvP_NaturesGrasp: requires is_pvp, melee_on_you, spell ready
-local idx_ng = 20
+local idx_ng = 21
 mock_spell_ready_result = true
 assert_true(strategies[idx_ng].matches(make_ctx({ is_pvp = true, melee_on_you = true }), make_state()), "NaturesGrasp matches in PvP with melee on you")
 assert_false(strategies[idx_ng].matches(make_ctx({ is_pvp = true, melee_on_you = false }), make_state()), "NaturesGrasp skips without melee on you")
