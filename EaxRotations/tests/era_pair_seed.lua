@@ -476,13 +476,13 @@ return {
     {
         spec = "warlock/destruction",
         missing_in = "sylvanas",
-        names = { "ChaosBolt", "HealthPotion", "ManaGem", "ShadowWard", "Trinket" },
+        names = { "ChaosBolt", "HealthPotion", "ManaGem", "ShadowWard", "SoulFireBackdraft", "Trinket" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warlock/destruction",
         missing_in = "vanilla",
-        names = { "ChaosBolt", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DemonicSacrifice", "FelArmor", "Incinerate", "LifeTapMoving", "SeedOfCorruption", "Shadowfury", "SpellLock", "SummonFelguard" },
+        names = { "ChaosBolt", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DemonicSacrifice", "FelArmor", "Incinerate", "LifeTapMoving", "SeedOfCorruption", "Shadowfury", "SoulFireBackdraft", "SpellLock", "SummonFelguard" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

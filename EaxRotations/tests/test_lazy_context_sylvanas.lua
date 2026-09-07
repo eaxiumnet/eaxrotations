@@ -111,4 +111,21 @@ end)
 assert_eq(ctx6.value, 11, "duplicate registration: new resolver runs after re-registration")
 assert_eq(version, 11, "duplicate registration: resolver was not the old one")
 
-print("PASS test_lazy_context_sylvanas (cache hits, dependency invalidation, resolve_all, nil cache, error handling, duplicate registration)")
+-- ============================================================================
+-- Raw-set BEFORE first registration must not pin the stale raw value.
+-- Regression: build_context seeds `lowest` with a {unit=nil} default via
+-- __newindex and only later _registers its resolver. Before the fix the cache
+-- clear ran only in the duplicate-registration branch, so `lowest` stayed the
+-- raw default and party heals resolved their friendly target to self.
+-- ============================================================================
+local ctx7 = lazy_context.create()
+ctx7.lowest = { unit = nil, hp = 100 } -- raw seed, same as main_sylvanas:637
+ctx7._register("lowest_unit", nil, function() return "Tank" end)
+ctx7._register("lowest_hp", nil, function() return 40 end)
+ctx7._register("lowest", { "lowest_unit", "lowest_hp" }, function(c)
+    return { unit = c.lowest_unit, hp = c.lowest_hp }
+end)
+assert_eq(ctx7.lowest.unit, "Tank", "raw-set then register: first registration arms the resolver")
+assert_eq(ctx7.lowest.hp, 40, "raw-set then register: resolver result not the raw default")
+
+print("PASS test_lazy_context_sylvanas (cache hits, dependency invalidation, resolve_all, nil cache, error handling, duplicate registration, raw-set-then-register)")

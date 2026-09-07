@@ -34,9 +34,17 @@ local IMMOLATE_REFRESH_SECONDS = type(IMMOLATE_CAST_TIME) == "number"
 -- passes, a production never-lane).
 local IMMOLATE_DEBUFF = { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 
+-- Backdraft: the haste aura Conflagrate grants the caster (reduces the cast
+-- time and GCD of the next three Destruction spells). Per-talent-rank auras
+-- are 54274 (-10%) / 54276 (-20%) / 54277 (-30%), verified on wotlkdb.com
+-- (3.3.5a). The index bridge carries the same ids; 55379/55380 are Skyflare
+-- Swiftness (meta-gem proc), NOT Backdraft — see the index manual entry.
+local BACKDRAFT_BUFF = { 54274, 54276, 54277 }
+
 local DESTRUCTION_SCHEMA = {
     enemy_count = 1, in_combat = false,
     immolate_remains = 0,
+    has_backdraft = false,
     hp = 100, mana_pct = 100,
 }
 
@@ -53,11 +61,12 @@ local function build_state(context)
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.immolate_remains = (target and NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF)) or 0
+    state.has_backdraft = (me and NS.buff_up and NS.buff_up(me, BACKDRAFT_BUFF)) or false
     return state
 end
 
 -- ============================================================================
--- Declarative Strategy DSL definitions (5 strategies, 100% declarative)
+-- Declarative Strategy DSL definitions (7 strategies, 100% declarative)
 -- ============================================================================
 local DSL_DEFS = {
     {
@@ -88,6 +97,19 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Incinerate, target = "target", label = "[DESTRUCTION WOTLK] Incinerate" },
     },
+    -- Soul Fire is a 15s-CD / 4s-cast nuke; its long cast is only competitive
+    -- inside a haste window, so the proc lane consumes the Backdraft aura
+    -- (mirrors the repo's proc-consumer convention, e.g. BacklashShadowBolt).
+    -- The plain SoulFire lane below Incinerate stays for non-Backdraft builds.
+    {
+        name = "SoulFireBackdraft",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "has_backdraft", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.SoulFire, target = "target", label = "[DESTRUCTION WOTLK] Soul Fire (Backdraft window)" },
+    },
     {
         name = "SoulFire",
         conditions = {
@@ -116,6 +138,7 @@ local strategies = {
     { name = "Conflagrate" },
     { name = "Immolate" },
     { name = "ChaosBolt" },
+    { name = "SoulFireBackdraft" },
     { name = "Incinerate" },
     { name = "SoulFire" },
     { name = "LifeTap" },

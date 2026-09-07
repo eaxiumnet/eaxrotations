@@ -113,4 +113,66 @@ local exec_result = pool.execute(ctx_match)
 assert_true(exec_result == true, "PoolForBuilderTick execute should return true (no-op wait)")
 assert_true(try_cast_count == 0, "PoolForBuilderTick execute must NOT call try_cast (was the old FB-casting bug)")
 
+-- ============================================================================
+-- Powershift + EmergencyPowershift (wowsims feral powershift lane).
+-- should_powershift (cat_sylvanas build_state): enabled && is_cat && in_combat
+-- && energy <= shift_energy (25) && combo_points <= POWERSHIFT_SAFE_CP (4)
+-- && mana_pct >= POWERSHIFT_MIN_MANA (8) && energy+shift_gain(FUROR 40) >= 42.
+-- powershift_matches additionally HOLDS when clearcasting, the energy tick is
+-- imminent (<=0.35 with cap headroom), or CP>=5 with Rip affordable.
+-- ============================================================================
+local powershift = find_strategy("Powershift")
+local emergency = find_strategy("EmergencyPowershift")
+assert_true(powershift, "Powershift strategy should exist")
+assert_true(emergency, "EmergencyPowershift strategy should exist")
+
+-- Fire: cat, in combat, low energy (15 <= 25), CP safe, mana ok, tick NOT imminent
+local ps_fire = {
+    in_combat = true, combo_points = 2, energy = 15, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = { cat_powershift_enabled = true },
+    me = make_me(1.0),
+}
+assert_true(powershift.matches(ps_fire), "Powershift should fire at <=25 energy with mana and CP safe, tick not imminent")
+
+-- Hold: energy above the 25 shift threshold (30 > 25)
+local ps_energy = {
+    in_combat = true, combo_points = 2, energy = 30, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = {}, me = make_me(1.0),
+}
+assert_false(powershift.matches(ps_energy), "Powershift must NOT fire above the shift-energy threshold (30 > 25)")
+
+-- Hold: powershifting disabled
+local ps_disabled = {
+    in_combat = true, combo_points = 2, energy = 15, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = { cat_powershift_enabled = false },
+    me = make_me(1.0),
+}
+assert_false(powershift.matches(ps_disabled), "Powershift must NOT fire when cat_powershift_enabled = false")
+
+-- Hold: mana below POWERSHIFT_MIN_MANA (8)
+local ps_mana = {
+    in_combat = true, combo_points = 2, energy = 15, ttd = 60, mana_pct = 5,
+    target = { _debuff_remains = 0 }, settings = {}, me = make_me(1.0),
+}
+assert_false(powershift.matches(ps_mana), "Powershift must NOT fire below POWERSHIFT_MIN_MANA (8)")
+
+-- Hold: energy tick imminent (<= 0.35) with cap headroom -> wait for the free tick
+local ps_tick = {
+    in_combat = true, combo_points = 2, energy = 15, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = {}, me = make_me(0.2),
+}
+assert_false(powershift.matches(ps_tick), "Powershift must NOT fire when the energy tick is imminent (<= 0.35)")
+
+-- Emergency: fires only at energy <= 10 with tick not imminent; holds above 10
+local emg_fire = {
+    in_combat = true, combo_points = 2, energy = 8, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = {}, me = make_me(1.0),
+}
+assert_true(emergency.matches(emg_fire), "EmergencyPowershift should fire at <= 10 energy")
+local emg_hold = {
+    in_combat = true, combo_points = 2, energy = 12, ttd = 60, mana_pct = 80,
+    target = { _debuff_remains = 0 }, settings = {}, me = make_me(1.0),
+}
+assert_false(emergency.matches(emg_hold), "EmergencyPowershift must NOT fire above 10 energy")
+
 print("test_cat_pool_for_builder_tick: ALL PASS")

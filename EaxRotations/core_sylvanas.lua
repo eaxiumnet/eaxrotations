@@ -1069,11 +1069,12 @@ function NS.register_on_update_callback(callback)
         local registered_ok, registered_result = pcall(fn, _shared_dispatcher)
 
         -- safe() returns nil if pcall threw; ok == false means the engine
-        -- rejected the registration. Try 4 more tick sources (menu / control
-        -- panel / window / pre_tick) then 4 event sources (spell_cast /
-        -- legit_spell_cast / combat_start / combat_end) as a last resort.
-        -- Each attempt is logged via NS.log so we can see which one(s) the
-        -- engine actually accepts.
+        -- rejected the registration. Try 3 more tick sources (menu / window /
+        -- pre_tick) then 4 event sources (spell_cast / legit_spell_cast /
+        -- combat_start / combat_end) as a last resort. NOTE: render_control_panel
+        -- is deliberately NOT a fallback tick source — plugins register their
+        -- own Control Panel (permashow) callback there, and a dispatcher squatting
+        -- on that slot leaves the panel empty while the rotation still works.
         if not registered_ok or registered_result == false then
             local function _make_tick_dispatcher()
                 return function(...)
@@ -1104,17 +1105,17 @@ function NS.register_on_update_callback(callback)
             end
 
             local more_sources = {
-                {"render_menu",          core and core.register_on_render_menu_callback,            "tick"},
-                {"render_control_panel", core and core.register_on_render_control_panel_callback,  "tick"},
-                {"render_window",        core and core.register_on_render_window_callback,         "tick"},
-                {"pre_tick",             core and core.register_on_pre_tick_callback,              "tick"},
-                {"spell_cast",           core and core.register_on_spell_cast_callback,            "event"},
-                {"legit_spell_cast",     core and core.register_on_legit_spell_cast_callback,      "event"},
-                {"combat_start",         core and core.register_on_combat_start_callback,          "event"},
-                {"combat_end",           core and core.register_on_combat_end_callback,            "event"},
+                {"render_menu",          core and core.register_on_render_menu_callback,          "tick"},
+                {"render_window",        core and core.register_on_render_window_callback,       "tick"},
+                {"pre_tick",             core and core.register_on_pre_tick_callback,            "tick"},
+                {"spell_cast",           core and core.register_on_spell_cast_callback,          "event"},
+                {"legit_spell_cast",     core and core.register_on_legit_spell_cast_callback,    "event"},
+                {"combat_start",         core and core.register_on_combat_start_callback,        "event"},
+                {"combat_end",           core and core.register_on_combat_end_callback,          "event"},
             }
 
             local _ok_count = 0
+            local _fallback_logged = false
             for _, _src in ipairs(more_sources) do
                 local _name, _fn, _kind = _src[1], _src[2], _src[3]
                 if type(_fn) == "function" then
@@ -1122,6 +1123,13 @@ function NS.register_on_update_callback(callback)
                     local _ok2, _result2 = pcall(_fn, _maker())
                     if _ok2 and _result2 ~= false then
                         _ok_count = _ok_count + 1
+                        if not _fallback_logged then
+                            _fallback_logged = true
+                            local _log = NS.log_warning or NS.log or core.log_warning
+                            if type(_log) == "function" then
+                                _log("[Callback] Primary tick source unavailable; dispatcher claimed fallback source: " .. tostring(_name))
+                            end
+                        end
                     end
                 end
             end

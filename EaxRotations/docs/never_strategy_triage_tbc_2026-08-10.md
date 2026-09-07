@@ -331,3 +331,167 @@ while leaving the never-list untouched. WotLK never stays 0 (STRICT pin
 holds). All gates green: 503 rotation + 32 leveling + 45 WotLK suites,
 battery TBC 16 / WotLK 0, `run_verify_all` exit 0, `spec_scorecard.lua
 --check` in sync. Scorecard pins: unchanged (no lane moved; reclassified 0).
+
+---
+
+# Addendum 2026-09-06 — Non-WotLK parity pass: retribution verdict + hunter sting middleware pin (TBC)
+
+## Item 1 verdict — TBC retribution is NOT a coverage gap
+
+The claim that "TBC retribution has only ~4 strategies while sibling DPS specs
+carry 17-37" does not match the live file. Evidence:
+
+- `behavioral_audit.lua` (sylvanas gate) counts `paladin retribution
+  strategies=47 never-fires=1`; the file registers 43 `add_strategy` lanes plus
+  4 appended strategies (`retribution_sylvanas.lua`) spanning the DPS core
+  (SealTwistBlood/Martyr, SealTwistPrepCommand, CrusaderStrike, Consecration,
+  Exorcism, Holy Wrath, Judgement), the HotC opener pair, executes (Hammer of
+  Wrath, Avenging Wrath), defensives (Divine Shield/Protection, Lay on Hands,
+  Forbearance gates), utility (Cleanse/Purify self+ally, Blessing of
+  Freedom/Protection, Healthstone/Potion), and PvP (Repentance, HoJ).
+- The scorecard's TBC row agrees: `paladin/retribution | 47 | ... | pass | A`.
+- The only never-firing lane is `Ret_SealMartyr_Primary` (665) — the
+  Alliance-only Seal of the Martyr primary, gated on
+  `state.preferred_damage_seal == "martyr"`; classified, not a defect.
+- The "~4" figure traces to `docs/status_audit.md`, which self-identifies as a
+  stale `2026-06-01` generated snapshot ("does not reflect v2.1.0–v2.2.0
+  changes… refreshed audit is pending"); its Strategy column lags the live tree
+  across the board (e.g. hunter BM 23 vs audit 34). No rotation code changed.
+
+## Item 2 — hunter BM stings: Viper proven handled, Scorpid is Survival-utility
+
+The BM comments ("Other stings not implemented yet (Scorpid/Viper via
+middleware)") were half-true and are now corrected in
+`beast_mastery_sylvanas.lua` / `beast_mastery_vanilla.lua`. Evidence:
+
+- **Viper Sting IS handled** — by the hunter class middleware
+  (`hunter/middleware_sylvanas.lua`): its `ViperSting` lane registers via
+  `NS.register_class_middleware("hunter", …)` and the dispatcher runs class
+  middleware first (`main_sylvanas.lua` run_list at 1787/1849/1891/1946), so it
+  fires for every hunter spec. New behavioral pin `test_hunter_middleware_viper_sting.lua`
+  drives the REAL middleware lane both sides: PvE/PvP settings, mana-power-type
+  target gate, the 30% target-HP threshold (29 holds / 30 fires), debuff
+  overlap refresh (remains >2 holds / <=2 refreshes), CD, OOC / no-target, and
+  the PvP class whitelist (MAGE fires / WARRIOR holds).
+- **Scorpid Sting is a Survival-spec utility lane** (both eras), not a BM
+  rotation sting, and the hunter schema's `sting_mode` dropdown exposes only
+  serpent|none — no other mode can reach the BM rotation sting lane. No
+  missing user-facing capability.
+- BM's own serpent path remains pinned by the existing suite set
+  (SerpentSting / SerpentStingRefresh).
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua          # sylvanas gate: 31 specs, never baseline 16 unchanged
+lua EaxRotations/tests/run_rotation_tests.lua        # 563 suites / 0 failed (battery 561 -> +2)
+```
+
+
+---
+
+## Addendum 2026-09-06 (P0-3, #1 roadmap) — TBC 16 → 14: PvP-trigger lanes modeled
+
+The behavioral battery gained two era-shared scenarios that model real states
+previously inexpressible (behavioral_audit.lua):
+
+- **`ooc_mounted`** (in_combat=false + `me:is_mounted()` ctx-banked): priest/
+  holy **MountedProtection** now provably fires on a mounted OOC state — it was
+  classified (b) only because the mock had no is_mounted member
+  (holy_sylvanas mounted_protection_matches reads me:is_mounted() as its sole
+  gate). Cleared from (b): 10 → 9.
+- **`sap_setup`** (in_combat=false + stealth_up + is_pvp): rogue/subtlety
+  **Sap** now provably fires on an OOC PvP sap setup. Every pre-existing
+  stealth scenario ran in_combat=true, so Sap's `not context.in_combat` gate
+  was structurally unobservable. Cleared from (c): 5 → 4. (The scenario also
+  legitimately fires assassination PvP_CheapShotOpen — no in-combat gate —
+  whose exclusivity pin now includes sap_setup.)
+
+New never split: **14 = (a) 1 · (b) 9 · (c) 4 · (d) 0** (verify_all battery
+pin updated; scorecard regenerated via tools/spec_scorecard.lua). Lanes that
+STAY classified, re-verified against the real files this pass:
+
+- **RakeSnapshot / RipSnapshot** (cat, (c)): module-local snapshot_state
+  (cat_sylvanas.lua:201) is written only by record_bleed_snapshot (619-641) on
+  a REAL bleed cast; the battery evaluates matchers statelessly and never
+  casts, so state.rip_ap/rake_ap stay 0 and should_snapshot_upgrade's
+  `snapshotted_ap <= 0` gate (523-533) can never pass. Unpinnable without an
+  execute-capture harness.
+- **FireNovaReplacement / GraceOfAirTotemTwist** (enh, (c)): module-local
+  totem_state (enhancement_sylvanas:44-48, flipped only inside the totem-drop
+  executes at 703-713); matchers read fire_nova_active / next_air (443-481).
+  Same stateless-execute limitation.
+- **Ret_SealMartyr_Primary** (ret, (c)): faction/era seal selection
+  (retribution_sylvanas.lua:346-410, martyr seal 348700 is Alliance + setting
+  ret_use_martyr); the battery has no faction-loaded race that selects the
+  martyr primary path. See the 2026-08-12 campaign evidence.
+- **EncounterReactions** (holy, (b)): real gate is in_combat + encounter_id ==
+  Karazhan (532) + heal-eligible state, where encounter_id comes from
+  NS.core.get_map_id (holy_sylvanas:392) — the battery has no map producer.
+  Vanilla copy is structurally inert (NS.is_tbc() gate).
+- **ManaGemConjure** x2 (b), **DispelMagic** (b, middleware-owned),
+  **ExposeArmor** (a, opt-in), **FaerieFirePull/FeralChargePull/PrePullEnrage**
+  (bear, b), **TrackHumanoids/TravelForm** (cat, b): unchanged; their gates
+  (item availability, OOC pre-pull with form, track/utility toggles) are
+  outside the PvP/snapshot/mock-c family scope of this pass and remain as
+  documented.
+
+
+---
+
+## Addendum 2026-09-06 (execute-capture harness) — supersedes the (c) rows above for cat
+
+The battery gained an **execute-capture path** (behavioral_audit.run_spec): a
+scenario may declare a capture plan (`capture = { era, seed_lane, reap_lanes,
+reap }`) that runs the seed lane's REAL execute against the mock NS — try_cast
+always returns true, so module-local state records exactly as it would live —
+then applies the reap transform (the post-cast frame a real rotation reaches
+next tick) and requires the reap lanes to fire. Era-guarded (sylvanas/TBC
+only) and spec-scoped: a spec without the seed lane silently skips the
+capture, so no other spec or era changes behavior.
+
+Two scenarios land the TBC druid/cat snapshot family:
+- `cat_rip_snapshot_capture` — seed: real **Rip** cast execute at AP 1000
+  (record_bleed_snapshot seeds snapshot_state.rip_ap = 1000); reap: Rip
+  applied (debuff map 27008 = 12s) + AP 4000 → **RipSnapshot fires** through
+  the real file.
+- `cat_rake_snapshot_capture` — seed: real **Rake** cast execute at AP 1000;
+  reap: Rake applied (27003 = 10s) + AP 4000 → **RakeSnapshot fires**.
+
+**RakeSnapshot + RipSnapshot: (c) mock-limitation → PROVEN** (they fire only
+in their capture scenarios; the stateless pass still cannot reach them, which
+is the point — the module state they gate on only exists after a cast).
+
+New never split: **12 = (a) 1 · (b) 9 · (c) 2 · (d) 0** (TBC; verify_all
+battery pin updated, scorecard regenerated). druid/cat never 4 → 2 (b2),
+rating **B → A**. The two remaining cat lanes (TrackHumanoids / TravelForm)
+are (b) OOC/utility correctly-silent and stay as documented. Still (c):
+enh FireNovaReplacement + GraceOfAirTotemTwist (module-local totem_state
+flipped inside totem-drop executes — same module-state shape, next capture
+family) and Ret_SealMartyr_Primary (faction seal selection). Cross-era
+contract re-verified: wotlk 0, vanilla 11, sod 0 unchanged.
+
+
+---
+
+## Addendum 2026-09-06 (execute-capture, enh totem family) — supersedes the (c) row above for FireNovaReplacement
+
+The harness rolled to the enhancement totem-state family (same module-state
+pattern the cat snapshot lanes proved tractable). The TBC copy of the
+replacement lane reads module-local totem_state.fire_nova_active, flipped only
+by the spec's real totem-drop executes:
+
+- `enh_fire_nova_replacement_capture_tbc` — seed: the REAL **FireTotem**
+  execute with `enhancement_fire_totem = "fire_nova"` (drops Fire Nova Totem
+  against the mock NS → fire_nova_active = true, exactly as live); reap:
+  flame shock up on the target (debuff map 25457 = 8s — the TBC gate's
+  direction) → **FireNovaReplacement fires**, exclusively in this scenario.
+
+**FireNovaReplacement (TBC): (c) mock-limitation → PROVEN.** New never split:
+**11 = (a) 1 · (b) 9 · (c) 1 · (d) 0** (verify_all battery pin updated;
+scorecard regenerated). shaman/enhancement TBC reaches **S+** (never 0, c 0,
+APL pass). Still (c): Ret_SealMartyr_Primary (faction seal selection — no
+faction-loaded race in the battery) and the vanilla totem family (same shape,
+covered by the vanilla-era addendum); cross-era contract re-verified: wotlk 0,
+vanilla 9, sod 0. The harness also now runs a fired reap lane's own execute
+(reap-and-consume), mirroring the real dispatcher — the seeded module state is
+cleared the way the engine's next cast would, keeping every capture proof
+exclusive to its scenario.

@@ -1,6 +1,6 @@
 -- test_vanilla_sweep_regression.lua — pins the vanilla sweep close-out
 -- (2026-08-11) + the wave 1.4 battery extension (2026-08-13).
--- WHAT:  (1) end-to-end never-count pins per spec (12 total across ALL 40
+-- WHAT:  (1) end-to-end never-count pins per spec (11 total across ALL 40
 --        vanilla spec files — the 9 leveling_vanilla files joined the battery
 --        manifest in wave 1.4, so the 31-spec era pin moved to 40); (2)
 --        matcher-level fired/silent non-vacuity for each genuine defect fix:
@@ -51,20 +51,28 @@ end
 -- ladder resolves the highest learned rank, so the "max rank is TBC-only"
 -- disable was factually wrong. WrathOfAirTotem stays pinned (TBC-only spell
 -- on the Classic client).
+-- 2026-09-06: 12 → 11 — priest/holy MountedProtection MODELED (P0-3): the
+-- ooc_mounted scenario banks me:is_mounted (behavioral_audit.lua), so the
+-- safety-net lane provably fires on a mounted OOC state instead of being
+-- an asserted-silent (b) lane.
+-- 2026-09-06: 11 → 9 — shaman/enhancement FireNovaReplacement +
+-- GraceOfAirTotemTwist PROVEN (execute-capture): the harness runs the REAL
+-- FireTotem / WindfuryTotemTwist executes (seeding module-local
+-- fire_nova_active / next_air), then re-evaluates the reap lanes on the
+-- post-cast frame — enhancement clears to 0.
 local EXPECTED_NEVER = {
     { "druid", "bear", 2 },              -- FaerieFirePull, PrePullEnrage (OOC pre-pull)
     { "mage", "fire", 1 },               -- ManaGemConjure (OOC conjure, gem always available)
     { "mage", "frost", 1 },              -- ManaGemConjure (OOC conjure, gem always available)
     { "mage", "leveling", 1 },           -- ConjureManaGem (OOC conjure, gem always available)
-    { "priest", "holy", 2 },             -- EncounterReactions (era gate), MountedProtection (mounted OOC)
+    { "priest", "holy", 1 },             -- EncounterReactions (era gate; MountedProtection cleared 2026-09-06)
     { "priest", "leveling", 1 },         -- Fade (threat_pct >= 99, battery threat channel capped at 95)
     { "shaman", "elemental", 1 },        -- WrathOfAirTotem (TBC-only on the Classic client; MagmaTotem enabled 2026-08-14)
-    { "shaman", "enhancement", 2 },      -- FireNovaReplacement, GraceOfAirTotemTwist (module-local state)
     { "warlock", "affliction", 1 },      -- RacialArcaneTorrent (blood elf)
 }
 
 -- ============================================================================
--- (1) End-to-end: the vanilla battery must report exactly 13 never-firing
+-- (1) End-to-end: the vanilla battery must report exactly 11 never-firing
 -- lanes across ALL 40 vanilla specs (31 non-leveling + 9 leveling, wave 1.4),
 -- and every spec that the sweep + wave 1.4 cleared must be at 0.
 -- ============================================================================
@@ -76,8 +84,8 @@ for _, rep in ipairs(agg.reports or {}) do
     by_spec[key] = #(rep.never or {})
     total_never = total_never + #(rep.never or {})
 end
-assert_eq(total_never, 12, "vanilla battery must report exactly 12 never-firing lanes, got " .. total_never)
-print("PASS: vanilla battery total never-fires = 12 (MagmaTotem enabled 2026-08-14)")
+assert_eq(total_never, 9, "vanilla battery must report exactly 9 never-firing lanes, got " .. total_never)
+print("PASS: vanilla battery total never-fires = 9 (enh totem lanes proven via execute-capture 2026-09-06)")
 
 -- The battery manifest must cover all 40 vanilla spec files (wave 1.4
 -- extension: 31 non-leveling + 9 leveling_vanilla).
@@ -95,7 +103,7 @@ local CLEARED_TO_ZERO = {
     "paladin/leveling",
     "priest/discipline", "priest/shadow", "priest/smite",
     "rogue/assassination", "rogue/combat", "rogue/leveling", "rogue/subtlety",
-    "shaman/leveling", "shaman/restoration",
+    "shaman/enhancement", "shaman/leveling", "shaman/restoration",
     "warlock/demonology", "warlock/destruction", "warlock/leveling",
     "warrior/arms", "warrior/fury", "warrior/kebab", "warrior/leveling", "warrior/protection",
 }
@@ -110,7 +118,7 @@ for _, e in ipairs(EXPECTED_NEVER) do
     assert_eq(by_spec[key], e[3], "spec " .. key .. " must keep " .. e[3]
         .. " pinned never-firing lane(s), got " .. tostring(by_spec[key]))
 end
-print("PASS: all 12 kept pins are exactly as classified")
+print("PASS: all 9 kept pins are exactly as classified")
 
 -- ============================================================================
 -- (2) Defect-fix non-vacuity (matcher level, mirroring the cat-sweep
@@ -379,4 +387,4 @@ for name, check in pairs(WAVE14_SHAPES) do
 end
 print("PASS: wave-1.4 fixture scenarios (cat_lev_claw/ambush_opener/pal_lev_seal/priest_ve/lev_shock_earth/lev_shock_frost/pvp_cc_gate/ooc_afflicted) present")
 
-print("PASS: vanilla sweep regression (12 pins, 40-spec battery, 6 defect fixes, 10 fixture shapes)")
+print("PASS: vanilla sweep regression (9 pins, 40-spec battery, 6 defect fixes, 10 fixture shapes)")

@@ -93,8 +93,94 @@ NS.SwingDiagnostics.set_diagnostics(true)
 NS.SwingDiagnostics.set_diagnostics(false)
 all_ok = assert_true(true, "set_diagnostics toggles without error") and all_ok
 
+-- ============================================================================
+-- CastTrace: in-game "why is it casting X" trace (bounded ring recorder)
+-- P1/3 pin. Covers: module surface, zero-allocation disabled path, DSL watch
+-- detail rendering (rule + live state), non-DSL fallback, ring bound + order.
+-- ============================================================================
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
+
+local ct_ok, ct_err = pcall(dofile, "EaxRotations/shared/cast_trace_sylvanas.lua")
+all_ok = assert_true(ct_ok and NS.CastTrace ~= nil, "CastTrace module loads") and all_ok
+if ct_ok and NS.CastTrace then
+    local CT = NS.CastTrace
+
+    -- Test 10: disabled path — record() invoked but records nothing and
+    -- allocates nothing (probe observer + GC delta, not just a count check).
+    NS._TRACE_CASTS = nil
+    CT.clear()
+    _test_now = 100.0
+    local probe_before = CT.probe()
+    collectgarbage("collect")
+    collectgarbage("collect")
+    local gc_before = collectgarbage("count")
+    for i = 1, 5000 do
+        CT.record("rotation", { name = "Rip" }, {}, { combo_points = 5 })
+    end
+    collectgarbage("collect")
+    collectgarbage("collect")
+    local gc_after = collectgarbage("count")
+    all_ok = assert_eq(CT.probe(), probe_before + 5000, "disabled path still invokes record (call cost only)") and all_ok
+    all_ok = assert_true((gc_after - gc_before) <= 1.0,
+        "disabled path allocates nothing (GC delta " .. tostring(gc_after - gc_before) .. " KB)") and all_ok
+    all_ok = assert_eq(CT.count(), 0, "disabled path records nothing") and all_ok
+    all_ok = assert_eq(#CT.lines(5), 0, "disabled path returns no lines") and all_ok
+
+    -- Test 11: enabled path — DSL strategy renders rule + live state.
+    NS._TRACE_CASTS = true
+    CT.clear()
+    local dsl_ok, dsl = pcall(require, "shared/strategy_dsl_sylvanas")
+    all_ok = assert_true(dsl_ok and type(dsl.compile_strategy) == "function", "strategy_dsl loads for CastTrace test") and all_ok
+    if dsl_ok and type(dsl.compile_strategy) == "function" then
+        local rip = dsl.compile_strategy({
+            name = "Rip",
+            conditions = {
+                { type = "state", field = "rip_remains", op = "<", value = 3 },
+                { type = "state", field = "combo_points", op = ">=", value = 5 },
+                { type = "state", field = "energy", op = ">=", value = 30 },
+            },
+            action = { type = "cast", spell = 1079, target = "target" },
+        })
+        all_ok = assert_true(type(rip._dsl_watch) == "table" and #rip._dsl_watch == 3,
+            "compiled DSL strategy carries _dsl_watch fields") and all_ok
+        local state = { rip_remains = 0.4, combo_points = 5, energy = 40 }
+        local ctx = { target = { is_valid = function() return true end } }
+        all_ok = assert_true(rip.matches(ctx, state) == true, "DSL rip lane fires inside refresh window") and all_ok
+        CT.record("rotation", rip, ctx, state)
+        local t_lines = CT.lines(5)
+        all_ok = assert_eq(#t_lines, 1, "one line recorded") and all_ok
+        all_ok = assert_true(t_lines[1]:find("Rip", 1, true) ~= nil, "line names the lane") and all_ok
+        all_ok = assert_true(t_lines[1]:find("rip_remains=0.4", 1, true) ~= nil, "line shows live rip_remains state") and all_ok
+        all_ok = assert_true(t_lines[1]:find("combo_points=5", 1, true) ~= nil, "line shows live combo state") and all_ok
+        all_ok = assert_true(t_lines[1]:find("energy=40", 1, true) ~= nil, "line shows live energy state") and all_ok
+    end
+
+    -- Test 12: non-DSL (imperative) lane falls back to lane name only.
+    CT.clear()
+    CT.record("middleware", { name = "ShadowWard" }, {}, {})
+    local p_lines = CT.lines(5)
+    all_ok = assert_eq(#p_lines, 1, "non-DSL lane records") and all_ok
+    all_ok = assert_true(p_lines[1]:find("ShadowWard", 1, true) ~= nil, "non-DSL fallback names the lane") and all_ok
+
+    -- Test 13: ring bounded at 32, newest-first order, oldest dropped.
+    CT.clear()
+    for i = 1, 40 do
+        CT.record("rotation", { name = "Lane" .. i }, {}, {})
+    end
+    all_ok = assert_eq(CT.count(), 32, "ring bounded at 32") and all_ok
+    local ring = CT.recent(3)
+    all_ok = assert_eq(#ring, 3, "recent(3) returns 3") and all_ok
+    all_ok = assert_eq(ring[1].lane, "Lane40", "recent() newest first") and all_ok
+    all_ok = assert_eq(ring[3].lane, "Lane38", "recent() walks back in order") and all_ok
+
+    -- Test 14: clear empties the ring.
+    CT.clear()
+    all_ok = assert_eq(CT.count(), 0, "clear empties the ring") and all_ok
+    NS._TRACE_CASTS = nil
+end
+
 if all_ok then
-    print("OK swing_diagnostics")
+    print("OK swing_diagnostics + cast_trace")
 else
-    print("FAIL swing_diagnostics")
+    print("FAIL swing_diagnostics + cast_trace")
 end

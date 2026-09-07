@@ -182,6 +182,10 @@ function M.production_boot(version, settings, current_settings)
             local make_color = function() return { r = 255, g = 255, b = 255, a = 255 } end
             return { new = make_color, yellow = make_color, white = make_color, green = make_color, red = make_color }
         end
+        -- Load the real Control Panel module (not the {} stand-in): main.lua
+        -- hands it live widgets + defs at ControlPanel.register() and the
+        -- registration path must execute under the mock engine.
+        if path == "shared/control_panel_sylvanas" then return original_require(path) end
         if path == "shared/menu_theme_sylvanas" then return nil end
         if path == "common/modules/settings_manager" then
             return { get = function(_, key) return persisted[key] end, set = function() end }

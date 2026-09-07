@@ -167,7 +167,10 @@ local function assert_exclusive(class_key, spec, lane, allowed)
         class_key .. "/" .. spec .. " " .. lane .. " fired in " .. count
         .. " scenarios, expected exactly " .. expected)
 end
-assert_exclusive("rogue", "assassination", "PvP_CheapShotOpen", { pvp_stealth_opener = true })
+-- 2026-09-06 (P0-3): sap_setup (OOC + stealth_up + is_pvp) added — the
+-- lane has no in_combat gate, so an OOC PvP stealth state legitimately opens
+-- with Cheap Shot (the pvp_stealth_opener scenario runs in_combat=true).
+assert_exclusive("rogue", "assassination", "PvP_CheapShotOpen", { pvp_stealth_opener = true, sap_setup = true })
 assert_exclusive("rogue", "assassination", "PvP_SprintGapClose", { berserker_gap = true, pvp_gap_close = true })
 assert_exclusive("druid", "cat", "Dash", { berserker_gap = true, pvp_gap_close = true })
 print("PASS: exclusivity — PvP_CheapShotOpen / PvP_SprintGapClose / Dash fire exactly in their pinned scenario set")

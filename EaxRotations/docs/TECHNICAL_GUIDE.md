@@ -294,6 +294,35 @@ SoD mode is selected before class rotation resolution. The loader uses only the 
 7. **Spec consumption**: `context.settings[key]` or `NS.get_setting(key, fallback)`
 8. **User change** → next tick: sync detects change → `set_setting()` → NS.settings → build_context() → spec sees new value
 
+## Control Panel (Permashow) Ownership
+Three owners, data flows one direction (composition root → subsystem → engine):
+
+1. **`main.lua` — composition root + menu renderer.** Owns the widget instances
+   (`menu_elements`) and `quick_toggle_defs` (the *what* is shown), renders the
+   main menu, and hands the subsystem everything once at load:
+   `ControlPanel.register(env)` is called BEFORE the shared dispatcher registers
+   (the panel callbacks keep their engine slots), `ControlPanel.reconcile()`
+   runs from `main.lua`'s `on_update` (~20Hz), and the Diagnostics
+   "Reset Permashow Window" button calls `ControlPanel.reset_window()`.
+2. **`shared/menu_theme_sylvanas.lua` — role policy.** `MenuTheme.def_allowed(def, role)`
+   is the single predicate for "which toggle may a role see"; the menu renderer,
+   the legacy rows, and the v2 rows all call it. One role read per caller feeds
+   both this and capability selection, so caps and visibility can never disagree
+   within a frame.
+3. **`shared/control_panel_sylvanas.lua` — the panel subsystem.** Sole owner of
+   every piece of Control Panel state: the active path (`v2` via
+   `menu.control_panel.add` vs legacy per-frame callback), the v2 row inventory
+   (`def.key -> row`), the playstyle combobox row, the role cache, and the
+   one-shot diagnostics logs. It also performs native mirror seeding
+   (`set_is_showing_on_control_panel`/`set_draggable_state`), renders the legacy
+   rows on hosts without the v2 API, and exposes the permashow recovery action.
+   Engine callbacks register inside `ControlPanel.register()` — never in main.
+
+Do not push Control Panel state or rendering back into `main.lua`: widgets +
+ defs live there, role policy lives in `MenuTheme`, panel behavior lives in the
+ module. The mode decision, row inventory, role cache, and logs have exactly one
+ owner each.
+
 ## How to Modify a Rotation
 ### 1. Add setting to schema
 ```lua

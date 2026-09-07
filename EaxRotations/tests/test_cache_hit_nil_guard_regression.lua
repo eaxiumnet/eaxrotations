@@ -112,9 +112,14 @@ print("PASS: differing ctx.now still full-rebuilds (cache not disabled): "
 -- drives). NOTE: Barkskin (a-pinned at the cache-hit fix) was cleared by the
 -- (a) opt-in close-out (bear_barkskin scenario) and ChallengingRoar
 -- (b-pinned at the cache-hit fix) was cleared by the (b) close-out
--- (bear_challenging_roar scenario) — both intentionally unasserted now;
--- cat RakeSnapshot remains never and proves the battery view is unchanged
--- by the cache-hit branch edit.
+-- (bear_challenging_roar scenario) — both intentionally unasserted now.
+-- The former control, cat RakeSnapshot, was itself cleared (2026-09-06) by
+-- the execute-capture scenarios (cat_rake_snapshot_capture seeds the real
+-- Rake execute so the snapshot lane fires); the never-control is now
+-- TrackHumanoids, which the capture path cannot reach (OOC-only gate, same
+-- class of situational lane) — it proves the battery view of the OTHER cat
+-- lanes is unchanged by the cache-hit branch edit while the snapshot lanes
+-- are asserted as proven, not merely absent.
 -- ============================================================================
 local rp = aud.run_spec("druid", "bear")
 local rn = {}
@@ -122,8 +127,13 @@ for _, n in ipairs(rp.never) do rn[n] = true end
 local rc = aud.run_spec("druid", "cat")
 local rc_n = {}
 for _, n in ipairs(rc.never) do rc_n[n] = true end
-assert_true(rc_n["RakeSnapshot"] == true,
-    "cat never-set must be unchanged by the cache-hit fix (RakeSnapshot still never)")
-print("PASS: battery never-sets unchanged (bear/cat) after the cache-hit fix")
+assert_true(rc_n["TrackHumanoids"] == true,
+    "cat never-set control must be unchanged by the cache-hit fix (TrackHumanoids still never)")
+assert_true(rc_n["TravelForm"] == true,
+    "cat never-set control must be unchanged by the cache-hit fix (TravelForm still never)")
+assert_true(rc_n["RakeSnapshot"] == nil and rc_n["RipSnapshot"] == nil,
+    "cat RakeSnapshot/RipSnapshot must be proven by the execute-capture scenarios")
+print("PASS: battery never-sets unchanged (bear/cat) after the cache-hit fix; "
+    .. "snapshot lanes proven via execute-capture")
 
 print("ALL PASS: test_cache_hit_nil_guard_regression")

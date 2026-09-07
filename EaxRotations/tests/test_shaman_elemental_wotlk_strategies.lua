@@ -1,0 +1,186 @@
+-- test_shaman_elemental_wotlk_strategies.lua — Elemental shaman WotLK
+-- behavioral strategy match-gate scenarios.
+-- WHAT:  Drives the REAL elemental_wotlk.lua through its real build_state read
+--        path (NS.debuff_remains for the Flame Shock 49233 debuff, NS.spell_ready
+--        for the Bloodlust/Fire Elemental/Elemental Mastery CD windows,
+--        NS.get_totem_info for the fire/air totem slots, NS.buff_up for the
+--        Fire Elemental / Totem of Wrath auras, target:is_casting, ctx fields),
+--        pinning both sides of every gate.
+-- WHEN:  During WotLK test suite execution (run_wotlk_tests.lua) and the
+--        rotation battery (run_rotation_tests.lua).
+-- WHY:   WotLK era-content pass (2026-09-06): elemental had no real-read
+--        behavioral pins; these exercise the real CD and totem plumbing.
+-- SAFETY: Pure unit tests with a mocked NS; the real elemental_wotlk.lua and
+--         real shared modules load.
+
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
+
+local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
+local function assert_false(v, label) if v then error(label or "assert_false failed", 2) end end
+
+local combat = true
+local mana = 100
+local enemy_count = 1
+local casting = false
+local debuffs = {}
+local buffs = {}
+local not_ready = {}
+local totem_slots = {}   -- slot -> { have_totem = bool }
+
+local function flame(secs) debuffs[49233] = secs end
+
+local function reset_env()
+    combat, mana, enemy_count, casting = true, 100, 1, false
+    debuffs, buffs, not_ready, totem_slots = {}, {}, {}, {}
+end
+
+_G.EaxRotations = {
+    me = { get_health_percentage = function() return 100 end },
+    GetPlayer = function() return _G.EaxRotations.me end,
+    debuff_remains = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if debuffs[id] then return debuffs[id] end
+        end
+        return 0
+    end,
+    buff_up = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if buffs[id] then return true end
+        end
+        return false
+    end,
+    spell_ready = function(spell, unit, opts)
+        local id = type(spell) == "number" and spell or (spell and spell.id) or 0
+        if not_ready[id] then return false end
+        return true
+    end,
+    get_totem_info = function(slot) return totem_slots[slot] end,
+    log = function() end,
+    rotation_registry = { register = function() end },
+}
+
+local result = dofile("EaxRotations/classes/shaman/elemental_wotlk.lua")
+local strategies = result.strategies
+assert_true(strategies, "elemental_wotlk strategies should load")
+
+local function find_strategy(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return strategies[i] end
+    end
+    error("strategy not found: " .. name)
+end
+
+local function scenario(label, strategy_name, expect)
+    local ctx = {
+        in_combat = combat,
+        mana_pct = mana,
+        enemy_count = enemy_count,
+        target = { is_casting = function() return casting end },
+        settings = {},
+    }
+    local state = result.build_state(ctx)
+    local matched = find_strategy(strategy_name).matches(ctx, state)
+    if expect then
+        assert_true(matched, label .. " should match")
+    else
+        assert_false(matched, label .. " should NOT match")
+    end
+end
+
+local function assert_lane(label, strategy_name, setup, expect)
+    reset_env()
+    setup()
+    scenario(label, strategy_name, expect)
+end
+
+-- ============================================================================
+-- WindShear: in combat + the target is casting.
+-- ============================================================================
+assert_lane("WindShear fires on an enemy cast", "WindShear", function() casting = true end, true)
+assert_lane("WindShear blocked when nothing is casting", "WindShear", function() end, false)
+assert_lane("WindShear blocked out of combat", "WindShear",
+    function() combat = false; casting = true end, false)
+
+-- ============================================================================
+-- EarthShock: WotLK instant-damage (kick removed 3.0.2) — fires while casting.
+-- ============================================================================
+assert_lane("EarthShock fires while the target casts", "EarthShock", function() casting = true end, true)
+assert_lane("EarthShock blocked when nothing is casting", "EarthShock", function() end, false)
+
+-- ============================================================================
+-- Bloodlust / FireElemental / ElementalMastery: real spell_ready CD windows.
+-- ============================================================================
+assert_lane("Bloodlust fires when ready", "Bloodlust", function() end, true)
+assert_lane("Bloodlust held on cooldown", "Bloodlust", function() not_ready[2825] = true end, false)
+assert_lane("FireElemental fires when ready", "FireElemental", function() end, true)
+assert_lane("FireElemental held on cooldown", "FireElemental", function() not_ready[2894] = true end, false)
+assert_lane("ElementalMastery fires when ready", "ElementalMastery", function() end, true)
+assert_lane("ElementalMastery held on cooldown", "ElementalMastery", function() not_ready[16166] = true end, false)
+
+-- ============================================================================
+-- TotemOfWrath: buff down AND air slot (4) free — pre-pull and mid-fight.
+-- ============================================================================
+assert_lane("Totem of Wrath drops when down and the air slot is free",
+    "TotemOfWrath", function() end, true)
+assert_lane("Totem of Wrath held while the aura is up",
+    "TotemOfWrath", function() buffs[57722] = true end, false)
+assert_lane("Totem of Wrath held when the air slot is occupied",
+    "TotemOfWrath", function() totem_slots[4] = { have_totem = true } end, false)
+
+-- ============================================================================
+-- SearingTotem: in combat + no Fire Elemental active + fire slot (1) free.
+-- ============================================================================
+assert_lane("Searing Totem drops in combat with the fire slot free",
+    "SearingTotem", function() end, true)
+assert_lane("Searing Totem blocked while the Fire Elemental is active",
+    "SearingTotem", function() buffs[2894] = true end, false)
+assert_lane("Searing Totem blocked when the fire slot is occupied",
+    "SearingTotem", function() totem_slots[1] = { have_totem = true } end, false)
+assert_lane("Searing Totem blocked out of combat",
+    "SearingTotem", function() combat = false end, false)
+
+-- ============================================================================
+-- FlameShock: in combat + remains < 3 + mana >= 15.
+-- ============================================================================
+assert_lane("FlameShock refreshes when the debuff is down", "FlameShock", function() end, true)
+assert_lane("FlameShock refreshes at 2.9s remaining", "FlameShock", function() flame(2.9) end, true)
+assert_lane("FlameShock blocked at the 3.0s boundary", "FlameShock", function() flame(3) end, false)
+assert_lane("FlameShock blocked below 15% mana", "FlameShock", function() mana = 14 end, false)
+assert_lane("FlameShock blocked out of combat", "FlameShock", function() combat = false end, false)
+
+-- ============================================================================
+-- LavaBurst: guaranteed crit while Flame Shock is live (remains >= 1) + mana.
+-- ============================================================================
+assert_lane("LavaBurst fires while Flame Shock is live", "LavaBurst",
+    function() flame(12) end, true)
+assert_lane("LavaBurst fires with 1s of Flame Shock left", "LavaBurst",
+    function() flame(1) end, true)
+assert_lane("LavaBurst blocked below 1s of Flame Shock", "LavaBurst",
+    function() flame(0.9) end, false)
+assert_lane("LavaBurst blocked when Flame Shock is down (no crit)", "LavaBurst",
+    function() end, false)
+assert_lane("LavaBurst blocked below 20% mana", "LavaBurst",
+    function() flame(12); mana = 19 end, false)
+
+-- ============================================================================
+-- ChainLightning: cleave at 2+ enemies + mana >= 25.
+-- ============================================================================
+assert_lane("Chain Lightning fires at 2 enemies", "ChainLightning",
+    function() enemy_count = 2 end, true)
+assert_lane("Chain Lightning blocked single-target", "ChainLightning", function() end, false)
+assert_lane("Chain Lightning blocked below 25% mana", "ChainLightning",
+    function() enemy_count = 2; mana = 24 end, false)
+
+-- ============================================================================
+-- Thunderstorm: mana return below 50%.
+-- ============================================================================
+assert_lane("Thunderstorm fires at 49% mana", "Thunderstorm", function() mana = 49 end, true)
+assert_lane("Thunderstorm blocked at 50% mana", "Thunderstorm", function() mana = 50 end, false)
+
+-- ============================================================================
+-- LightningBolt: filler at >= 15% mana.
+-- ============================================================================
+assert_lane("Lightning Bolt fires at 15% mana", "LightningBolt", function() mana = 15 end, true)
+assert_lane("Lightning Bolt blocked below 15% mana", "LightningBolt", function() mana = 14 end, false)
+
+print("PASS test_shaman_elemental_wotlk_strategies")
