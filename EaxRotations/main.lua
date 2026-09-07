@@ -14,6 +14,11 @@
 -- Import core framework
 local core = _G.core
 
+-- Schema duplicate detection: shared comparator used by initialize_schema_menu
+-- below and by test_schema_duplicate_widget_ids (single source of truth).
+local _ok_compat, schema_compat = pcall(require, "shared/schema_def_compat_sylvanas")
+local schema_def_conflict = (_ok_compat and schema_compat and schema_compat.incompatibility) or nil
+
 -- Import IZI SDK from common folder (as per Project Sylvanas documentation)
 local izi_ok, izi = pcall(require, "common/izi_sdk")
 
@@ -174,8 +179,6 @@ if not color_ok or type(color) ~= "table" then
     local _noop = function() return { r = 255, g = 255, b = 255, a = 255 } end
     color = { yellow = _noop, white = _noop, green = _noop, red = _noop }
 end
-local key_helper_ok, key_helper = pcall(require, "common/utility/key_helper")
-if not key_helper_ok then key_helper = nil end
 local control_panel_helper_ok, control_panel_helper = pcall(require, "common/utility/control_panel_helper")
 if not control_panel_helper_ok then control_panel_helper = nil end
 local NS = _G.EaxRotations
@@ -217,6 +220,18 @@ local _dm_ok, DeclarativeMenu = pcall(require, "shared/declarative_menu_sylvanas
 if not _dm_ok or type(DeclarativeMenu) ~= "table" then DeclarativeMenu = nil end
 local _declarative_menu_active = false
 
+-- Control Panel (permashow) subsystem: ONE module owns every piece of the
+-- always-on-screen quick-toggle panel — path decision, row set, reconcile,
+-- mirror seeding, logs, reset action (shared/control_panel_sylvanas.lua).
+-- main.lua stays the composition root: it owns the widgets + quick_toggle_defs
+-- (the "what") and hands them to ControlPanel.register(env) at load, before
+-- the shared dispatcher registration below.
+local _cp_ok, ControlPanel = pcall(require, "shared/control_panel_sylvanas")
+if not _cp_ok or type(ControlPanel) ~= "table" then
+    core.log_error("[EaxRotations] Failed to load shared/control_panel_sylvanas: " .. tostring(ControlPanel))
+    ControlPanel = nil
+end
+
 -- Pre-allocated empty table for 'or {}' fallbacks (avoids GC pressure from repeated table creation)
 local EMPTY_TABLE = {}
 
@@ -224,8 +239,16 @@ local class_config = NS and NS.rotation_registry and NS.rotation_registry.class_
 local class_schema = nil
 local playstyle_options = {}
 local playstyle_keys = {}
+-- Theme lookups derived from class_config playstyles. Declared here (before
+-- refresh_playstyle_state below) because the class module may load late via the
+-- on_update retry path, at which point these must be REBUILT, not re-declared.
+local _class_key
+local _ps_keyset, _ps_n2k
 local schema_tabs = {}
 local schema_widgets = {}
+-- First definition seen per schema key (kept so a later re-declaration can be
+-- checked for conflicts before warning — see initialize_schema_menu).
+local schema_widget_defs = {}
 -- [#11] Cache last synced values per widget key to avoid redundant set_setting calls every frame.
 local schema_widget_last_values = {}
 -- Track duplicate schema key warnings so we only log once per key per init.
@@ -334,23 +357,34 @@ if class_schema and NS and NS.common_auto_aoe_section then
     end
 end
 
-if class_config and type(class_config.playstyles) == "table" then
-    for _, playstyle in ipairs(class_config.playstyles) do
-        local key = type(playstyle) == "table" and playstyle.name or tostring(playstyle)
-        local label = type(playstyle) == "table" and (playstyle.display_name or playstyle.name) or tostring(playstyle)
-        if key and label then
-            table.insert(playstyle_keys, key)
-            table.insert(playstyle_options, label)
+-- Playstyle option list + theme lookups derive from class_config, which is nil
+-- at boot whenever the class module has not loaded yet (login screen deferral /
+-- transient class-module failure handled by the on_update retry). Centralized so
+-- the retry can rebuild all of it. Without the rebuild, the playstyle dropdown
+-- stays empty and the Control Panel keeps its boot-time rows after a late load.
+local function refresh_playstyle_state()
+    local next_keys, next_options = {}, {}
+    if class_config and type(class_config.playstyles) == "table" then
+        for _, playstyle in ipairs(class_config.playstyles) do
+            local key = type(playstyle) == "table" and playstyle.name or tostring(playstyle)
+            local label = type(playstyle) == "table" and (playstyle.display_name or playstyle.name) or tostring(playstyle)
+            if key and label then
+                table.insert(next_keys, key)
+                table.insert(next_options, label)
+            end
         end
+    end
+    playstyle_keys = next_keys
+    playstyle_options = next_options
+    _class_key = class_config and class_config.class_key or class_name
+    if MenuTheme and #playstyle_keys > 0 then
+        _ps_keyset, _ps_n2k = MenuTheme.build_playstyle_lookup(playstyle_keys, playstyle_options)
+    else
+        _ps_keyset, _ps_n2k = nil, nil
     end
 end
 
--- Theme lookups derived from class_config playstyles (built once at init).
-local _class_key = class_config and class_config.class_key or class_name
-local _ps_keyset, _ps_n2k
-if MenuTheme and #playstyle_keys > 0 then
-    _ps_keyset, _ps_n2k = MenuTheme.build_playstyle_lookup(playstyle_keys, playstyle_options)
-end
+refresh_playstyle_state()
 
 -- Sanitise a string into a stable menu-id fragment (lowercase, [a-z0-9_]).
 local function _sanitize_id(s)
@@ -577,10 +611,18 @@ local function initialize_schema_menu()
                 -- in each section but is backed by one unique widget.
                 local existing = def and def.key and schema_widgets[def.key]
                 if existing then
-                    -- Warn once about the duplicate so schema authors notice accidental collisions.
-                    if core and core.log_warning and not _warned_duplicate_schema_keys[def.key] then
+                    -- An IDENTICAL re-declaration across tabs/sections is the
+                    -- sanctioned shared-setting pattern (e.g. healer Smart
+                    -- Casting on priest Discipline+Holy, hunter Shot Weaving on
+                    -- every spec tab): reuse silently. Only a CONFLICTING
+                    -- re-declaration (different type/bounds/default/options) is
+                    -- an accidental collision worth warning about, so boots stay
+                    -- warning-free for the shared healer sections.
+                    local conflict = (schema_def_conflict and schema_widget_defs[def.key]
+                        and schema_def_conflict(schema_widget_defs[def.key], def)) or nil
+                    if conflict and core and core.log_warning and not _warned_duplicate_schema_keys[def.key] then
                         _warned_duplicate_schema_keys[def.key] = true
-                        core.log_warning("[EaxRotations] Duplicate schema key '" .. tostring(def.key) .. "' in " .. tostring(tab.name or "General") .. "/" .. tostring(section.header or "?") .. "; reusing existing control.")
+                        core.log_warning("[EaxRotations] Conflicting duplicate schema key '" .. tostring(def.key) .. "' in " .. tostring(tab.name or "General") .. "/" .. tostring(section.header or "?") .. " (" .. tostring(conflict) .. "); reusing existing control.")
                     end
                     normalized_section.settings[#normalized_section.settings + 1] = existing
                 else
@@ -588,6 +630,7 @@ local function initialize_schema_menu()
                     if widget then
                         normalized_section.settings[#normalized_section.settings + 1] = widget
                         schema_widgets[widget.key] = widget
+                        schema_widget_defs[def.key] = def
                     end
                 end
             end
@@ -623,6 +666,15 @@ local function get_initial_playstyle_index()
     return get_playstyle_index(selected or (class_config and class_config.default_playstyle) or playstyle_keys[1])
 end
 
+-- menu_elements is created below this function (the literal is assigned after
+-- the schema widgets), so it MUST be forward-declared here. Without the
+-- declaration, the reference inside get_active_playstyle binds to a GLOBAL
+-- named menu_elements (Lua lexical scoping), the live-combobox branch below
+-- silently never runs, and playstyle/role reads lag one tick behind the user
+-- via the settings fallback — which breaks instant role filtering of the menu
+-- Quick Toggles and the Control Panel reconcile.
+local menu_elements
+
 -- Prefer the live combobox widget (quick toggles) for immediate playstyle feedback.
 -- Falls back to settings / framework. Used for labels, roles, and to keep UI responsive
 -- even if manager cache or get_setting lags after a user selection.
@@ -653,26 +705,50 @@ local function get_active_playstyle()
     return (class_config and class_config.default_playstyle) or (playstyle_keys and playstyle_keys[1]) or "auto"
 end
 
-local menu_elements = {
+menu_elements = {
     main_tree = make_tree("eaxrot_main"),
     quick_toggles_tree = make_tree("eaxrot_quick_toggles"),
     playstyle_combo = core.menu.combobox(get_initial_playstyle_index(), "eaxrotations_active_playstyle_combo"),
-    enable_script_check = core.menu.keybind(999, true, "eax_rotation_enabled_keybind"),
-    healing_toggle = core.menu.keybind(999, true, "eax_healing_enabled_keybind"),
-    damage_toggle = core.menu.keybind(999, true, "eax_damage_enabled_keybind"),
-    cooldowns_toggle = core.menu.keybind(999, true, "eax_cooldowns_enabled_keybind"),
-    aoe_toggle = core.menu.keybind(999, true, "eax_aoe_enabled_keybind"),
-    interrupts_toggle = core.menu.keybind(999, true, "eax_interrupts_enabled_keybind"),
-    utility_toggle = core.menu.keybind(999, true, "eax_utility_enabled_keybind"),
-    threat_drop_toggle = core.menu.keybind(999, true, "eax_threat_drop_enabled_keybind"),
-    taunt_toggle = core.menu.keybind(999, true, "eax_auto_taunt_keybind"),
+    -- Quick toggles are keybind widgets (their toggle state persists across
+    -- reloads) shown in the perma-show / Control Panel. They default to key code
+    -- 7, the engine's "no key / Unbinded" sentinel — the engine only renders a
+    -- guaranteed always-on-screen row for a bound key, so unbound toggles rely on
+    -- the module's mirror-seeding path (control_panel_sylvanas) to stay visible.
+    -- A real-key default was attempted with guessed VK codes (F5-F12/NumPad0) and
+    -- crashed the client at load because the engine's key-code numbering was never
+    -- validated — reverted to the sentinel until a validated code table exists.
+    -- is_unbound_key keeps 0/7/999 for this state.
+    --
+    -- Permashow clarity: the keybind's native label (the second arg) is what the
+    -- engine uses for the key pill. We keep that label as the plain toggle name so
+    -- the pill can show "Unbound" without the row implying the pill is a hotkey that
+    -- fires the rotation. The human-readable row label (def.control_label) is separate
+    -- and says "click to toggle" — identical wording is wired into the declarative
+    -- host (shared/declarative_menu_sylvanas.lua) so neither menu host still reads as
+    -- a hotkey row.
+    enable_script_check = core.menu.keybind(7, true, "eax_rotation_enabled_keybind"),
+    healing_toggle = core.menu.keybind(7, true, "eax_healing_enabled_keybind"),
+    damage_toggle = core.menu.keybind(7, true, "eax_damage_enabled_keybind"),
+    cooldowns_toggle = core.menu.keybind(7, true, "eax_cooldowns_enabled_keybind"),
+    aoe_toggle = core.menu.keybind(7, true, "eax_aoe_enabled_keybind"),
+    interrupts_toggle = core.menu.keybind(7, true, "eax_interrupts_enabled_keybind"),
+    utility_toggle = core.menu.keybind(7, true, "eax_utility_enabled_keybind"),
+    threat_drop_toggle = core.menu.keybind(7, true, "eax_threat_drop_enabled_keybind"),
+    taunt_toggle = core.menu.keybind(7, true, "eax_auto_taunt_keybind"),
     settings_tree = make_tree("eaxrot_class_settings"),
     header_class_settings = core.menu.header(),
     diagnostics_tree = make_tree("eaxrot_diagnostics"),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
+    reset_permashow_btn = core.menu.button("eax_reset_permashow"),
     debug_swing_timer_chk = core.menu.checkbox(false, "eax_debug_swing_timer"),
     debug_game_events_chk = core.menu.checkbox(false, "eax_debug_game_events"),
     debug_combo_points_chk = core.menu.checkbox(false, "eax_debug_combo_points"),
+
+    -- [#P1/3] In-game "why" trace: toggle + action buttons + live readout header.
+    trace_casts_chk = core.menu.checkbox(false, "eax_debug_trace_casts"),
+    trace_print_btn = core.menu.button("eax_trace_print_casts"),
+    trace_clear_btn = core.menu.button("eax_trace_clear_casts"),
+    trace_readout = core.menu.header(),
     -- Theme customization
     theme_tree = make_tree("eaxrot_theme"),
     theme_enabled_chk = core.menu.checkbox(true, "eax_theme_override_enabled"),
@@ -699,6 +775,14 @@ if DeclarativeMenu and DeclarativeMenu.is_available and DeclarativeMenu.is_avail
         if _init_ok and _init_result then
             _declarative_menu_active = true
             core.log("[EaxRotations] Declarative _G.menu initialized (feature flag ON)")
+            -- Permashow recovery must exist on the retained menu too; the button
+            -- lands in Diagnostics once the page is built.
+            if DeclarativeMenu.add_diagnostics_button and ControlPanel then
+                pcall(DeclarativeMenu.add_diagnostics_button, DeclarativeMenu,
+                    "eax_reset_permashow", "Reset Permashow Window", function()
+                        if ControlPanel then ControlPanel.reset_permashow() end
+                    end)
+            end
         else
             core.log_warning("[EaxRotations] Declarative _G.menu init failed: " .. tostring(_init_result))
         end
@@ -708,12 +792,19 @@ end
 -- section_headers is declared above (before initialize_schema_menu() call)
 
 local quick_toggle_defs = {
+    -- Permashow clarity: the keybind widget's own `label` is what the engine uses
+    -- for the key pill, so we keep it as the plain toggle name ("Rotation", ...) so
+    -- the pill can render "Unbound" without the row implying the pill is a hotkey that
+    -- fires the rotation. The human-readable row label lives in `control_label` and is
+    -- the same wording the declarative host renders (shared/declarative_menu_sylvanas.lua),
+    -- so neither menu host reads as a hotkey row. The pill itself is NOT changed.
     {
         key = "rotation_enabled",
         label = "Rotation",
         tooltip = "Master switch for all rotation execution.",
         control = menu_elements.enable_script_check,
         default = true,
+        control_label = "Rotation (click to toggle)",
     },
     {
         key = "healing_enabled",
@@ -722,6 +813,7 @@ local quick_toggle_defs = {
         control = menu_elements.healing_toggle,
         default = true,
         capability = "healing",
+        control_label = "Healing (click to toggle)",
     },
     {
         key = "damage_enabled",
@@ -730,6 +822,7 @@ local quick_toggle_defs = {
         control = menu_elements.damage_toggle,
         default = true,
         capability = "damage",
+        control_label = "Damage (click to toggle)",
     },
     {
         key = "use_cooldowns",
@@ -738,6 +831,7 @@ local quick_toggle_defs = {
         control = menu_elements.cooldowns_toggle,
         default = true,
         capability = "cooldowns",
+        control_label = "Cooldowns (click to toggle)",
     },
     {
         key = "aoe_enabled",
@@ -746,6 +840,7 @@ local quick_toggle_defs = {
         control = menu_elements.aoe_toggle,
         default = true,
         capability = "aoe",
+        control_label = "AoE (click to toggle)",
     },
     {
         key = "use_interrupt",
@@ -754,6 +849,7 @@ local quick_toggle_defs = {
         control = menu_elements.interrupts_toggle,
         default = true,
         capability = "interrupts",
+        control_label = "Interrupts (click to toggle)",
     },
     {
         key = "utility_enabled",
@@ -762,6 +858,7 @@ local quick_toggle_defs = {
         control = menu_elements.utility_toggle,
         default = true,
         capability = "utility",
+        control_label = "Utility (click to toggle)",
     },
     {
         key = "use_threat_drop",
@@ -770,6 +867,7 @@ local quick_toggle_defs = {
         control = menu_elements.threat_drop_toggle,
         default = true,
         capability = "threat_drop",
+        control_label = "Threat Drops (click to toggle)",
     },
     {
         key = "auto_taunt",
@@ -778,13 +876,16 @@ local quick_toggle_defs = {
         control = menu_elements.taunt_toggle,
         default = true,
         capability = "auto_taunt",
+        control_label = "Auto Taunt (click to toggle)",
     },
 }
+
 
 local function get_keybind_toggle_state(control, default)
     if not control then return default end
     -- Read the widget's actual toggle state first. The user may have clicked
-    -- the UI toggle while leaving the keybind on default (999/unbound).
+    -- the UI toggle while leaving the keybind unbound (7 default; 999 kept as
+    -- a legacy sentinel from older EaxRotations builds).
     local ok, value = pcall(function() return control:get_toggle_state() end)
     if ok and type(value) == "boolean" then return value end
     -- get_toggle_state() returned non-boolean or threw.
@@ -803,18 +904,34 @@ local function get_keybind_toggle_state(control, default)
     return default
 end
 
-local function get_keybind_name(control)
-    if not control then return "Unbound" end
-    local ok, key_code = pcall(function() return control:get_key_code() end)
-    if not ok then return "Unbound" end
-    if not key_code or key_code == 0 or key_code == 7 or key_code == 999 then
-        return "Unbound"
+-- quick_toggle_by_key maps each quick-toggle setting key to its def so the
+-- per-tick gates resolve through read_quick_toggle without scanning the list.
+local quick_toggle_by_key = {}
+for _, _def in ipairs(quick_toggle_defs) do
+    quick_toggle_by_key[_def.key] = _def
+end
+
+-- Read one quick-toggle gate. Single source per menu mode:
+--  * Imperative: the live widget (keybind toggle state persists across
+--    reloads while framework_core settings are ephemeral).
+--  * Declarative: the retained _G.menu is the only surface, and its toggles
+--    reach NS.settings via sync_to_settings at the end of each tick — read
+--    the synced setting, defaulting to the def's default when no sync has
+--    landed yet (first ticks of a session). Reading the never-rendered
+--    imperative widgets here would report the def's default forever, so the
+--    st injection below would clobber the synced value until sync_to_settings
+--    rewrote it — an ordering dependency that silently pinned toggles on if
+--    the sync were ever removed or renamed.
+local function read_quick_toggle(def)
+    if not def then return true end
+    local default = def.default ~= false
+    if _declarative_menu_active then
+        local st = NS and NS.settings
+        local v = st and st[def.key]
+        if v == nil then return default end
+        return v == true
     end
-    if key_helper and key_helper.get_key_name then
-        local name_ok, name = pcall(function() return key_helper:get_key_name(key_code) end)
-        if name_ok and name then return tostring(name) end
-    end
-    return tostring(key_code)
+    return get_keybind_toggle_state(def.control, default)
 end
 
 local function sync_quick_toggles()
@@ -853,95 +970,32 @@ local function render_quick_toggles()
             menu_elements.playstyle_combo:render("Playstyle", playstyle_options, "Select active " .. (class_config and class_config.class_name or "class") .. " rotation.")
         end
 
-        -- Theme: hide toggles that don't apply to the active playstyle's role.
-        -- Mirrors the role-based filtering already used by on_control_panel_render()
-        -- so e.g. Cat (dps) never sees Healing or Auto Taunt, Resto (healer) never
-        -- sees Threat Drops/Interrupts/Auto Taunt, Bear (tank) never sees Healing.
-        -- Leveling (hybrid) keeps everything since the spec may shift mid-run.
-        local _caps = nil
+        -- Role-based visibility: hide toggles that don't apply to the active
+        -- playstyle's role (Cat dps never sees Healing/Auto Taunt, Resto never
+        -- sees Interrupts/Threat Drops/Auto Taunt, leveling hybrid sees all).
+        -- Single policy via MenuTheme.def_allowed — the same predicate the
+        -- Control Panel subsystem uses, so menu and panel never disagree.
+        local _quick_role = nil
         if MenuTheme and _class_key then
-            local _active = get_active_playstyle()
-            local _role = MenuTheme.role_for_playstyle(_class_key, _active)
-            _caps = MenuTheme.capabilities(_role)
+            _quick_role = MenuTheme.role_for_playstyle(_class_key, get_active_playstyle())
         end
         for _, def in ipairs(quick_toggle_defs) do
-            -- Role-based visibility: skip toggles that don't make sense for this role.
-            -- Same _skip pattern used by on_control_panel_render() so the main menu
-            -- and Control Panel stay in sync on which toggles appear per playstyle.
-            local _skip = false
-            if _caps then
-                local cap_key = def.capability or def.key
-                if _caps[cap_key] == false then _skip = true end
-            end
-            if not _skip then
-                def.control:render(def.label, def.tooltip)
+            if not MenuTheme or MenuTheme.def_allowed(def, _quick_role) then
+                -- The keybind widget's own label (second arg) is the plain toggle
+                -- name; the human-readable row label (control_label) is what the
+                -- perma-show/Control Panel rows carry. Keep them in sync with the
+                -- declarative host so neither menu host reads as a hotkey row.
+                def.control:render(def.control_label or def.label, def.tooltip)
             end
         end
     end)
 end
 
-local function on_control_panel_render()
-    if framework_core.runtime_generation ~= runtime_generation then return {} end
-    local control_panel_elements = {}
 
-    -- Theme: filter control panel toggles by active playstyle role.
-    local _role = "hybrid"
-    local _caps = nil
-    if MenuTheme and _class_key then
-        local _active = get_active_playstyle()
-        _role = MenuTheme.role_for_playstyle(_class_key, _active)
-        _caps = MenuTheme.capabilities(_role)
-    end
 
-    for _, def in ipairs(quick_toggle_defs) do
-        -- Role-based visibility: skip toggles that don't make sense for this role.
-        local _skip = false
-        if _caps then
-            local cap_key = def.capability or def.key
-            if _caps[cap_key] == false then _skip = true end
-        end
-        if not _skip then
-            local label = format("[Eax] %s (%s) ", def.label, get_keybind_name(def.control))
-            local inserted = false
-            if control_panel_helper and control_panel_helper.insert_toggle_ then
-                local ok, result = pcall(function()
-                    return control_panel_helper:insert_toggle_(control_panel_elements, label, def.control, false, true)
-                end)
-                inserted = ok and result == true
-            end
-            if not inserted then
-                control_panel_elements[#control_panel_elements + 1] = {
-                    name = label,
-                    keybind = def.control,
-                }
-            end
-        end
-    end
 
-    -- Expose key schema checkbox settings on the control panel
-    local CP_SCHEMA_KEYS = { "disc_shield_tank_only" }
-    for _, key in ipairs(CP_SCHEMA_KEYS) do
-        local widget = schema_widgets[key]
-        if widget and widget.control then
-            local label = "[Eax] " .. (widget.label or key)
-            local inserted = false
-            if control_panel_helper and control_panel_helper.insert_toggle_ then
-                local ok, result = pcall(function()
-                    return control_panel_helper:insert_toggle_(control_panel_elements, label, widget.control, false, true)
-                end)
-                inserted = ok and result == true
-            end
-            if not inserted then
-                control_panel_elements[#control_panel_elements + 1] = {
-                    name = label,
-                    keybind = widget.control,
-                }
-            end
-        end
-    end
 
-    return control_panel_elements
-end
+
 
 -- ============================================================================
 -- MENU RENDER FUNCTION
@@ -1031,6 +1085,17 @@ local function render_menu()
                     NS.dump_class_spells(name)
                 end
             end
+            -- Permashow / EaxFishing / EaxTheme are expected to be part of the
+            -- newest .api update. If your .api is newer, you should already see a
+            -- Permashow control. This button is a recovery path for older .api builds
+            -- or a hidden panel; confirm with EaxRotations → Diagnostics.
+            -- (permashow) window in one click. Action owned by the Control Panel
+            -- module (it probes the v2 menu.permashow API and logs the result).
+            if menu_elements.reset_permashow_btn:render("Reset Permashow Window", "Restores the always-on-screen Control Panel (permashow) to its default position and makes it visible again if it was hidden") then
+                if ControlPanel then
+                    ControlPanel.reset_permashow()
+                end
+            end
             -- Debug toggles for runtime diagnostics (visible in console log)
             if menu_elements.debug_swing_timer_chk then
                 menu_elements.debug_swing_timer_chk:render("Debug Swing Timer", "Log addon vs fallback path decisions")
@@ -1041,9 +1106,85 @@ local function render_menu()
             if menu_elements.debug_combo_points_chk then
                 menu_elements.debug_combo_points_chk:render("Debug Combo Points", "Log combo point reads, resolved power-type enums, and min_combo gate rejections")
             end
+
+            -- [#P1/3] In-game "why" trace: while enabled, every executed
+            -- rotation cast records the rule that fired + the live state
+            -- behind it (bounded to the last 32). Readout updates while
+            -- this tree is open; Print writes the history to the log.
+            if menu_elements.trace_casts_chk then
+                menu_elements.trace_casts_chk:render("Trace Casts", "Record why each rotation cast fired (last 32) so you can inspect the decision behind a spell")
+            end
+            if menu_elements.trace_print_btn:render("Print Last Casts", "Write the last recorded casts with their state to the log") then
+                if NS and NS.CastTrace then NS.CastTrace.print_recent(8) end
+            end
+            if menu_elements.trace_clear_btn:render("Clear Trace", "Empty the recorded cast history") then
+                if NS and NS.CastTrace then NS.CastTrace.clear() end
+            end
+            if NS and NS.CastTrace then
+                local _trace_lines = NS.CastTrace.lines(4)
+                if #_trace_lines > 0 then
+                    menu_elements.trace_readout:render("Last Casts", table.concat(_trace_lines, "  |  "), MENU_COLORS.yellow)
+                else
+                    menu_elements.trace_readout:render("Last Casts", "(none recorded - enable Trace Casts and enter combat)")
+                end
+            end
         end)
     end)
 
+end
+
+-- Control Panel (permashow) registration. One owner
+-- (shared/control_panel_sylvanas): it decides v2 vs legacy, seeds the native
+-- mirrors, registers its own legacy callback, and logs the chosen path.
+-- Callable at boot AND again after a deferred class-module load (on_update
+-- retry), when playstyle options/roles finally exist. The module's register()
+-- is idempotent: it tears down prior v2 rows and registers the engine callback
+-- only once per session.
+-- Under the declarative _G.menu, the quick toggles a user sees are retained
+-- keybinds owned by shared/declarative_menu_sylvanas (captured at page build).
+-- The permashow must toggle THOSE widgets — not the imperative ones that are
+-- never rendered — so build the def list from the declarative controls when
+-- active, falling back to the imperative widgets otherwise. Role capabilities
+-- come from the same quick_toggle_defs so both menus filter identically.
+local function control_panel_quick_defs()
+    if not (_declarative_menu_active and DeclarativeMenu and DeclarativeMenu.control_panel_defs) then
+        return quick_toggle_defs
+    end
+    local dctl = DeclarativeMenu.control_panel_defs()
+    if not dctl then return quick_toggle_defs end        local merged = {}
+    for _, def in ipairs(quick_toggle_defs) do
+        local control = dctl[def.key] or def.control
+        merged[#merged + 1] = {
+            key = def.key, label = def.label, tooltip = def.tooltip,
+            control = control, capability = def.capability, default = def.default,
+            control_label = def.control_label or def.label,
+        }
+    end
+    return merged
+end
+
+local function register_control_panel_ui()
+    if not ControlPanel then return end
+    local cp_defs = control_panel_quick_defs()
+    local ps_combo = menu_elements.playstyle_combo
+    if _declarative_menu_active and DeclarativeMenu and DeclarativeMenu.playstyle_control then
+        local psc = DeclarativeMenu.playstyle_control()
+        if psc then ps_combo = psc end
+    end
+    ControlPanel.register({
+        core = core,
+        framework_core = framework_core,
+        runtime_generation = runtime_generation,
+        MenuTheme = MenuTheme,
+        class_key = _class_key,
+        active_playstyle = get_active_playstyle,
+        quick_toggle_defs = cp_defs,
+        playstyle_combo = ps_combo,
+        playstyle_options = playstyle_options,
+        -- schema_widgets is rebuilt by initialize_schema_menu() on late
+        -- class load, so hand the module a getter, not a captured table.
+        schema_widgets = function() return schema_widgets end,
+    })
 end
 
 -- ============================================================================
@@ -1055,6 +1196,22 @@ local _last_tick_log_s = 0
 local _on_update_first_print = false
 local _on_update_throttle_ms = 0
 local ON_UPDATE_INTERVAL_MS = 50
+
+-- Read a Diagnostics debug-toggle from the active menu. Declarative mode: the
+-- checkbox lives in the retained page and reaches NS.settings via
+-- sync_to_settings (the imperative widget is never rendered there); read the
+-- synced setting. Imperative mode: read the live widget. Hoisted OUT of
+-- on_update — a per-tick local closure here would allocate every 20Hz tick.
+local function read_debug_flag(setting_key, widget)
+    if _declarative_menu_active then
+        local st = NS and NS.settings
+        return (st and st[setting_key]) == true
+    end
+    if not widget then return false end
+    local ok, val = pcall(function() return widget:get_state() end)
+    return ok and val == true
+end
+
 local function on_update()
     local now_ms = core.game_time and core.game_time() or 0
     if now_ms - _on_update_throttle_ms < ON_UPDATE_INTERVAL_MS then
@@ -1131,7 +1288,23 @@ local function on_update()
                 if schema_ok then
                     class_schema = schema_val
                 end
+                -- The class module just populated NS.rotation_registry, so the
+                -- class_config/playstyle state built from an empty registry at
+                -- boot must be refreshed BEFORE the schema menu rebuild (section
+                -- playscope rules key off _class_key) and the Control Panel
+                -- re-registration (rows were computed with no playstyle known).
+                class_config = NS and NS.rotation_registry and NS.rotation_registry.class_config or nil
+                refresh_playstyle_state()
                 initialize_schema_menu()
+                -- Control Panel rows are recomputed against the now-known
+                -- playstyle/role state on BOTH menu modes. The retained page
+                -- itself cannot gain a playstyle dropdown after being built, so
+                -- declarative users get an honest /reload hint instead of a
+                -- silently empty dropdown.
+                register_control_panel_ui()
+                if _declarative_menu_active then
+                    core.log_warning("[EaxRotations] Class module loaded after the declarative menu was built — /reload to populate the playstyle selector")
+                end
             else
                 -- Retry still pending; intentionally silent.
             end
@@ -1142,27 +1315,34 @@ local function on_update()
     -- The cheap runtime_generation + is_alive + is_ghost guards above run at 20Hz.
     -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
 
-    -- Sync debug toggles from diagnostics menu checkboxes
+    -- Sync debug toggles from diagnostics menu checkboxes (see read_debug_flag
+    -- above — reads the retained-page setting in declarative mode, the live
+    -- checkbox otherwise).
     if NS then
-        if menu_elements.debug_swing_timer_chk then
-            local ok, st = pcall(function() return menu_elements.debug_swing_timer_chk:get_state() end)
-            NS._DEBUG_SWING_TIMER = ok and st == true
-        end
-        if menu_elements.debug_game_events_chk then
-            local ok, ge = pcall(function() return menu_elements.debug_game_events_chk:get_state() end)
-            NS._DEBUG_GAME_EVENTS = ok and ge == true
-        end
-        if menu_elements.debug_combo_points_chk then
-            local ok, cp = pcall(function() return menu_elements.debug_combo_points_chk:get_state() end)
-            NS._DEBUG_COMBO_POINTS = ok and cp == true
-        end
+        NS._DEBUG_SWING_TIMER = read_debug_flag("eax_debug_swing_timer", menu_elements.debug_swing_timer_chk)
+        NS._DEBUG_GAME_EVENTS = read_debug_flag("eax_debug_game_events", menu_elements.debug_game_events_chk)
+        NS._DEBUG_COMBO_POINTS = read_debug_flag("eax_debug_combo_points", menu_elements.debug_combo_points_chk)
+
+        NS._TRACE_CASTS = read_debug_flag("eax_debug_trace_casts", menu_elements.trace_casts_chk)
     end
 
-    -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
-    -- CRITICAL: framework_core settings are ephemeral (lost on reload).
-    -- The keybind widget state IS persisted by Sylvanas. Read the widget
-    -- directly so the toggle survives reloads without flip-flopping.
-    local rotation_enabled = get_keybind_toggle_state(menu_elements.enable_script_check, true)
+    -- Keep Control Panel rows in sync when the active playstyle's role changes.
+    -- Delegated: the Control Panel module owns the row set + mode and no-ops
+    -- cheaply unless it is on the v2 path AND the role actually changed.
+    if ControlPanel then
+        ControlPanel.reconcile()
+    end
+
+    -- [#P1] Resolve the quick-toggle gates BEFORE the expensive widget sync
+    -- loop. CRITICAL: framework_core settings are ephemeral (lost on reload);
+    -- keybind widget state IS persisted by Sylvanas, so the imperative path
+    -- reads the live widgets (see read_quick_toggle). Declarative mode: every
+    -- toggle the user flips lives in the retained _G.menu and reaches
+    -- NS.settings via sync_to_settings at the end of each tick, while the
+    -- imperative widgets are never rendered — so the gates read the synced
+    -- settings exactly like the master toggle. The st injection below and the
+    -- later declarative sync therefore write the same value (no clobbering).
+    local rotation_enabled = read_quick_toggle(quick_toggle_by_key.rotation_enabled)
     if _last_enabled_log ~= rotation_enabled then
         _last_enabled_log = rotation_enabled
         if not rotation_enabled then
@@ -1170,27 +1350,19 @@ local function on_update()
         end
     end
 
-    -- Resolve quick toggle states from widgets (injected to settings for gating).
-    -- states injected from widgets (no set_setting writes)
-    local healing_enabled = get_keybind_toggle_state(menu_elements.healing_toggle, true)
-    local damage_enabled = get_keybind_toggle_state(menu_elements.damage_toggle, true)
-    local cooldowns_enabled = get_keybind_toggle_state(menu_elements.cooldowns_toggle, true)
-    local aoe_enabled = get_keybind_toggle_state(menu_elements.aoe_toggle, true)
-    local interrupts_enabled = get_keybind_toggle_state(menu_elements.interrupts_toggle, true)
-    local utility_enabled = get_keybind_toggle_state(menu_elements.utility_toggle, true)
-    local threat_drop_enabled = get_keybind_toggle_state(menu_elements.threat_drop_toggle, true)
-    local auto_taunt_enabled = get_keybind_toggle_state(menu_elements.taunt_toggle, true)
-
+    -- Inject the resolved gate states into settings for rotation gating (no
+    -- set_setting writes; declarative sync_to_settings re-writes the same
+    -- values later in this tick, so the two always agree).
     local st = NS.settings or {}
     st.rotation_enabled = rotation_enabled
-    st.healing_enabled = healing_enabled
-    st.damage_enabled = damage_enabled
-    st.use_cooldowns = cooldowns_enabled
-    st.aoe_enabled = aoe_enabled
-    st.use_interrupt = interrupts_enabled
-    st.utility_enabled = utility_enabled
-    st.use_threat_drop = threat_drop_enabled
-    st.auto_taunt = auto_taunt_enabled
+    st.healing_enabled = read_quick_toggle(quick_toggle_by_key.healing_enabled)
+    st.damage_enabled = read_quick_toggle(quick_toggle_by_key.damage_enabled)
+    st.use_cooldowns = read_quick_toggle(quick_toggle_by_key.use_cooldowns)
+    st.aoe_enabled = read_quick_toggle(quick_toggle_by_key.aoe_enabled)
+    st.use_interrupt = read_quick_toggle(quick_toggle_by_key.use_interrupt)
+    st.utility_enabled = read_quick_toggle(quick_toggle_by_key.utility_enabled)
+    st.use_threat_drop = read_quick_toggle(quick_toggle_by_key.use_threat_drop)
+    st.auto_taunt = read_quick_toggle(quick_toggle_by_key.auto_taunt)
 
     -- Playstyle is driven by the Quick Toggles combobox. Inject so that:
     -- * context.settings.playstyle is visible to spec_kit.setting / NS.setting
@@ -1307,6 +1479,22 @@ end
 -- REGISTER CALLBACKS
 -- ============================================================================
 
+-- Menu render + Control Panel register FIRST, before the shared dispatcher
+-- below: the dispatcher's registration probes historically included the menu
+-- and control-panel render slots as fallback tick sources, so registering our
+-- UI callbacks ahead of it guarantees they keep their slots on every build.
+-- Declarative menu: skip the imperative render callback when active — the
+-- declarative _G.menu renders itself (retained mode). The Control Panel is
+-- registered in BOTH modes: in declarative mode its rows are built from the
+-- declarative quick-toggle controls so the permashow toggles the same widgets
+-- the user sees in the menu (see control_panel_quick_defs).
+if not _declarative_menu_active then
+    if type(core.register_on_render_menu_callback) == "function" then
+        pcall(core.register_on_render_menu_callback, render_menu)
+    end
+end
+register_control_panel_ui()
+
 -- Register main rotation callback through the throttled shared dispatcher
 -- (NS.register_on_update_callback in core_sylvanas.lua). The shared dispatcher:
 --   1. Throttles to ~20Hz (skip 2 of 3 frames)
@@ -1322,17 +1510,6 @@ if NS and NS.register_on_update_callback then
     end
 else
     core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
-end
--- Declarative menu: skip imperative render + control panel callbacks when active.
--- The declarative _G.menu renders itself (retained mode); control panel migration
--- is Phase 3 (menu.control_panel.add). The imperative menu stays active by default.
-if not _declarative_menu_active then
-    if type(core.register_on_render_menu_callback) == "function" then
-        pcall(core.register_on_render_menu_callback, render_menu)
-    end
-    if type(core.register_on_render_control_panel_callback) == "function" then
-        pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
-    end
 end
 
 -- Movement handler render callback: required for pause/face delays and auto-resume.
@@ -1359,9 +1536,18 @@ if ThemeOverride and ThemeOverride.apply_continuous then
     if type(core.register_on_render_callback) == "function" then
         local _was_active = true  -- track toggle state for restore
         core.register_on_render_callback(function()
-            -- Check toggle: get_state() returns boolean for checkboxes
-            local chk_ok, chk_val = pcall(function() return menu_elements.theme_enabled_chk:get_state() end)
-            if chk_ok and chk_val == false then
+            -- Check toggle. Declarative mode: the checkbox lives in the retained
+            -- page and is synced to NS.settings each tick; the imperative widget
+            -- is never rendered there, so reading it would pin the override on.
+            local theme_on
+            if _declarative_menu_active then
+                local _st = NS and NS.settings
+                theme_on = not (_st and _st.eax_theme_override_enabled == false)
+            else
+                local chk_ok, chk_val = pcall(function() return menu_elements.theme_enabled_chk:get_state() end)
+                theme_on = not (chk_ok and chk_val == false)
+            end
+            if theme_on == false then
                 -- One-shot restore on transition from active → inactive
                 if _was_active and ThemeOverride.restore_palette then
                     ThemeOverride.restore_palette()
@@ -1371,10 +1557,19 @@ if ThemeOverride and ThemeOverride.apply_continuous then
             end
             _was_active = true
 
-            -- Read accent from color picker
-            if ThemeOverride.set_accent and menu_elements.theme_accent_picker then
-                local ok, col = pcall(menu_elements.theme_accent_picker.get, menu_elements.theme_accent_picker)
-                if ok and col then
+            -- Read accent from color picker (declarative: NS.settings table
+            -- {r,g,b,a} synced from the retained picker; else the widget).
+            local accent_col
+            if _declarative_menu_active then
+                accent_col = (NS and NS.settings and NS.settings.eax_theme_accent_color) or nil
+            else
+                if menu_elements.theme_accent_picker then
+                    local ok, col = pcall(menu_elements.theme_accent_picker.get, menu_elements.theme_accent_picker)
+                    if ok then accent_col = col end
+                end
+            end
+            if ThemeOverride.set_accent and accent_col then
+                local col = accent_col
                     local r, g, b
                     -- color object (table with :get() method)
                     if type(col) == "table" and type(col.get) == "function" then
@@ -1393,7 +1588,6 @@ if ThemeOverride and ThemeOverride.apply_continuous then
                     if r and g and b then
                         ThemeOverride.set_accent(r, g, b)
                     end
-                end
             end
 
             ThemeOverride.apply_continuous()

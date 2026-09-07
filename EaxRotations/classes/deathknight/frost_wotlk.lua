@@ -228,9 +228,18 @@ local DSL_DEFS = {
             { type = "state", field = "frost_fever_remains", op = ">", value = 0 },
             { type = "state", field = "blood_plague_remains", op = ">", value = 0 },
             { type = "custom", fn = function(context, state)
+                -- Obliterate costs 1 frost + 1 unholy rune (2 slots). Death runes
+                -- substitute for EITHER, so each requirement may draw from the
+                -- shared death pool — but a single ready death rune can only pay
+                -- ONE slot. The old gate double-counted one death rune toward
+                -- both requirements and fired Obliterate with 0 frost + 0 unholy
+                -- + 1 death ready (an uncastable commit). Require >= 2 rune slots
+                -- total across the two families (2026-09-06 DK era-content pass).
                 local frost = (state.frost_runes_ready or 0) + (state.death_runes_ready or 0)
                 local unholy = (state.unholy_runes_ready or 0) + (state.death_runes_ready or 0)
-                return frost >= 1 and unholy >= 1
+                local slots = (state.frost_runes_ready or 0) + (state.unholy_runes_ready or 0)
+                    + (state.death_runes_ready or 0)
+                return frost >= 1 and unholy >= 1 and slots >= 2
             end },
         },
         action = { type = "cast", spell = ACTION.Obliterate, target = "target" },

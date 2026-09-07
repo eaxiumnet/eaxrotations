@@ -123,6 +123,52 @@ local slam = find_strategy("Slam")
 action_calls = {}
 assert_false(slam.matches({ is_moving = false, rage = 50 }), "Slam should not match without SwingTimer")
 
+-- Slam FIRE + HOLD sides through the REAL swing-window gate
+-- (slam_matches, arms_sylvanas: rage >= 15, rage < 90 cap path, MS cd > 1.0,
+-- no Overpower, and mh_until in (SLAM_CAST_TIME+SLAM_SAFETY, 1.5] = (0.7, 1.5]).
+-- The default mocks hold MS on cd / Overpower ready / no swing read, so patch
+-- the three read fns for this section and restore them after. spell_ready is
+-- resolved by ARGS: build_state's Overpower probe passes no opts (-> not
+-- ready) while the Slam action's spell_ready passes the shared opts table
+-- (-> ready), matching how WH.action invokes it.
+local slam_cd = _G.EaxRotations.cooldown_remains
+local slam_ready = _G.EaxRotations.spell_ready
+local slam_base = { is_moving = false, rage = 40, stance = 1, target = {}, me = { _mh_until = 1.2 } }
+_G.EaxRotations.cooldown_remains = function(spell, fallback) return 2.0 end  -- MS not imminent
+_G.EaxRotations.spell_ready = function(spell, target, opts) return opts ~= nil end
+_G.EaxRotations.swing_time_until = function(me) return me and me._mh_until or 999 end
+
+-- Fire: swing 1.2s away -> inside the (0.7, 1.5] slam window (Battle stance, target present)
+assert_true(slam.matches(slam_base),
+    "Slam should fire when the swing window is open (mh_until 1.2, rage 40)")
+
+-- Hold: swing imminent (0.5 <= 0.7 cast+SAFETY) -> never clip the auto
+assert_false(slam.matches({ is_moving = false, rage = 40, stance = 1, target = {}, me = { _mh_until = 0.5 } }),
+    "Slam must NOT fire when the swing is imminent (mh_until 0.5)")
+
+-- Hold: swing too far away (> 1.5) -> filler would delay MS/OP queue
+assert_false(slam.matches({ is_moving = false, rage = 40, stance = 1, target = {}, me = { _mh_until = 5 } }),
+    "Slam must NOT fire when the swing is far out (mh_until 5)")
+
+-- Hold: rage below SLAM_RAGE (15)
+assert_false(slam.matches({ is_moving = false, rage = 10, stance = 1, target = {}, me = { _mh_until = 1.2 } }),
+    "Slam must NOT fire below 15 rage")
+
+-- Hold: MS cd <= 1.0 (Slam would starve Mortal Strike)
+_G.EaxRotations.cooldown_remains = function(spell, fallback) return 0.5 end
+assert_false(slam.matches(slam_base),
+    "Slam must NOT fire while Mortal Strike is imminent (cd 0.5)")
+_G.EaxRotations.cooldown_remains = function(spell, fallback) return 2.0 end
+
+-- Hold: slam_weave disabled via settings
+assert_false(slam.matches({ is_moving = false, rage = 40, stance = 1, target = {}, me = { _mh_until = 1.2 },
+    settings = { slam_weave_enabled = false } }),
+    "Slam must NOT fire when slam_weave_enabled = false")
+
+_G.EaxRotations.cooldown_remains = slam_cd
+_G.EaxRotations.spell_ready = slam_ready
+_G.EaxRotations.swing_time_until = nil
+
 -- ============================================================================
 -- Mortal Strike: delegates to action_matches (no custom gate beyond standard)
 -- ============================================================================

@@ -181,4 +181,12 @@ end
 
 end
 
+-- ============================================================================
+-- CastTrace subsystem (in-game "why" trace): the ring recorder lives in
+-- shared/cast_trace_sylvanas.lua (the shared-subsystem home, sibling of
+-- control_panel_sylvanas.lua etc.), NOT boot-critical core code. This
+-- file stays the thin diagnostics install/log surface; requiring the
+-- subsystem here guarantees NS.CastTrace exists in any boot order.
+pcall(require, "shared/cast_trace_sylvanas")
+
 return M

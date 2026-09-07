@@ -988,6 +988,14 @@ M.spell_index_wotlk = {
     [53815] = {name="Forcecast Summon Shaman", class="", level=nil},
     [53816] = {name="Maelstrom Weapon", class="Shaman", level=nil},
     [53817] = {name="Maelstrom Weapon", class="Shaman", level=nil},
+    -- MANUAL ENTRY (2026-09-06, Backdraft mechanic pass): the Conflagrate-granted
+    -- Backdraft haste auras (per talent rank, -10/-20/-30% cast time + GCD on the
+    -- next three Destruction spells; verified wotlkdb.com/wowhead 3.3.5a — 54277 =
+    -- "Backdraft", -30%, 15s). NOT 55379/55380, which are "Skyflare Swiftness"
+    -- (meta-gem haste proc), despite earlier triage-doc text.
+    [54274] = {name="Backdraft", class="Warlock", level=nil},
+    [54276] = {name="Backdraft", class="Warlock", level=nil},
+    [54277] = {name="Backdraft", class="Warlock", level=nil},
     [54428] = {name="Divine Plea", class="Paladin", level=71},
     [54490] = {name="Missile Barrage", class="Mage", level=nil},
     [54491] = {name="Conversion Beam", class="", level=nil},

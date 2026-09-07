@@ -263,8 +263,8 @@ assert_false(contains(sync_region, "settings_manager:set"),
     "sync loop must NOT reference settings_manager:set — direct table writes only")
 
 -- Also verify the quick-toggle injection block uses direct writes, not set_setting
-local qt_start = main:find("states injected from widgets", 1, true)
-assert_true(qt_start ~= nil, "must find the 'states injected from widgets' comment")
+local qt_start = main:find("Inject the resolved gate states", 1, true)
+assert_true(qt_start ~= nil, "must find the quick-toggle injection comment in main.lua")
 local qt_end = main:find("Playstyle is driven", qt_start, true)
 assert_true(qt_end ~= nil, "must find the 'Playstyle is driven' comment after quick toggle injection")
 local qt_region = main:sub(qt_start, qt_end)

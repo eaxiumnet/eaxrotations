@@ -588,7 +588,12 @@ local function sting_matches(context, s)
         if not s.serpent_sting_ready then return false end
         return true
     end
-    -- Other stings not implemented yet (Scorpid/Viper via middleware)
+    -- Other stings: Viper Sting is owned by the class middleware (the hunter
+    -- ViperSting lane registered via NS.register_class_middleware — mana-drain
+    -- targets, use_viper_sting_pve/pvp settings) and Scorpid Sting is a
+    -- Survival-spec utility lane; neither is a BM rotation sting. The BM
+    -- sting_mode UI (hunter schema) exposes only serpent|none, so no other
+    -- mode can reach this rotation sting lane.
     return false
 end
 

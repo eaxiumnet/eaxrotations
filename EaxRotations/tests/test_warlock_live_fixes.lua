@@ -2,7 +2,10 @@
 -- WHAT:  Pins the 2026-08 live-audit fixes across affliction/demonology/
 --        destruction: SE-talent + mana gating, spread rank ladders, pre-pull
 --        Shadow Bolt reachability, pet-cast Seduction, FelDomination CD gate,
---        OOC Healthstone parity, dead-metadata alignment, ManaGem order.
+--        OOC Healthstone parity, dead-metadata alignment, ManaGem order, and
+--        the Imp "machine gun" Firebolt refire (drives the REAL shared
+--        pet_manager_sylvanas.lua — the June 2026 ClassResearchTBC audit item
+--        that flagged Imp Firebolt pacing MISSING).
 -- WHEN:  Standalone (not registered in any runner): lua EaxRotations/tests/test_warlock_live_fixes.lua
 -- WHY:   Each assertion maps 1:1 to a verified live-correctness bug so a
 --        future refactor cannot silently re-introduce it.
@@ -360,5 +363,127 @@ assert_true(darkpact_index < mg_index and mg_index < drain_index,
 
 _G.require = orig_require
 _G.pcall = orig_pcall
+
+-- ============================================================================
+-- IMP MACHINE GUN — real shared/pet_manager_sylvanas.lua under the mock env.
+-- The June 2026 ClassResearchTBC audit (Warlock/Imp-Machine-Gun-Timing.md)
+-- requires the Imp's Firebolt to chain at its ~1.5s cadence. The 2026-08
+-- implementation lives in pet_manager (autocast enable + immediate refire when
+-- the Imp is NOT casting — the community fix that closes the ~0.5s idle gap).
+-- Pin the REAL module so a regression cannot silently stop the refire or
+-- double-fire (which would make the Imp lose pet DPS or cancel casts).
+-- ============================================================================
+local orig_core = _G.core
+local firebolt_casts, targets_attacked = {}, {}
+local imp_casting = false
+local imp_pet = {
+    is_dead = function() return false end,
+    is_casting_spell = function() return imp_casting end,
+}
+_G.core = {
+    spell_book = {
+        get_spell_cooldown = function() return 0 end,
+        get_pet_action_info = function() return nil end, -- no range info: try_cast proceeds
+    },
+    input = {
+        pet_attack = function(t)
+            targets_attacked[#targets_attacked + 1] = t
+            return true
+        end,
+        pet_cast_target_spell = function(sid, t)
+            firebolt_casts[#firebolt_casts + 1] = sid
+            return true
+        end,
+        enable_pet_autocast = function() return true end,
+    },
+}
+-- NS additions the real pet manager reads (mock already has time_now/CLASS_ID).
+local FIREBOLT_KNOWN = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267, 39023 }
+local orig_spell_id_is_known = _G.EaxRotations.spell_id_is_known
+_G.EaxRotations.same_unit = function() return true end
+-- TBC client first: 39023 is unknown, so the ladder resolves to the TBC-era
+-- max (27267). The scan is cached per spec key, so the WotLK client below
+-- uses a FRESH key to force the re-scan under the full known set (tail=39023).
+_G.EaxRotations.spell_id_is_known = function(id)
+    for _, k in ipairs(FIREBOLT_KNOWN) do
+        if id == k and id <= 27267 then return true end
+    end
+    return false
+end
+local pm = dofile("EaxRotations/shared/pet_manager_sylvanas.lua")
+assert_true(type(pm) == "table" and type(pm.on_update) == "function",
+    "real pet_manager loads under the mock env")
+
+local me = { get_pet = function() return imp_pet end, get_distance = function() return 3 end }
+local target = { get_guid = function() return "imp-target" end }
+local ctx = { in_combat = true, target = target, me = me, target_hp = 50,
+    is_group = false, player_class = 9 }
+
+-- Fresh client: tick 1 engages (pet_attack, no cast); tick 2 fires with the
+-- TBC-era max Firebolt rank (27267).
+_now = 1000
+pm.on_update(me, target, "imp_mg_tbc", ctx)
+assert_eq(#targets_attacked, 1, "imp: new target sends pet_attack once")
+assert_eq(#firebolt_casts, 0, "imp: no Firebolt while engaging")
+pm.on_update(me, target, "imp_mg_tbc", ctx)
+assert_eq(#firebolt_casts, 1, "imp: idle Firebolt fires on the next tick")
+assert_eq(firebolt_casts[1], 27267, "imp: TBC client resolves era-max rank 27267")
+
+-- Machine gun: fires every idle tick, holds mid-cast, refires on completion.
+_now = 3000
+pm.on_update(me, target, "imp_mg_tbc", ctx)
+pm.on_update(me, target, "imp_mg_tbc", ctx)
+assert_true(#firebolt_casts >= 3, "imp: idle refire every tick (machine gun), got " .. tostring(#firebolt_casts))
+imp_casting = true
+local held_at = #firebolt_casts
+for _ = 1, 3 do
+    _now = _now + 0.05
+    pm.on_update(me, target, "imp_mg_tbc", ctx)
+end
+assert_eq(#firebolt_casts, held_at, "imp: no double-fire while the Imp is mid-cast")
+imp_casting = false
+_now = _now + 1.5
+pm.on_update(me, target, "imp_mg_tbc", ctx)
+assert_true(#firebolt_casts > held_at, "imp: refires once the cast completes")
+
+-- WotLK client: fresh spec key forces the re-scan under the full known set,
+-- resolving the era-max tail rank (39023).
+firebolt_casts = {}
+targets_attacked = {}
+_G.EaxRotations.spell_id_is_known = function(id)
+    for _, k in ipairs(FIREBOLT_KNOWN) do if id == k then return true end end
+    return false
+end
+_now = 4000
+pm.on_update(me, target, "imp_mg_wotlk", ctx)
+assert_eq(#firebolt_casts, 0, "imp(wotlk): fresh key engages on tick 1")
+pm.on_update(me, target, "imp_mg_wotlk", ctx)
+assert_eq(#firebolt_casts, 1, "imp(wotlk): idle Firebolt fires")
+assert_eq(firebolt_casts[1], 39023, "imp(wotlk): full ladder resolves era-max tail 39023")
+
+-- Non-imp warlock pets are throttled (2s), NOT machine-gunned.
+local vw_pet = {
+    is_dead = function() return false end,
+    is_casting_spell = function() return false end,
+}
+local me_vw = { get_pet = function() return vw_pet end }
+_G.EaxRotations.spell_id_is_known = function(id) return id == 17735 or id == 27270 end
+firebolt_casts = {}
+targets_attacked = {}
+_now = 5000
+pm.on_update(me_vw, target, "imp_mg_vw", ctx)      -- fresh spec: engage
+pm.on_update(me_vw, target, "imp_mg_vw", ctx)      -- taunt fires (last_warlock = 0)
+assert_eq(#firebolt_casts, 1, "vw: taunt fires on the first idle tick")
+_now = 5000.5                          -- +0.5s: INSIDE the 2s throttle window
+pm.on_update(me_vw, target, "imp_mg_vw", ctx)
+pm.on_update(me_vw, target, "imp_mg_vw", ctx)
+assert_eq(#firebolt_casts, 1, "vw: non-imp pet ability throttled to 2s (no machine gun)")
+_now = 5003                            -- +3s: throttle window elapsed
+pm.on_update(me_vw, target, "imp_mg_vw", ctx)
+assert_eq(#firebolt_casts, 2, "vw: taunt refires once the 2s throttle elapses")
+
+_G.EaxRotations.spell_id_is_known = orig_spell_id_is_known
+_G.EaxRotations.same_unit = nil
+_G.core = orig_core
 
 print("PASS test_warlock_live_fixes")

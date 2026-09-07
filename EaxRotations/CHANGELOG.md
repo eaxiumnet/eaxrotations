@@ -1,5 +1,194 @@
 # Changelog
 
+## 2.25.0 — 2026-09-06
+
+### Customer Changelog
+- **Control Panel (permashow) now visible for everyone**: several players
+  reported the always-on-screen quick-toggle panel was empty/missing while it
+  worked fine locally. Cross-checked against the official Sylvanas docs
+  (modules/control-panel: rows only appear for a keybind that is bound or was
+  user-drag-added). Three build-dependent failure modes are fixed:
+  - **Unbound toggles always show a row now.** Quick toggles now default to the
+    engine's documented "Unbinded" sentinel (7; 999 kept as a legacy sentinel).
+    Unbound toggles are pushed to the panel directly AND seeded with the native
+    mirror flag (`set_is_showing_on_control_panel`) plus drag capability, so
+    Rotation / Cooldowns / AoE etc. appear on both legacy and retained-menu
+    hosts even with no key assigned — and users can drag/remove rows freely.
+  - **Panel no longer starved on fallback builds.** The rotation dispatcher's
+    registration fallback no longer squats on the Control Panel render slot, and
+    the menu/panel callbacks register before the dispatcher. Rotation working
+    but panel invisible is no longer possible on any build.
+- **New: playstyle switching right from the panel** (new-menu builds): the
+  Playstyle selector joins the quick toggles on the always-on-screen panel, so
+  you can swap specs without opening the full menu.
+- **New: "Reset Permashow Window" button** under EaxRotations → Diagnostics:
+  restores an off-screen/hidden panel to its default position in one click.
+- **Declarative (retained) menu builds work again**: a method-call argument
+  shift (colon/dot mismatch) in the new-menu page build and settings sync left
+  the retained `_G.menu` page inert. The page build and settings sync are now
+  proper self-methods, the permashow Control Panel and the Diagnostics section
+  render under the retained host, and the panel and menu Quick Toggles filter
+  through one shared role-visibility policy.
+- **Quick Toggles actually toggle again on new-menu builds.** The rotation /
+  cooldowns / AoE / utility gates read the real NS.settings state instead of
+  imperative widgets that are never rendered under the retained menu, so
+  flipping a toggle changes behavior immediately — with no ordering dependency
+  on the per-tick settings sync.
+- **Playstyle switching is instant.** A forward-reference bug made the live
+  playstyle read silently fall back to settings, so role filtering of the
+  Quick Toggles and Control Panel rows lagged a tick behind your selection.
+  The live menu value is now read first.
+- **Healing fix (party/raid)**: a context-caching bug could leave the
+  lowest-friendly-unit read resolved to a stale empty default, silently
+  turning party heals into self-heals. Cache invalidation now runs on every
+  resolver registration.
+- **Frost Death Knight fix**: Obliterate could fire with a single ready death
+  rune counted toward BOTH its frost and unholy rune requirements — a commit
+  the engine can never cast. The gate now requires two real rune slots.
+- **New (WotLK): destruction warlock Backdraft.** Conflagrate now grants its
+  era-correct Backdraft haste window, and a proc lane spends that window on
+  Soul Fire ahead of Incinerate when mana allows.
+- **Coverage**: the era-content campaign pinned every WotLK class spec and
+  leveling rotation behaviorally (all 10 classes) and closed the last
+  unpinned cross-era paths — rotation battery 545 → 563.
+
+### Developer Notes
+- **ARCH-1 (architecture pass)**: the Control Panel subsystem moved into
+  `shared/control_panel_sylvanas.lua` — single owner of the permashow row set,
+  the v2-vs-legacy mode decision, native mirror seeding, role reconciliation,
+  and the one-shot diagnostics logs. `main.lua` stays the composition root
+  (widgets + defs); `MenuTheme.def_allowed` in `menu_theme_sylvanas.lua` is the
+  single role-visibility predicate shared by the menu Quick Toggles and the
+  panel.
+- **CP2.1**: dual-path Control Panel — `menu.control_panel.add` (v2, retained
+  mode) is used automatically when the new `_G.menu` host is present, with the
+  legacy per-frame callback as fallback and an `eax_use_cp_v2` setting to force
+  the legacy path. Rows are reconciled on playstyle/role change from on_update
+  so both paths filter identically.
+- **CP2.2**: `render_control_panel` removed from the shared dispatcher's
+  fallback tick-source list in `core_sylvanas.lua`; dispatcher now logs the
+  claimed fallback source once instead of silently squatting.
+- **CP2.3**: `main.lua` registers menu + control-panel callbacks before
+  `NS.register_on_update_callback`; one-shot logs report the active path and
+  legacy row count (support triage for any future "can't see the panel" report).
+- **CP2.4**: `shared/menu_theme` role filtering unchanged; new
+  `tests/test_control_panel_v2_dual_path.lua` locks the registration order,
+  the unbound-row bypass, the 7-default sentinel, the native mirror seeding,
+  and the fallback-source removal.
+- **CP2.5**: findings verified against docs.project-sylvanas.net
+  (modules/control-panel, dev/api/ui): `insert_toggle_` calls now use the
+  documented 4-arg signature (drag capability moved to the native
+  `set_draggable_state`), and quick-toggle keybinds initialize with the
+  documented Unbinded code 7 instead of 999.
+- **DM-1**: `DeclarativeMenu.initialize` / `sync_to_settings` declared as colon
+  methods; `initialize` resets retained-state handles and captures the
+  playstyle / keybind / diagnostics controls so the panel and settings sync
+  reuse the real retained widgets (`control_panel_defs`, `playstyle_control`).
+- **DM-2**: quick-toggle gates in `main.lua` read NS.settings via
+  `read_quick_toggle` when the declarative menu is active (like the master
+  toggle), removing the `sync_to_settings` ordering dependency.
+- **DM-3**: `get_active_playstyle` now forward-declares `menu_elements` — the
+  reference previously bound to a global, so the live-combobox branch silently
+  never ran and role reads lagged a tick (playstyle/role filtering fix).
+- **DM-4**: menu + Control Panel initialization is callable at boot and again
+  after a deferred class-module load (on_update re-init path).
+- **LC-1**: `lazy_context_sylvanas.lua` clears a field's cached/resolved value
+  on EVERY registration, including the first — a raw-seeded value (e.g.
+  `build_context` seeding `lowest`) can no longer shadow its resolver; party
+  heals previously fell back to self-heals (playtest finding).
+- **DK-1**: frost Obliterate's rune gate now requires ≥2 rune slots across the
+  frost / unholy / death families — a single death rune cannot pay both its
+  frost and unholy slots.
+- **BD-1 (Backdraft)**: `wowhead_data_bridge_spell_index_wotlk_sylvanas.lua`
+  gains 54274/54276/54277 with a manual-entry note documenting the correction
+  from the 55379/55380 draft (Skyflare Swiftness, a meta-gem proc);
+  `destruction_wotlk.lua` adds the `SoulFireBackdraft` consumer lane above
+  Incinerate (in combat, buff up over the aura family, mana ≥30) and pins it
+  behaviorally (proc-up fires, no-proc/29-mana/OOC held). The era-pair seed
+  was re-baselined via its sanctioned tool to allow the WotLK-only lane.
+- **QA-1 (era-content campaign)**: real-read behavioral suites load every
+  `*_wotlk.lua` spec and leveling file against a mock NS through the real
+  `build_state` read path (fire/don't-fire pins on buff/debuff remains,
+  resource, procs, target state, cooldown_remains, hit-volume gates); the
+  TBC/vanilla/SoD parity scan found no spec without a behavioral suite — TBC
+  retribution re-verified at 47 strategies (the reported "~4" traced to a
+  stale status_audit.md snapshot) — and pinned the two uncovered handling
+  paths (middleware ViperSting lane, vanilla Binding Heal era-gate).
+  Never-triage gates stay 0/0 across all eras; scorecard regenerated via
+  `tools/spec_scorecard.lua`; era triage-doc addenda appended.
+- **POL-1**: schema duplicate-key warnings are now conflict-only — identical
+  re-declarations (e.g. the priest Smart Casting block shared between the
+  Discipline and Holy tabs) merge silently via the new
+  `shared/schema_def_compat_sylvanas.lua` comparator, so boots are
+  warning-free while conflicting duplicates still warn.
+- **POL-2**: removed the dead module-level `ctx.lowest` seed in
+  `main_sylvanas.lua` (the per-tick `build_context` seed is the only live one).
+- **POL-3**: `docs/status_audit.md` gained a prominent staleness banner pointing
+  to the scorecard as authoritative — no generator exists for that file, so
+  stale rows were flagged rather than fabricated.
+
+
+### Additions — folded into 2.25.0 (recorded 2026-09-06; no separate release — 2.25.0 is still unshipped, so everything below ships inside it)
+
+**Player-facing**
+
+- **Every era is now rated.** The scorecard (`docs/scorecard.md`) extends from
+  TBC + WotLK to all four eras — **132 scored specs** (TBC/Sylvanas 31 ·
+  WotLK 41 · Vanilla 40 · SoD 20) — with strict never-gates and 0 dead lanes
+  everywhere. Vanilla's 12 classified lanes and SoD's strict-0 result are
+  pinned lane-for-lane from the live battery.
+- **Snapshot & totem mechanics are now proven, not assumed.** The behavioral
+  rig gained an execute-capture harness (runs the real cast execute so
+  module-local state seeds exactly as live, then re-evaluates): druid
+  RakeSnapshot/RipSnapshot (TBC) and enhancement FireNovaReplacement /
+  GraceOfAirTotemTwist (TBC + Vanilla) all fire through the real files —
+  druid/cat rose to A and enhancement to S+ (TBC) / S (Vanilla).
+- **New player-facing accuracy page** (`docs/ACCURACY.md`): what a "strategy"
+  is, the era/spec rating tables, and the headline claims (4 eras, 132 specs,
+  2,468 rules exercised, 0 dead, 563-suite battery, 50/50 sim-checked) plus an
+  honest known-limits section — generated from the same live data the gates
+  check, so it cannot drift.
+- **README is now true to the gates**: spec badge "132 rated (4 eras)",
+  four-era framing, suite counts 563 rotation + 39 leveling = 602 (from the
+  sanctioned badge tool), APL 50/50 computed live, and a link to ACCURACY.md.
+  The unverifiable "29+9" / "556 (524+32)" / "34/34" claims are gone.
+- **New in-game "why is it casting X" trace**: Diagnostics → "Trace Casts"
+  records the last 32 casts as the rule that fired plus the live state behind
+  it (e.g. `[arcane] ArcaneBlast: arcane_blast_stacks=3 mana_pct=62`), shown
+  in a Last-Casts readout with Print/Clear actions — zero performance cost
+  while the toggle is off.
+
+**QA / engineering**
+
+- **Scorecard + accuracy page drift-gated**: `tools/spec_scorecard.lua
+  --check` regenerates and byte-compares both `scorecard.md` and
+  `ACCURACY.md` inside verify_all, so the pages and README's link cannot rot
+  again.
+- **Per-frame cost gate (P3)**: `tools/perf_cost_gate.lua` measures BOTH
+  retained allocation and per-frame churn (GC-stop technique: collector
+  stopped for the measured batch so temporaries are counted) under the
+  capturing mock across the dispatcher tick, the cast trace (off/on), the
+  Diagnostics readout (idle/live), Control Panel reconcile, and the real
+  legacy Control Panel per-frame render callback — each path prints retained
+  AND churn deltas against named bounds; wired into `verify_all` as the
+  "perf cost gate" component so a regression on either metric hard-fails.
+  The gate caught and fixed two violations: (1) the trace readout allocated
+  an empty table per frame when idle (now a shared empty return); (2) the
+  legacy CP render built a fresh row table every frame and ran a `pcall`
+  closure per quick-toggle per frame — the row array is now cached and
+  rebuilt only when mode/role/key-code/schema actually change, with direct
+  (non-closure) key-code reads on the hot path (~4.7 MB → 0.19 KB churn per
+  20k frames). Per-class cost sweep remains OPEN (the gate runs one engine
+  tick + the render workloads, not every spec file).
+- **Coverage**: era batteries at tbc 11 · wotlk 0 · vanilla 9 · sod 0 with
+  the two honest residue lanes (Fade, Ret_SealMartyr_Primary) filed with
+  one-line code evidence in the triage docs.
+- **Per-class research reconciliation**: the ClassResearchTBC corpus was
+  re-verified against the live tree (all Present mechanics confirmed, one
+  MISSING mechanic found implemented) and recorded in
+  `docs/PER_CLASS_RESEARCH.md` with provenance + honest limits; the warlock
+  imp machine-gun refire gained a behavioral pin in `test_warlock_live_fixes.lua`.
+
 ## 2.24.2 — 2026-08-14
 
 ### Customer Changelog

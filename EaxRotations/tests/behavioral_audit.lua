@@ -2050,6 +2050,17 @@ M.SCENARIOS = {
     -- 8-25 yd range-gated Charge, same scenario) stay observable.
     { name = "leveling_warrior_ooc", overrides = { in_combat = false, stance = 2, target_distance = 15, target_range = 15 } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
+    -- P0-3 (2026-09-06, #1 roadmap): model the last classified-but-unproven
+    -- PvP-trigger families through the REAL spec files (era battery).
+    --   ooc_mounted: holy MountedProtection (TBC + vanilla) matches only on
+    --     me:is_mounted() — an OOC mounted state proves the lane fires.
+    --   sap_setup: subtlety Sap needs OOC + stealth_up + a PvP target; every
+    --     existing stealth scenario runs in_combat=true, so Sap (gated on
+    --     `not context.in_combat`) was structurally unobservable. This is the
+    --     in_combat=false split of pvp_stealth_opener — no opener_preference
+    --     or target_is_casting, so the stealth_opener exclusivity pins hold.
+    { name = "ooc_mounted", overrides = { in_combat = false, is_mounted = true } },
+    { name = "sap_setup",   overrides = { in_combat = false, is_stealthed = true, buff_remains_map = { [1784] = 10 }, is_pvp = true } },
     -- Rogue stealth openers (ranked #7): combat Garrote needs stealth + a
     -- casting target; subtlety CheapShot needs stealth + the explicit
     -- opener_preference (auto resolves garrote-on-caster / ambush-elsewhere,
@@ -3134,6 +3145,71 @@ M.SCENARIOS = {
     -- drives the refresh and not just the absent-buff branch (which already
     -- fires in standard). 48927 is paladin-scoped; no other spec reads it.
     { name = "prot_hs_charges", overrides = { in_combat = true, buff_remains_map = { [48927] = 30 } } },
+    -- Execute-capture (2026-09-06): druid/cat RakeSnapshot + RipSnapshot read
+    -- the module-local snapshot_state (cat_sylvanas.lua:200-207), populated
+    -- ONLY by record_bleed_snapshot inside the Rip/Rake cast execute
+    -- (cat:619-641) — a stateless matcher pass can never seed it, so the two
+    -- lanes stayed classified (c). These scenarios opt into the battery's
+    -- execute-capture path (run_spec): the seed lane's REAL execute runs
+    -- against the mock NS (try_cast always true → the snapshot is recorded at
+    -- the scenario's low AP), then the reap transform applies the post-cast
+    -- frame a real rotation would see next tick (bleed applied via the debuff
+    -- map + AP spiked) and the reap lane must fire. era restricts the capture
+    -- to the sylvanas/TBC battery; every other era/spec treats the scenario as
+    -- an ordinary context (the capture silently skips when the spec has no
+    -- seed lane — only druid/cat does). Override fields (form/energy/combo/
+    -- attack_power/debuff maps) are druid-scoped; no other class reads them.
+    { name = "cat_rip_snapshot_capture",
+      overrides = { form = 3, in_combat = true, combo_points = 5, energy = 70,
+                    attack_power = 1000 },
+      capture = { era = "sylvanas", seed_lane = "Rip",
+                  reap_lanes = { "RipSnapshot" },
+                  reap = { attack_power = 4000, debuff_remains_map = { [27008] = 12 } } } },
+    { name = "cat_rake_snapshot_capture",
+      overrides = { form = 3, in_combat = true, combo_points = 3, energy = 90,
+                    attack_power = 1000 },
+      capture = { era = "sylvanas", seed_lane = "Rake",
+                  reap_lanes = { "RakeSnapshot" },
+                  reap = { attack_power = 4000, debuff_remains_map = { [27003] = 10 } } } },
+    -- Execute-capture (2026-09-06, enh totem family): FireNovaReplacement
+    -- (TBC + Vanilla) and GraceOfAirTotemTwist (Vanilla) read module-local
+    -- totem_state that flips ONLY inside the totem-drop executes (fire_totem
+    -- sets fire_nova_active on a Fire Nova drop; windfury_twist sets
+    -- next_air = "grace" on a Windfury drop), so the stateless matcher pass
+    -- could never seed them — classified (c). Same harness as the cat
+    -- snapshot pass: seed = the REAL totem-drop execute against the mock NS
+    -- (try_cast always true), reap = the post-cast frame the real rotation
+    -- sees next tick. era restricts each capture to its era battery; the
+    -- shared shape stays an ordinary context elsewhere (and no other spec has
+    -- the seed lane, so capture silently skips). Override fields (settings /
+    -- mana / debuff map) are enhancement-scoped.
+    -- TBC Fire Nova → Magma replacement: flame shock UP on the target (the
+    -- TBC gate) + fire_nova_active seeded by the real FireTotem execute.
+    { name = "enh_fire_nova_replacement_capture_tbc",
+      overrides = { in_combat = true, mana_pct = 90,
+                    setting_overrides = { enhancement_fire_totem = "fire_nova" } },
+      capture = { era = "sylvanas", seed_lane = "FireTotem",
+                  reap_lanes = { "FireNovaReplacement" },
+                  reap = { debuff_remains_map = { [25457] = 8 } } } },
+    -- Vanilla Grace-of-Air twist: the real Windfury twist execute flips
+    -- next_air windfury → grace; the GoA twist lane then fires. Runs BEFORE
+    -- the vanilla fire-nova capture: it seeds next_air (which the fire lanes
+    -- never read), while ordering it after would let the fire-nova capture's
+    -- seeded fire_nova_active bleed into this scenario's phase-1 and give
+    -- FireNovaReplacement a second (non-capture) firing.
+    { name = "enh_grace_air_twist_capture_vanilla",
+      overrides = { in_combat = true, mana_pct = 90 },
+      capture = { era = "vanilla", seed_lane = "WindfuryTotemTwist",
+                  reap_lanes = { "GraceOfAirTotemTwist" }, reap = {} } },
+    -- Vanilla Fire Nova → Magma replacement: flame shock DOWN (the vanilla
+    -- gate is the inverse of TBC) — the reap transform only advances the
+    -- clock; the bank already has no flame-shock map. Last of the enh
+    -- captures: fire_nova_active it seeds is never read again.
+    { name = "enh_fire_nova_replacement_capture_vanilla",
+      overrides = { in_combat = true, mana_pct = 90,
+                    setting_overrides = { enhancement_fire_totem = "fire_nova" } },
+      capture = { era = "vanilla", seed_lane = "FireTotem",
+                  reap_lanes = { "FireNovaReplacement" }, reap = {} } },
 }
 
 -- SoD-era scenario battery (W4.3, 2026-08-14): the full shared scenario set
@@ -3269,6 +3345,12 @@ local function _scenario_me(profile, ctx)
         return type(f) == "number" and f or 0
     end
     me.is_moving = function(self) return ctx.is_moving == true end
+    -- P0-3 (2026-09-06, #1 roadmap): priest holy MountedProtection (TBC +
+    -- vanilla) reads me:is_mounted() as its ONLY gate — the mock previously
+    -- had no is_mounted member, so the safety-net lane could never be
+    -- observed. Banked on ctx like is_moving; default false keeps every
+    -- existing scenario's posture unchanged.
+    me.is_mounted = function(self) return ctx.is_mounted == true end
     me.get_power = function(self, p)
         if p == M.POWER.COMBO then return ctx.combo_points or 5 end
         if p == M.POWER.ENERGY then return ctx.energy or 100 end
@@ -3436,7 +3518,7 @@ function M.build_context_for(class_key, scenario, era)
         hp=true, player_hp=true, in_combat=true, is_pvp=true,
         level=true, player_level=true, is_leveling=true, target_ttd=true,
         combo_points=true, energy=true, rage=true, focus=true,
-        is_moving=true, is_stealthed=true, target_is_casting=true,
+        is_moving=true, is_mounted=true, is_stealthed=true, target_is_casting=true,
         -- W3.3 deathknight (2026-08-13): the REAL dispatcher fields the DK
         -- fixes read. Production sets context.target_casting
         -- (main_sylvanas.lua:759) and context.target_is_boss
@@ -4270,6 +4352,100 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
                 elseif m then
                     fired[s.name] = fired[s.name] + 1
                     fired_in[s.name][sc.name] = true
+                end
+            end
+        end
+        -- Execute-capture path (2026-09-06): the stateless matcher pass cannot
+        -- seed module-local state that only a strategy's EXECUTE writes (cat
+        -- snapshot_state via record_bleed_snapshot inside the Rip/Rake cast;
+        -- enh totem_state inside the totem-drop executes). A scenario may
+        -- declare a capture plan: run the seed lane's REAL execute against the
+        -- mock NS (try_cast always true, so the cast lands and the module
+        -- state records exactly as it would live), then transform the ctx to
+        -- the post-cast frame a real rotation would reach next tick (bleed
+        -- applied, AP spiked) and require the reap lanes to fire. Era-guarded
+        -- and spec-scoped: capture runs only when the plan's era matches the
+        -- battery era AND the spec defines both the seed lane and every reap
+        -- lane — every other spec/era treats the scenario as an ordinary
+        -- context, and a missing seed lane skips silently (no fabricated fire,
+        -- no cross-spec behavior change).
+        local cap = sc.capture
+        if cap and era == cap.era then
+            local seed = nil
+            for _, s in ipairs(strategies) do
+                if type(s) == "table" and s.name == cap.seed_lane
+                    and type(s.matches) == "function" and type(s.execute) == "function" then
+                    seed = s
+                    break
+                end
+            end
+            if seed then
+                local seed_ok, seed_m = pcall(seed.matches, ctx, state)
+                if seed_ok and seed_m then
+                    local ex_ok, ex_res = pcall(seed.execute, ctx)
+                    if ex_ok and ex_res then
+                        if type(cap.reap) == "table" then
+                            for k, v in pairs(cap.reap) do ctx[k] = v end
+                        end
+                        -- Re-bank the transformed ctx (also advances the
+                        -- scenario clock so the module's frame cache misses)
+                        -- and rebuild state on the post-cast frame.
+                        M.apply_battery_state(ns, ctx, class_key)
+                        local reap_state = ctx
+                        if build_state then
+                            local ok2, st2 = pcall(build_state, ctx)
+                            if not ok2 then
+                                dispatch_errors[#dispatch_errors + 1] =
+                                    "build_state@" .. sc.name .. "(capture): " .. tostring(st2)
+                            elseif type(st2) == "table" then
+                                reap_state = st2
+                            end
+                        end
+                        for _, lane in ipairs(cap.reap_lanes or {}) do
+                            local rs = nil
+                            for _, s in ipairs(strategies) do
+                                if type(s) == "table" and s.name == lane
+                                    and type(s.matches) == "function" then
+                                    rs = s
+                                    break
+                                end
+                            end
+                            if rs then
+                                local ok3, m3 = pcall(rs.matches, ctx, reap_state)
+                                if not ok3 then
+                                    dispatch_errors[#dispatch_errors + 1] =
+                                        (rs.name or "?") .. "@" .. sc.name
+                                        .. "(capture): " .. tostring(m3)
+                                elseif m3 then
+                                    fired[rs.name] = fired[rs.name] + 1
+                                    fired_in[rs.name][sc.name] = true
+                                    -- Reap-and-consume: the real dispatcher
+                                    -- fires the matched strategy, so run its
+                                    -- execute too — this is what clears the
+                                    -- module state the seed created (cat Rip/
+                                    -- Rake re-record the snapshot at the new
+                                    -- AP; enh GoA twist flips next_air back to
+                                    -- windfury; FireNovaReplacement drops Magma
+                                    -- and clears fire_nova_active). Without it,
+                                    -- the seeded state persists into later
+                                    -- scenarios and the lane fires a second
+                                    -- (non-capture) time.
+                                    if type(rs.execute) == "function" then
+                                        local ok4, ex4 = pcall(rs.execute, ctx)
+                                        if not ok4 then
+                                            dispatch_errors[#dispatch_errors + 1] =
+                                                (rs.name or "?") .. "@" .. sc.name
+                                                .. "(capture reap execute): " .. tostring(ex4)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    elseif not ex_ok then
+                        dispatch_errors[#dispatch_errors + 1] =
+                            (seed.name or cap.seed_lane) .. "@" .. sc.name
+                            .. "(capture execute): " .. tostring(ex_res)
+                    end
                 end
             end
         end

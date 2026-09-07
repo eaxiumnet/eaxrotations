@@ -52,9 +52,7 @@
 --         batch-2 (c) close-out (hurricane_aoe/rebirth_dead_ally/bear_*/
 --         cat_*/bm_trinket/mm_aimed_opener/prot_*/ret_cleanse_self/elem_*/
 --         enh_interrupt/enh_low_mana scenarios + the BM Trinket is_item_ready
---         dead-lane fix) cleared 18 more 78->60 (RakeSnapshot/RipSnapshot /
---         FireNovaReplacement remain (c)-pinned unpinnable: module-local
---         snapshot/totem state the battery cannot drive), and the (a) opt-in
+--         dead-lane fix) cleared 18 more 78->60, and the (a) opt-in
 --         close-out (2026-08-10: moonkin_form_optin/bear_barkskin/cat_rip_trick/
 --         cat_shred_trick/frost_*_optin/prot_avenger_shield/prot_hammer_wrath/
 --         prot_judgement/prot_seal_command/ret_consecration/ret_consec_dump/
@@ -395,8 +393,13 @@ local components = {
                 -- 2026-08-12 live-correctness campaign: 13 -> 16 (rogue
                 -- ExposeArmor (a) + Sap (c) pins + paladin Ret_SealMartyr_Primary
                 -- (c), introduced by the seal rewrite; pinned in
-                -- tools/spec_scorecard.lua LANE_CLASS).
-                { "never-firing " .. never .. " (expected 16)", never == 16 },
+                -- tools/spec_scorecard.lua LANE_CLASS). 2026-09-06
+                -- execute-capture campaign: 14 -> 12 (druid/cat RakeSnapshot +
+                -- RipSnapshot cleared by cat_rake_snapshot_capture /
+                -- cat_rip_snapshot_capture) then 12 -> 11 (shaman/enhancement
+                -- FireNovaReplacement cleared by
+                -- enh_fire_nova_replacement_capture_tbc).
+                { "never-firing " .. never .. " (expected 11)", never == 11 },
             }
         end,
     },
@@ -456,17 +459,17 @@ local components = {
     --    'Magma Totem max rank is TBC-only in Classic'), priest holy
     --    EncounterReactions (era gate: NS.is_tbc() false in Classic — the
     --    lane is a Karazhan reaction and is_tbc() is the era discriminator).
-    --  * module-local / state-machine-bound (3): FireNovaReplacement
-    --    (module-local totem_state.fire_nova_active, unpinnable — TBC-pinned
-    --    family), enhancement GraceOfAirTotemTwist (module-local totem_state.
-    --    next_air flips only inside the twist executes, enhancement_vanilla:
-    --    731/739; the battery evaluates matches statelessly per scenario and
-    --    cannot run the windfury→grace cycle; the strategy IS live in-game —
-    --    the TBC sibling was cleared only because the TBC version reads
-    --    NS.buff_remains, the vanilla version reads module-local state),
-    --    priest leveling Fade (threat_pct >= 99 "drawn aggro" gate — the
-    --    battery's threat channel is capped at 95 because the TBC Soulshatter
-    --    lanes are pinned fires-ONLY-in-threat_high
+    --  * module-local / state-machine-bound, PRE-2026-09-06 execute-capture:
+    --    FireNovaReplacement (totem_state.fire_nova_active) +
+    --    GraceOfAirTotemTwist (totem_state.next_air, flips only inside the
+    --    twist executes, enhancement_vanilla:731/739) were unpinnable because
+    --    the battery evaluated matches statelessly; the execute-capture
+    --    scenarios (enh_fire_nova_replacement_capture_vanilla /
+    --    enh_grace_air_twist_capture_vanilla) now run the real FireTotem /
+    --    WindfuryTotemTwist executes and both lanes PROVEN → enhancement at
+    --    0; the remaining (c) is priest leveling Fade (threat_pct >= 99
+    --    "drawn aggro" gate — the battery's threat channel is capped at 95
+    --    because the TBC Soulshatter lanes are pinned fires-ONLY-in-threat_high
     --    (test_threat_context_regression.lua), so any threat >= 99 scenario
     --    would break that exclusivity contract).
     --
@@ -500,7 +503,11 @@ local components = {
             return {
                 { "vanilla specs " .. tostring(specs) .. " (expected 40)", specs == 40 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 12 baseline, classified)", never == 12 },
+                -- 2026-09-06 execute-capture campaign: 11 -> 9 (shaman/enhancement
+                -- FireNovaReplacement + GraceOfAirTotemTwist cleared by
+                -- enh_fire_nova_replacement_capture_vanilla /
+                -- enh_grace_air_twist_capture_vanilla).
+                { "never-firing " .. never .. " (expected 9 baseline, classified)", never == 9 },
             }
         end,
     },
@@ -566,6 +573,22 @@ local components = {
         check = function(c)
             return { { "in-sync marker present (never/(a)/(b)/(c)/(d) pins + doc current)",
                        c:find("in sync", 1, true) ~= nil } }
+        end,
+    },
+    -- Perf cost gate (P3): enforces the no-per-frame-allocation rule under the
+    -- capturing mock. Disabled/idle paths must amortize to zero retained
+    -- growth (same forced-GC standard as the swing-diagnostics pin); enabled
+    -- paths must stay within the named bounds defined inside the tool. The
+    -- tick path gets the pin's 1.0 KB accounting-tolerance bound, so a real
+    -- per-tick retained regression (any bounded-cache fill per frame) hard-fails.
+    {
+        label = "perf cost gate",
+        cmd = "lua tools/perf_cost_gate.lua --check",
+        check = function(c)
+            return { { "[PASS] marker present (per-path retained deltas within named thresholds)",
+                       c:find("[PASS]", 1, true) ~= nil },
+                     { "no THRESHOLD FAIL markers",
+                       c:find("THRESHOLD FAIL", 1, true) == nil } }
         end,
     },
 }

@@ -27,6 +27,9 @@ local PAGE_PATH_STR = "EaxRotations"
 local _widget_registry = {}
 local _page = nil
 local _initialized = false
+local _diag = nil
+local _ps_control = nil
+local _qt_controls = {}   -- quick-toggle key -> retained keybind control
 
 -- ---------------------------------------------------------------------------
 -- is_available(): true when _G.menu is installed and has the page() method.
@@ -145,7 +148,7 @@ end
 --   get_active_playstyle_fn — function() returning the current playstyle string
 --   stored_values       — table of initial values from NS.settings (for defaults)
 -- ---------------------------------------------------------------------------
-function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
+function M:initialize(schema, class_config, MenuTheme, playstyle_keys,
                       playstyle_options, quick_toggle_keys,
                       get_active_playstyle_fn)
     local menu = _G.menu
@@ -155,6 +158,9 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
 
     -- Reset state
     _widget_registry = {}
+    _qt_controls = {}
+    _ps_control = nil
+    _diag = nil
     _initialized = false
 
     local class_key = class_config and class_config.class_key or nil
@@ -190,7 +196,7 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
     if qt_ok and qt_section then
         -- Playstyle dropdown
         if #playstyle_options > 0 then
-            qt_section:dropdown("playstyle", "Playstyle", playstyle_options,
+            _ps_control = qt_section:dropdown("playstyle", "Playstyle", playstyle_options,
                 1,  -- default index (updated by sync later)
                 { description = "Select active class rotation." })
             _widget_registry[#_widget_registry + 1] = {
@@ -200,28 +206,41 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
             }
         end
 
-        -- Quick toggle keybinds — declared as toggle-mode keybinds
-        -- These map to the same keys the imperative menu uses.
+        -- Quick toggle keybinds — declared as toggle-mode keybinds.
+        -- These map to the same keys the imperative menu uses (main.lua
+        -- menu_elements), which default to key code 7, the engine's "no key / Unbinded"
+        -- sentinel. A real-key default was attempted with guessed VK codes and
+        -- crashed the client at load (engine key-code numbering unvalidated) —
+        -- reverted to the sentinel (999 kept as this host's legacy default)
+        -- until a validated code table exists.
+        -- Permashow clarity (mirrors main.lua's quick_toggle_defs):
+        -- the keybind's own label (second arg to keybind) is the plain toggle
+        -- name so the engine's key pill can render "Unbound" without the row
+        -- implying the pill is a hotkey that fires the rotation. The human-
+        -- readable row label (control_label) says "click to toggle" and is the
+        -- identical wording used by the imperative host.
         local qt_keybinds = {
-            { id = "rotation_enabled", label = "Rotation", default = true },
-            { id = "healing_enabled",  label = "Healing",  default = true },
-            { id = "damage_enabled",   label = "Damage",   default = true },
-            { id = "use_cooldowns",    label = "Cooldowns", default = true },
-            { id = "aoe_enabled",      label = "AoE",      default = true },
-            { id = "use_interrupt",    label = "Interrupts", default = true },
-            { id = "utility_enabled",  label = "Utility",  default = true },
-            { id = "use_threat_drop",  label = "Threat Drops", default = true },
-            { id = "auto_taunt",       label = "Auto Taunt", default = true },
+            { id = "rotation_enabled", label = "Rotation",        control_label = "Rotation (click to toggle)", default = true },
+            { id = "healing_enabled",  label = "Healing",        control_label = "Healing (click to toggle)",  default = true },
+            { id = "damage_enabled",   label = "Damage",         control_label = "Damage (click to toggle)",   default = true },
+            { id = "use_cooldowns",    label = "Cooldowns",      control_label = "Cooldowns (click to toggle)", default = true },
+            { id = "aoe_enabled",      label = "AoE",            control_label = "AoE (click to toggle)",      default = true },
+            { id = "use_interrupt",    label = "Interrupts",     control_label = "Interrupts (click to toggle)", default = true },
+            { id = "utility_enabled",  label = "Utility",        control_label = "Utility (click to toggle)",  default = true },
+            { id = "use_threat_drop",  label = "Threat Drops",   control_label = "Threat Drops (click to toggle)", default = true },
+            { id = "auto_taunt",       label = "Auto Taunt",     control_label = "Auto Taunt (click to toggle)", default = true },
         }
         for _, kb in ipairs(qt_keybinds) do
-            qt_section:keybind(kb.id, kb.label, 999, {
+            local kbctl = qt_section:keybind(kb.id, kb.label, 999, {
                 mode = "toggle",
                 modes = { "toggle", "hold" },
                 default_active = kb.default,
             })
+            _qt_controls[kb.id] = kbctl
             _widget_registry[#_widget_registry + 1] = {
                 id = kb.id, type = "keybind",
                 default_active = kb.default,
+                control_label = kb.control_label,
             }
         end
     end
@@ -357,6 +376,7 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
         collapsed = true,
     })
     if diag_ok and diag_section then
+        _diag = diag_section
         diag_section:button("eax_dump_spells", "Dump Learned Spells", {
             description = "Writes every known spell for this class to the console log",
             on_click = function()
@@ -386,6 +406,35 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
         _widget_registry[#_widget_registry + 1] = {
             id = "eax_debug_combo_points", type = "checkbox", default = false,
         }
+        -- [#P1/3] In-game "why" trace: toggle-gated recording of the last 32
+        -- rotation casts (rule + live state). Reached via NS.settings through
+        -- sync_to_settings below (same as the other debug toggles).
+        diag_section:checkbox("eax_debug_trace_casts", "Trace Casts", false, {
+            description = "Record why each rotation cast fired (last 32) so you can inspect the decision behind a spell",
+        })
+        _widget_registry[#_widget_registry + 1] = {
+            id = "eax_debug_trace_casts", type = "checkbox", default = false,
+        }
+        diag_section:button("eax_trace_print_casts", "Print Last Casts", {
+            description = "Write the last recorded casts with their state to the log",
+            on_click = function()
+                local NS = _G.EaxRotations
+                -- CastTrace methods are dot-defined (no self), so no
+                -- self argument is passed to pcall.
+                if NS and NS.CastTrace and NS.CastTrace.print_recent then
+                    pcall(NS.CastTrace.print_recent, 8)
+                end
+            end,
+        })
+        diag_section:button("eax_trace_clear_casts", "Clear Trace", {
+            description = "Empty the recorded cast history",
+            on_click = function()
+                local NS = _G.EaxRotations
+                if NS and NS.CastTrace and NS.CastTrace.clear then
+                    pcall(NS.CastTrace.clear)
+                end
+            end,
+        })
     end
 
     _initialized = true
@@ -394,7 +443,7 @@ end
 
 
 -- ---------------------------------------------------------------------------
--- sync_to_settings(settings_table, playstyle_keys):
+-- sync_to_settings(settings_table, playstyle_keys):  (method: self first)
 -- Reads all declarative widget values via menu:get and writes them into the
 -- provided settings table (NS.settings). This replaces the imperative sync loop.
 --
@@ -405,7 +454,7 @@ end
 --   keybind → { vk, mods, mode, active }
 --   color_picker → { r, g, b, a }
 -- ---------------------------------------------------------------------------
-function M.sync_to_settings(settings_table, playstyle_keys)
+function M:sync_to_settings(settings_table, playstyle_keys)
     if not _initialized then return end
     local menu = _G.menu
     if not menu or type(menu.get) ~= "function" then return end
@@ -471,6 +520,39 @@ function M.get_widget_value(id)
     local ok, value = pcall(menu.get, menu, PAGE_PATH_STR, id)
     if ok then return value end
     return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- control_panel_defs(): the quick-toggle keybinds declared in the retained
+-- menu, as key -> control (the SAME widgets a user toggles in the menu). The
+-- Control Panel subsystem consumes these instead of the imperative keybinds
+-- when the declarative menu is active, so permashow rows and menu toggles are
+-- one widget, not two.
+-- ---------------------------------------------------------------------------
+function M.control_panel_defs()
+    if not _initialized then return nil end
+    local out = {}
+    for key, ctl in pairs(_qt_controls) do
+        if ctl then out[key] = ctl end
+    end
+    return out
+end
+
+-- playstyle_control(): the retained playstyle dropdown control (nil if the
+-- class had no playstyles when the page was built).
+function M.playstyle_control()
+    if not _initialized then return nil end
+    return _ps_control
+end
+
+-- add_diagnostics_button(id, label, on_click): (method: self first) append an
+-- action button to the retained Diagnostics section AFTER initialize (e.g. the
+-- permashow reset). main.lua calls it as M.add_diagnostics_button(M, ...).
+function M:add_diagnostics_button(id, label, on_click)
+    if not _diag or not _diag.button then return false end
+    local ok, btn = pcall(_diag.button, _diag, id, label, { on_click = on_click })
+    if not ok or not btn then return false end
+    return true
 end
 
 

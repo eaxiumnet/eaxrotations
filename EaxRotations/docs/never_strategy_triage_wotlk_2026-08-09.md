@@ -287,3 +287,366 @@ new pins are the two lunar-eclipse tests and the `balance_eclipse_lunar`
 battery scenario (lane already fired pre-scenario via the not-solar branch;
 the scenario makes the lunar branch explicit and non-vacuous).
 
+
+---
+
+# Addendum 2026-09-06 — Warrior WotLK era-appropriate scenario suites (W6.1)
+
+The WotLK battery already enforced `never == 0` for all 41 specs (see the
+COMPLETE note at run_verify_all.lua), but the warrior `_wotlk.lua` files'
+**decision behavior** was only statically pinned (priority order + the arms
+match gates in `test_arms_wotlk_dsl_priority.lua`). Fury, protection and the
+leveling file had no era-appropriate "which lane fires under which state"
+coverage. This addendum records the mirror-of-TBC-campaign pass:
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests /
+run_leveling_tests as applicable; rotation battery 524 -> 527 suites)
+
+| Suite | File under test | Era-appropriate lanes pinned |
+|---|---|---|
+| `test_fury_wotlk_strategies.lua` | `fury_wotlk.lua` | Berserker-stance dance-back (in-combat only, no-op when already Berserker / OOC); Execute <20% + 15 rage; Bloodthirst 30-rage CD gate; Whirlwind **Berserker-only** (blocked in Battle, WotLK); **Bloodsurge-gated Slam** (no filler hard-cast without the proc); Pummel Berserker-only interrupt; Death Wish long-CD policy suppression; Battle Shout maintenance |
+| `test_protection_wotlk_strategies.lua` | `protection_wotlk.lua` | Last Stand <30% hp emergency band; swing-**queued** Heroic Strike (blocked when the auto is >1 s out); need-gated Shield Block (fires under 70% hp or 2+ targets, held otherwise so it can't starve Shield Slam/Devastate); Berserker dance for the Berserker-only Pummel (not when nothing to interrupt); Shield Slam/Revenge/ThunderClap/Devastate CD+rage gates |
+| `test_warrior_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | OOC-only Battle Stance/Battle Shout; Charge 8-25 yd range (melee / >25 yd / in-combat blocked); proc-gated Victory Rush + dodge-window Overpower (Battle-stance-only); Execute range; hit-volume ThunderClap/Whirlwind (self 8 yd) + Cleave (target 8 yd); Rend refresh window; Heroic Strike dump; Pummel interrupt |
+
+All three load the real `_wotlk.lua` file against a mock NS (same harness shape
+as the TBC/vanilla strategy suites) and pin both the fire and the don't-fire
+side of each gate. Two era mechanics exercised here had no prior assertion:
+the WotLK queued-swing HS/Cleave gates (`swing_time_until <= 1 s`) and the
+stance-dance lanes that keep Berserker-only abilities reachable from the
+default Battle/Defensive stances.
+
+## Gate status after the pass
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never
+lua EaxRotations/tests/run_rotation_tests.lua        # 527 suites / 0 failed
+lua EaxRotations/tests/run_wotlk_tests.lua           # 48 suites / 0 failed
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 527)
+```
+
+No `LANE_CLASS` / never pins changed (the battery never-count was already 0);
+the scorecard count columns were refreshed by the documented regeneration.
+
+
+---
+
+# Addendum 2026-09-06 — Death Knight WotLK era-appropriate scenario suites + rune-gate audit (W6.2)
+
+The warrior pass (above) left the four DK `_wotlk.lua` files partially pinned:
+blood had only disease/Death-Strike basics, frost/unholy/leveling had static
+priority-order checks plus a handful of live-fix pins, and **no suite drove the
+real rune_manager** — the frost `Obliterate` gate was asserted against a
+wrong-shaped rune stub. This addendum records the DK era-content pass:
+
+## Rune-state verdict (survey claim settled)
+
+The claim that the rune-state manager "does not model rune state" is **refuted
+as an architecture defect**: `shared/rune_manager_sylvanas.lua` is a thin
+query layer over the engine's per-slot API (`get_rune_type` / `get_rune_info`
+per slot 1..6), and era-correct recharge (slot `ready=false` drops the ready
+count) and death-rune conversion (slot type 4 counts toward `ready.death`)
+flow through it. The refutation exercise, however, exposed a **genuine
+era-correctness bug** in `frost_wotlk.lua`: the Obliterate gate computed
+`frost >= 1 and unholy >= 1` by adding the same death-rune pool into both
+requirements, so a **lone ready death rune (0 frost, 0 unholy) double-counted
+one slot and fired an uncastable Obliterate**. Fixed to require `slots >= 2`
+across the frost+unholy+death families (2026-09-06); verified at every
+boundary (1 frost + 1 unholy, 1 frost + 1 death, 2 death, lone death blocked).
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests /
+run_leveling_tests as applicable; rotation battery 527 -> 531 suites)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_deathknight_blood_wotlk_strategies.lua` | `blood_wotlk.lua` | Icebound Fortitude <40% / Vampiric Blood <50% hp bands; Horn of Winter upkeep; Dancing Rune Weapon commit gate (combat + target hp + 60 RP + long-CD); disease maintenance (Icy Touch / Plague Strike refresh <3s); Pestilence refresh (one disease <3s, both up); Death Strike disease-uptime guard (blocked when Frost Fever down or <3s); unconditional Heart Strike; Death Coil 40-RP spend |
+| `test_frost_deathknight_wotlk_strategies.lua` | `frost_wotlk.lua` | **Real rune_manager driven through the engine slot API**: Obliterate slot accounting (incl. the lone-death-rune fix), Blood Strike blood-family rune gate; Killing Machine Frost Strike (window + 40 RP); plain 40-RP Frost Strike; Rime proc + 3-target AoE Howling Blast; Horn of Winter; Unbreakable Armor (buff/CD/long-CD/combat); Empower Rune Weapon (all-runes-recharging only); Frost Presence auto-switch |
+| `test_deathknight_unholy_wotlk_strategies.lua` | `unholy_wotlk.lua` | Horn of Winter / Bone Shield upkeep; Raise Dead (pet absent only); Summon Gargoyle (boss + 60 RP + long-CD); Empower Rune Weapon via the real rune snapshot (0-ready only); disease refresh; Pestilence pack spread (2 targets, both diseases); Death Coil 100 / DeathCoilDump 40 RP gates; Death and Decay 2-target AoE; Scourge Strike (both diseases); unconditional Blood Strike; Ghoul Gnaw (casting target) / Ghoul Leap (8 yd); Unholy Presence auto-switch |
+| `test_deathknight_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | Mind Freeze interrupt (combat + enemy cast); Blood Presence / Horn of Winter upkeep; disease refresh (combat-gated); hit-volume AoE gates (Pestilence spread 2, Death and Decay 3, Blood Boil self-2, Howling Blast 2); Death Strike <80% hp band; the in-combat-only strike core (Obliterate / Scourge Strike / Heart Strike / Blood Strike); Death Coil 40-RP dump; Empower Rune Weapon (CD + long-CD + combat) |
+
+All four load the real `_wotlk.lua` file against a mock NS (same harness shape
+as the warrior/TBC strategy suites), and the frost/unholy suites drive the
+**real** `rune_manager_sylvanas` against a mutable 6-slot engine model so the
+rune gates are asserted against genuine slot counts rather than a stub.
+
+## Gate status after the pass
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never (DK 4 specs 0/0)
+lua EaxRotations/tests/run_rotation_tests.lua        # 531 suites / 0 failed
+lua EaxRotations/tests/run_wotlk_tests.lua           # 52 suites / 0 failed
+lua EaxRotations/tests/run_leveling_tests.lua        # 34 suites / 0 failed
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 531)
+```
+
+No `LANE_CLASS` / never pins changed (the battery never-count was already 0);
+the scorecard count columns were refreshed by the documented regeneration.
+
+
+---
+
+# Addendum 2026-09-06 — Rogue WotLK era-appropriate scenario suites (W6.3)
+
+Mirror of the DK pass (W6.2). The four rogue `_wotlk.lua` files' decision
+lanes were already pinned **gate-both-sides** by the dsl_priority suites and a
+handful of real-read lanes by `test_rogue_wotlk_live_fixes.lua`, but the
+dsl_priority suites mutate `build_state` output **post-hoc** (`state.snd_remains
+= 1` after one zero-state build), so no suite drove the real state plumbing —
+`ctx.energy`/`ctx.combo_points`, `NS.buff_remains`/`buff_up`, `debuff_remains`,
+`get_debuff_stacks`, the equipped-item dagger check through the real
+`dagger_set`, real `NS.cooldown_remains`, `target:is_casting`, and the real
+hit-volume gate. This addendum records the era-appropriate real-read pass:
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests /
+run_leveling_tests as applicable; rotation battery 531 -> 535 suites)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_rogue_assassination_wotlk_strategies.lua` | `assassination_wotlk.lua` | Kick (enemy cast, real `target:is_casting`); Slice and Dice refresh <3s at >=1 CP (real `buff_remains`); Rupture refresh <3s at >=1 CP (real `debuff_remains`); Hunger for Blood upkeep (buff-down only); Tricks of the Trade <=50-energy APL gate (real `ctx.energy`); **Envenom commit**: >=4 CP + >=3 Deadly Poison stacks (real `get_debuff_stacks`) + buff-down-or-energy>=85 refresh rule incl. the 84/85 boundary; Mutilate >=60-energy + both-hand dagger gate through the real dagger_set map |
+| `test_rogue_combat_wotlk_strategies.lua` | `combat_wotlk.lua` | Kick; Slice and Dice <=1s refresh boundary (1.0 fires, 1.01 held) at >=1 CP; Eviscerate >=4 CP; **Blade Flurry APL alignment** (real `cooldown_remains` on 13877 + SnD-up + >=2 enemies + long-CD, incl. single-target / no-SnD / on-CD / OOC / long-CD don't-fires); Killing Spree <=50-energy APL gate at >=1 CP (incl. 51-energy, on-CD, OOC, long-CD don't-fires); Sinister Strike >=45 energy |
+| `test_rogue_subtlety_wotlk_strategies.lua` | `subtlety_wotlk.lua` | Kick; Premeditation unconditional opener (fires even OOC); Shadow Dance upkeep (buff-down only); **Ambush**: Shadow Dance up + strict behind + >=60 energy (incl. dance-down / in-front / 59-energy don't-fires); Eviscerate >=4 CP; **Backstab**: behind + dagger-eligible + >=60 energy (incl. in-front / no-dagger / 59-energy don't-fires) |
+| `test_rogue_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | Stealth enter (OOC + not stealthed); Stealth Ambush opener (>=60 energy); Kick (enemy cast + >=25 energy); Slice and Dice (combat + <3s + >=1 CP); **Fan of Knives** (>=50 energy + 3 targets via the real hit gate incl. 2-target don't-fire); **Rupture** (>=4 CP + bleed <3s + target >25% hp incl. the 25%-hp don't-fire); Gouge / Eviscerate / Sinister Strike combat + energy/CP gates incl. OOC don't-fires |
+
+All four load the real `_wotlk.lua` file against a mock NS and assert through
+`build_state` (the real read path), so each assert proves the wiring from the
+mocked engine API to the DSL state field as well as the gate itself.
+
+## File-inventory note (deliverable motifs absent from the WotLK files)
+
+The pass pinned every lane the WotLK files actually contain. Requested motifs
+with **no lane in these files** were not invented: Expose Armor is absent from
+`assassination_wotlk.lua` (no armor-reduction lane); Adrenaline Rush and Hemo
+are absent from `combat_wotlk.lua` / `subtlety_wotlk.lua` (combat has no
+positional strike; the finisher is Eviscerate in both). The generic
+"sinister/backstab by position" motif resolves to: combat = energy-gated
+Sinister Strike (no position gate), subtlety = behind+dagger Backstab.
+
+## Gate status after the pass
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never (rogue 4 specs 0/0)
+lua EaxRotations/tests/run_rotation_tests.lua        # 535 suites / 0 failed
+lua EaxRotations/tests/run_wotlk_tests.lua           # 56 suites / 0 failed
+lua EaxRotations/tests/run_leveling_tests.lua        # 35 suites / 0 failed
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 535)
+```
+
+No `LANE_CLASS` / never pins changed (the battery never-count was already 0);
+the scorecard count columns were refreshed by the documented regeneration.
+
+
+---
+
+# Addendum 2026-09-06 — Hunter WotLK era-appropriate scenario suites (W6.4)
+
+The three hunter `_wotlk.lua` files' decision lanes were already pinned
+**gate-both-sides** by the dsl_priority suites, but those suites mutate
+`build_state` output post-hoc, so no suite exercised the real read plumbing.
+This addendum records the era-appropriate real-read pass:
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests;
+rotation battery 535 -> 545 suites across the hunter+druid+paladin pass)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_hunter_beast_mastery_wotlk_strategies.lua` | `beast_mastery_wotlk.lua` | Aspect of the Viper <10% mana / Dragonhawk >=30% upkeep (real `buff_up` + `ctx.mana_pct`); Hunters Mark <3s refresh incl. the 2.9/3.0 boundary; Bestial Wrath in-combat + real `NS.cooldown_remains` on 19574 (incl. on-CD); Kill Shot <20% execute band; Explosive Trap re-drop <1s; in-combat Kill Command; Serpent Sting <3s + TTD >6s (incl. the short-lived-target don't-fire); Aimed/Steady in-combat; MultiShot 2-target; Arcane Shot >=20% mana |
+| `test_hunter_marksmanship_wotlk_strategies.lua` | `marksmanship_wotlk.lua` | Aspects; Silencing Shot in-combat use; Hunters Mark; Kill Shot; Serpent Sting <3s refresh with **no TTD gate** (MM refreshes on short-lived targets — pinned as different from BM/SV); Explosive Trap; Chimera Shot / Aimed / Steady in-combat; MultiShot 2-target; Arcane Shot mana |
+| `test_hunter_survival_wotlk_strategies.lua` | `survival_wotlk.lua` | Aspects; Hunters Mark; Kill Shot; **Lock and Load window split**: ExplosiveShotProc fires during the proc (real `buff_up` on 56344) and the plain ExplosiveShot lane is excluded during it (fires outside, blocked in-window, OOC-blocked both); Explosive Trap; Serpent Sting with the >6s TTD gate; Black Arrow <3s upkeep; Aimed/Multi/Steady core |
+
+All three load the real `_wotlk.lua` file against a mock NS and assert through
+`build_state` (the real read path), proving the engine-API-to-DSL-state wiring
+as well as each gate. The MM-vs-BM/SV Serpent Sting divergence (no TTD gate)
+is explicitly pinned so a future copy-paste can't silently unify them.
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never (hunter 4 specs 0/0)
+lua EaxRotations/tests/run_rotation_tests.lua        # 545 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_wotlk_tests.lua           # 66 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 545)
+```
+
+
+---
+
+# Addendum 2026-09-06 — Druid WotLK era-appropriate scenario suites (W6.5)
+
+The earlier survey flagged druid **cat and bear as having zero behavioral
+coverage**; verification confirmed that plus balance/resto having only
+synthetic post-hoc-state dsl_priority coverage. This addendum records the
+real-read pass for all four:
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests;
+rotation battery 535 -> 545 suites across the hunter+druid+paladin pass)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_druid_cat_wotlk_strategies.lua` | `cat_wotlk.lua` | **First behavioral pins** (was zero): Faerie Fire <3s upkeep; Ravage stealth opener (stealth + behind + >=60 energy); Tiger's Fury CD + energy-fit (<=40) + 5-CP finisher protection; Berserk below 5 CP; Savage Roar / Rip 5-CP finisher refresh incl. the 4-CP don't-fire; Ferocious Bite execute-band (<25% hp) dump + healthy-window (Rip AND Roar >=3s) + both banked-CP don't-fires; Mangle bleed-vuln refresh >=45 energy; Rake refresh >=40 energy; behind-gated Shred >=50 energy; Omen-of-Clarity ShredOmen (proc + behind + <5 CP) |
+| `test_druid_bear_wotlk_strategies.lua` | `bear_wotlk.lua` | **First behavioral pins** (was zero): Lacerate stack refresh <3s at >=15 rage (incl. 14-rage / fresh / OOC don't-fires); Swipe 2-target AoE at >=15 rage; Mangle bleed-vuln refresh; Faerie Fire upkeep (no rage gate); Maul >=30-rage dump; Frenzied Regeneration panic heal (<=40% hp + >=10 rage + real spell_ready on 26999) |
+| `test_druid_balance_wotlk_strategies.lua` | `balance_wotlk.lua` | Moonkin form in-combat upkeep; Starfall single-target-legal (long-CD consent + real spell_ready on 48505); Moonfire / Insect Swarm <3s DoT upkeep; **the Eclipse state machine through real buff reads**: Wrath fires during solar (48517), blocked in no-Eclipse and lunar; Starfire fires during lunar (48518) AND as the no-Eclipse filler, blocked during solar; both gated at >=15% mana |
+| `test_druid_resto_wotlk_strategies.lua` | `resto_wotlk.lua` | Real friendly-unit model (ctx.lowest.unit + buff_remains/buff_stacks on the HoT ids): Wild Growth on 2+ injured allies >=25% mana; Swiftmend HoT-consumption rule (Rejuv OR Regrowth up) at <=50% hp; **Lifebloom 3-stack roll discipline** (free roll <3s below 3 stacks; at 3 stacks only inside the 1.2s window — 2s-left don't-fire pinned); Rejuvenation <=88% / Regrowth <=70% triage thresholds; Nourish <=60% direct heal; Innervate <=30% mana |
+
+All four load the real `_wotlk.lua` file against a mock NS and assert through
+`build_state` (the real read path): combo/energy/rage/mana via ctx, debuff/
+buff remains via NS aura reads, procs (Omen / Eclipse) via `buff_up`, charges
+(Lifebloom stacks) via `buff_stacks`, and CD gates via real `NS.spell_ready`.
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never (druid 5 specs 0/0)
+lua EaxRotations/tests/run_rotation_tests.lua        # 545 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_wotlk_tests.lua           # 66 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 545)
+```
+
+
+---
+
+# Addendum 2026-09-06 — Paladin WotLK era-appropriate scenario suites (W6.6)
+
+The earlier survey flagged retribution as having zero behavioral coverage;
+verification confirmed that (static priority-only), with protection/holy
+synthetic-pinned. This addendum records the real-read pass:
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests;
+rotation battery 535 -> 545 suites across the hunter+druid+paladin pass)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_paladin_retribution_wotlk_strategies.lua` | `retribution_wotlk.lua` | **First behavioral pins** (was zero): seal choice by pack size (SoV single-target / SoC 2+; both blocked while any seal is up); Divine Plea <40% mana recovery (buff-up + on-CD don't-fires); Avenging Wrath burst (real `cooldown_remains` on 31884 + long-CD consent + OOC); Hammer of Wrath <20% execute; the Judgement / Crusader Strike / Divine Storm CD cycle (real CD reads on 20271/35395/53385); Exorcism Art-of-War-proc-only (real `buff_up` on 59578, incl. proc-on-CD); Consecration 2-target hit-volume gate at >=30% mana (real CD on 48819); **the SoV<->SoC seal-switch** (drop SoV when adds arrive, drop SoC back single-target; never when the active seal matches; anti-loop clock advanced between fire scenarios) |
+| `test_paladin_protection_wotlk_strategies.lua` | `protection_wotlk.lua` | In-combat tank strike core (Avenger's Shield / Shield of Righteousness / Hammer of the Righteous / Judgement incl. OOC don't-fires); Consecration <3s refresh at >=25% mana; Righteous Fury buff-down upkeep through the real 3s anti-loop throttle; **Holy Shield proactive charge management** (fires buff-down / at the 2-charge floor / at 0 charges; held with 3 charges; real `spell_ready` on 48927; OOC-blocked) |
+| `test_paladin_holy_wotlk_strategies.lua` | `holy_wotlk.lua` | **Beacon of Light on the dedicated tank member** (real party_members + get_group_role="tank" resolution — never the lowest-HP ally); self-only Sacred Shield upkeep; Holy Shock <80% / Holy Light <50% (>=30% mana) / Flash of Light <70% (>=20% mana) triage to the lowest-HP friendly, all with boundary don't-fires |
+
+All three load the real `_wotlk.lua` file against a mock NS and assert through
+`build_state` (the real read path): seals/procs/auras via `buff_up`, CDs via
+real `NS.cooldown_remains` / `NS.spell_ready`, Holy Shield charges via
+`buff_points`, Consecration via the real hit-volume gate, and heals via the
+friendly-unit model.
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 41 specs / 0 load failures / 0 never (paladin 4 specs 0/0)
+lua EaxRotations/tests/run_rotation_tests.lua        # 545 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_wotlk_tests.lua           # 66 suites / 0 failed (final, all classes)
+lua EaxRotations/tests/run_verify_all.lua            # all green (scorecard regenerated: suites 545)
+```
+
+---
+
+# Addendum 2026-09-06 — Mage WotLK era-appropriate scenario suites (W6.7)
+
+The four-class closing pass (mage/warlock/shaman/priest). Mage coverage was sparse
+live-fix pins (DoT/debuff families, Hot Streak) plus synthetic dsl_priority
+matches; this addendum records the real-read pass over the three spec files and
+the leveling file.
+
+## New behavioral suites (registered in run_rotation_tests / run_wotlk_tests /
+run_leveling_tests; rotation battery 545 -> 561 across this four-class pass)
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_mage_arcane_wotlk_strategies.lua` | `arcane_wotlk.lua` | Arcane Blast 4-stack dump cycle (4-stack Barrage fires / 1-stack holds), Missile Barrage proc-consumer Arcane Missiles (proc fires, no-proc holds), mana-gem / Evocation <20% recovery band, Counterspell interrupt through the real `target:is_casting` read, Arcane Intellect/Mage Armor upkeep, Arcane Explosion hit-volume |
+| `test_mage_fire_wotlk_strategies.lua` | `fire_wotlk.lua` | Counterspell interrupt; Combustion long-CD (180s) consent incl. refusal; Improved-Scorch debuff refresh boundary (4s fires / 4.1s holds); **Hot Streak Pyroblast proc lane** (real 44448 buff read — proc fires, no-proc holds, OOC-blocked); Living Bomb with the TTD >12 payback gate (13 fires / 12 holds); FireBlast TTD-anticipation vs the resolved Scorch cast time; ScorchFinal execute-speed filler at TTD<=4; Fireball filler |
+| `test_mage_frost_wotlk_strategies.lua` | `frost_wotlk.lua` | Counterspell; **Fingers of Frost Ice Lance proc lane** (real 44545 read, proc fires / no-proc holds), Deep Freeze (frozen target + ready), Water Elemental pet-absent summon with long-CD consent, Frostbolt/Ice Lance filler + mana gates, Ice Barrier emergency band |
+| `test_mage_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | Counterspell; Arcane Intellect/Mage Armor upkeep; Ice Barrier <50% / Mana Shield <40% emergency absorbs (buff-up + OOC don't-fires); Evocation <20% / Blink <30% emergencies; OOC Mana Gem stock; **the AoE trio through the real hit-volume gate** (Cone of Cold 2 / Arcane Explosion 3 / Blizzard 4, each with volume don't-fires); Water Elemental (pet-down + 180s long-CD consent + OOC); Living Bomb <3s refresh; the mana-gated nuke ladder (Pyroblast 20 / Fireball-Frostbolt-FrostfireBolt 15 / Barrage 20 / Missiles 25 / FireBlast 10 / IceLance 5 / DeepFreeze 10) and the <10% Shoot OOM fallback |
+
+All four load the real `_wotlk.lua` file against a mock NS and assert through
+`build_state` (the real read path): procs/auras via `buff_up`, debuff refresh via
+`debuff_remains`, CDs via `NS.spell_ready`/`NS.should_use_long_cd`, interrupts via
+the real `target:is_casting`, AoE via the real hit-volume gate
+(`ctx._aoe_hit_count`), and the leveling pet state through the real pet_manager.
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never (mage specs 0/0)
+```
+
+
+---
+
+# Addendum 2026-09-06 — Warlock WotLK era-appropriate scenario suites + Backdraft implementation (W6.8)
+
+Warlock coverage before this pass was synthetic dsl_priority matches only. This
+addendum records (a) the real-read pass over affliction/demonology/destruction
+and the leveling file, and (b) the **Backdraft implementation** the roadmap had
+tracked as untracked.
+
+## Backdraft implementation (step 3 of the deliverable)
+
+Conflagrate grants the caster the Backdraft haste aura (reduces the cast time
+and GCD of the next three Destruction spells). Implementation notes:
+
+- **Spell-index ids corrected during the pass**: the roadmap/triage doc cited
+  55379/55380, but those are *Skyflare Swiftness* (a jewelcrafting meta-gem
+  haste proc), verified against wowhead and wotlkdb.com (3.3.5a). The real
+  Conflagrate-granted Backdraft auras are per talent rank **54274 (-10%) /
+  54276 (-20%) / 54277 (-30%)**. The three real ids were added to
+  `shared/wowhead_data_bridge_spell_index_wotlk_sylvanas.lua` (the index bridge
+  carries a manual-entry note documenting the 55379/55380 correction); the
+  wrong numbers never entered the spec — they appeared only in the earlier doc.
+- **Rotation wiring** in `classes/warlock/destruction_wotlk.lua`: a new
+  `SoulFireBackdraft` consumer lane (in combat + `has_backdraft` buff read via
+  `NS.buff_up` over 54274/54276/54277 + mana >= 30) sits above Incinerate and
+  consumes the haste window on Soul Fire's long cast — mirroring the repo's
+  proc-consumer convention (e.g. the TBC BacklashShadowBolt lane). The plain
+  SoulFire lane below Incinerate remains for non-Backdraft builds. WotLK
+  destruction has no Immolate-family haste interaction; the proc is cast-time
+  haste only, so consuming it on the longest cast in the kit is the
+  era-appropriate use.
+- **WotLK spell-id audit**: the spell index passes its sortedness/reference
+  audit with the three additions (run via `run_rotation_tests.lua`, which
+  includes the WotLK id-audit suite).
+
+## New behavioral suites
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_warlock_affliction_wotlk_strategies.lua` | `affliction_wotlk.lua` | Haunt / Corruption / UA / CoA refresh boundaries through the real `debuff_remains` read (2.9s fires / 3.0s holds); DrainSoul <25% target-hp execute band (24 fires / 25 holds); ShadowBolt >=20% mana filler; the appended LifeTap sustain (in combat + mana <40 + hp >50, incl. both floors). (Soul Swap: absent from this file — the WotLK affliction kit here is the DoT-priority + drain core, documented not invented.) |
+| `test_warlock_demonology_wotlk_strategies.lua` | `demonology_wotlk.lua` | **Metamorphosis long-CD lane** (in combat + aura down + 180s consent, incl. transformed / OOC / refused don't-fires); Corruption / Immolate <3s refresh; SoulFire 30 / ShadowBolt 20 mana fillers; LifeTap (mana <65 + hp >55 + combat) |
+| `test_warlock_destruction_wotlk_strategies.lua` | `destruction_wotlk.lua` | Conflagrate (Immolate-live gate, incl. sliver-remaining fire); Immolate refresh at the 2.0s cast-window boundary; ChaosBolt 20 / Incinerate 20 fillers; **the Backdraft pin** — proc-up SoulFireBackdraft fires through the real 54277 aura read (also at the 30-mana boundary) and holds with no proc / 29 mana / OOC, while the plain SoulFire lane stays available out-of-window; LifeTap (mana <30 + hp >50) |
+| `test_warlock_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | SpellLock interrupt through the real helper read (cast / idle / 4-mana don't-fires); SummonPet OOC preference ladder (missing-or-dead pet fires, alive pet holds); OOC Soulstone/Healthstone/FelArmor upkeep (incl. the Demon-Armor-up hold); Haunt/UA/Corruption/Immolate/CoA <3s refresh with OOC holds; **Seed of Corruption / Rain of Fire through the real hit-volume gate** (3 targets fire / 2 hold, mana floors); Conflagrate's >3s Immolate gate; DrainSoul 25% / DrainLife 60% / LifeTap (mana <30 + hp >40) bands; the mana-gated filler ladder + <10% Shoot OOM fallback |
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never (warlock specs 0/0)
+```
+
+
+---
+
+# Addendum 2026-09-06 — Shaman WotLK era-appropriate scenario suites (W6.9)
+
+Shaman coverage before this pass was synthetic dsl_priority matches only. This
+addendum records the real-read pass over elemental/enhancement/restoration and
+the leveling file.
+
+## New behavioral suites
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_shaman_elemental_wotlk_strategies.lua` | `elemental_wotlk.lua` | WindShear + WotLK EarthShock (kick removed 3.0.2 — instant-damage while the target casts) via the real `target:is_casting`; **CD windows through the real `NS.spell_ready`** for Bloodlust / Fire Elemental / Elemental Mastery (each with the on-CD hold); Totem of Wrath drop (aura down + air slot free via real `NS.get_totem_info`, incl. occupied-slot hold); Searing Totem (in combat + no Fire Elemental + fire slot free); FlameShock <3s refresh (2.9/3.0 boundary); **LavaBurst's guaranteed-crit pairing** — fires while Flame Shock is live at >=1s, holds with the debuff down (no crit) or at <1s; Chain Lightning 2-target cleave; Thunderstorm <50% mana return; Lightning Bolt filler |
+| `test_shaman_enhancement_wotlk_strategies.lua` | `enhancement_wotlk.lua` | Feral Spirit / Bloodlust (in combat + real spell_ready); **Maelstrom Weapon Lightning Bolt proc lane** (real 53817 stack read — 5+ fires, 4/no-proc holds); Stormstrike / EarthShock / LavaLash ungated fillers pinned as always-match; FlameShock <3s; Call of the Elements water-slot re-drop; Magma Totem 2-target + fire-slot gate; **Fire Nova's WotLK fire-totem requirement** (2+ enemies AND an active fire totem — holds with the slot empty); Lightning Shield aura-down upkeep; Shamanistic Rage (in combat + mana <40 + real 120s-CD read); **the OOC weapon-imbue window** (Windfury/Flametongue on the ~29.8-min freshness comparison — expired window fires, fresh window holds via the clock, in-combat and 4-mana holds) |
+| `test_shaman_restoration_wotlk_strategies.lua` | `restoration_wotlk.lua` | Friendly-unit model (context.lowest.unit) like the priest/resto-druid passes: Mana Tide (real 300s-CD read + mana <30); **charge-aware Earth Shield refresh** (down applies / 1 charge refreshes / 2+ holds / unreadable-charges fails closed); Riptide HoT <3s refresh (2.9/3.0); Chain Heal (2+ injured via ctx.party_injured_count + lowest <85% + mana); LHW <90% / Healing Wave <70% triage with mana gates; Water Shield mana sustain (in combat + down + mana <50 + ready) |
+| `test_shaman_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | WindShear interrupt; Healing Wave <50% hp emergency band; Lightning Shield aura-down upkeep; Searing Totem (1+ enemies + fire slot) / Magma Totem (3+ enemies + fire slot) sharing the slot-occupancy gate; Chain Lightning 2-target cleave; FlameShock <3s + LavaBurst Flame-Shock-live pairing; the Stormstrike 10 / EarthShock 15 / LightningBolt 15 mana-gated filler ladder with OOC holds |
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never (shaman specs 0/0)
+```
+
+
+---
+
+# Addendum 2026-09-06 — Priest WotLK era-appropriate scenario suites (W6.10)
+
+Priest coverage before this pass was sparse live-fix pins (Penance/PoM trainer
+ladders, define_action_for_class shadowing) plus synthetic dsl_priority matches.
+This addendum records the real-read pass over shadow/discipline/holy and the
+leveling file — the last WotLK classes without era suites.
+
+## New behavioral suites
+
+| Suite | File under test | Era-appropriate lanes pinned (both fire + don't-fire sides) |
+|---|---|---|
+| `test_priest_shadow_wotlk_strategies.lua` | `shadow_wotlk.lua` | Silence interrupt; VT / SW:P / DP <3s refresh (2.9/3.0) through the real `debuff_remains`; **the Mind Flay channel-interaction gates through the real mf_tick_compute** — the DoT lanes hold during a fresh MF channel (0-1 ticks never clips), clip MF at 2 ticks when their debuff is inside the refresh window or Mind Blast is ready, and hold at 2 ticks when nothing is urgent; Mind Blast (mana >=20, fresh-channel hold, 2-tick clip fire); Mind Flay filler; Shadowfiend <60% mana-return band. (Shadow Word: Death: absent from this file — the WotLK shadow kit here is DoT + Mind Blast/Flay + Shadowfiend, documented not invented.) |
+| `test_priest_discipline_wotlk_strategies.lua` | `discipline_wotlk.lua` | Friendly-unit model: **Power Word: Shield Weakened-Soul triage** (applies with no lockout via real `debuff_up` on 6788, holds during it); Penance / Prayer of Mending ungated fillers pinned as always-match; Renew HoT <3s refresh (2.9/3.0) |
+| `test_priest_holy_wotlk_strategies.lua` | `holy_wotlk.lua` | Friendly-unit model: Guardian Spirit emergency (aura down + lowest <30%, incl. the 30 boundary and already-up hold); Greater Heal <50% + mana >=30; **Circle of Healing raid heal** (2+ injured via ctx.party_injured_count + lowest <85% + mana >=20, each side); Renew <3s; Prayer of Mending ungated; Flash Heal <70% + mana >=20 |
+| `test_priest_leveling_wotlk_strategies.lua` | `leveling_wotlk.lua` | Fortitude / Inner Fire OOC upkeep (buff-up + in-combat holds); **the opt-in Shadowform lane** (setting-gated — fires OOC only when `eaxpriestlvl_use_shadowform` is set, holds without it / already formed / in combat); Power Word: Shield (in combat + absorb down + no Weakened Soul + mana); Flash Heal <50% emergency; SW:P <3s refresh; the Penance 15 / Mind Blast 20 / Mind Flay 20 / Smite 15 mana-gated nuke ladder; <10% Shoot OOM fallback |
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never (priest specs 0/0)
+```
+

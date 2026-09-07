@@ -200,3 +200,124 @@ and `run_*.lua` registration are outside this wave's file ownership):
 Wave-1.4-owned pins all pass inside verify_all: behavioral battery
 (TBC 31/16, WotLK 41/0, vanilla 40/13), all audits, spec scorecard
 (TBC never=16 a=1 b=10 c=5 d=0 | WotLK never=0).
+
+---
+
+# Addendum 2026-09-06 — Vanilla parity: BM sting comment + Binding Heal era-gate pin
+
+## Item 3 verdict — holy_vanilla "Binding Heal (32546)" placeholder is REAL era-gated handling, not dead text
+
+The lane `UnavailableClassicPriestHealA` in `classes/priest/holy_vanilla.lua` is
+deliberately inert BY DESIGN and the comment is accurate. Evidence traced end to
+end:
+
+- The priest class table (`priest/class_sylvanas.lua:461`) declares
+  `UnavailableClassicPriestHealA = nil` — the key cannot resolve in the Classic
+  client (Binding Heal is TBC-only; the real 32546 lives under
+  `SPELLS.BindingHeal` for the `holy_sylvanas` sibling).
+- The lane's gate is `spell_exists(SPELLS.UnavailableClassicPriestHealA) and
+  spell_ready(…)`. The real chain is nil-safe: `NS.spell_exists` ->
+  `NS.is_spell_learned` -> `NS.get_spell_id` -> "no ids => nil" -> `false`
+  (`core_sylvanas.lua:1620/1677/1687`), so the lane evaluates cleanly and never
+  fires — it cannot crash and cannot leak the TBC spell into Classic.
+- New regression pin `test_priest_holy_vanilla_binding_heal_gate.lua` drives the
+  REAL `holy_vanilla.lua`: with every rotation condition green (in combat, low
+  self HP, lowest non-player ally present, opt-out setting off) the lane stays
+  inert because the nil-keyed spell cannot exist. The pin also proves the gate
+  is the only blocker by rewiring the key to the real `BindingHeal` (32546) in
+  the mock — the lane then matches, i.e. a future edit that "fixes" the
+  placeholder into the TBC spell turns the pin red.
+- No code or comment change was needed; the placeholder's comment now has
+  behavioral proof behind it.
+
+## Item 2 (vanilla side) — BM sting comment corrected
+
+`beast_mastery_vanilla.lua` carried the same half-true "Scorpid/Viper via
+middleware" comment as the TBC file; corrected to state that Viper Sting is
+owned by the class middleware (registered class-wide by the shared hunter class
+module) and Scorpid Sting is Survival-utility only, with the BM `sting_mode` UI
+exposing serpent|none. The middleware ViperSting lane itself is pinned by the
+new `test_hunter_middleware_viper_sting.lua` suite (registered in the rotation
+battery).
+
+## Parity scan result (vanilla + SOD): no spec has genuinely zero coverage
+
+Scanned every `*_vanilla.lua` and `*_sod.lua` spec file for a suite that loads
+it (dofile/require on the real file) AND asserts behavior (.matches /
+find_strategy / first_match / assert_execute / build_state). All 40 vanilla and
+20 SOD specs have at least one such suite (vanilla via the targeted live-fix /
+custom-matches / friendly-target suite set; SOD via the class-group rotation and
+adversarial suites that require the real `*_sod` roles). No new per-spec suites
+were warranted by the scan — the only genuinely unpinned handling paths found
+were the middleware ViperSting lane and the Binding Heal era-gate, both now
+pinned above.
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua vanilla   # 40 specs, never baseline 12 unchanged (priest holy 2 classified)
+lua EaxRotations/tests/behavioral_audit.lua sod       # 20 specs, never 0
+lua EaxRotations/tests/run_rotation_tests.lua         # 563 suites / 0 failed
+```
+
+
+---
+
+## Addendum 2026-09-06 � pinned at 12; scorecard now covers all four eras
+
+- The MagmaTotem clearing recorded above (2026-08-14, v2.24.2) is live: the
+  vanilla era now pins at **12 never-firing lanes** (verify_all battery expects
+  12; the scorecard's VANILLA_LANE_CLASS pins the same 12). The pre-clear
+  "13" figures in this doc's header/commands are historical (Wave-1.4 close).
+- `tools/spec_scorecard.lua` (P0, #1 roadmap) now rates **all four eras** �
+  TBC/Sylvanas, WotLK, Vanilla, and SoD � so this doc's earlier note that the
+  scorecard "covers TBC + WotLK only" is superseded. Vanilla rows carry the
+  12-lane split (b) 9 + (c) 3 with per-lane evidence above; see
+  `docs/scorecard.md` (regenerated 2026-09-06, `--check` in sync).
+
+
+---
+
+## Addendum 2026-09-06 (P0-3, #1 roadmap) — vanilla 12 → 11: MountedProtection modeled
+
+Supersedes this doc's earlier 2026-09-06 addendum figure of 12. The
+`ooc_mounted` scenario (in_combat=false + me:is_mounted ctx-banked) proves
+priest/holy **MountedProtection** fires on a mounted OOC state — it was (b)
+only because the mock lacked is_mounted (holy_vanilla mounted_protection
+mirror reads me:is_mounted as its sole gate). New never split: **11 = (b) 8 ·
+(c) 3 · (d) 0** (verify_all battery pin + sweep-regression EXPECTED_NEVER
+updated; scorecard regenerated). Remaining (c) lanes re-verified unpinnable
+under the stateless scenario model with code evidence: FireNovaReplacement +
+GraceOfAirTotemTwist (module-local totem_state, enhancement_vanilla:44-48 +
+703-713), Fade (threat_pct >= 99 vs the Soulshatter fires-ONLY-in-threat_high
+exclusivity contract). EncounterReactions stays (b): NS.is_tbc() gate — no
+Karazhan in Classic by design.
+
+
+---
+
+## Addendum 2026-09-06 (execute-capture, enh totem family) — vanilla 11 → 9
+
+Supersedes this doc's 2026-09-06 addendum figure of 11. The execute-capture
+harness (behavioral_audit.run_spec, era-guarded vanilla) runs the real
+totem-drop executes against the mock NS so the module-local state the two
+lanes gate on is seeded exactly as live, then re-evaluates on the post-cast
+frame:
+
+- `enh_grace_air_totem_twist_capture_vanilla` — seed: the REAL
+  **WindfuryTotemTwist** execute (next_air: windfury → grace); reap:
+  **GraceOfAirTotemTwist fires** (next_air == "grace", GoA buff down),
+  exclusively in this scenario. Runs before the fire-nova capture so the
+  seeded next_air is consumed (reap-and-consume: the fired GoA execute flips
+  next_air back) before the fire scenario's phase-1.
+- `enh_fire_nova_replacement_capture_vanilla` — seed: the REAL **FireTotem**
+  execute with `enhancement_fire_totem = "fire_nova"` (fire_nova_active =
+  true); reap: **FireNovaReplacement fires** (flame shock DOWN — the vanilla
+  gate's direction — magma ready), exclusively in this scenario.
+
+**FireNovaReplacement + GraceOfAirTotemTwist (vanilla): (c) → PROVEN.**
+New never split: **9 = (b) 8 · (c) 1 · (d) 0** (verify_all battery pin +
+sweep-regression EXPECTED_NEVER updated; scorecard regenerated).
+shaman/enhancement vanilla clears to **0 never → S**. The remaining (c) is
+priest/leveling Fade (threat_pct >= 99; the battery threat channel stays
+capped at 95 by the Soulshatter fires-ONLY-in-threat_high exclusivity
+contract) — noted, deliberately not forced. Cross-era contract re-verified:
+tbc 11, wotlk 0, sod 0.

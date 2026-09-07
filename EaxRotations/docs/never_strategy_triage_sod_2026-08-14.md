@@ -115,3 +115,17 @@ pre-pull conjure/mounted families), no mock-limitation (c) lanes (the
 enrich + scenario battery can present every state the files read), and no
 dead (d) lanes (W4.1/W4.2 eliminated the mock-only reads). The strict
 `never == 0` pin makes any future regression fail loudly in CI.
+
+---
+
+# Addendum 2026-09-06 — SOD parity scan result
+
+The cross-era parity scan found no `*_sod.lua` spec with genuinely zero
+behavioral coverage: every SOD role spec (druid balance/feral/restoration/tank,
+hunter dps, mage dps, paladin protection/retribution, priest healing/shadow,
+rogue combat/tank, shaman elemental/enhancement/restoration/warden, warlock
+dps/tank, warrior dps/tank) is loaded and behaviorally asserted by the
+class-group rotation / adversarial suites in the rotation battery
+(`test_sod_*_rotations.lua`, `test_sod_*_adversarial.lua`, `test_sod_druid_hunter.lua`,
+`test_sod_mage_paladin_priest.lua`). No SOD code changed; the never-triage gate
+stays at 20 specs / 0 load failures / 0 never.

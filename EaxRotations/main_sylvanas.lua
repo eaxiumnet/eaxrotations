@@ -13,10 +13,18 @@ local _core = _G.core or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local lazy_context = require("shared/lazy_context_sylvanas")
+-- CastTrace (the in-game "why" trace) is a shared subsystem module that
+-- sets NS.CastTrace at load; requiring it here keeps the recorder available
+-- in any env that boots the dispatcher.
+pcall(require, "shared/cast_trace_sylvanas")
+local cast_trace = NS.CastTrace
 
 local M = {}
 local _context = lazy_context.create()
-_context.lowest = { unit = nil, hp = 100 }
+-- (build_context() below re-creates _context every tick and seeds
+-- _context.lowest = { unit = nil, hp = 100 } on the fresh object at its top;
+-- a module-level lowest seed here would sit on the pre-build object that is
+-- never read — removed as dead weight.)
 local _combat_start_time = nil
 local was_in_combat = false
 local _combat_state_last_known = 0  -- timestamp when combat state was last confirmed by API
@@ -1758,6 +1766,12 @@ local function run_list(name, list, options, context)
                         _trace_strategy_last[_strat_key] = _now_trace
                     end
                     if executed then
+                        -- In-game "why" trace: record the rule that fired + the
+                        -- live state behind it. cast_trace no-ops before any
+                        -- allocation when Diagnostics -> Trace Casts is off.
+                        -- cast_trace.record is a plain (dot-defined) function,
+                        -- so no self argument is passed.
+                        if cast_trace then pcall(cast_trace.record, name, strategy, context, state) end
                         return true
                     end
                 end
