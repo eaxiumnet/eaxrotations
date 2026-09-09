@@ -28,6 +28,14 @@ local ACTION = {
     FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
     GreaterHeal = define("GreaterHeal", { 48063, 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
     GuardianSpirit = define("GuardianSpirit", 47788, "GuardianSpirit"),
+    -- 2026-09-09 guide-gap lanes (the deep-rate's last two holy omissions).
+    -- Desperate Prayer: racial self-save, talent spell so the ladder is TBC-capped
+    -- at 25437 (no WotLK rank increases — same ladder holy_sylvanas pins).
+    DesperatePrayer = define("DesperatePrayer", { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
+    -- Lightwell: full ladder 7001 r1 .. 28275 r4 (TBC, bridge-omitted) ->
+    -- 48086 r5 -> 48087 r6 max (Wowhead-verified: 48087 = 4620 heal). The
+    -- 48084/48085 ids are the Lightwell Renew buffs, not casts — excluded.
+    Lightwell = define("Lightwell", { 48087, 48086, 28275, 27871, 27870, 724 }, "Lightwell"),
     -- Circle of Healing: full WotLK trainer ladder 34861 r1 .. 34866 r6 (TBC
     -- era, bridge-omitted, audit-pinned) -> 48088 r7 -> 48089 r8 max (pinned
     -- via the holy APL fixture id 48089).
@@ -46,6 +54,7 @@ local holy_state = {
     guardian_spirit_up = false,
     injured_count = 0,
     lowest_hp = 100,
+    player_hp = 100,
 }
 
 local function build_state(context)
@@ -65,6 +74,11 @@ local function build_state(context)
     -- injured threshold. nil-safe default 0 keeps the CoH lane inert solo.
     state.injured_count = (context and context.party_injured_count) or 0
     state.lowest_hp = (context and context.lowest_hp) or state.target_hp
+    -- Player's own hp (engine alias of context.hp, main_sylvanas.lua) — the
+    -- Desperate Prayer self-save band.
+    state.player_hp = (context and (context.player_hp or context.hp))
+        or (me and me.get_health_percentage and me:get_health_percentage())
+        or 100
     return state
 end
 
@@ -77,7 +91,11 @@ end
 -- W3.3: CircleOfHealing added at its exact APL position (index 3, GreaterHeal ->
 -- CoH -> Renew -> PoM) gated on 2+ injured party members (engine
 -- context.party_injured_count) — the previously-missing parse-critical raid heal.
-local DSL_DEFS = {
+    -- 2026-09-09 guide-gap lanes: DesperatePrayer is the self-save (own hp
+    -- band, above target triage — you cannot heal anyone while dead);
+    -- Lightwell sits after the spot-heal emergency band and before CoH (TBC
+    -- sibling idiom: sustained raid pressure, 3+ injured, not a spike response).
+    local DSL_DEFS = {
     {
         name = "GuardianSpirit",
         conditions = {
@@ -87,12 +105,30 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.GuardianSpirit, target = "friendly" },
     },
     {
+        name = "DesperatePrayer",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "player_hp", op = "<=", value = 30 },
+            { type = "spell_ready", spell = ACTION.DesperatePrayer, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.DesperatePrayer, target = "self" },
+    },
+    {
         name = "GreaterHeal",
         conditions = {
             { type = "state", field = "target_hp", op = "<", value = 50 },
             { type = "state", field = "mana_pct", op = ">=", value = 30 },
         },
         action = { type = "cast", spell = ACTION.GreaterHeal, target = "friendly" },
+    },
+    {
+        name = "Lightwell",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "injured_count", op = ">=", value = 3 },
+            { type = "spell_ready", spell = ACTION.Lightwell, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Lightwell, target = "self" },
     },
     {
         name = "CircleOfHealing",
@@ -123,11 +159,13 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.FlashHeal, target = "friendly" },
     },
-}
+    }
 
 local strategies = {
     { name = "GuardianSpirit" },
+    { name = "DesperatePrayer" },
     { name = "GreaterHeal" },
+    { name = "Lightwell" },
     { name = "CircleOfHealing" },
     { name = "Renew" },
     { name = "PrayerOfMending" },

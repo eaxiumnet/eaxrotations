@@ -317,6 +317,21 @@ local WOTLK_REFERENCE_ALIASES = {
     [33206] = { kind = "VALID_RANK_ALIAS", family = "Pain Suppression", source = "wowhead WotLK Classic spell=33206/pain-suppression (40% dmg reduction, 3 min CD)" },
     [10060] = { kind = "VALID_RANK_ALIAS", family = "Power Infusion", source = "wowhead WotLK Classic spell=10060/power-infusion (20% haste, 2 min CD)" },
     [16188] = { kind = "VALID_RANK_ALIAS", family = "Nature's Swiftness (shaman)", source = "wowhead WotLK Classic spell=16188/natures-swiftness (2 min CD, shares with Elemental Mastery)" },
+    -- 2026-09-09 holy priest guide-gap lanes (Desperate Prayer + Lightwell):
+    [25437] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (max, talent)", source = "wowhead WotLK Classic spell=25437/desperate-prayer (instant self-heal, 2 min CD; talent spell, no WotLK rank increases)" },
+    [19243] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer family (r7; ladder shared with holy_sylvanas/healing_sylvanas)" },
+    [19242] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer family (r6)" },
+    [19241] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer family (r5)" },
+    [19240] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer family (r4)" },
+    [19238] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer family (r3)" },
+    [19236] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236/desperate-prayer (r1)" },
+    [13908] = { kind = "VALID_RANK_ALIAS", family = "Desperate Prayer (rank ladder)", source = "wowhead WotLK Classic spell=19236 family (r2)" },
+    [48087] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (WotLK max)", source = "wowhead WotLK Classic spell=48087/lightwell (4620 heal, 3 min CD)" },
+    [48086] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (WotLK r5)", source = "wowhead WotLK Classic spell=48086/lightwell (3915 heal)" },
+    [28275] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r4)", source = "wowhead WotLK Classic spell=28275/lightwell (ladder shared with holy_sylvanas)" },
+    [27871] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r3)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r3)" },
+    [27870] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r2)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r2)" },
+    [7001] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (r1)", source = "wowhead WotLK Classic spell=724/lightwell (r1, 801 heal)" },
 }
 
 -- Resolved 2026-08-08: 48785/48782/48826 verified as real WotLK ranks (now
@@ -971,7 +986,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 194, "pinned allowlist size") -- +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 208, "pinned allowlist size") -- +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

@@ -12,7 +12,7 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 |---|---|
 | Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |
 | Specs rated | 132 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 2513 |
+| Decision rules exercised by the test rig | 2515 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
 | Rules the rig never triggers, each with a filed written reason | 20 |
 | Behavioral test battery | 563 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
@@ -194,7 +194,7 @@ A rating below S is never silent: every non-firing rule is individually document
 ## Known limits (honest)
 
 1. **Two niche rules are filed as “the rig cannot construct the moment”.** An Alliance-only retribution paladin damage-seal path in TBC (the rig never plays an Alliance paladin with that seal armed), and a priest’s lethal-threat escape (Fade) in Vanilla leveling (building ≥99% threat would break another rule’s test contract). Both are deliberately classified with written reasons rather than forced.
-2. **Healers.** Only WotLK holy and discipline priest cast orders are checked against a real healing simulator. Holy paladin, resto druid and resto shaman are validated internally (every rule fires under test) but have no comparative sim benchmark — the simulator repos ship no implemented rotation for them.
+2. **Healers.** Only WotLK holy and discipline priest cast orders are checked against a real healing simulator — the simulator repos ship no implemented rotation for any other healer, so no healer has a comparative sim benchmark. The full WotLK healer tier (resto druid, holy paladin, resto shaman, holy + discipline priest) is guide-validated: every spec matches its published playstyle priority (Icy-Veins / wowsims APL fixtures) with every rule proven to fire; TBC healers carry the same depth.
 3. **Leveling rotations** are behavior-validated but have no simulator fixtures (simulators model max-level raid fights).
 4. **Vanilla and Season of Discovery** have no simulator project to compare against at all, so their rows reach **S** (every rule proven to fire) rather than **S+** (sim-checked).
 5. **No live-client verification.** Every number comes from a rig that replays the add-on’s real rotation code against simulated World of Warcraft state. It proves rules are reachable and ordered like the sims — it is not an in-game DPS measurement.

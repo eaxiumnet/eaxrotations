@@ -41,6 +41,60 @@
   SoD rotation matrix rows, the druid/hunter, mage/paladin/priest and
   assassin group suites, and the caster DSL priority suite.
 
+### Rotation Content — WotLK healer expansion wave (guide-driven, two passes)
+- **Every WotLK healer now implements its published playstyle priority.**
+  The healer deep-rate against live Icy-Veins WotLK rotation pages and the
+  pinned wowsims APL fixtures found the WotLK healer tier thin (4–7 lanes
+  per file while the TBC files carry 31–39); both passes closed it:
+  - **Resto druid** (`druid/resto_wotlk.lua`): 7 -> 11 — Nature's Swiftness
+    + Healing Touch emergency pair (aura-present spend / aura-absent enable,
+    <= 30% band), Rebirth battle-rez (group guard + real
+    `find_dead_party_ally`), Tranquility (3+ injured, lowest <= 50%, 8-min CD).
+  - **Holy paladin** (`paladin/holy_wotlk.lua`): 5 -> 9 — Seal of Wisdom
+    upkeep, Judgement on cooldown at <= 90% mana (era-correct Judgement of
+    Wisdom uptime), Divine Favor + Holy Light combo, Divine Plea at <= 50%
+    mana — the mana game the guide leads with.
+  - **Resto shaman** (`shaman/restoration_wotlk.lua`): 7 -> 10 — Nature's
+    Swiftness + Healing Wave emergency pair, and Tidal Waves finally used:
+    the file tracked the 2-stack buff but never acted on it; the window now
+    hard-prioritizes the big nuke.
+  - **Discipline priest** (`priest/discipline_wotlk.lua`): 4 -> 6 — Pain
+    Suppression (<= 30% save, leads the order) and Power Infusion (<= 45%
+    pressure band), making the pinned wowsims disc APL's
+    `autocastOtherCooldowns` concrete.
+  - **Holy priest** (`priest/holy_wotlk.lua`): 6 -> 8 — Desperate Prayer
+    self-save (<= 30% own hp via the real `context.player_hp` engine field,
+    slotted under Guardian Spirit) and Lightwell raid-sustain (3+ injured,
+    before Circle of Healing). The sim-APL block (Greater Heal / CoH /
+    Renew / PoM) is unchanged and still conformance-mapped.
+- **Deliberate exclusions** (one owner per decision, recorded in the triage
+  addenda): Tremor Totem / Cleansing Totem debuff response and Mass Dispel
+  stay in the dispel middleware (`dispel_manager` / main_sylvanas party
+  dispels) — a rotation lane would double-own the decision. Holy priest's
+  remaining A-grade lanes were left untouched by design. No healer has a
+  comparative sim benchmark (the sim repos ship no implemented healer
+  rotations beyond WotLK holy/disc priest APL fixtures) — that ceiling is
+  documented, not hidden.
+- **Battery outcome**: all 41 WotLK specs at never-fires = 0 under the
+  strict gate (priest/holy 8, discipline 6, druid/resto 11, paladin/holy 9,
+  shaman/restoration 10 in the scorecard); three spec-scoped scenarios
+  added (`druid_wotlk_tranquility`, `druid_wotlk_ns_burst`,
+  `resto_tidal_waves`); other eras unmoved (tbc 11 / vanilla 9 / sod 0).
+- **Real bugs caught mid-wave**: an interrupted edit had deleted the
+  `LIFEBLOOM_BUFF` local from resto_wotlk (restored before boot break), and
+  Rebirth's dead-ally gate initially read `is_player` as a boolean when the
+  engine/mock expose it as a method — both fixed and pinned.
+- **Ids and pins**: all 24 new spell ids Wowhead-verified and pinned in the
+  WotLK spell-audit allowlist (184 -> 208, including the talent-cap trap —
+  Desperate Prayer has no WotLK rank increases — and the 48084/48085
+  Lightwell-Renew *buff* ids excluded from the cast ladder); supporting pins
+  extended in five suites (`test_resto_wotlk_dsl_priority` 24 -> 32,
+  `test_holy_wotlk_dsl_priority` 14 -> 22,
+  `test_discipline_wotlk_dsl_priority` 8 -> 12,
+  `test_priest_holy_wotlk_strategies`,
+  `test_holy_priest_wotlk_dsl_priority`); scorecard/ACCURACY/badges and the
+  era-pair seed regenerated; no new suites — battery remains 563.
+
 ---
 ## 2.25.0 — 2026-09-06
 
