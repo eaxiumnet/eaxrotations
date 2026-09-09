@@ -193,6 +193,60 @@ assert_eq(strategy(restoration, "HealingRain").matches(
     "Restoration exposes Healing Rain for clustered damage")
 assert_execute(restoration, "Riptide", restoration_context, 408521, heal_target)
 
+-- 2026-09-09 guide-pass lanes: Earth Shield upkeep, NS+HW pair, Mana Tide.
+local es_target = {}
+local earth_shield_context = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 80,
+    lowest = { unit = es_target, hp = 80 }, injured_count = 2,
+    earth_shield_up = false, sod_runes = { [408514] = true },
+}
+assert_eq(strategy(restoration, "EarthShield").matches(
+    earth_shield_context, restoration.build_state(earth_shield_context)), true,
+    "Restoration keeps Earth Shield on the lowest target when injured (guide: best-runes lead)")
+assert_execute(restoration, "EarthShield", earth_shield_context, 408514, es_target)
+local es_up_context = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 80,
+    lowest = { unit = es_target, hp = 80 }, injured_count = 2,
+    earth_shield_up = true, sod_runes = { [408514] = true },
+}
+assert_eq(strategy(restoration, "EarthShield").matches(
+    es_up_context, restoration.build_state(es_up_context)), false,
+    "Earth Shield held while its charges are already up (no refresh spam)")
+
+local ns_self_context = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 80,
+    lowest = { unit = {}, hp = 80 }, injured_count = 1,
+    player_hp = 25, sod_runes = { [408521] = true },
+}
+assert_eq(strategy(restoration, "NaturesSwiftness").matches(
+    ns_self_context, restoration.build_state(ns_self_context)), true,
+    "Nature's Swiftness enable fires at critical own hp without the aura")
+local ns_safe_context = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 80,
+    lowest = { unit = {}, hp = 80 }, injured_count = 1,
+    player_hp = 80, sod_runes = { [408521] = true },
+}
+assert_eq(strategy(restoration, "NaturesSwiftness").matches(
+    ns_safe_context, restoration.build_state(ns_safe_context)), false,
+    "Nature's Swiftness held while the healer is healthy (emergency-only)")
+
+local mana_tide_context = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 35,
+    lowest = { unit = {}, hp = 90 }, injured_count = 1,
+    water_totem_active = false, sod_runes = { [408510] = true },
+}
+assert_eq(strategy(restoration, "ManaTideTotem").matches(
+    mana_tide_context, restoration.build_state(mana_tide_context)), true,
+    "Mana Tide drops at low mana with the water totem slot free")
+local mana_tide_occupied = {
+    is_sod = true, sod_phase = 8, target = {}, mana_pct = 35,
+    lowest = { unit = {}, hp = 90 }, injured_count = 1,
+    water_totem_active = true, sod_runes = { [408510] = true },
+}
+assert_eq(strategy(restoration, "ManaTideTotem").matches(
+    mana_tide_occupied, restoration.build_state(mana_tide_occupied)), false,
+    "Mana Tide held while a water totem already occupies the slot")
+
 assert_eq(registry.playstyles.tank, rogue_tank.strategies, "Rogue tank registration")
 assert_eq(registry.playstyles.warden, warden.strategies, "Shaman warden registration")
 

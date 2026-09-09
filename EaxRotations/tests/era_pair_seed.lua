@@ -68,7 +68,7 @@ return {
     {
         spec = "druid/caster",
         missing_in = "vanilla",
-        names = { "Bash", "FeralCharge" },
+        names = { "Bash", "FeralCharge", "ForceOfNature", "HurricaneAoE", "PreHurricaneBarkskin" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

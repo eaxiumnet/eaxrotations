@@ -3348,6 +3348,15 @@ M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
 -- Druid tank Enrage (rage < 10, no combat gate) + hunter/mark state reads.
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
     { name = "sod_rage_starved", overrides = { rage = 5 } }
+-- Resto shaman/druid emergency pair + Swiftmend (2026-09-09 guide-pass):
+-- both Nature's Swiftness buffs in the self-buff map (shaman 16188, druid
+-- 17116 — same id family split the SLA tables carry), Swiftmend's Rejuv
+-- (25299 rank) on the heal target, and a friendly at 45 so the spend lane's
+-- < 50 band is open. Earth Shield / Mana Tide / the NS *enable* lanes fire
+-- in existing windows; this scenario only exists for the buff-present
+-- spend lanes and Swiftmend's HoT-consume gate.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_ns_burst", overrides = { buff_remains_map = { [16188] = 8, [17116] = 8, [25299] = 8 }, friendly_target_hp = 45, lowest_hp = 45, mana_pct = 60 } }
 -- Ret Divine Shield band (15 < hp <= 20; Lay on Hands owns <=15 per the
 -- Forbearance exclusivity comment in retribution_sod).
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =

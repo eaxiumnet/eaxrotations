@@ -14,6 +14,7 @@ end
 
 local registered = {}
 local cast_action
+local BUFF_UP_EXTRA = nil -- test hook: extra up-buffs for the next buff_up read
 _G.EaxRotations = {
     is_sod = function() return true end,
     DruidSpells = { Starsurge = { legacy = true }, MangleCat = { legacy = true } },
@@ -29,10 +30,15 @@ _G.EaxRotations = {
     end,
     spell_ready = function() return true end,
     buff_up = function(_, ids)
-        -- Only Aspect of the Hawk / Hunter's Mark report up: lets buff-upkeep
-        -- lanes hold so the damage core is reachable (matches live behavior).
+        -- Map-aware: BUFF_UP_EXTRA injects extra up-buffs (NS aura spend-lane
+        -- pin); else the Aspect of the Hawk / Hunter's Mark set lets
+        -- buff-upkeep lanes hold so the damage core is reachable (matches
+        -- live behavior).
         local up = { [13159] = true, [13158] = true, [8352] = true,
             [30706] = true, [14323] = true, [14324] = true, [14325] = true, [1130] = true }
+        if type(BUFF_UP_EXTRA) == "table" then
+            for id in pairs(BUFF_UP_EXTRA) do up[id] = true end
+        end
         if type(ids) == "table" then
             for _, id in ipairs(ids) do if up[id] then return true end end
         elseif type(ids) == "number" then
@@ -158,6 +164,37 @@ assert_eq(strategy(restoration, "Nourish").matches(heal_context, restoration.bui
 assert_eq(strategy(restoration, "Nourish").matches(heal_context, restoration.build_state(
     { heal_target = ally, heal_target_hp_pct = 75 })), false,
     "Nourish held above its 60 percent band")
+
+-- 2026-09-09 guide-pass lanes (Wowhead SoD druid-healer rune guide; DBC ids):
+-- NS pair: enable at <= 30 own hp, spend on the aura-present next window.
+assert_eq(strategy(restoration, "NaturesSwiftness").matches(heal_context, restoration.build_state(
+    { is_sod = true, sod_phase = 7, sod_runes = runes, me = me, in_combat = true, player_hp = 25 })), true,
+    "NS enable fires at 25 percent own hp")
+assert_eq(strategy(restoration, "NaturesSwiftness").matches(heal_context, restoration.build_state(
+    { is_sod = true, sod_phase = 7, sod_runes = runes, me = me, in_combat = true, player_hp = 40 })), false,
+    "NS enable held above the 30 percent band")
+local ns_up = {}
+for k, v in pairs(heal_context) do ns_up[k] = v end
+BUFF_UP_EXTRA = { [17116] = true } -- druid NS aura up through the real NS.buff_up read
+assert_eq(strategy(restoration, "NaturesSwiftnessHealingTouch").matches(ns_up, restoration.build_state(ns_up)), true,
+    "NS+HT spends the aura on a hurt ally")
+BUFF_UP_EXTRA = nil
+-- Swiftmend: consumes Rejuv (has_rejuvenation), held without it.
+local sm_ctx = {}
+for k, v in pairs(heal_context) do sm_ctx[k] = v end
+sm_ctx.has_rejuvenation = true
+assert_eq(strategy(restoration, "Swiftmend").matches(sm_ctx, restoration.build_state(sm_ctx)), true,
+    "Swiftmend fires with a consumable Rejuv on the target")
+assert_eq(strategy(restoration, "Swiftmend").matches(heal_context, restoration.build_state(heal_context)), false,
+    "Swiftmend held without a consumable HoT")
+-- Innervate: mana-game band (context and state built from ONE table -
+-- the lane reads c.mana_pct directly).
+local innervate_ctx = { is_sod = true, sod_phase = 7, sod_runes = runes, me = me, in_combat = true, mana_pct = 35 }
+assert_eq(strategy(restoration, "Innervate").matches(innervate_ctx, restoration.build_state(innervate_ctx)), true,
+    "Innervate fires at 35 percent mana")
+local innervate_full = { is_sod = true, sod_phase = 7, sod_runes = runes, me = me, in_combat = true, mana_pct = 60 }
+assert_eq(strategy(restoration, "Innervate").matches(innervate_full, restoration.build_state(innervate_full)), false,
+    "Innervate held above the 40 percent band")
 
 local pet = {}
 local hunter_context = {
