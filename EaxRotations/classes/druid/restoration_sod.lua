@@ -16,6 +16,9 @@ local ACTION = {
     Lifebloom = define("Lifebloom", 409824, { rune_id = 409824 }, "Lifebloom"),
     Rejuvenation = define("Rejuvenation", { 25299, 9841, 774 }, {}, "Rejuvenation"),
     HealingTouch = define("HealingTouch", { 25297, 9888, 5185 }, {}, "HealingTouch"),
+    -- Era-common self-buff cooldown (bridge 6669/6664); guide: use whenever
+    -- healing opportunity is high.
+    SurvivalInstincts = define("SurvivalInstincts", { 6669, 6664 }, {}, "SurvivalInstincts"),
 }
 
 local function build_state(context)
@@ -47,8 +50,16 @@ local function cast(descriptor, context, label)
 end
 
 local strategies = {
-    { name = "WildGrowth", matches = function(c, s) return base(c, s, ACTION.WildGrowth) and s.injured_count >= 3 and s.heal_target_hp_pct < 85 and ready(ACTION.WildGrowth, s.heal_target) end,
+    { name = "WildGrowth", matches = function(c, s) return base(c, s, ACTION.WildGrowth) and s.injured_count >= 2 and s.heal_target_hp_pct < 85 and ready(ACTION.WildGrowth, s.heal_target) end,
       execute = function(c) return cast(ACTION.WildGrowth, c, "Wild Growth") end },
+    -- Self-buff cooldown, no friendly target needed (base() requires one, so
+    -- this lane carries its own availability check).
+    { name = "SurvivalInstincts", matches = function(c, s)
+        return type(c) == "table" and c.is_sod == true
+            and spec_kit.sod_action_available(c, ACTION.SurvivalInstincts)
+    end, execute = function(c)
+        return NS.try_cast(ACTION.SurvivalInstincts.action, NS.PLAYER_UNIT, "[SOD RESTORATION] SurvivalInstincts", { skip_range = true })
+    end },
     { name = "Nourish", matches = function(c, s) return base(c, s, ACTION.Nourish) and s.heal_target_hp_pct <= 60 and ready(ACTION.Nourish, s.heal_target) end,
       execute = function(c) return cast(ACTION.Nourish, c, "Nourish") end },
     { name = "Lifebloom", matches = function(c, s) return base(c, s, ACTION.Lifebloom) and s.heal_target_hp_pct <= 80 and not s.has_lifebloom and ready(ACTION.Lifebloom, s.heal_target) end,

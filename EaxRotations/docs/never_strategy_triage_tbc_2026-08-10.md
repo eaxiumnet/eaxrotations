@@ -495,3 +495,38 @@ vanilla 9, sod 0. The harness also now runs a fired reap lane's own execute
 (reap-and-consume), mirroring the real dispatcher — the seeded module state is
 cleared the way the engine's next cast would, keeping every capture proof
 exclusive to its scenario.
+
+---
+
+## Addendum (2026-09-09) - TBC assassination positional builder playstyle
+
+Guide-faithful positional rule applied to `classes/rogue/assassination_sylvanas.lua`
+(published TBC Mutilate playstyle: Mutilate is usable only from BEHIND the target).
+
+- `Mutilate` now holds while the real `NS.is_behind_target` probe reports FRONT
+  position (nil-safe: hosts without the probe keep legacy behaviour; mirrors the
+  combat Backstab gate and the vanilla-assassin Garrote idiom).
+- `SinisterStrikeFallback` builds combo points from the FRONT (fall-through when
+  Mutilate is known, daggers equipped, and position is front) so the SnD/Envenom
+  cycle never stalls from the front.
+- Battery: default `is_behind=true` posture unchanged - assassination stays
+  26 strategies / never-fires=1 (the pre-existing (a) opt-in lane); no other
+  spec's count moved; strict TBC gate holds.
+- Pinned in `test_assassination_dagger_requirement.lua` (Contracts 5b/6b: front
+  position -> SS fallback fires; behind + daggers -> Mutilate lane, no SS).
+
+## Addendum (2026-09-09): druid/caster guide-priority expansion
+
+- Guide-diff sweep across all TBC spec files found druid/caster as the thinnest
+  spec (6 strategies) whose own header claimed "Moonfire + Insect Swarm
+  multidot, Starfire filler" while the file implemented neither Insect Swarm
+  nor Starfire.
+- Added era-correct lanes (ids mirror druid balance/class tables; all
+  TBC-bridge-valid: 27013/24977 family, 26986/25298 family):
+  - InsectSwarm: refresh when debuff <=2s, mana floor 10 (guide dot upkeep).
+  - Starfire: stationary filler (higher DPCT per wowsims tbc-new balance APL);
+    movement falls through to Wrath (unchanged, not_moving + min_mana=10).
+  - Order: FaerieFire > Moonfire > InsectSwarm > Starfire > Wrath.
+- Battery: druid/caster 6 -> 8 strategies, never-fires=0 (strict TBC gate
+  holds; total never count unchanged at 11 - all pre-triaged).
+- Pinned in test_caster_dsl_priority.lua (fire/hold sides + ordering pins).

@@ -18,12 +18,26 @@ local ACTION = {
     SpellfrostBolt = define("SodSpellfrostBolt", 412532, { rune_id = 412532, min_phase = 2 }, "SpellfrostBolt"),
     FrostfireBolt = define("SodFrostfireBolt", 401502, { rune_id = 401502, min_phase = 2 }, "FrostfireBolt"),
     Frostbolt = define("SodFrostbolt", 10181, {}, "Frostbolt"),
+    -- SoD runes (Wowhead-verified): Living Bomb (Helm) + era-common Icy
+    -- Veins (bridge 12472). Deep Freeze is deliberately NOT modeled: the
+    -- engine context exposes no frozen/Fingers-of-Frost field, so its
+    -- FoF gate has no real read path (repo real-read-path rule).
+    LivingBomb = define("SodLivingBomb", 400613, { rune_id = 400613 }, "LivingBomb"),
+    IcyVeins = define("SodIcyVeins", 12472, {}, "IcyVeins"),
 }
+
+-- Debuff resolution mirrors balance_sod: the real read path is the target
+-- debuff map via NS.debuff_remains, not a context field.
+local function target_debuff_remains(context, ids)
+    local target = context and context.target or nil
+    return (target and type(NS.debuff_remains) == "function" and NS.debuff_remains(target, ids)) or 0
+end
 
 local function build_state(context)
     return spec_kit.safe_state({
         mana_pct = context and context.mana_pct or nil,
-    }, { mana_pct = 100 })
+        living_bomb_remains = target_debuff_remains(context, { 400613 }),
+    }, { mana_pct = 100, living_bomb_remains = 0 })
 end
 
 local function combat_action_matches(context, descriptor)
@@ -56,9 +70,27 @@ local strategies = {
         end,
     },
     action_strategy("FrozenOrb", ACTION.FrozenOrb),
+    -- Guide: cast Living Bomb, reapply once it expires.
+    { name = "LivingBomb",
+      matches = function(context, state)
+          return combat_action_matches(context, ACTION.LivingBomb)
+              and (state and state.living_bomb_remains or 0) <= 0
+      end,
+      execute = function(context)
+          return NS.try_cast(ACTION.LivingBomb.action, context.target, "[SOD MAGE] LivingBomb")
+      end,
+    },
     action_strategy("BalefireBolt", ACTION.BalefireBolt),
     action_strategy("SpellfrostBolt", ACTION.SpellfrostBolt),
     action_strategy("FrostfireBolt", ACTION.FrostfireBolt),
+    -- Personal haste cooldown: pop whenever speeding up casts helps
+    -- (guide: simple yet powerful, no window gate).
+    { name = "IcyVeins",
+      matches = function(context) return combat_action_matches(context, ACTION.IcyVeins) end,
+      execute = function(context)
+          return NS.try_cast(ACTION.IcyVeins.action, NS.PLAYER_UNIT, "[SOD MAGE] IcyVeins", { skip_range = true })
+      end,
+    },
     action_strategy("Frostbolt", ACTION.Frostbolt),
 }
 

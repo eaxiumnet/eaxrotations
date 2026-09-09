@@ -18,6 +18,9 @@ local ACTION = {
     ChainLightning = define("ChainLightning", { 10605, 2860, 930, 421 }, nil, "ChainLightning"),
     FireNova = define("FireNova", 408427, { rune_id = 408339, min_phase = 2 }, "FireNova"),
     LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 930, 548, 529, 403 }, nil, "LightningBolt"),
+    -- Era-common Earth Shock ladder (bridge 10414 max); guide: discharge
+    -- filler while moving.
+    EarthShock = define("EarthShock", { 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, nil, "EarthShock"),
 }
 
 local function build_state(context)
@@ -25,6 +28,7 @@ local function build_state(context)
         mana_pct = context and context.mana_pct or 100,
         enemy_count = context and context.enemy_count or 0,
         flame_shock_remains = context and context.flame_shock_remains or 0,
+        is_moving = context and context.is_moving == true or false,
     }, { mana_pct = 100, enemy_count = 0, flame_shock_remains = 0 })
 end
 
@@ -58,6 +62,10 @@ local strategies = {
     { name = "LavaBurst", matches = function(context, state)
         return available(context, ACTION.LavaBurst, true) and state.flame_shock_remains >= 2
     end, execute = cast_target(ACTION.LavaBurst, "[SOD ELEMENTAL] LavaBurst") },
+    -- Guide: cast Earth Shock if you need to move.
+    { name = "EarthShockMoving", matches = function(context, state)
+        return available(context, ACTION.EarthShock, true) and state.is_moving
+    end, execute = cast_target(ACTION.EarthShock, "[SOD ELEMENTAL] EarthShockMoving") },
     { name = "FireNova", matches = function(context, state)
         return available(context, ACTION.FireNova, true) and state.enemy_count >= 3
     end, execute = cast_target(ACTION.FireNova, "[SOD ELEMENTAL] FireNova") },

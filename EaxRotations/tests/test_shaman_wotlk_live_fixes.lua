@@ -332,7 +332,7 @@ end
 do
     local ns = make_ns()
     local resto = load_strategies("EaxRotations/classes/shaman/restoration_wotlk.lua", ns)
-    assert_eq(#resto.strategies, 7, "restoration has 7 strategies (WaterShield added)")
+    assert_eq(#resto.strategies, 10, "restoration has 10 strategies (healer wave: NS pair + TidalWavesHealingWave added)")
 
     -- 3a. Mana Tide readiness via NS.spell_ready with the 5-min expected CD
     --     (mirrors TBC healing_sylvanas.lua:394).

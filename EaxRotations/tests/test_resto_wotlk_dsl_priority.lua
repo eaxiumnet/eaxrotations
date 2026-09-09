@@ -11,7 +11,7 @@
 --         Rejuv/Regrowth gained overheal gates; Nourish + Innervate added
 --         (appended — positions 1-5 of the pinned order are unchanged).
 
--- Validates the 7 strategies in the DSL_DEFS table.
+-- Validates the 11 strategies in the DSL_DEFS table.
 
 local mock_ns = {
     GetPlayer = function() return nil end,
@@ -50,7 +50,7 @@ local _mock_spec_kit = {
     safe_state = function(tbl)
         local mt = {
             __index = function(_, key)
-                local defaults = { hp=100, mana_pct=100, target_hp=100, enemy_count=0, lowest_hp_pct=55, party_injured_count=0, rejuvenation_remains=0, regrowth_remains=0, lifebloom_remains=0, lifebloom_stacks=0 }
+                local defaults = { hp=100, mana_pct=100, target_hp=100, enemy_count=0, lowest_hp_pct=55, party_injured_count=0, rejuvenation_remains=0, regrowth_remains=0, lifebloom_remains=0, lifebloom_stacks=0, has_natures_swiftness=false, in_combat=true }
                 return defaults[key] or 0
             end
         }
@@ -71,6 +71,10 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                     for _, cond in ipairs(conditions) do
                         if cond.type == "state" then
                             local val = state[cond.field]
+                            -- truthy/falsy mirror the real strategy_dsl
+                            -- evaluator semantics (2026-09-09 healer wave: NS pair gates).
+                            if cond.op == "truthy" and (val == false or val == nil) then return false end
+                            if cond.op == "falsy" and not (val == false or val == nil) then return false end
                             if cond.op == "<" and (val or 0) >= (cond.value or 0) then return false end
                             if cond.op == "<=" and (val or 0) > (cond.value or 0) then return false end
                             if cond.op == ">=" and (val or 0) < (cond.value or 0) then return false end
@@ -105,7 +109,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    local expected = { "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
+    -- Healer wave (2026-09-09): emergency band (NS pair, Rebirth,
+    -- Tranquility) leads the guide priority, HoT core unchanged behind it.
+    local expected = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Tranquility", "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -173,6 +179,20 @@ tests.test_Regrowth_matches_when_all_conditions = test_match("Regrowth", { regro
 tests.test_Regrowth_does_not_match_when_fresh = test_match("Regrowth", { regrowth_remains = 10, lowest_hp_pct = 50, mana_pct = 50 }, false)
 tests.test_Regrowth_does_not_match_when_hp_high = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 90, mana_pct = 50 }, false)
 tests.test_Regrowth_does_not_match_when_low_mana = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 50, mana_pct = 20 }, false)
+
+-- Healer wave pins (2026-09-09): NS emergency pair + Tranquility.
+-- NS fires when the lowest ally is critical (<= 30) and the buff is absent;
+-- HT spends the aura; Tranquility is the 3+ injured party burst band.
+-- Rebirth's fire side needs find_dead_party_ally (proven in the battery's
+-- rebirth_dead_ally scenario); this mock pins its no-dead-ally hold side.
+tests.test_NaturesSwiftness_fires_when_critical = test_match("NaturesSwiftness", { lowest_hp_pct = 25 }, true)
+tests.test_NaturesSwiftness_holds_when_stable = test_match("NaturesSwiftness", { lowest_hp_pct = 55 }, false)
+tests.test_NaturesSwiftness_holds_when_buff_up = test_match("NaturesSwiftness", { lowest_hp_pct = 25, has_natures_swiftness = true }, false)
+tests.test_NSHT_fires_when_buff_present = test_match("NaturesSwiftnessHealingTouch", { lowest_hp_pct = 25, has_natures_swiftness = true }, true)
+tests.test_NSHT_holds_without_buff = test_match("NaturesSwiftnessHealingTouch", { lowest_hp_pct = 25, has_natures_swiftness = false }, false)
+tests.test_Tranquility_fires_when_party_wiped = test_match("Tranquility", { party_injured_count = 4, lowest_hp_pct = 40 }, true)
+tests.test_Tranquility_holds_when_light_damage = test_match("Tranquility", { party_injured_count = 2, lowest_hp_pct = 40 }, false)
+tests.test_Rebirth_holds_without_dead_ally = test_match("Rebirth", {}, false)
 
 -- Nourish (W3.3 addition): direct spot heal at lowest ally <= 60
 tests.test_Nourish_matches_when_lowest_injured = test_match("Nourish", { lowest_hp_pct = 50, mana_pct = 50 }, true)

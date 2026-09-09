@@ -129,3 +129,62 @@ class-group rotation / adversarial suites in the rotation battery
 (`test_sod_*_rotations.lua`, `test_sod_*_adversarial.lua`, `test_sod_druid_hunter.lua`,
 `test_sod_mage_paladin_priest.lua`). No SOD code changed; the never-triage gate
 stays at 20 specs / 0 load failures / 0 never.
+
+# Addendum 2026-09-08 - SoD retribution expanded to the published p8 priority
+
+classes/paladin/retribution_sod.lua carried only the 3-lane APL core
+(Divine Storm > Exorcism > Crusader Strike). The Wowhead/Icy-Veins SoD p8
+retribution priority adds five decision lanes the file lacked: Seal of
+Martyrdom upkeep (348700), opt-in Avenging Wrath (ttd > 15s tail +
+use_cooldowns), seal-gated Judgement (20271), the Hammer of Wrath execute
+band (<= 20% target HP) and AoE Consecration (2+ enemies, mana >= 35%).
+All five are era-common TBC-bridge-valid ids. Battery: retribution 3 -> 8
+strategies, never-fires stays 0 via the new sod_seal_up scenario (Judgement
+needs the seal buff up; the other four lanes fire in existing shared/SoD
+scenarios). Pinned by the matrix order row, the
+test_sod_mage_paladin_priest fire/don't-fire asserts, and the Task-1
+action-map regeneration (141 unique ids). Suite count unchanged (563).
+
+# Addendum 2026-09-08 - SoD priest healing completes the guide-priority rotation
+
+classes/priest/healing_sod.lua carried only the 4-lane corpus core
+(Penance > Power Word: Shield > Flash Heal > Renew). The Wowhead SoD healer
+rotation guide adds two rune heals the file lacked: Prayer of Mending
+(Legs rune, spell 401859) and Circle of Healing (Gloves rune, 402842),
+both Wowhead-verified SoD client spell ids and pinned in the
+run_sylvanas_audit_tests SOD_RUNE_IDS drift guard. CoH gates on the engine
+party_injured_count >= 2 field (mirroring holy_wotlk's parse-critical CoH
+lane) and PoM fills the band between the PWS and FlashHeal thresholds.
+Binding Heal (Cloak engrave 402853) is deliberately absent: its castable
+SoD ability id could not be verified, and a guessed id would fail the
+source-audit contract - revisit only with an authoritative id source.
+Battery: healing 4 -> 6 strategies, never-fires stays 0 (CoH fires in the
+shared priest_wotlk_circle_healing scenario inherited by SCENARIOS_SOD;
+PoM fires in standard/group bands). Pinned by the matrix order row and
+the test_sod_mage_paladin_priest fire/don't-fire asserts. Task-1 action
+map regenerated (143 unique ids). Suite count unchanged (563).
+
+# Addendum 2026-09-08 - Sub-8-strategy SoD specs expanded to published playstyles
+
+Seven of the eight remaining sub-8 SoD specs were expanded from their
+published rotation priorities (Icy-Veins SoD rotation guides, Apr 2025;
+Wowhead-verified spell ids; era-common ids TBC-bridge-verified):
+balance 6->7 (InsectSwarm third dot; Starfire now gated on the Starsurge
+aura it buffs, Wrath the filler), feral 6->10 (TigersFury 417045 at <=40
+energy, Berserk 417141 after it, Omen-of-Clarity procs spent on Shred,
+Swipe AoE dump), restoration 5->6 (SurvivalInstincts self-buff CD; Wild
+Growth group threshold 3->2 per guide), mage 6->8 (LivingBomb 400613
+maintenance, IcyVeins haste CD; Deep Freeze deliberately NOT modeled - the
+engine context exposes no frozen/Fingers-of-Frost field, so its gate has
+no real read path), protection 7->9 (baseline SealMartyr upkeep with a
+15 percent martyr HP floor, seal-gated Judgement), combat 7->9 (opt-in
+BladeFlurry cleave CD + AdrenalineRush, both ttd-gated), elemental 7->8
+(EarthShockMoving per guide's cast-while-moving rule). Rogue tank stays
+at 7: a novelty spec with no published rotation priority; its lanes
+already mirror the repo's pinned tank model. Battery: 20 specs, all
+never-fires=0 via the new sod_cleave_cd scenario (BladeFlurry's AoE+CD
+combo; SoD-scoped so no other era's never-set moves). New rune-gated ids
+pinned in SOD_RUNE_IDS (62). Task-1 action map regenerated (151 ids).
+Pinned by the matrix rows, the druid_hunter/wiring/mp fixture suites
+(updated fire/don't-fire pins, all preserved pins' intent kept), and the
+action-gating suite. Suite count unchanged (563).

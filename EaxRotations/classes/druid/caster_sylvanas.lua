@@ -1,5 +1,5 @@
 -- caster_sylvanas.lua -- Druid Caster (leveling/solo) rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for caster DPS (Moonfire, Wrath, Faerie Fire).
+-- WHAT:  priority-list strategies for caster DPS (Faerie Fire, Moonfire + Insect Swarm, Starfire/Wrath filler).
 -- WHEN:  combat with valid enemy target (leveling/solo/raid/PvP context gates).
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics (Moonfire + Insect Swarm multidot, Starfire filler, per balance APL).
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
@@ -17,19 +17,23 @@ local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     Barkskin    = define("Barkskin",    { 22812 }, "Barkskin"),
     FaerieFire  = define("FaerieFire",  { 26993, 9907, 9749, 778, 770 }, "FaerieFire"),
+    InsectSwarm = define("InsectSwarm", { 27013, 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
     Innervate   = define("Innervate",   { 29166 }, "Innervate"),
     Moonfire    = define("Moonfire",    { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
     Thorns      = define("Thorns",      { 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
     Wrath       = define("Wrath",       { 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
+    Starfire    = define("Starfire",    { 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
 }
 
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
+local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 
 -- Schema for safe_state (Pattern 14 nil-guard elimination).
 local CASTER_SCHEMA = {
     moonfire_remains = 0,
+    insect_remains = 0,
     ff_remains = 0,
     innervate_ready = false,
     in_combat = false,
@@ -52,6 +56,7 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
     caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
+    caster_state.insect_remains = target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF) or 0
     caster_state.in_combat = context.in_combat or false
     caster_state.is_group = context.is_group or false
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
@@ -164,6 +169,37 @@ local DSL_DEFS = {
         end },
     },
     {
+        name = "InsectSwarm",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.target then return false end
+                if (state.insect_remains or 0) > 2 then return false end
+                if (state.mana_pct or 100) < 10 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.InsectSwarm },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.InsectSwarm, context.target, "[CASTER] Insect Swarm")
+        end },
+    },
+    {
+        name = "Starfire",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if context.is_moving then return false end
+                if (state.mana_pct or 100) < 15 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Starfire },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.Starfire, context.target, "[CASTER] Starfire")
+        end },
+    },
+    {
         name = "Wrath",
         conditions = {
             { type = "custom", fn = function(context, state)
@@ -189,6 +225,8 @@ local strategies = {
     { name = "Innervate" },
     { name = "FaerieFire" },
     { name = "Moonfire" },
+    { name = "InsectSwarm" },
+    { name = "Starfire", not_moving = true },
     { name = "Wrath", not_moving = true, min_mana = 10 },
 }
 

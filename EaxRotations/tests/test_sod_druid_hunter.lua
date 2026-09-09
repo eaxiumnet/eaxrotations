@@ -28,7 +28,18 @@ _G.EaxRotations = {
         return { _meta = { id = id, name = label } }
     end,
     spell_ready = function() return true end,
-    buff_up = function() return false end,
+    buff_up = function(_, ids)
+        -- Only Aspect of the Hawk / Hunter's Mark report up: lets buff-upkeep
+        -- lanes hold so the damage core is reachable (matches live behavior).
+        local up = { [13159] = true, [13158] = true, [8352] = true,
+            [30706] = true, [14323] = true, [14324] = true, [14325] = true, [1130] = true }
+        if type(ids) == "table" then
+            for _, id in ipairs(ids) do if up[id] then return true end end
+        elseif type(ids) == "number" then
+            return up[ids] == true
+        end
+        return false
+    end,
     buff_remains = function() return 0 end,
     debuff_up = function() return false end,
     debuff_remains = function() return 0 end,
@@ -61,7 +72,7 @@ local function first_match(module, context, override)
 end
 
 local runes = {
-    [407995] = true, [407988] = true, [414644] = true, [417141] = true,
+    [407995] = true, [407988] = true, [414644] = true, [417141] = true, [417045] = true,
     [408120] = true, [408247] = true, [417157] = true, [414684] = true,
     [439748] = true, [409433] = true, [409593] = true,
 }
@@ -86,6 +97,18 @@ end
 assert_eq(first_match(balance, base, { has_starsurge_aura = false }).name, "Starsurge", "Balance opens Starsurge")
 local moonfire = first_match(balance, base, { has_starsurge_aura = true, moonfire_remains = 0 })
 assert_eq(moonfire.name, "Moonfire", "Balance maintains Moonfire before Sunfire")
+assert_eq(strategy(balance, "InsectSwarm").matches(base, balance.build_state(
+    { moonfire_remains = 12, sunfire_remains = 12, insect_swarm_remains = 0 })), true,
+    "Insect Swarm lane fires when its dot is down")
+assert_eq(strategy(balance, "InsectSwarm").matches(base, balance.build_state(
+    { moonfire_remains = 12, sunfire_remains = 12, insect_swarm_remains = 12 })), false,
+    "Insect Swarm held while its dot is up")
+assert_eq(strategy(balance, "Starfire").matches(base, balance.build_state(
+    { has_starsurge_aura = true, moonfire_remains = 12, sunfire_remains = 12, insect_swarm_remains = 12 })), true,
+    "Starfire fires under the Starsurge aura")
+assert_eq(strategy(balance, "Starfire").matches(base, balance.build_state(
+    { has_starsurge_aura = false, moonfire_remains = 12, sunfire_remains = 12, insect_swarm_remains = 12 })), false,
+    "Starfire held without the Starsurge aura (Wrath filler instead)")
 local starfall = strategy(balance, "Starfall")
 local phase_three = { is_sod = true, sod_phase = 3, sod_runes = runes, target = target, me = me, in_combat = true }
 local phase_four = { is_sod = true, sod_phase = 4, sod_runes = runes, target = target, me = me, in_combat = true }
@@ -93,12 +116,28 @@ assert_eq(starfall.matches(phase_three, balance.build_state(phase_three)), false
 assert_eq(starfall.matches(phase_four, balance.build_state(phase_four)), true, "Starfall available in phase 4")
 
 assert_eq(first_match(feral, base, { in_cat_form = false }).name, "CatForm", "Feral enters Cat Form")
-assert_eq(first_match(feral, base, { in_cat_form = true, savage_roar_remains = 0 }).name,
+assert_eq(first_match(feral, base, { in_cat_form = true, energy = 30 }).name,
+    "TigersFury", "Feral pops Tiger's Fury at low energy")
+assert_eq(first_match(feral, base, { in_cat_form = true, energy = 100 }).name,
+    "Berserk", "Feral spends Berserk on cooldown after Tiger's Fury")
+-- Cooldown-free rune set: pins the maintenance lanes below the CD block.
+local base_sr = {}
+for k, v in pairs(base) do base_sr[k] = v end
+base_sr.sod_runes = { [407988] = true, [409828] = true }
+assert_eq(first_match(feral, base_sr, { in_cat_form = true, savage_roar_remains = 0 }).name,
     "SavageRoar", "Feral maintains Savage Roar")
-assert_eq(first_match(feral, base, {
-    in_cat_form = true, savage_roar_remains = 12, mangle_remains = 12,
+assert_eq(first_match(feral, base_sr, { in_cat_form = true, omen_up = true, energy = 100 }).name,
+    "OmenShred", "Feral spends Omen of Clarity procs on Shred")
+assert_eq(first_match(feral, base_sr, {
+    in_cat_form = true, savage_roar_remains = 12, mangle_remains = 12, energy = 100,
     combo_points = 5, rip_remains = 0, target_ttd = 30,
 }).name, "Rip", "Feral uses five-point Rip")
+assert_eq(strategy(feral, "Swipe").matches(base_sr, feral.build_state(
+    { in_cat_form = true, enemy_count = 2, energy = 100, savage_roar_remains = 12, mangle_remains = 12 })), true,
+    "Swipe fires on 2+ targets")
+assert_eq(strategy(feral, "Swipe").matches(base_sr, feral.build_state(
+    { in_cat_form = true, enemy_count = 1, energy = 100, savage_roar_remains = 12, mangle_remains = 12 })), false,
+    "Swipe held single-target")
 
 assert_eq(first_match(tank, base, { hp_pct = 19, in_bear_form = true }).name,
     "Barkskin", "Tank defensive gate follows 20 percent source threshold")
@@ -114,8 +153,11 @@ local heal_context = {
     heal_target = ally, heal_target_hp_pct = 45, injured_count = 4,
 }
 assert_eq(first_match(restoration, heal_context).name, "WildGrowth", "Restoration raid heal priority")
-local nourish = first_match(restoration, heal_context, { injured_count = 1, heal_target_hp_pct = 45 })
-assert_eq(nourish.name, "Nourish", "Restoration single-target heal priority")
+assert_eq(strategy(restoration, "Nourish").matches(heal_context, restoration.build_state(heal_context)), true,
+    "Nourish lane fires for single-target heal priority")
+assert_eq(strategy(restoration, "Nourish").matches(heal_context, restoration.build_state(
+    { heal_target = ally, heal_target_hp_pct = 75 })), false,
+    "Nourish held above its 60 percent band")
 
 local pet = {}
 local hunter_context = {
@@ -124,7 +166,7 @@ local hunter_context = {
 }
 assert_eq(first_match(hunter, hunter_context, { pet_alive = true, pet_hp_pct = 20 }).name,
     "MendPet", "Hunter protects injured pet")
-assert_eq(first_match(hunter, hunter_context, { pet_alive = true, pet_hp_pct = 100 }).name,
+assert_eq(first_match(hunter, hunter_context, { pet_alive = true, pet_hp_pct = 100, serpent_sting_remains = 4 }).name,
     "ChimeraShot", "Hunter refreshes sting with Chimera before Kill Shot")
 assert_eq(first_match(hunter, hunter_context, {
     pet_alive = true, pet_hp_pct = 100, serpent_sting_remains = 8,

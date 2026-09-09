@@ -650,3 +650,24 @@ leveling file — the last WotLK classes without era suites.
 lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never (priest specs 0/0)
 ```
 
+---
+
+## Addendum 2026-09-09 — WotLK healer expansion wave (guide-driven lanes, zero new never-lanes)
+
+The four WotLK healer rotations were expanded to their published Icy-Veins priorities (the DPS specs got this treatment in the SoD/TBC waves; healers had not). All lanes load through the real read path (buff_up/buff_remains/buff_stacks/spell_ready on the real engine fields `party_injured_count`, `lowest_hp`, `mana_pct`); all ids Wowhead-verified this pass and pinned in the wotlk spell audit allowlist (+10, now 194). Battery: all 41 WotLK specs never-fires=0, strict gate held; no lane lost a firing window.
+
+| File | Lanes before -> after | New lanes (guide mechanic) |
+|---|---|---|
+| `classes/druid/resto_wotlk.lua` | 7 -> 11 | **NaturesSwiftness + NaturesSwiftnessHealingTouch** emergency pair (aura-present spend / aura-absent enable, <=30% band, mirrors TBC sibling); **Rebirth** battle rez (group-utility guard + real `find_dead_party_ally` dead-player discovery — battery scenario `rebirth_dead_ally` proves the fire side); **Tranquility** (3+ injured, lowest <=50%, 8 min CD, Wowhead) |
+| `classes/paladin/holy_wotlk.lua` | 5 -> 9 | **SealOfWisdom** upkeep (real self-aura read 20216/20166); **JudgementOfWisdom** (judge-on-CD <=90% mana = era-correct JoW uptime; debuff-id read deliberately avoided — effect id varies by seal cast); **DivineFavorHolyLight** (crit buff before the big HL, <75% band); **DivinePlea** (<=50% mana, 54428 already ret-pinned) |
+| `classes/shaman/restoration_wotlk.lua` | 7 -> 10 | **NaturesSwiftness + NaturesSwiftnessHealingWave** emergency pair (shaman id 16188, 2 min CD, Wowhead); **TidalWavesHealingWave** (the file already tracked Tidal Waves stacks but never used them — now the 2-stack window hard-prioritizes the big nuke; battery scenario `resto_tidal_waves`) |
+| `classes/priest/discipline_wotlk.lua` | 4 -> 6 | **PainSuppression** (<=30% save, Wowhead 33206) leading the order; **PowerInfusion** (<=45% pressure band, 10060) — the wowsims pinned APL's `autocastOtherCooldowns` action made concrete. MassDispel stays middleware-owned (dispel_manager `magic_mass`), recorded as deliberate |
+
+Deliberate exclusions (honest residue): Tremor/Cleansing Totem debuff-response is middleware territory in this repo (main_sylvanas.lua:958 party-dispel ownership, dispel_manager) — a rotation lane would double-own the decision; SoD-era Binding Heal/Aura Mastery lessons applied (no passive/debuff-id reads without a live cast surface).
+
+Suite pins extended (no new suites; 563 stable): `test_resto_wotlk_dsl_priority` (24->32), `test_holy_wotlk_dsl_priority` (14->22), `test_restoration_wotlk_dsl_priority` (+1 order/assert renames, 15), `test_discipline_wotlk_dsl_priority` (8->12), `test_shaman_wotlk_live_fixes` count pin. Two suite-local DSL-stub comparators gained real-semantics `truthy/falsy`/`<=` support (mirrors strategy_dsl evaluators, not vacuous passes). Battery scenarios added: `druid_wotlk_tranquility`, `druid_wotlk_ns_burst`, `resto_tidal_waves` (all spec-scoped in effect).
+
+```bash
+lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never across all 41 specs
+```
+

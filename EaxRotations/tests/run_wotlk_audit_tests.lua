@@ -296,6 +296,27 @@ local WOTLK_REFERENCE_ALIASES = {
     -- omits both (file-derived; no poison ids were used in _wotlk.lua files).
     [57970] = { kind = "VALID_RANK_ALIAS", family = "Deadly Poison IX (apply/DoT debuff)", source = "wowhead WotLK Classic spell=57970/deadly-poison (rank IX, DoT stacking rule, 12s) — 57975 disproven (Wound Poison VII)" },
     [57969] = { kind = "VALID_RANK_ALIAS", family = "Deadly Poison VIII (apply/DoT debuff)", source = "wowhead WotLK Classic spell=57969/deadly-poison (rank VIII, DoT stacking rule, 12s)" },
+    -- WotLK healer wave (2026-09-09): guide-driven lanes added to the four
+    -- healer files. All ids verified on wowhead WotLK Classic this pass; the
+    -- file-derived bridge omits carry-over/aura ids until its generator re-runs.
+    --   * NaturesSwiftness: era-per-class spell ids (druid 17116, shaman 16188)
+    --     sharing the vanilla spell name; both instant-cast emergency enablers.
+    --   * Rebirth ladder: WotLK max 48477, TBC ranks 26994/20484 for pre-80.
+    --   * Tranquility 48447: WotLK-only channelled party heal.
+    --   * Divine Favor 20216 / Seal of Wisdom 20216+20166: unchanged since
+    --     vanilla (single-rank spells, no WotLK rank escalation).
+    --   * PainSuppression 33206 / PowerInfusion 10060: unchanged since TBC
+    --     (single-rank, no WotLK rank escalation).
+    [17116] = { kind = "VALID_RANK_ALIAS", family = "Nature's Swiftness (druid)", source = "wowhead WotLK Classic spell=17116/natures-swiftness" },
+    [48477] = { kind = "VALID_RANK_ALIAS", family = "Rebirth (WotLK max)", source = "wowhead WotLK Classic spell=48477/rebirth (10 min CD in WotLK)" },
+    [26994] = { kind = "VALID_RANK_ALIAS", family = "Rebirth (TBC rank)", source = "wowhead WotLK Classic spell=26994/rebirth (pre-80 rank)" },
+    [20484] = { kind = "VALID_RANK_ALIAS", family = "Rebirth (vanilla rank)", source = "wowhead WotLK Classic spell=20484/rebirth (pre-80 rank)" },
+    [48447] = { kind = "VALID_RANK_ALIAS", family = "Tranquility (WotLK max)", source = "wowhead WotLK Classic spell=48447/tranquility (8 min CD)" },
+    [20216] = { kind = "VALID_RANK_ALIAS", family = "Divine Favor / Seal of Wisdom", source = "wowhead WotLK Classic spell=20216 (Divine Favor; SoW same id) + spell=20166/seal-of-wisdom" },
+    [20166] = { kind = "VALID_RANK_ALIAS", family = "Seal of Wisdom (rank 1)", source = "wowhead WotLK Classic spell=20166/seal-of-wisdom" },
+    [33206] = { kind = "VALID_RANK_ALIAS", family = "Pain Suppression", source = "wowhead WotLK Classic spell=33206/pain-suppression (40% dmg reduction, 3 min CD)" },
+    [10060] = { kind = "VALID_RANK_ALIAS", family = "Power Infusion", source = "wowhead WotLK Classic spell=10060/power-infusion (20% haste, 2 min CD)" },
+    [16188] = { kind = "VALID_RANK_ALIAS", family = "Nature's Swiftness (shaman)", source = "wowhead WotLK Classic spell=16188/natures-swiftness (2 min CD, shares with Elemental Mastery)" },
 }
 
 -- Resolved 2026-08-08: 48785/48782/48826 verified as real WotLK ranks (now
@@ -950,7 +971,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 184, "pinned allowlist size") -- +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 194, "pinned allowlist size") -- +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

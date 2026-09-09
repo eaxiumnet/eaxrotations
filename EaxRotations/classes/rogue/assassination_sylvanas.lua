@@ -532,6 +532,11 @@ local strategies = {
             if state.energy_low then return false end
             if not state.has_daggers then return false end
             if not should_spend_energy(context, ENERGY_MUTILATE_COST) then return false end
+            -- TBC positional rule: Mutilate is only usable BEHIND the target;
+            -- from the front the cast fails every GCD. Hold the lane (nil-safe:
+            -- hosts without the probe keep legacy behaviour) and let
+            -- SinisterStrikeFallback build combo points from the front.
+            if NS.is_behind_target and not NS.is_behind_target(context.target) then return false end
             return NS.spell_ready(ACTION.Mutilate, context.target)
         end,
         execute = function(context, state)
@@ -553,8 +558,13 @@ local strategies = {
 	            -- Low-level / leveling uses LevelingSinisterStrike
 	            if leveling_helpers.is_low_level(level) or context.is_leveling then return false end
 	            local mutilate_known = NS.spell_exists and NS.spell_exists(ACTION.Mutilate)
-	            -- Fallback when Mutilate can't be used: not known, or no daggers
-	            if mutilate_known and state.has_daggers then return false end
+	            -- Fallback when Mutilate can't be used: not known, no daggers, or
+	            -- FRONT position (TBC positional rule: Mutilate is only usable from
+	            -- behind; Sinister Strike is the published front builder so combo
+	            -- points and the SnD/Envenom cycle never stall).
+	            if mutilate_known and state.has_daggers then
+	                if NS.is_behind_target and NS.is_behind_target(context.target) then return false end
+	            end
 	            if state.energy_low then return false end
 	            if not should_spend_energy(context, 45) then return false end
 	            return NS.spell_ready(ACTION.SinisterStrike, context.target)

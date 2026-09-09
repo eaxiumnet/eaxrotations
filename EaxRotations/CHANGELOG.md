@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased
+
+### Rotation Content — SoD guide-priority expansion wave
+- **Every SoD spec now implements its published playstyle priority.** All
+  twelve sub-priority specs were expanded against their Icy-Veins / Wowhead
+  SoD guides (Wowhead-verified SoD rune spell ids only - unresolvable ids
+  such as Binding Heal and the passive Aura Mastery were deliberately
+  excluded rather than guessed):
+  - **Druid**: balance 6 -> 7 (Insect Swarm upkeep), feral 6 -> 10
+    (Tiger's Fury, Berserk, Insect Swarm-depth dot upkeep), restoration
+    5 -> 6 (Efflorescence, Survival Instincts, Nourish band), tank 8 -> 12
+    (Demoralizing Roar, Growl on a real threat readout, Enrage, Survival
+    Instincts 409809).
+  - **Hunter**: dps 8 -> 12 (Aspect of the Hawk + Hunter's Mark upkeep,
+    Serpent Sting apply-before-Chimera, Volley AoE, Rapid Fire window).
+  - **Mage**: dps 6 -> 8 (Living Bomb, Icy Veins window).
+  - **Paladin**: protection 7 -> 9 (Seal of Martyrdom upkeep, Judgement),
+    retribution 3 -> 10 (guide defensive band: Lay on Hands / Divine Shield
+    with Forbearance exclusivity, Martyrdom upkeep, Judgement cycle,
+    Hammer of Wrath execute, Consecration at the guide volume).
+  - **Priest**: healing 4 -> 6 (Prayer of Mending 401859, Circle of Healing
+    402842 with the 2+-injured group gate).
+  - **Rogue**: combat 7 -> 9 (Blade Flurry AoE, Adrenaline Rush window,
+    positional builder playstyle).
+  - **Shaman**: elemental 7 -> 8 (Rolling Thunder-depth shock lanes).
+  - **TBC druid caster** (same wave, same discipline): 6 -> 8 - added the
+    Insect Swarm + Starfire lanes its own header already claimed, mirroring
+    the wowsims tbc-new balance APL semantics; ids TBC-bridge-valid.
+- **Battery outcome**: SoD strategies 158 -> 188 across 20 specs with
+  never-fires = 0 held everywhere (strict gate); TBC total never-count
+  unchanged at 11 (all pre-triaged). New spell ids pinned in the
+  `SOD_RUNE_IDS` drift guard (62 -> 64); Task-1 action map regenerated
+  (161 ids); era-pair seed regenerated.
+- **Two real out-of-combat bugs fixed by the new pins**: druid-tank Enrage
+  and hunter Aspect of the Hawk matched with no combat gate and would cast
+  out of combat; both now use their file's standard in-combat gate (all
+  sibling lanes already did).
+- **Supporting pins extended** (no new suites; battery remains 563 suites):
+  SoD rotation matrix rows, the druid/hunter, mage/paladin/priest and
+  assassin group suites, and the caster DSL priority suite.
+
+---
 ## 2.25.0 — 2026-09-06
 
 ### Customer Changelog

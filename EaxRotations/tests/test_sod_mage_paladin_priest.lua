@@ -67,9 +67,22 @@ assert_eq(strategy(modules.mage.rotation, "FrozenOrb").matches(context, modules.
 -- The dispatcher now produces context.hp_pct (SoD context wiring unit
 -- 2026-08-11, shared/sod_context_sylvanas.lua aliases hp_pct <- hp), so
 -- hand-mutated hp must keep hp_pct in sync (same as mana_pct below).
+-- hp kept at 100: the new SealMartyr upkeep lane (first) holds below its
+-- 15 percent martyr floor, so the LoH emergency gate needs a safe-HP context.
+context.hp = 100
+context.hp_pct = 100
+assert_eq(modules.protection.rotation.strategies[1].name, "SealMartyr", "tank seal upkeep is first")
+assert_eq(strategy(modules.protection.rotation, "SealMartyr").matches(context,
+    modules.protection.rotation.build_state(context)), true, "tank seal lane fires with the seal down")
 context.hp = 8
 context.hp_pct = 8
-assert_eq(modules.protection.rotation.strategies[1].name, "LayOnHands", "tank emergency is first")
+assert_eq(strategy(modules.protection.rotation, "SealMartyr").matches(context,
+    modules.protection.rotation.build_state(context)), false, "seal refresh held below the martyr HP floor")
+context.hp = 100
+context.hp_pct = 100
+assert_eq(modules.protection.rotation.strategies[2].name, "LayOnHands", "tank emergency is second")
+context.hp = 8
+context.hp_pct = 8
 assert_eq(strategy(modules.protection.rotation, "LayOnHands").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank Lay on Hands gate")
 context.hp = 35
@@ -80,15 +93,41 @@ context.hp = 100
 context.hp_pct = 100
 assert_eq(strategy(modules.protection.rotation, "HolyShield").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank Holy Shield refresh")
+local original_buff_up = NS.buff_up
 local original_buff_points = NS.buff_points
 NS.buff_points = function() return { 4 } end
 assert_eq(strategy(modules.protection.rotation, "HolyShield").matches(context,
     modules.protection.rotation.build_state(context)), false, "tank preserves healthy Holy Shield charges")
 NS.buff_points = original_buff_points
 
-assert_eq(modules.retribution.rotation.strategies[1].name, "DivineStorm", "Retribution p8 Exodin priority")
+assert_eq(modules.retribution.rotation.strategies[1].name, "LayOnHands", "Retribution emergency heal leads the p8 defensive band")
+assert_eq(strategy(modules.retribution.rotation, "SealMartyr").matches(context,
+    modules.retribution.rotation.build_state(context)), true, "Retribution refreshes the down seal")
+assert_eq(strategy(modules.retribution.rotation, "Judgement").matches(context,
+    modules.retribution.rotation.build_state(context)), false, "Retribution Judgement held while the seal is down")
+NS.buff_up = function() return true end
+assert_eq(strategy(modules.retribution.rotation, "Judgement").matches(context,
+    modules.retribution.rotation.build_state(context)), true, "Retribution Judgement fires with the seal up")
+assert_eq(strategy(modules.retribution.rotation, "SealMartyr").matches(context,
+    modules.retribution.rotation.build_state(context)), false, "Retribution seal lane holds while the seal is up")
+NS.buff_up = original_buff_up
 assert_eq(strategy(modules.retribution.rotation, "DivineStorm").matches(context,
     modules.retribution.rotation.build_state(context)), true, "Retribution Divine Storm rune")
+context.target_hp = 15
+context.target_hp_pct = 15
+assert_eq(strategy(modules.retribution.rotation, "HammerOfWrath").matches(context,
+    modules.retribution.rotation.build_state(context)), true, "Retribution Hammer of Wrath in the execute band")
+context.enemy_count = 3
+context.enemies_count = 3
+assert_eq(strategy(modules.retribution.rotation, "Consecration").matches(context,
+    modules.retribution.rotation.build_state(context)), true, "Retribution Consecration on 3+ enemies")
+context.mana_pct = 10
+assert_eq(strategy(modules.retribution.rotation, "Consecration").matches(context,
+    modules.retribution.rotation.build_state(context)), false, "Retribution Consecration held at low mana")
+context.enemy_count = 1
+context.enemies_count = 1
+assert_eq(strategy(modules.retribution.rotation, "Consecration").matches(context,
+    modules.retribution.rotation.build_state(context)), false, "Retribution Consecration held single-target")
 
 local ally = {}
 context.lowest = { unit = ally, effective_hp = 32, has_weakened_soul = false }
@@ -126,5 +165,20 @@ assert_eq(strategy(modules.healing.rotation, "Penance").execute(context), true,
 assert_eq(cast_action, modules.healing.rotation.actions.Penance.action, "execute uses resolved Penance action")
 assert_eq(cast_target, ally, "execute uses selected healer target")
 NS.try_cast = original_try_cast
+
+-- SoD priest healer rune-lane pins (2026-09-08): Prayer of Mending +
+-- Circle of Healing complete the guide-priority rotation (Wowhead SoD
+-- healer guide). CoH holds below 2 injured allies; PoM fills the 30-60
+-- band before raw FlashHeal throughput.
+assert_eq(strategy(modules.healing.rotation, "PrayerOfMending").matches(context,
+    modules.healing.rotation.build_state(context)), true, "SoD PoM fires in its band")
+assert_eq(strategy(modules.healing.rotation, "CircleOfHealing").matches(context,
+    modules.healing.rotation.build_state(context)), false, "SoD CoH holds with no group injury")
+context.party_injured_count = 2
+context.lowest = { unit = ally, effective_hp = 50, has_weakened_soul = false }
+assert_eq(strategy(modules.healing.rotation, "CircleOfHealing").matches(context,
+    modules.healing.rotation.build_state(context)), true, "SoD CoH fires with 2+ injured allies")
+context.party_injured_count = nil
+context.lowest = { unit = ally, effective_hp = 32, has_weakened_soul = false }
 
 print("PASS test_sod_mage_paladin_priest (five registrations, DPS/tank/healer priorities, execute target)")

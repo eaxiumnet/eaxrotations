@@ -62,7 +62,7 @@ return {
     {
         spec = "druid/caster",
         missing_in = "sylvanas",
-        names = { "HealingTouch", "HealthPotion", "InsectSwarm", "ManaPotion", "MarkOfTheWild", "Rejuvenation", "Starfire" },
+        names = { "HealingTouch", "HealthPotion", "ManaPotion", "MarkOfTheWild", "Rejuvenation" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
@@ -92,19 +92,19 @@ return {
     {
         spec = "druid/resto",
         missing_in = "sylvanas",
-        names = { "Innervate", "Lifebloom", "Nourish", "Regrowth", "Rejuvenation", "Swiftmend", "WildGrowth" },
+        names = { "Innervate", "Lifebloom", "Nourish", "Rebirth", "Regrowth", "Rejuvenation", "Swiftmend", "Tranquility", "WildGrowth" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "druid/resto",
         missing_in = "vanilla",
-        names = { "Bash", "CycloneEnemyHealer", "FSRPause", "FeralCharge", "Healthstone", "Innervate", "LeaveTreeForDirectHeal", "Lifebloom", "LifebloomLetBloom", "MovingLifebloom", "Nourish", "PreemptiveRegrowth", "RaidLifebloomCoverage", "Regrowth", "Rejuvenation", "SecondRaidLifebloomCoverage", "Swiftmend", "TankLifebloomStack", "TreeOfLifeMaintain", "WildGrowth" },
+        names = { "Bash", "CycloneEnemyHealer", "FSRPause", "FeralCharge", "Healthstone", "Innervate", "LeaveTreeForDirectHeal", "Lifebloom", "LifebloomLetBloom", "MovingLifebloom", "Nourish", "PreemptiveRegrowth", "RaidLifebloomCoverage", "Rebirth", "Regrowth", "Rejuvenation", "SecondRaidLifebloomCoverage", "Swiftmend", "TankLifebloomStack", "Tranquility", "TreeOfLifeMaintain", "WildGrowth" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "druid/resto",
         missing_in = "wotlk",
-        names = { "AbolishPoison", "BarkskinSelfPreservation", "Bash", "BearFormFocusedByMelee", "CatFormRepositionFallback", "ClearcastRegrowth", "CycloneEnemyHealer", "DownrankHealingTouch", "EntanglingRootsMelee", "FSRPause", "FallbackHealingTouch", "FeralCharge", "FriendlyTarget", "HealingTouchMaxEmergency", "Healthstone", "InnervateHealer", "InnervateSelf", "LeaveTreeForDirectHeal", "LifebloomLetBloom", "ManaPotionFloor", "MovingLifebloom", "MovingRejuvenation", "NaturesGraspMelee", "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "PreemptiveRegrowth", "PriorityRejuvenation", "RaidLifebloomCoverage", "RebirthBattleRez", "RegrowthSpotHeal", "RemoveCurse", "SecondRaidLifebloomCoverage", "SoloInsectSwarm", "SoloMoonfire", "SoloWrath", "SwiftmendEmergency", "TankLifebloomStack", "TranquilityEmergency", "TravelFormReposition", "TreeOfLifeMaintain" },
+        names = { "AbolishPoison", "BarkskinSelfPreservation", "Bash", "BearFormFocusedByMelee", "CatFormRepositionFallback", "ClearcastRegrowth", "CycloneEnemyHealer", "DownrankHealingTouch", "EntanglingRootsMelee", "FSRPause", "FallbackHealingTouch", "FeralCharge", "FriendlyTarget", "HealingTouchMaxEmergency", "Healthstone", "InnervateHealer", "InnervateSelf", "LeaveTreeForDirectHeal", "LifebloomLetBloom", "ManaPotionFloor", "MovingLifebloom", "MovingRejuvenation", "NaturesGraspMelee", "PreemptiveRegrowth", "PriorityRejuvenation", "RaidLifebloomCoverage", "RebirthBattleRez", "RegrowthSpotHeal", "RemoveCurse", "SecondRaidLifebloomCoverage", "SoloInsectSwarm", "SoloMoonfire", "SoloWrath", "SwiftmendEmergency", "TankLifebloomStack", "TranquilityEmergency", "TravelFormReposition", "TreeOfLifeMaintain" },
         reason = "WotLK-era build-out: druid_resto_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -218,13 +218,13 @@ return {
     {
         spec = "paladin/holy",
         missing_in = "sylvanas",
-        names = { "BeaconOfLight", "FlashOfLight", "HolyLight", "SacredShield" },
+        names = { "BeaconOfLight", "DivineFavorHolyLight", "DivinePlea", "FlashOfLight", "HolyLight", "JudgementOfWisdom", "SacredShield", "SealOfWisdom" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "paladin/holy",
         missing_in = "vanilla",
-        names = { "AvengingWrathHeavyHealing", "BeaconOfLight", "DivineFavorHolyShockCombo", "DivineIlluminationHeavyHealing", "FSRPause", "FlashOfLight", "HammerOfJustice", "Healthstone", "HolyLight", "LightGraceBuild", "LightGraceChain", "Repentance", "SacredShield" },
+        names = { "AvengingWrathHeavyHealing", "BeaconOfLight", "DivineFavorHolyLight", "DivineFavorHolyShockCombo", "DivineIlluminationHeavyHealing", "DivinePlea", "FSRPause", "FlashOfLight", "HammerOfJustice", "Healthstone", "HolyLight", "JudgementOfWisdom", "LightGraceBuild", "LightGraceChain", "Repentance", "SacredShield", "SealOfWisdom" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -284,7 +284,7 @@ return {
     {
         spec = "priest/discipline",
         missing_in = "wotlk",
-        names = { "BindingHeal", "DispelMagic", "DivineSpirit", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "GreaterHeal", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "InnerFocus", "ManaPotion", "MassDispel", "PainSuppression", "PowerInfusion", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SymbolOfHope" },
+        names = { "BindingHeal", "DispelMagic", "DivineSpirit", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "GreaterHeal", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "InnerFocus", "ManaPotion", "MassDispel", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SymbolOfHope" },
         reason = "WotLK-era build-out: priest_discipline_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -422,19 +422,19 @@ return {
     {
         spec = "shaman/restoration",
         missing_in = "sylvanas",
-        names = { "EarthShield", "HealingWave", "LesserHealingWave", "Riptide", "UnavailableClassicShamanBurst" },
+        names = { "EarthShield", "HealingWave", "LesserHealingWave", "NaturesSwiftnessHealingWave", "Riptide", "TidalWavesHealingWave", "UnavailableClassicShamanBurst" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "shaman/restoration",
         missing_in = "vanilla",
-        names = { "Bloodlust", "EarthShield", "EarthShieldTank", "FSRPause", "HealingWave", "Healthstone", "LesserHealingWave", "LesserHealingWaveEmergency", "PreemptiveChainHeal", "Riptide", "WaterShield" },
+        names = { "Bloodlust", "EarthShield", "EarthShieldTank", "FSRPause", "HealingWave", "Healthstone", "LesserHealingWave", "LesserHealingWaveEmergency", "NaturesSwiftnessHealingWave", "PreemptiveChainHeal", "Riptide", "TidalWavesHealingWave", "WaterShield" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "shaman/restoration",
         missing_in = "wotlk",
-        names = { "Bloodlust", "ChainLightning", "CureDisease", "CurePoison", "DiseaseCleansingTotem", "EarthShieldTank", "EarthShock", "FSRPause", "FlameShock", "FriendlyTarget", "GraceOfAirTotem", "GroundingTotem", "HealingWay", "Healthstone", "LesserHealingWaveEmergency", "LightningBolt", "LightningShield", "ManaEmergencyWand", "ManaPotion", "ManaSpringTotem", "NaturesSwiftness", "PoisonCleansingTotem", "PreemptiveChainHeal", "Purge", "SmartHeal", "StrengthOfEarthTotem", "TremorTotem", "UnavailableClassicShamanBurst", "WindfuryTotem" },
+        names = { "Bloodlust", "ChainLightning", "CureDisease", "CurePoison", "DiseaseCleansingTotem", "EarthShieldTank", "EarthShock", "FSRPause", "FlameShock", "FriendlyTarget", "GraceOfAirTotem", "GroundingTotem", "HealingWay", "Healthstone", "LesserHealingWaveEmergency", "LightningBolt", "LightningShield", "ManaEmergencyWand", "ManaPotion", "ManaSpringTotem", "PoisonCleansingTotem", "PreemptiveChainHeal", "Purge", "SmartHeal", "StrengthOfEarthTotem", "TremorTotem", "UnavailableClassicShamanBurst", "WindfuryTotem" },
         reason = "WotLK-era build-out: shaman_restoration_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

@@ -79,7 +79,13 @@ function M.create()
                     dependents[dep_key] = nil
                 end
             end
-        -- Clear cached value so the new resolver runs on next access.
+        end
+        -- Clear cached value so the new resolver runs on next access. Must run
+        -- on EVERY registration (including the first): a field that was raw-set
+        -- before its _register call (e.g. build_context seeds `lowest` with a
+        -- {unit=nil} default before registering its resolver) would otherwise
+        -- stay resolved to the stale raw value and the resolver would never
+        -- fire -- party heals fell back to self-heals (2026-09-06 playtest).
         resolved[key] = nil
         cache[key] = nil
         -- Also invalidate any fields that depend on this key, since the
@@ -91,7 +97,6 @@ function M.create()
                 cache[deps_of_key[i]] = nil
             end
         end
-    end
         resolvers[key] = resolver
         if deps then
             for _, dep in ipairs(deps) do

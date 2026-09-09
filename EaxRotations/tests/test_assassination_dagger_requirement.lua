@@ -72,6 +72,11 @@ _G.EaxRotations.get_equipped_item_id = function(slot)
     return _equipped_ids[slot] or nil
 end
 
+-- Positional probe (TBC rule): Mutilate is only usable from behind the
+-- target; contracts below flip this to pin the front-position SS fallback.
+local _behind = true
+_G.EaxRotations.is_behind_target = function() return _behind end
+
 dofile("EaxRotations/classes/rogue/assassination_sylvanas.lua")
 local strategies = captured_strategies
 assert_eq(captured_spec, "assassination", "registration should target the assassination spec")
@@ -182,6 +187,21 @@ end
 print("  [ PASS ] SinisterStrikeFallback: daggers + poisoned → no match")
 
 -- ============================================================================
+-- Contract 5b: SinisterStrikeFallback — daggers present, FRONT → match
+-- (TBC positional rule: Mutilate only fires from behind; from the front the
+-- fallback builder keeps combo points flowing so SnD/Envenom never stall.)
+-- ============================================================================
+do
+    _equipped_ids = { [16] = 12345, [17] = 12346 }
+    _behind = false
+    local s = default_state(); s.has_daggers = true; s.target_poisoned = true
+    assert_true(ssf.matches(default_context(), s),
+        "SinisterStrikeFallback should match from the FRONT (Mutilate unusable)")
+    _behind = true
+end
+print("  [ PASS ] SinisterStrikeFallback: daggers + front → match (front builder)")
+
+-- ============================================================================
 -- Contract 6: SinisterStrikeFallback — daggers present, NOT poisoned → NO match
 -- (Mutilate fires on unpoisoned targets too, just without the +50% bonus)
 -- ============================================================================
@@ -192,6 +212,17 @@ do
         "SinisterStrikeFallback should NOT match when daggers present — Mutilate handles unpoisoned targets")
 end
 print("  [ PASS ] SinisterStrikeFallback: daggers + unpoisoned → no match (Mutilate covers)")
+
+-- Contract 6b: same from the FRONT — fallback covers (positional rule).
+do
+    _equipped_ids = { [16] = 12345, [17] = 12346 }
+    _behind = false
+    local s = default_state(); s.has_daggers = true; s.target_poisoned = false
+    assert_true(ssf.matches(default_context(), s),
+        "SinisterStrikeFallback should match from the FRONT with unpoisoned target")
+    _behind = true
+end
+print("  [ PASS ] SinisterStrikeFallback: daggers + front + unpoisoned → match")
 
 -- ============================================================================
 -- Contract 7: Pattern 14 — nil has_daggers must not crash Mutilate matcher

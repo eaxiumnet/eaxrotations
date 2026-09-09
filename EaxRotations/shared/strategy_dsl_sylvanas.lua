@@ -319,6 +319,34 @@ local function default_execute(action)
     end
 end
 
+-- Collect the state/context fields a condition tree reads (max 4, depth-
+-- first through AND/OR/NOT groups). Attached to compiled strategies as
+-- _dsl_watch so the cast trace can render the live values behind a firing
+-- rule ("Rip: rip_remains=0.4 combo_points=5") without scanning closures.
+local WATCH_CAP = 4
+local function collect_watch_fields(conditions, out)
+    if type(conditions) ~= "table" then return end
+    for i = 1, #conditions do
+        if #out >= WATCH_CAP then return end
+        local node = conditions[i]
+        if type(node) == "table" then
+            local t = node.type
+            if (t == "state" or t == "context") and type(node.field) == "string" then
+                local seen = false
+                for j = 1, #out do
+                    if out[j].src == t and out[j].field == node.field then seen = true break end
+                end
+                if not seen then out[#out + 1] = { src = t, field = node.field } end
+            elseif t == "AND" or t == "OR" then
+                collect_watch_fields(node.conditions, out)
+            elseif t == "NOT" and type(node.condition) == "table" then
+                collect_watch_fields({ node.condition }, out)
+            end
+        end
+        if #out >= WATCH_CAP then return end
+    end
+end
+
 -- Compile a single DSL strategy definition.
 -- dsl_def: { name = "...", conditions = {...}, action = {...}, matches = fn?, execute = fn?, get_state = fn? }
 -- opts: optional table; opts.get_state is used when dsl_def.get_state is absent.
@@ -376,11 +404,19 @@ function M.compile_strategy(dsl_def, opts)
         return execute(context, state)
     end
 
-    return {
+    local compiled = {
         name = dsl_def.name,
         matches = wrapped_matches,
         execute = wrapped_execute,
     }
+    -- Trace metadata (compile-time only; zero runtime cost when tracing is off).
+    compiled._dsl_def = dsl_def
+    if #conditions > 0 then
+        local watch = {}
+        collect_watch_fields(conditions, watch)
+        if #watch > 0 then compiled._dsl_watch = watch end
+    end
+    return compiled
 end
 
 -- Compile a list of DSL strategy definitions.

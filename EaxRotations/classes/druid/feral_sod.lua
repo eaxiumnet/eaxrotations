@@ -17,7 +17,17 @@ local ACTION = {
     Rip = define("Rip", { 9896, 9493 }, {}, "Rip"),
     Rake = define("Rake", { 9904, 1824 }, {}, "Rake"),
     Shred = define("Shred", { 9830, 9829 }, {}, "Shred"),
+    -- SoD Tiger's Fury rune (Wowhead-verified 417045) + Berserk (417141,
+    -- pinned via druid/tank_sod) + era-common Swipe ladder.
+    TigersFury = define("TigersFury", 417045, { rune_id = 417045 }, "TigersFury"),
+    Berserk = define("Berserk", 417141, { rune_id = 417141 }, "Berserk"),
+    Swipe = define("Swipe", { 26997, 9908, 9754, 780, 779 }, {}, "Swipe"),
 }
+
+local function buff_up(context, key, unit, ids)
+    if context[key] ~= nil then return context[key] == true end
+    return unit and type(NS.buff_up) == "function" and NS.buff_up(unit, ids) or false
+end
 
 local function value(context, key, fallback)
     local result = context[key]
@@ -36,8 +46,10 @@ local function build_state(context)
         combo_points = value(context, "combo_points", 0),
         energy = value(context, "energy", 0),
         target_ttd = value(context, "target_ttd", 0),
+        omen_up = buff_up(context, "omen_up", context.me, { 16864 }),
+        enemy_count = value(context, "enemy_count", 0),
     }, { combo_points = 0, energy = 0, target_ttd = 0, savage_roar_remains = 0,
-        mangle_remains = 0, rip_remains = 0, rake_remains = 0 })
+        mangle_remains = 0, rip_remains = 0, rake_remains = 0, enemy_count = 0 })
 end
 
 local function base(context, descriptor)
@@ -57,6 +69,15 @@ end
 local strategies = {
     { name = "CatForm", matches = function(c, s) return base(c, ACTION.CatForm) and not s.in_cat_form and ready(ACTION.CatForm, c.me) end,
       execute = function(c) return cast(ACTION.CatForm, c, c.me, "Cat Form") end },
+    -- Cooldown block (Icy-Veins SoD feral priority): Tiger's Fury at <= 40
+    -- energy (King of the Jungle refuel), Berserk right after it, and Omen
+    -- of Clarity procs spent on Shred.
+    { name = "TigersFury", matches = function(c, s) return base(c, ACTION.TigersFury) and s.in_cat_form and (s.energy or 0) <= 40 and ready(ACTION.TigersFury, c.me) end,
+      execute = function(c) return cast(ACTION.TigersFury, c, c.me, "Tiger's Fury") end },
+    { name = "Berserk", matches = function(c, s) return base(c, ACTION.Berserk) and s.in_cat_form and ready(ACTION.Berserk, c.me) end,
+      execute = function(c) return cast(ACTION.Berserk, c, c.me, "Berserk") end },
+    { name = "OmenShred", matches = function(c, s) return base(c, ACTION.Shred) and s.in_cat_form and s.omen_up and ready(ACTION.Shred, c.target) end,
+      execute = function(c) return cast(ACTION.Shred, c, c.target, "Omen Shred") end },
     { name = "SavageRoar", matches = function(c, s) return base(c, ACTION.SavageRoar) and s.in_cat_form and s.savage_roar_remains <= 0 and ready(ACTION.SavageRoar, c.me) end,
       execute = function(c) return cast(ACTION.SavageRoar, c, c.me, "Savage Roar") end },
     { name = "Mangle", matches = function(c, s) return base(c, ACTION.Mangle) and s.in_cat_form and s.mangle_remains <= 0 and ready(ACTION.Mangle, c.target) end,
@@ -67,6 +88,9 @@ local strategies = {
       execute = function(c) return cast(ACTION.Rake, c, c.target, "Rake") end },
     { name = "Shred", matches = function(c, s) return base(c, ACTION.Shred) and s.in_cat_form and s.combo_points < 5 and ready(ACTION.Shred, c.target) end,
       execute = function(c) return cast(ACTION.Shred, c, c.target, "Shred") end },
+    -- Multi-target energy dump (guide: spend energy on Swipe).
+    { name = "Swipe", matches = function(c, s) return base(c, ACTION.Swipe) and s.in_cat_form and (s.enemy_count or 0) >= 2 and ready(ACTION.Swipe, c.target) end,
+      execute = function(c) return cast(ACTION.Swipe, c, c.target, "Swipe") end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

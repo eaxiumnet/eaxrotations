@@ -121,6 +121,20 @@ function MenuTheme.capabilities(role)
     return (ROLE_CAPABILITIES[role] or ROLE_CAPABILITIES.hybrid) or ROLE_CAPABILITIES.hybrid
 end
 
+--- Single source of the role-visibility policy for a quick-toggle def (or any
+--- table with `.capability` / `.key`). A def is visible unless its capability
+--- (falling back to its key) is EXPLICITLY false for the role. Unknown role /
+--- unknown capability => visible (safe default). Used by the main-menu Quick
+--- Toggles (main.lua) and by the Control Panel subsystem
+--- (shared/control_panel_sylvanas.lua) so both surfaces always agree.
+function MenuTheme.def_allowed(def, role)
+    if type(def) ~= "table" then return true end
+    local caps = ROLE_CAPABILITIES[role]
+    if not caps then return true end
+    local cap_key = def.capability or def.key
+    return caps[cap_key] ~= false
+end
+
 -- ---------------------------------------------------------------------------
 -- Category color — derives a header color from the section header keywords.
 -- Used so all "Defensives", "Cooldowns", "Utility"... sections share a palette.
