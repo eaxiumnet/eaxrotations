@@ -120,6 +120,7 @@ local SOD_RUNE_IDS = {
     [414644] = 414644,  -- druid/tank_sod.lua:16    (Lacerate)
     [409809] = 409809,  -- druid/tank_sod.lua:15    (SurvivalInstincts, SoD rune, wowhead-verified)
     [408024] = 408024,  -- druid/tank_sod.lua:15    (SurvivalInstincts buff, wowhead-verified)
+    [408514] = 408514,  -- shaman/restoration_sod.lua:34 (Earth Shield SoD cast, DBC+Wowhead-verified)
     [414684] = 414684,  -- druid/balance_sod.lua:16
     [415073] = 415073,  -- paladin/retribution_sod.lua:16 (Exorcism)
     [415236] = 415236,  -- shaman/restoration_sod.lua:17 (HealingRain)
@@ -561,7 +562,7 @@ local function run_self_tests()
     -- an UNPINNED rune id must fail even in sod mode.
     local sod_pinned_count = 0
     for _ in pairs(SOD_RUNE_IDS) do sod_pinned_count = sod_pinned_count + 1 end
-    expect(sod_pinned_count, 64, "SOD_RUNE_IDS size")
+    expect(sod_pinned_count, 65, "SOD_RUNE_IDS size") -- +1 Earth Shield 408514 (shaman restoration guide pass 2026-09-09)
     local dup_runes = {}
     for id in pairs(SOD_RUNE_IDS) do
         if dup_runes[id] then error("duplicate SOD_RUNE_IDS entry: " .. tostring(id)) end

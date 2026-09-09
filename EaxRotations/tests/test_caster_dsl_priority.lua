@@ -225,6 +225,50 @@ assert_false(wrath.matches(make_ctx({ is_moving = true }), make_state()),
     "Wrath skips when moving")
 
 -- ============================================================================
+-- 2026-09-09 guide-pass lanes: ForceOfNature, PreHurricaneBarkskin, HurricaneAoE
+-- (TBC balance-sibling idiom; aoe_target_meets hook controllable per pin)
+-- ============================================================================
+local AOE_OK = false
+NS.aoe_target_meets = function() return AOE_OK end
+
+-- Order sanity: burst before debuff upkeep; Hurricane pair between upkeep and fillers.
+assert_true(index_of("ForceOfNature") > index_of("Innervate"), "ForceOfNature after Innervate")
+assert_true(index_of("ForceOfNature") < index_of("FaerieFire"), "ForceOfNature before FaerieFire")
+assert_true(index_of("InsectSwarm") < index_of("PreHurricaneBarkskin"), "PreHurricaneBarkskin after InsectSwarm")
+assert_true(index_of("PreHurricaneBarkskin") < index_of("HurricaneAoE"), "Barkskin precedes Hurricane in the pair")
+assert_true(index_of("HurricaneAoE") < index_of("Starfire"), "HurricaneAoE before the single-target fillers")
+
+local fon = find_strategy("ForceOfNature")
+assert_true(fon.matches(make_ctx(), make_state()), "ForceOfNature fires on cooldowns with burst window")
+assert_false(fon.matches(make_ctx({ settings = { use_cooldowns = false } }), make_state()),
+    "ForceOfNature held when cooldowns are opted out")
+assert_false(fon.matches(make_ctx({ mana_pct = 20 }), make_state({ mana_pct = 20 })),
+    "ForceOfNature held below the mana floor")
+
+local prebark = find_strategy("PreHurricaneBarkskin")
+AOE_OK = true
+assert_true(prebark.matches(make_ctx(), make_state({ barkskin_active = false })),
+    "PreHurricaneBarkskin fires in the AoE window without Barkskin up")
+assert_false(prebark.matches(make_ctx(), make_state({ barkskin_active = true })),
+    "PreHurricaneBarkskin held when Barkskin is already active")
+AOE_OK = false
+assert_false(prebark.matches(make_ctx(), make_state({ barkskin_active = false })),
+    "PreHurricaneBarkskin held without the AoE target volume")
+AOE_OK = true
+assert_false(prebark.matches(make_ctx({ hp = 40 }), make_state({ barkskin_active = false })),
+    "PreHurricaneBarkskin held when HP owns Barkskin (defensive lane)")
+
+local hurri = find_strategy("HurricaneAoE")
+assert_true(hurri.matches(make_ctx(), make_state({ barkskin_active = true })),
+    "HurricaneAoE fires with Barkskin active (channed under DR)")
+assert_false(hurri.matches(make_ctx(), make_state({ barkskin_active = false })),
+    "HurricaneAoE held while Barkskin is available and not yet cast (pair contract)")
+AOE_OK = false
+assert_false(hurri.matches(make_ctx(), make_state({ barkskin_active = true })),
+    "HurricaneAoE held without the AoE target volume")
+AOE_OK = nil -- restore neutral for any later reads
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 print(string.format("test_caster_dsl_priority: %d passed, %d failed", _pass, _fail))

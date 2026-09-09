@@ -188,3 +188,32 @@ pinned in SOD_RUNE_IDS (62). Task-1 action map regenerated (151 ids).
 Pinned by the matrix rows, the druid_hunter/wiring/mp fixture suites
 (updated fire/don't-fire pins, all preserved pins' intent kept), and the
 action-gating suite. Suite count unchanged (563).
+
+# Addendum 2026-09-09 - SoD healer guide pass: resto shaman + resto druid
+
+Wowhead SoD healer rune guides drove the last thin SoD tier (both files were
+7-lane triage): shaman/restoration_sod.lua 7 -> 12, druid/restoration_sod.lua
+7 -> 11, all never-fires=0 in the battery.
+
+Shaman adds: EarthShield (408514 leg-rune cast; 408519 is the proc heal, NOT
+a cast - DBC SkillLineAbility + Wowhead verified; SOD_RUNE_IDS +1 = 65),
+NaturesSwiftness (16188; druid uses 17116 - DBC SLA rows prove the split),
+NaturesSwiftnessHealingWave spend, ManaTideTotem (16190 cast; 16191 is the
+buff). Water-slot guard: Mana Tide held while water_totem_active.
+
+Druid adds: Swiftmend (18562; the Efflorescence rune 417149 is a PASSIVE that
+rides the cast - no separate lane), NaturesSwiftness 17116 + spend,
+Innervate (29166 only; 29167 is the buff id, item-indexed in this client -
+audit caught the tail alias, removed), Rebirth (20748/20747/20484 ladder,
+30-min CD at 60, NOT the WotLK 10-min).
+
+Both NS enables fire at player_hp <= 30 without the aura (era-consistent
+with the wotlk healer pairs); the spend lanes require the aura. earth_shield_up
+produced in shared/sod_context_sylvanas.lua enrich (same idiom as
+riptide_remains/water_shield_up). All new lanes fire in existing battery
+windows plus the new sod_ns_burst scenario (SoD-scoped, no other era moved).
+Pinned by matrix rows + test_sod_rogue_shaman_rotations (ES up/hold, NS
+enable/hold, ManaTide water-slot fire/hold) + test_sod_druid_hunter
+(Swiftmend consumable fire/hold, NS band, Innervate band). Suite count
+unchanged (563). Seed in sync (SoD-only lanes do not move the cross-era
+divergence baseline; 1339 covered / 0 unallowlisted).

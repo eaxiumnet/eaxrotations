@@ -23,10 +23,14 @@ local ACTION = {
     Thorns      = define("Thorns",      { 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
     Wrath       = define("Wrath",       { 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
     Starfire    = define("Starfire",    { 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
+    -- 2026-09-09 guide-pass additions (TBC balance-sibling idiom, class-table ladders):
+    ForceOfNature = define("ForceOfNature", { 33831 }, "ForceOfNature"),
+    Hurricane   = define("Hurricane",     { 27012, 17402, 17401, 16914 }, "Hurricane"),
 }
 
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
+local BARKSKIN_BUFF = { 22812 }
 local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 
@@ -36,6 +40,7 @@ local CASTER_SCHEMA = {
     insect_remains = 0,
     ff_remains = 0,
     innervate_ready = false,
+    barkskin_active = false,
     in_combat = false,
     is_group = false,
     mana_pct = 100,
@@ -49,6 +54,7 @@ local caster_state = {
     moonfire_remains = 0,
     ff_remains = 0,
     innervate_ready = false,
+    barkskin_active = false,
 }
 
 local function build_state(context)
@@ -62,6 +68,7 @@ local function build_state(context)
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100
     caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(ACTION.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
+    caster_state.barkskin_active = NS.has_player_buff and NS.has_player_buff(BARKSKIN_BUFF) or false
     return spec_kit.safe_state(caster_state, CASTER_SCHEMA)
 end
 
@@ -138,6 +145,22 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Innervate, target = "self", label = "[CASTER] Innervate", opts = { skip_range = true } },
     },
     {
+        name = "ForceOfNature",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.in_combat then return false end
+                if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
+                if (state.mana_pct or 100) < 25 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.ForceOfNature, target = "target", opts = { skip_range = true } },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.ForceOfNature, context.target, "[CASTER] Force of Nature")
+        end },
+    },
+    {
         name = "FaerieFire",
         conditions = {
             { type = "custom", fn = function(context, state)
@@ -185,6 +208,44 @@ local DSL_DEFS = {
         end },
     },
     {
+        name = "PreHurricaneBarkskin",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not (NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, state)) then return false end
+                if context.is_moving then return false end
+                if (state.mana_pct or 100) < 35 then return false end
+                if state.barkskin_active then return false end
+                if not (NS.spell_ready and NS.spell_ready(ACTION.Barkskin, NS.PLAYER_UNIT, { skip_range = true })) then return false end
+                if (context.hp or 100) <= 55 then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.Barkskin, NS.PLAYER_UNIT, "[CASTER] Barkskin before Hurricane")
+        end },
+    },
+    {
+        name = "HurricaneAoE",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not (NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, state)) then return false end
+                if context.is_moving then return false end
+                if (state.mana_pct or 100) < 35 then return false end
+                -- Hold while Barkskin is available-and-inactive (balance-sibling contract).
+                if not state.barkskin_active then
+                    if NS.spell_ready and NS.spell_ready(ACTION.Barkskin, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+                end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Hurricane, target = "target" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.Hurricane, context.target, "[CASTER] Hurricane")
+        end },
+    },
+    {
         name = "Starfire",
         conditions = {
             { type = "custom", fn = function(context, state)
@@ -223,9 +284,12 @@ local strategies = {
     { name = "Barkskin" },
     { name = "Thorns" },
     { name = "Innervate" },
+    { name = "ForceOfNature" },
     { name = "FaerieFire" },
     { name = "Moonfire" },
     { name = "InsectSwarm" },
+    { name = "PreHurricaneBarkskin" },
+    { name = "HurricaneAoE" },
     { name = "Starfire", not_moving = true },
     { name = "Wrath", not_moving = true, min_mana = 10 },
 }

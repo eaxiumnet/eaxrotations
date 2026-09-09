@@ -530,3 +530,30 @@ Guide-faithful positional rule applied to `classes/rogue/assassination_sylvanas.
 - Battery: druid/caster 6 -> 8 strategies, never-fires=0 (strict TBC gate
   holds; total never count unchanged at 11 - all pre-triaged).
 - Pinned in test_caster_dsl_priority.lua (fire/hold sides + ordering pins).
+
+## Addendum (2026-09-09, b): druid/caster AoE + burst completion
+
+The earlier same-day addendum recorded the InsectSwarm/Starfire guide lanes
+(6 -> 8). This pass closes the remaining guide gaps with the druid balance
+sibling's own idiom (8 -> 11, never-fires=0):
+
+- ForceOfNature (33831): burst treant cooldown, opt-in via use_cooldowns,
+  mana floor 25 - slotted before FaerieFire (upkeep lane) per the balance
+  file's FoN-before-upkeep order.
+- PreHurricaneBarkskin + HurricaneAoE pair: real AoE lane (the spec had
+  NONE). Pair contract mirrors balance_sylvanas exactly: the barkskin
+  pre-cast fires in the 3-target/8yd window (held when barkskin is already
+  active or HP <= 55 owns the defensive Barkskin lane); Hurricane itself
+  holds while Barkskin is available-and-inactive, fires once the DR is
+  channeled under. barkskin_active produced in build_state via the real
+  NS.has_player_buff(22812) read; new field added to schema + defaults.
+- All ids TBC-bridge-valid (Hurricane ladder 27012/17402/17401/16914,
+  Force of Nature 33831 verified in the bridge spell index; class-table
+  ladders reused via define()).
+- Battery: druid/caster 8 -> 11, never-fires=0; no other spec moved;
+  strict TBC gate holds (tbc never=11, all pre-triaged (a)/(b)/(c)).
+- Pinned in test_caster_dsl_priority.lua (13 new fire/hold + ordering pins,
+  41/41) with a controllable aoe_target_meets hook; custom-matches suite
+  still green. Era-pair seed regenerated (1342 names: TBC caster gains 3
+  lanes vs the vanilla mirror - intentional divergence, 0 unallowlisted);
+  scorecard/ACCURACY regenerated (druid/caster row now 11 | 0).
