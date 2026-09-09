@@ -74,7 +74,7 @@ All eight items from the corpus' `VERIFY_LIST.md` require **wowsims execution or
 
 1. **No end-to-end DPS sim of EaxRotations' actual decisions.** Conformance checks order; it does not run this rotation inside a damage sim and compare output. A priority order can be conformant yet lose a few percent to a subtle interaction (a refresh window a fraction too wide, a proc window not held for).
 2. **TBC has no executed simulator here** — those specs are validated against community reference orders, not a sim engine's output. Weaker than WotLK's ceiling.
-3. **No healer has a comparative sim benchmark.** Only WotLK holy/disc priest have APL fixtures (the sim repos ship no implemented rotation for any other healer — `tools/evidence/apl/SOURCES.md`), which is why roadmap P2 stays OPEN by design. The *validation* gap is closed, though: the 2026-09-09 healer wave expanded every WotLK healer to its published guide priority (resto druid 7→11, holy paladin 5→9, resto shaman 7→10, discipline 4→6 lanes — see “WotLK healer tier re-rate” below).
+3. **No healer has a comparative sim benchmark.** Only WotLK holy/disc priest have APL fixtures (the sim repos ship no implemented rotation for any other healer — `tools/evidence/apl/SOURCES.md`), which is why roadmap P2 stays OPEN by design. The *validation* gap is closed, though: the 2026-09-09 healer wave expanded every WotLK healer to its published guide priority (resto druid 7→11, holy paladin 5→9, resto shaman 7→10, discipline 4→6 lanes — see “WotLK healer tier re-rate” below), and the SoD healer tier joined it the same day (resto shaman 7→12, resto druid 7→11 against the Wowhead SoD rune guides — see the SoD healer pass note below), with TBC druid/caster reaching guide depth too (8→11).
 4. **Vanilla + SoD have no sim project at all** — they reach S (every rule fires), never S+.
 5. **No live-client verification.** Everything runs against mocked WoW state; a state-read bug (wrong debuff ID, wrong power type) shared by the mocks and the code would pass everything here and only surface in game.
 
@@ -92,6 +92,17 @@ The healer expansion wave moved the WotLK healer tier from the pre-wave state (t
 
 All ten new spell ids are Wowhead-verified and pinned in the WotLK spell-audit allowlist (+10 → 194); the battery's strict never=0 gate holds across all 41 WotLK specs. Remaining honest ceiling: the five gaps above — guide-conformance is not sim-conformance, and nothing here is live-client verified. Deliberate exclusions, unchanged: Tremor/Cleansing Totem and Mass Dispel responses stay in the dispel middleware (one owner per decision), and holy priest was not re-touched.
 
+### SoD healer guide pass (2026-09-09)
+
+Same-day companion to the WotLK re-rate: the two SoD healer files were the era's last 7-lane triage specs; both now match their published playstyle priority.
+
+| Healer | Lanes | What the pass added | Evidence |
+|---|---|---|---|
+| Resto shaman | 7 → 12 | Earth Shield upkeep (408514 leg-rune cast; 408519 is the proc heal, NOT a cast — DBC SkillLineAbility + Wowhead), Nature's Swiftness+HW emergency pair (16188; druid uses 17116 — SLA rows prove the split), Mana Tide (held while a water totem occupies the slot) | Wowhead SoD shaman-healer best-runes guide; pins in `test_sod_rogue_shaman_rotations` + matrix rows |
+| Resto druid | 7 → 11 | Swiftmend (18562 — the Efflorescence rune 417149 is the passive rider, no separate lane), NS+HT pair (17116), Innervate (29166 only; 29167 is the item-indexed buff id, audit-caught), Rebirth (30-min CD at 60, NOT the WotLK 10-min) | Wowhead SoD druid-healer rune guide; pins in `test_sod_druid_hunter` + matrix rows |
+
+Both fire in the battery's SoD-scoped `sod_ns_burst` scenario, never-fires=0; new rune ids pinned in SOD_RUNE_IDS (65). Same honest ceiling as the WotLK wave — guide-conformance is not sim-conformance, and no SoD sim project exists (gap 4 above).
+
 So the honest ranking of the 132 rated specs: ~27 are order-pinned to a real sim **and** behavior-pinned; ~50 more are behavior-pinned against references; healers beyond WotLK priest, vanilla, and SoD are behavior-pinned with no external benchmark. That is a very high floor — and exactly why "flawless" is refused.
 
-*Gates at record time: 563/563 suites green, verify_all exit 0, luac clean, scorecard in sync. Rotation wave + healer expansion shipped via PR #14 (merged 2026-09-09); this page updated 2026-09-09.*
+*Gates at record time: 563/563 suites green, verify_all exit 0, luac clean, scorecard in sync. Rotation wave + healer expansion shipped via PR #14; holy-priest guide-gap lanes via PR #15 (both merged 2026-09-09); SoD healer pass + TBC druid/caster completion committed locally as `3205ca00` (not yet merged). This page updated 2026-09-09.*
