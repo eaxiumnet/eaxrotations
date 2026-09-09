@@ -671,3 +671,13 @@ Suite pins extended (no new suites; 563 stable): `test_resto_wotlk_dsl_priority`
 lua EaxRotations/tests/behavioral_audit.lua wotlk   # 0 never across all 41 specs
 ```
 
+## Addendum 2026-09-09 (b) — holy priest guide-gap lanes: Desperate Prayer + Lightwell
+
+The healing deep-rate's last two holy-priest omissions closed. `classes/priest/holy_wotlk.lua` 6 -> 8 strategies:
+
+- **DesperatePrayer** (ladder 25437 max / 19243..13908, talent spell so the ladder is TBC-capped; 2-min CD): self-save at <= 30% own hp (inclusive band, matching the PainSuppression idiom), slotted directly under GuardianSpirit — you cannot heal anyone while dead. Reads the real engine field `context.player_hp` (engine alias of `context.hp`, main_sylvanas.lua:807), not a phantom read.
+- **Lightwell** (ladder 48087 r6 max / 48086 / TBC-era 28275/27871/27870/7001; 3-min CD): sustained raid pressure at 3+ `party_injured_count`, slotted before CircleOfHealing (raid-sustain placement, not a spike response).
+
+Order: GuardianSpirit -> DesperatePrayer -> GreaterHeal -> Lightwell -> CircleOfHealing -> Renew -> PrayerOfMending -> FlashHeal. Sim-APL block (GreaterHeal/CoH/Renew/PoM) unchanged and still conformance-mapped (test_apl_conformance 153/153).
+
+Pins: `test_priest_holy_wotlk_strategies` +7 fire/hold sides (inclusive 30% band, cooldown holds via a keyed spell_ready mock); `test_holy_priest_wotlk_dsl_priority` order array + positional GreaterHeal execute pin updated (17/17). Battery: priest/holy 8 strategies never-fires=0 in druid_wotlk_wildgrowth (3 injured) / druid_wotlk_tranquility (4 injured) / low_self-family (player_hp 15) windows — no new scenarios needed. Spell audit: +14 Wowhead-verified VALID_RANK_ALIAS entries (allowlist 194 -> 208; note 48084/48085 are the Lightwell Renew buffs, excluded), size pin updated. Scorecard/badges/era-pair seed regenerated; suite count unchanged (no new suites).

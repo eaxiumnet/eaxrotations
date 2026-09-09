@@ -302,7 +302,7 @@ return {
     {
         spec = "priest/holy",
         missing_in = "wotlk",
-        names = { "AbolishDisease", "BindingHeal", "ClearcastingGreaterHeal", "CureDisease", "DesperatePrayer", "DispelMagic", "EmergencyFlashHeal", "EmergencyPWS", "EncounterReactions", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "Healthstone", "IdleHolyFire", "IdleSWP", "IdleSmite", "InnerFocus", "Lightwell", "ManaBelow5Wand", "ManaPotion", "MassDispel", "MountedProtection", "PrayerOfHealing", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewSpread", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SurgeOfLightSmite", "SymbolOfHope", "UnavailableClassicPriestHealA" },
+        names = { "AbolishDisease", "BindingHeal", "ClearcastingGreaterHeal", "CureDisease", "DispelMagic", "EmergencyFlashHeal", "EmergencyPWS", "EncounterReactions", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "Healthstone", "IdleHolyFire", "IdleSWP", "IdleSmite", "InnerFocus", "ManaBelow5Wand", "ManaPotion", "MassDispel", "MountedProtection", "PrayerOfHealing", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewSpread", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SurgeOfLightSmite", "SymbolOfHope", "UnavailableClassicPriestHealA" },
         reason = "WotLK-era build-out: priest_holy_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

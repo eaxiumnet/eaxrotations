@@ -23,18 +23,27 @@ local injured_count = 0
 local lowest_hp = 100
 local gs_up = false
 local renew_remains = 0
+local player_hp_pct = 100
+local ready_map = {}   -- per-spell-id readiness for the spell_ready lanes
 
 local function reset_env()
     friendly_hp, mana, injured_count, lowest_hp = 100, 100, 0, 100
     gs_up, renew_remains = false, 0
+    player_hp_pct = 100
+    ready_map = {}
 end
 
 local function renew(secs) renew_remains = secs end
 local function gs(up) gs_up = up or false end
 
 _G.EaxRotations = {
-    me = { get_health_percentage = function() return 100 end },
+    me = { get_health_percentage = function() return player_hp_pct end },
     GetPlayer = function() return _G.EaxRotations.me end,
+    spell_ready = function(action)
+        -- suite mock: define_action resolves a ladder to its first id, so
+        -- readiness is keyed by 25437 (Desperate Prayer) / 48087 (Lightwell).
+        return ready_map[action] ~= false
+    end,
     buff_up = function(unit, ids)
         for _, id in ipairs(ids) do
             if id == 47788 and gs_up then return true end
@@ -136,6 +145,28 @@ assert_lane("Renew blocked at the 3.0s boundary", "Renew", function() renew(3) e
 -- ============================================================================
 assert_lane("Prayer of Mending is ungated (matches any state)", "PrayerOfMending",
     function() end, true)
+
+-- ============================================================================
+-- DesperatePrayer: self-save at <= 30% own hp (2026-09-09 guide-gap lane).
+-- ============================================================================
+assert_lane("Desperate Prayer fires at 29% own hp", "DesperatePrayer",
+    function() player_hp_pct = 29 end, true)
+assert_lane("Desperate Prayer fires at the 30% boundary (inclusive band)", "DesperatePrayer",
+    function() player_hp_pct = 30 end, true)
+assert_lane("Desperate Prayer blocked at 31% own hp", "DesperatePrayer",
+    function() player_hp_pct = 31 end, false)
+assert_lane("Desperate Prayer blocked on cooldown", "DesperatePrayer",
+    function() player_hp_pct = 15; ready_map[25437] = false end, false)
+
+-- ============================================================================
+-- Lightwell: sustained raid pressure — 3+ injured (2026-09-09 guide-gap lane).
+-- ============================================================================
+assert_lane("Lightwell fires with 3 injured", "Lightwell",
+    function() injured_count = 3; lowest_hp = 50 end, true)
+assert_lane("Lightwell blocked with 2 injured", "Lightwell",
+    function() injured_count = 2; lowest_hp = 50 end, false)
+assert_lane("Lightwell blocked on cooldown", "Lightwell",
+    function() injured_count = 4; lowest_hp = 40; ready_map[48087] = false end, false)
 
 -- ============================================================================
 -- FlashHeal: lowest below 70% + mana >= 20.

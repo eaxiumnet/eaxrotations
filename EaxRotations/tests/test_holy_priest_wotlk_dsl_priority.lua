@@ -105,8 +105,10 @@ function tests.priority_order()
     -- Order matches the wowsims healing-priest APL evaluation order (2026-08-10
     -- pure order move): GreaterHeal -> CircleOfHealing -> Renew -> PrayerOfMending
     -- per the pinned holy.apl.json. W3.3 added CircleOfHealing at its exact APL
-    -- slot (index 3), gated on 2+ injured party members.
-    local expected = { "GuardianSpirit", "GreaterHeal", "CircleOfHealing", "Renew", "PrayerOfMending", "FlashHeal" }
+    -- slot (index 3), gated on 2+ injured party members. 2026-09-09 guide-gap
+    -- lanes: DesperatePrayer (self-save, slot 2) and Lightwell (sustained raid
+    -- pressure, slot 4) — both outside the sim APL, flanking it per guide.
+    local expected = { "GuardianSpirit", "DesperatePrayer", "GreaterHeal", "Lightwell", "CircleOfHealing", "Renew", "PrayerOfMending", "FlashHeal" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -180,8 +182,9 @@ tests.test_heals_use_lowest_friendly_target = function()
     local state = build_state(ctx)
     if state.target_hp ~= 35 then return false, "Holy priest should score the lowest friendly unit" end
     last_execute_target = nil
-    -- GreaterHeal is index 2 post-2026-08-10 order move (was 4).
-    if not strategies[2].execute(ctx, state) then return false, "Greater Heal should execute" end
+    -- GreaterHeal is index 3 after the 2026-09-09 DesperatePrayer insert
+    -- (index 2 is the self-save lane).
+    if not strategies[3].execute(ctx, state) then return false, "Greater Heal should execute" end
     if last_execute_target ~= ally then return false, "Greater Heal should target the lowest friendly unit" end
     return true
 end

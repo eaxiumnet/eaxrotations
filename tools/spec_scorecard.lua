@@ -987,10 +987,12 @@ aadd('1. **Two niche rules are filed as “the rig cannot construct the moment�
       .. 'would break another rule’s test contract). Both are deliberately classified '
       .. 'with written reasons rather than forced.')
 aadd('2. **Healers.** Only WotLK holy and discipline priest cast orders are checked '
-      .. 'against a real healing simulator. Holy paladin, resto druid and resto '
-      .. 'shaman are validated internally (every rule fires under test) but have no '
-      .. 'comparative sim benchmark — the simulator repos ship no implemented '
-      .. 'rotation for them.')
+      .. 'against a real healing simulator — the simulator repos ship no '
+      .. 'implemented rotation for any other healer, so no healer has a comparative '
+      .. 'sim benchmark. The full WotLK healer tier (resto druid, holy paladin, resto '
+      .. 'shaman, holy + discipline priest) is guide-validated: every spec matches its '
+      .. 'published playstyle priority (Icy-Veins / wowsims APL fixtures) with every '
+      .. 'rule proven to fire; TBC healers carry the same depth.')
 aadd('3. **Leveling rotations** are behavior-validated but have no simulator fixtures '
       .. '(simulators model max-level raid fights).')
 aadd('4. **Vanilla and Season of Discovery** have no simulator project to compare '

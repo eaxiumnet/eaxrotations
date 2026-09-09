@@ -74,10 +74,24 @@ All eight items from the corpus' `VERIFY_LIST.md` require **wowsims execution or
 
 1. **No end-to-end DPS sim of EaxRotations' actual decisions.** Conformance checks order; it does not run this rotation inside a damage sim and compare output. A priority order can be conformant yet lose a few percent to a subtle interaction (a refresh window a fraction too wide, a proc window not held for).
 2. **TBC has no executed simulator here** — those specs are validated against community reference orders, not a sim engine's output. Weaker than WotLK's ceiling.
-3. **Healers beyond WotLK holy/disc priest are internally validated only** (resto druid/shaman, holy paladin, TBC healers) — no implemented sim rotation exists to compare against (recorded in `tools/evidence/apl/SOURCES.md`); this is why roadmap P2 is OPEN by design.
+3. **No healer has a comparative sim benchmark.** Only WotLK holy/disc priest have APL fixtures (the sim repos ship no implemented rotation for any other healer — `tools/evidence/apl/SOURCES.md`), which is why roadmap P2 stays OPEN by design. The *validation* gap is closed, though: the 2026-09-09 healer wave expanded every WotLK healer to its published guide priority (resto druid 7→11, holy paladin 5→9, resto shaman 7→10, discipline 4→6 lanes — see “WotLK healer tier re-rate” below).
 4. **Vanilla + SoD have no sim project at all** — they reach S (every rule fires), never S+.
 5. **No live-client verification.** Everything runs against mocked WoW state; a state-read bug (wrong debuff ID, wrong power type) shared by the mocks and the code would pass everything here and only surface in game.
 
+### WotLK healer tier re-rate (2026-09-09)
+
+The healer expansion wave moved the WotLK healer tier from the pre-wave state (thin priority skeletons, 4–7 lanes per file) to full guide-priority depth. Current state per spec:
+
+| Healer | Lanes | What the wave added | Evidence |
+|---|---|---|---|
+| Resto druid | 7 → 11 | Nature's Swiftness+HT emergency pair, Rebirth battle-rez (`find_dead_party_ally`), Tranquility (3+ injured, ≤50% band, 8-min CD) | Icy-Veins WotLK resto druid rotation page; TBC sibling idiom; fire/hold pins in `test_resto_wotlk_dsl_priority` (24→32) |
+| Holy paladin | 5 → 9 | Seal of Wisdom upkeep, Judgement-on-CD (≤90% mana, JoW uptime), Divine Favor+Holy Light combo, Divine Plea (≤50% mana) | Icy-Veins WotLK holy paladin rotation page; pins in `test_holy_wotlk_dsl_priority` (14→22) |
+| Resto shaman | 7 → 10 | Nature's Swiftness+HW emergency pair (NS id 16188), Tidal Waves 2-stack → Healing Wave priority | Icy-Veins WotLK resto shaman rotation page; pins in the restoration suite |
+| Discipline priest | 4 → 6 | Pain Suppression (≤30% save, leads the order), Power Infusion (≤45% pressure) | wowsims `disc.apl.json` `autocastOtherCooldowns` made concrete; pins in `test_discipline_wotlk_dsl_priority` (8→12) |
+| Holy priest | unchanged | already the tier's strongest (A− pre-wave: pinned wowsims order, CoH party gates, Guardian Spirit) | existing pins |
+
+All ten new spell ids are Wowhead-verified and pinned in the WotLK spell-audit allowlist (+10 → 194); the battery's strict never=0 gate holds across all 41 WotLK specs. Remaining honest ceiling: the five gaps above — guide-conformance is not sim-conformance, and nothing here is live-client verified. Deliberate exclusions, unchanged: Tremor/Cleansing Totem and Mass Dispel responses stay in the dispel middleware (one owner per decision), and holy priest was not re-touched.
+
 So the honest ranking of the 132 rated specs: ~27 are order-pinned to a real sim **and** behavior-pinned; ~50 more are behavior-pinned against references; healers beyond WotLK priest, vanilla, and SoD are behavior-pinned with no external benchmark. That is a very high floor — and exactly why "flawless" is refused.
 
-*Gates at record time: 563/563 suites green, verify_all exit 0, luac clean, scorecard in sync, nothing committed.*
+*Gates at record time: 563/563 suites green, verify_all exit 0, luac clean, scorecard in sync. Rotation wave + healer expansion shipped via PR #14 (merged 2026-09-09); this page updated 2026-09-09.*
