@@ -111,6 +111,27 @@ APPLIED · P2 ⏸ OPEN by design (rationale below) · P4 adoption surface
 each with one-line code evidence — **Fade** and **Ret_SealMartyr_Primary**
 (see the P0 exit line).
 
+**Rotation-content waves (2026-09-08/09, post-2.25.0):** guide-priority
+expansion passes over the era spec files, each driven by the published
+playstyle (Icy-Veins / Wowhead / wowsims fixtures) and verified through the
+live battery:
+- **SoD wave:** every sub-8-strategy spec raised to its published priority
+  (12 specs; SoD battery 158 -> 188 strategies, never=0 held, strict gate).
+  Wowhead-verified rune ids only - unresolvable ids (Binding Heal) and
+  passive-only spells (Aura Mastery) deliberately excluded; new ids pinned
+  in SOD_RUNE_IDS (62 -> 64).
+- **TBC druid caster:** 6 -> 8 - added the Insect Swarm + Starfire lanes its
+  own header already claimed, mirroring the wowsims tbc-new balance
+  APL semantics; ids TBC-bridge-valid.
+- **TBC assassination:** positional builder playstyle - Mutilate gained the
+  era behind-target gate; Sinister Strike fall-through covers the front so
+  SnD/Envenom never stall (26/never=1 unchanged).
+- **Two real OOC bugs fixed by the new pins:** druid-tank Enrage and hunter
+  Aspect of the Hawk matched out of combat; both now carry the standard
+  in-combat gate their sibling lanes use.
+Evidence: docs/scorecard.md SoD+TBC tables, triage-doc addenda (SoD
+2026-08-14, TBC 2026-08-10), docs/PER_CLASS_RESEARCH.md.
+
 ### P0 — Finish the correctness story (~1 week)
 The claim "every era, every spec rated and proven" must be literally true.
 1. **Scorecard all eras** — ✅ **APPLIED 2026-09-06.** `tools/spec_scorecard.lua`

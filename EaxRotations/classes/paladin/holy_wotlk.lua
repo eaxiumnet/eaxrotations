@@ -28,11 +28,24 @@ local ACTION = {
     FlashOfLight = define("FlashOfLight", { 48785, 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
     HolyLight = define("HolyLight", { 48782, 27136, 27135, 25292, 10329, 10328, 3472, 1026, 647, 639, 635 }, "HolyLight"),
     SacredShield = define("SacredShield", 53601, "SacredShield"),
+    -- Mana-game cooldowns (Icy-Veins WotLK holy priority; ids Wowhead-verified).
+    -- DivinePlea 54428 already lives in retribution_wotlk.lua (audit-clean).
+    DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
+    DivineFavor = define("DivineFavor", 20216, "DivineFavor"),
+    -- JoP is the WotLK talent (54152 r5/54154 r1/54155 r2, 15% haste).
+    Judgement = define("Judgement", { 20271, 53407, 53408 }, "Judgement"),
+    SealOfWisdom = define("SealOfWisdom", { 20216, 20166 }, "SealOfWisdom"),
 }
 
 local BEACON_OF_LIGHT_BUFF = { 53563 }
 -- Sacred Shield player buff is 53601 only (lexxer wotlk). 53602/603/604 are unrelated.
 local SACRED_SHIELD_BUFF = { 53601 }
+-- Seal of Wisdom self-aura: seal id = spell id family (20216 r1/20166 r1;
+-- max-rank-first, same table as the ACTION). Judgement of Wisdom's debuff on
+-- the target is NOT gated on a fixed id — judging on cooldown IS max JoW
+-- uptime, and the era-correct effect id varies by seal cast; the debuff read
+-- path stays real (spell_ready) instead of pinning a phantom id.
+local SEAL_OF_WISDOM_BUFF = { 20216, 20166 }
 
 local holy_state = {
     target_hp = 100,
@@ -42,6 +55,8 @@ local holy_state = {
     beacon_up = false,
     sacred_shield_up = false,
     beacon_target = nil,
+    seal_wisdom_up = false,
+    judgement_ready = false,
 }
 
 -- Dedicated Beacon target: first party/group member flagged as tank, else self.
@@ -82,6 +97,10 @@ local function build_state(context)
     -- Sacred Shield is a SELF-ONLY buff in 3.3.5 — checked and cast on self,
     -- never on the lowest-HP ally (the old code bounced it between members).
     state.sacred_shield_up = (me and NS.buff_up and NS.buff_up(me, SACRED_SHIELD_BUFF)) or false
+    -- Mana-game reads (guide: judge on CD, keep SoW up; engine target = the
+    -- hostile combat target, same lane the TBC sibling judges).
+    state.seal_wisdom_up = (me and NS.buff_up and NS.buff_up(me, SEAL_OF_WISDOM_BUFF)) or false
+    state.judgement_ready = (NS.spell_ready and NS.spell_ready(ACTION.Judgement, target)) or false
     return state
 end
 
@@ -131,9 +150,62 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.FlashOfLight, target = "friendly" },
     },
+    -- Mana-game lanes (Icy-Veins WotLK holy priority; TBC sibling
+    -- SealOfWisdomLowMana / DivineFavorHolyLightCombo idiom):
+    {
+        name = "SealOfWisdom",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "seal_wisdom_up", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.SealOfWisdom, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.SealOfWisdom, nil, "[HOLY] Seal of Wisdom upkeep") == true
+        end },
+    },
+    {
+        name = "JudgementOfWisdom",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<=", value = 90 },
+            { type = "state", field = "judgement_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Judgement, context.target, "[HOLY] Judgement of Wisdom") == true
+        end },
+    },
+    {
+        name = "DivineFavorHolyLight",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 75 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+            { type = "spell_ready", spell = ACTION.DivineFavor, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.DivineFavor, nil, "[HOLY] Divine Favor before Holy Light") == true
+        end },
+    },
+    {
+        name = "DivinePlea",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<=", value = 50 },
+            { type = "spell_ready", spell = ACTION.DivinePlea, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.DivinePlea, nil, "[HOLY] Divine Plea mana return") == true
+        end },
+    },
 }
 
 local strategies = {
+    -- Mana-game band first (guide: SoW uptime + judge-on-CD IS the HPS
+    -- engine; Divine Favor buffs the next big Holy Light).
+    { name = "SealOfWisdom" },
+    { name = "JudgementOfWisdom" },
+    { name = "DivineFavorHolyLight" },
+    { name = "DivinePlea" },
     { name = "BeaconOfLight" },
     { name = "SacredShield" },
     { name = "HolyShock" },

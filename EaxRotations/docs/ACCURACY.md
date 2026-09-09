@@ -12,7 +12,7 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 |---|---|
 | Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |
 | Specs rated | 132 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 2468 |
+| Decision rules exercised by the test rig | 2513 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
 | Rules the rig never triggers, each with a filed written reason | 20 |
 | Behavioral test battery | 563 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |

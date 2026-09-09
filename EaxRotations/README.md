@@ -5,9 +5,9 @@
   <strong>TBC Classic Anniversary rotation framework for <a href="https://github.com/aicore/sylvanas">Project Sylvanas</a></strong>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.24.2-blue" alt="Version 2.24.2">
-  <img src="https://img.shields.io/badge/specs-29%20%2B%209%20leveling-brightgreen" alt="29 Specs + 9 Leveling">
-  <img src="https://img.shields.io/badge/tests-523%2F523%20passing-brightgreen" alt="523/523 Tests Passing (rotation suite fully green)">
+  <img src="https://img.shields.io/badge/version-2.25.0-blue" alt="Version 2.25.0">
+  <img src="https://img.shields.io/badge/specs-132%20rated%20(4%20eras)-brightgreen" alt="132 Specs Rated Across 4 Eras (live-gated)">
+  <img src="https://img.shields.io/badge/tests-563%2F563%20passing-brightgreen" alt="563/563 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -15,7 +15,7 @@
 
 ## What Is This?
 
-**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft: The Burning Crusade Classic Anniversary** (client 2.5.5.x) and **Classic Season of Discovery**. The TBC mode covers all **9 classes** across **29 specializations** plus **9 leveling rotations**. The explicit SoD mode adds **20 native class-role rotations** with phase and rune-aware gates, built on the same shared combat engine and safety middleware.
+**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)** and **Season of Discovery**. Across the four eras it ships **132 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **563-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
 
 Every action passes shared safety gates before casting:
 - ✅ Player exists, is alive, and can act
@@ -52,7 +52,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 555 test suites (523 rotation + 32 leveling)
+    tests/                  # 602 test suites (563 rotation + 39 leveling)
 ```
 
 ---
@@ -79,12 +79,12 @@ scripts/
 
 | Feature | Description |
 |---------|-------------|
-| 🎯 **29 Spec Rotations** | 20–40+ strategy entries per spec covering openers, AoE, execute, and defensives |
+| 🎯 **132 Rated Spec Rotations** | 4 eras, every decision rule exercised by the release battery (0 unreachable rules) |
 | 📈 **9 Leveling Rotations** | Auto-loaded for characters under level 70 |
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **555 Test Suites** | 523 rotation + 32 leveling registered; 523 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
+| 🧪 **602 Test Suites** | 563 rotation + 39 leveling registered; 563 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -122,8 +122,8 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 523 rotation suites
-    ├── run_leveling_tests.lua    # 32 leveling suites
+    ├── run_rotation_tests.lua    # 563 rotation suites
+    ├── run_leveling_tests.lua    # 39 leveling suites
     └── test_*.lua                # Individual test files
 ```
 
@@ -175,13 +175,13 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**523 suites**):
+Run the full rotation regression suite (**563 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua
 ```
 
-Run the leveling test suite (**32 suites**):
+Run the leveling test suite (**39 suites**):
 
 ```bash
 lua EaxRotations/tests/run_leveling_tests.lua
@@ -204,7 +204,7 @@ lua EaxRotations/tests/test_fury_custom_matches.lua
 | **Phase 3** | Jun 2026 | Ranged & Caster Supremacy — MultiDoT, TTD gating, shot timer, melee weave |
 | **Phase 4** | Jun 2026 | Warrior & Polish — stance dance, rage dump, healthstone parity, strategy gating dedup |
 
-> ⚠️ *Claim precision:* the phase titles above are marketing shorthand, not measured rankings. What is actually **measured**: DPS/tank strategy priority order is sim-conformant against pinned wowsims APLs (34/34 pass, see `docs/scorecard.md`), **including WotLK holy/disc priest** — wowsims/wotlk has a real, executed healing-priest sim (`sim/priest/healing/healing_priest_test.go` runs `TestDisc`/`TestHoly` with `IsHealer: true` against its APL JSONs, now pinned here). The remaining healers (holy paladin, resto druid/shaman, TBC-era) are validated **internally** (behavioral battery never=0 + regression suites) — those wowsims trees carry engine scaffolding but no implemented rotation, so there is no comparative benchmark for them in or out of this repo. See `docs/scorecard.md` "Why some healer rows show APL = `pending`" for the full rationale.
+> ⚠️ *Claim precision:* the phase titles above are marketing shorthand, not measured rankings. What is actually **measured**: spec cast order is sim-conformant against pinned wowsims APLs — **50/50** pinned specs pass, computed live by `tools/apl_status.lua` (see `docs/scorecard.md` and the plain-language `docs/ACCURACY.md`), **including WotLK holy/disc priest** — wowsims/wotlk has a real, executed healing-priest sim (`sim/priest/healing/healing_priest_test.go` runs `TestDisc`/`TestHoly` with `IsHealer: true` against its APL JSONs, now pinned here). The remaining healers (holy paladin, resto druid/shaman, TBC-era) are validated **internally** (behavioral battery never=0 + regression suites) — those wowsims trees carry engine scaffolding but no implemented rotation, so there is no comparative benchmark for them in or out of this repo. See `docs/scorecard.md` "Why some healer rows show APL = `pending`" for the full rationale.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
@@ -228,6 +228,8 @@ All contributions must pass `luac -p` and the full test suite.
 
 | Document | What You'll Find |
 |----------|-----------------|
+| [docs/ACCURACY.md](docs/ACCURACY.md) | Player-facing accuracy report — what every spec is proven to do, live-gated |
+| [docs/PER_CLASS_RESEARCH.md](docs/PER_CLASS_RESEARCH.md) | Per-class research provenance, mechanic-by-mechanic code verification, and the honest limits |
 | [CHANGELOG.md](CHANGELOG.md) | Full release history with bug fixes, features, and perf wins |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Code style, conventions, and how to submit changes |
 | [docs/TECHNICAL_GUIDE.md](docs/TECHNICAL_GUIDE.md) | Boot sequence, tick trace, runtime boundary, legacy and SoD playstyles |

@@ -24,6 +24,9 @@ local ACTION = {
     HealingWave = define("HealingWave", 49273, "HealingWave"),
     LesserHealingWave = define("LesserHealingWave", 49276, "LesserHealingWave"),
     WaterShield = define("WaterShield", 52127, "WaterShield"),
+    -- Guide emergency enabler (Icy-Veins WotLK resto priority #1; id
+    -- Wowhead-verified 16188, 2 min CD, shares CD with Elemental Mastery).
+    NaturesSwiftness = define("NaturesSwiftness", 16188, "NaturesSwiftness"),
 }
 
 local RIPTIDE_BUFF = { 61301, 61300, 61299, 61295 }
@@ -33,6 +36,11 @@ local EARTH_SHIELD_BUFF = { 49284, 32594, 32593, 974 }
 -- sees them.
 local WATER_SHIELD_BUFF = { 52127 }
 local TIDAL_WAVES_BUFF = { 53390 }
+-- Nature's Swiftness self-buff (aura id = spell id 16188, Wowhead). NS+HW
+-- emergency pair mirrors the resto druid/paladin sibling idiom.
+local NATURES_SWIFTNESS_BUFF = { 16188 }
+local NATURES_SWIFTNESS_EXPECTED_CD = 120  -- 2 min (Wowhead)
+local NS_OPTS = { skip_range = true, expected_cooldown = NATURES_SWIFTNESS_EXPECTED_CD }
 
 local restoration_state = {
     target_hp = 100,
@@ -48,6 +56,7 @@ local restoration_state = {
     water_shield_up = false,
     water_shield_ready = false,
     tidal_waves_stacks = 0,
+    has_natures_swiftness = false,
 }
 
 local function build_state(context)
@@ -84,6 +93,8 @@ local function build_state(context)
     state.water_shield_up = (me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF)) or false
     state.water_shield_ready = (NS.spell_ready and NS.spell_ready(ACTION.WaterShield, me, { skip_range = true })) or false
     state.tidal_waves_stacks = (me and NS.buff_stacks and NS.buff_stacks(me, TIDAL_WAVES_BUFF)) or 0
+    -- Nature's Swiftness self-buff (emergency pair enable state).
+    state.has_natures_swiftness = (me and NS.buff_up and NS.buff_up(me, NATURES_SWIFTNESS_BUFF)) or false
     return state
 end
 
@@ -141,6 +152,20 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.HealingWave, target = "friendly" },
     },
+    -- Tidal Waves exploitation (WotLK resto mechanic the header already
+    -- tracks): with 2 TW stacks after Riptide/Crit, the BIG nuke is the fast
+    -- one — HW (1.5s at 30% haste) beats LHW; also hard-prioritize LHW under
+    -- TW when the target is very low. Guide: consume stacks, never cap them.
+    {
+        name = "TidalWavesHealingWave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "tidal_waves_stacks", op = ">=", value = 2 },
+            { type = "state", field = "target_hp", op = "<", value = 65 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.HealingWave, target = "friendly" },
+    },
     -- Water Shield mana sustain (WotLK resto mechanic): re-apply at low mana
     -- when the shield is down.
     {
@@ -153,13 +178,43 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.WaterShield, target = "self" },
     },
+    -- Guide emergency lanes (Icy-Veins WotLK resto priority #1; NS+HW pair
+    -- mirrors the resto druid/paladin sibling idiom).
+    {
+        name = "NaturesSwiftness",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 30 },
+            { type = "state", field = "has_natures_swiftness", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.NaturesSwiftness, target = "self", opts = NS_OPTS },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.NaturesSwiftness, nil, "[RESTO] Nature's Swiftness", NS_OPTS) == true
+        end },
+    },
+    {
+        name = "NaturesSwiftnessHealingWave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 30 },
+            { type = "state", field = "has_natures_swiftness", op = "truthy" },
+            { type = "spell_ready", spell = ACTION.HealingWave, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.HealingWave, target = "friendly" },
+    },
 }
 
 local strategies = {
+    -- Emergency band first (guide priority #1: instant NS+HW saves), then
+    -- mana cooldown, upkeep, AoE, and the TW-exploiting nuke before the
+    -- slow HW base lane.
+    { name = "NaturesSwiftness" },
+    { name = "NaturesSwiftnessHealingWave" },
     { name = "ManaTideTotem" },
     { name = "EarthShield" },
     { name = "Riptide" },
     { name = "ChainHeal" },
+    { name = "TidalWavesHealingWave" },
     { name = "HealingWave" },
     { name = "LesserHealingWave" },
     { name = "WaterShield" },

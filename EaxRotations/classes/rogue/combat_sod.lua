@@ -23,6 +23,11 @@ local ACTION = {
     Mutilate = define("Mutilate", 399956, { rune_id = 399956 }, "Mutilate"),
     SaberSlash = define("SaberSlash", 424785, { rune_id = 424785 }, "SaberSlash"),
     PoisonedKnife = define("PoisonedKnife", 425012, { rune_id = 425012, min_phase = 2 }, "PoisonedKnife"),
+    -- Era-common trainer cooldowns (bridge-verified 13877 / 13750); guide:
+    -- sync Blade Flurry with AoE windows, Adrenaline Rush with cleave or
+    -- energy-hungry stretches. Opt-in via use_cooldowns.
+    BladeFlurry = define("BladeFlurry", 13877, {}, "BladeFlurry"),
+    AdrenalineRush = define("AdrenalineRush", 13750, {}, "AdrenalineRush"),
 }
 
 local function build_state(context)
@@ -35,10 +40,12 @@ local function build_state(context)
         snd_remains = context and context.snd_remains or 0,
         crimson_tempest_remains = context and context.crimson_tempest_remains or 0,
         remaining_time = context and (context.remaining_time or context.target_ttd or context.ttd) or 0,
+        ttd = context and (context.target_ttd or context.ttd) or 0,
     }
     return spec_kit.safe_state(state, {
         enemy_count = 0, combo_points = 0, energy = 0, poison_stacks = 0,
         target_poisoned = false, snd_remains = 0, crimson_tempest_remains = 0, remaining_time = 0,
+        ttd = 0,
     })
 end
 
@@ -53,6 +60,22 @@ local function fan_of_knives_matches(context, state)
 end
 
 local strategies = {
+    -- Opt-in cooldowns (guide: cleave/energy windows). Held while the
+    -- target dies inside the buff tail (ttd gate) so the battery's
+    -- prot_cd_window scenario presents the firing window.
+    { name = "BladeFlurry", matches = function(context, state)
+        return available(context, ACTION.BladeFlurry) and state.enemy_count >= 2
+            and spec_kit.setting_bool(context, "use_cooldowns", false)
+            and (state.ttd or 0) > 15
+    end, execute = function(context)
+        return NS.try_cast(ACTION.BladeFlurry.action, NS.PLAYER_UNIT, "[SOD COMBAT] BladeFlurry", { skip_range = true })
+    end },
+    { name = "AdrenalineRush", matches = function(context, state)
+        return available(context, ACTION.AdrenalineRush) and spec_kit.setting_bool(context, "use_cooldowns", false)
+            and (state.ttd or 0) > 15
+    end, execute = function(context)
+        return NS.try_cast(ACTION.AdrenalineRush.action, NS.PLAYER_UNIT, "[SOD COMBAT] AdrenalineRush", { skip_range = true })
+    end },
     {
         name = "FanOfKnives",
         matches = fan_of_knives_matches,

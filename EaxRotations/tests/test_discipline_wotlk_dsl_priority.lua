@@ -70,6 +70,9 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                             if cond.op == "falsy" and val ~= false and val ~= nil and val ~= 0 then return false end
                             if cond.op == "truthy" and not val then return false end
                             if cond.op == "<" and (val or 0) >= (cond.value or 0) then return false end
+                            -- "<=" mirrors the real strategy_dsl evaluator
+                            -- (2026-09-09 healer wave: PS/PI emergency bands).
+                            if cond.op == "<=" and (val or 0) > (cond.value or 0) then return false end
                         elseif cond.type == "custom" and cond.fn then
                             if not cond.fn(context, state) then return false end
                         end
@@ -102,7 +105,10 @@ local tests = {}
 local passed = 0
 local failed = 0
 function tests.priority_order()
-    local expected = { "PowerWordShield", "Penance", "PrayerOfMending", "Renew" }
+    -- Healer wave (2026-09-09): PainSuppression (emergency save) leads,
+    -- the pinned APL order PWS -> Penance -> PoM -> Renew is unchanged,
+    -- PowerInfusion (pressure cooldown) trails.
+    local expected = { "PainSuppression", "PowerWordShield", "Penance", "PrayerOfMending", "Renew", "PowerInfusion" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -152,6 +158,12 @@ tests.test_PrayerOfMending_always_matches = test_match("PrayerOfMending", {}, tr
 tests.test_Renew_matches_when_expiring = test_match("Renew", { renew_remains = 2 }, true)
 tests.test_Renew_does_not_match_when_fresh = test_match("Renew", { renew_remains = 10 }, false)
 
+-- Healer wave pins (2026-09-09): disc cooldown identity.
+tests.test_PainSuppression_fires_in_emergency = test_match("PainSuppression", { target_hp = 25 }, true)
+tests.test_PainSuppression_holds_when_stable = test_match("PainSuppression", { target_hp = 60 }, false)
+tests.test_PowerInfusion_fires_under_pressure = test_match("PowerInfusion", { target_hp = 40 }, true)
+tests.test_PowerInfusion_holds_when_healthy = test_match("PowerInfusion", { target_hp = 70 }, false)
+
 tests.test_heals_use_lowest_friendly_target = function()
     local ally = { get_health_percentage = function() return 35 end }
     local ctx = {
@@ -163,7 +175,7 @@ tests.test_heals_use_lowest_friendly_target = function()
     local state = build_state(ctx)
     if state.target_hp ~= 35 then return false, "Discipline should score the lowest friendly unit" end
     last_execute_target = nil
-    if not strategies[2].execute(ctx, state) then return false, "Penance should execute" end
+    if not strategies[3].execute(ctx, state) then return false, "Penance should execute" end
     if last_execute_target ~= ally then return false, "Penance should target the lowest friendly unit" end
     return true
 end

@@ -2335,6 +2335,18 @@ M.SCENARIOS = {
     -- fight Wild Growth exists for. No other spec/lane reads
     -- party_injured_count, so the override is additive-safe.
     { name = "druid_wotlk_wildgrowth", overrides = { party_injured_count = 3, lowest_hp = 55, mana_pct = 90, friends_hp = { 55, 70, 85 }, friend_class = 11 } },
+    -- WotLK healer wave (2026-09-09): resto_wotlk guide cooldown lanes.
+    --   * Tranquility gates on party_injured_count >= 3 + lowest <= 50 (party
+    --     burst band); the wildgrowth scenario's lowest 55 misses it, so this
+    --     scenario presents the emergency band it exists for.
+    --   * NaturesSwiftnessHealingTouch spends the NS aura (17116 presented via
+    --     the map-aware buff_up) on an instant max-rank HT at lowest <= 30;
+    --     the plain NS lane still fires in group_critical (buff down, lowest
+    --     30 <= 30 gate), so the pair is observable both sides.
+    -- party_injured_count consumers (ChainHeal/CoH/WildGrowth) only gain an
+    -- additive window; no lane loses one, so never-lists are unchanged.
+    { name = "druid_wotlk_tranquility", overrides = { party_injured_count = 4, lowest_hp = 40, mana_pct = 80, friends_hp = { 40, 60, 80 }, friend_class = 11 } },
+    { name = "druid_wotlk_ns_burst",    overrides = { buff_up_map = { [17116] = true }, lowest_hp = 25, mana_pct = 80, friends_hp = { 25, 70, 90 }, friend_class = 11 } },
     -- W3.4 balance_wotlk (2026-08-13): lunar-phase Eclipse spell-switch — the
     -- Starfire lane reads eclipse_lunar (48518, buff_remains_map-aware NS.buff_up)
     -- mirroring the pinned wowsims APL's Starfire-on-lunar gate; the scenario
@@ -2836,6 +2848,11 @@ M.SCENARIOS = {
     --     totem_active presents one through the bank-aware NS.get_totem_info,
     --     and the 3-enemy count clears the AoE gate.
     { name = "resto_party_injured", overrides = { party_injured_count = 2, lowest_hp = 50, mana_pct = 27 } },
+    -- Tidal Waves window (WotLK healer wave): TidalWavesHealingWave fires at
+    -- 2 TW stacks (buff_stacks map 53390) with the lowest ally at 55 (< 65
+    -- band, above the 30 emergency band so the NS lanes stay in their own
+    -- scenarios). 53390 is resto-shaman-scoped; no other spec's lane reads it.
+    { name = "resto_tidal_waves", overrides = { lowest_hp = 55, mana_pct = 40, buff_remains_map = { [53390] = 2 } } },
     { name = "enh_fire_totem_up",    overrides = { enemy_count = 3, enemies_count = 3, totem_active = true } },
     -- W3.3 priest wotlk REAL-FIELD scenarios (2026-08-13): the four priest
     -- *_wotlk.lua fixes read production fields (context.mana_pct,
@@ -3314,6 +3331,35 @@ M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
 -- 6788 debuff in the primary-target map.
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
     { name = "sod_weakened_soul", overrides = { friendly_target_hp = 60, debuff_remains_map = { [6788] = 3 } } }
+-- Paladin retribution seal-up posture: Judgement gates on the Seal of
+-- Martyrdom buff (348700) being up, while the SealMartyr upkeep lane holds
+-- while it is. buff_remains_map feeds the map-aware NS.buff_up (build_state
+-- reads the same id the TBC retribution spec's SEAL_MARTYR_BUFF carries);
+-- the id is only read by retribution_sod inside the SoD era, so no other
+-- spec's never-set can move.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_seal_up", overrides = { buff_remains_map = { [348700] = 20 } } }
+-- SoD expanded-spec firing windows (era-scoped: no other era's never-set moves).
+-- Druid tank Growl: fires only on a real threat readout (target_threat_pct < 60
+-- = the mob is headed elsewhere); fails closed without the field, so the
+-- scenario presents it. Never wastes the taunt on a held mob.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_threat_seeking", overrides = { in_combat = true, form = 1, threat_pct = 0 } }
+-- Druid tank Enrage (rage < 10, no combat gate) + hunter/mark state reads.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_rage_starved", overrides = { rage = 5 } }
+-- Ret Divine Shield band (15 < hp <= 20; Lay on Hands owns <=15 per the
+-- Forbearance exclusivity comment in retribution_sod).
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_defensive_band", overrides = { in_combat = true, hp = 18 } }
+
+-- Rogue combat opt-in cleave window: BladeFlurry gates on enemy_count >= 2
+-- + use_cooldowns + ttd > 15, a combo no shared scenario presents (the
+-- shared cd_window carries no enemy_count and is era-shared, so widening it
+-- would move other eras' never-sets). AdrenalineRush (no enemy gate) fires
+-- in prot_cd_window; this scenario gives BladeFlurry its firing window.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_cleave_cd", overrides = { in_combat = true, enemy_count = 2, enemies_count = 2, ttd = 60, target_ttd = 60, setting_overrides = { use_cooldowns = true } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

@@ -31,6 +31,11 @@ local ACTION = {
     -- 48113; a single 33076 is a TBC-era cap that never fires at 80.
     PrayerOfMending = define("PrayerofMending", { 48113, 48112, 33076 }, "PrayerofMending"),
     Renew = define("Renew", { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+    -- Cooldown identity (wowsims APL action 1 'autocastOtherCooldowns' made
+    -- concrete; ids Wowhead-verified). MassDispel 32375 stays in
+    -- dispel_manager (magic_mass middleware owner) — not a rotation lane.
+    PainSuppression = define("PainSuppression", 33206, "PainSuppression"),
+    PowerInfusion = define("PowerInfusion", 10060, "PowerInfusion"),
 }
 
 local WEAKENED_SOUL_DEBUFF = { 6788 }
@@ -60,12 +65,34 @@ local function build_state(context)
 end
 
 local DSL_DEFS = {
+    -- Tank/ally save (Wowhead: 40% damage reduction, 8s): the disc cooldown
+    -- identity — hold it for the <= 30 emergency band.
+    {
+        name = "PainSuppression",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<=", value = 30 },
+            { type = "spell_ready", spell = ACTION.PainSuppression, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.PainSuppression, target = "friendly" },
+    },
     {
         name = "PowerWordShield",
         conditions = {
             { type = "state", field = "weakened_soul_up", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.PowerWordShield, target = "friendly" },
+    },
+    -- 20% haste / -20% mana (15s) under healing pressure; the APL's
+    -- autocastOtherCooldowns casts it on CD when damage is heavy.
+    {
+        name = "PowerInfusion",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<=", value = 45 },
+            { type = "spell_ready", spell = ACTION.PowerInfusion, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.PowerInfusion, target = "self" },
     },
     {
         name = "Penance",
@@ -87,10 +114,14 @@ local DSL_DEFS = {
 }
 
 local strategies = {
+    -- Save first (emergency band outranks the shield-spam engine), then the
+    -- pinned APL order PWS -> Penance -> PoM -> Renew, then PI under pressure.
+    { name = "PainSuppression" },
     { name = "PowerWordShield" },
     { name = "Penance" },
     { name = "PrayerOfMending" },
     { name = "Renew" },
+    { name = "PowerInfusion" },
 }
 
 for i = 1, #strategies do

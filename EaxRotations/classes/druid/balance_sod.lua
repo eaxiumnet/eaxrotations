@@ -17,6 +17,8 @@ local ACTION = {
     Starfall = define("Starfall", 439748, { rune_id = 439748, min_phase = 4 }, "Starfall"),
     Starfire = define("Starfire", { 25298, 9876 }, {}, "Starfire"),
     Wrath = define("Wrath", { 9912, 8905 }, {}, "Wrath"),
+    -- Era-common trainer ladder (TBC bridge max rank 27013).
+    InsectSwarm = define("InsectSwarm", { 27013, 24977, 24976, 24975, 24974, 5570 }, {}, "InsectSwarm"),
 }
 
 local function aura_up(context, key, unit, ids)
@@ -36,7 +38,8 @@ local function build_state(context)
         has_starsurge_aura = aura_up(context, "has_starsurge_aura", context.me, { 417157 }),
         moonfire_remains = remains(context, "moonfire_remains", target, { 9835 }),
         sunfire_remains = remains(context, "sunfire_remains", target, { 414684 }),
-    }, { moonfire_remains = 0, sunfire_remains = 0 })
+        insect_swarm_remains = remains(context, "insect_swarm_remains", target, { 5570 }),
+    }, { moonfire_remains = 0, sunfire_remains = 0, insect_swarm_remains = 0 })
 end
 
 local function base(context, descriptor)
@@ -62,7 +65,10 @@ local strategies = {
       execute = function(c) return cast(ACTION.Sunfire, c, "Sunfire") end },
     { name = "Starfall", matches = function(c) return base(c, ACTION.Starfall) and ready(ACTION.Starfall, c.target) end,
       execute = function(c) return cast(ACTION.Starfall, c, "Starfall") end },
-    { name = "Starfire", matches = function(c) return base(c, ACTION.Starfire) and ready(ACTION.Starfire, c.target) end,
+    -- Third dot maintenance (Icy-Veins SoD balance priority).
+    { name = "InsectSwarm", matches = function(c, s) return base(c, ACTION.InsectSwarm) and s.insect_swarm_remains <= 0 and ready(ACTION.InsectSwarm, c.target) end,
+      execute = function(c) return cast(ACTION.InsectSwarm, c, "Insect Swarm") end },
+    { name = "Starfire", matches = function(c, s) return base(c, ACTION.Starfire) and s.has_starsurge_aura and ready(ACTION.Starfire, c.target) end,
       execute = function(c) return cast(ACTION.Starfire, c, "Starfire") end },
     { name = "Wrath", matches = function(c) return base(c, ACTION.Wrath) and ready(ACTION.Wrath, c.target) end,
       execute = function(c) return cast(ACTION.Wrath, c, "Wrath") end },

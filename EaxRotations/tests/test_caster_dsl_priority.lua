@@ -121,6 +121,7 @@ local function make_state(overrides)
         hp_pct = 100,
         mana_pct = 100,
         moonfire_remains = 0,
+        insect_remains = 0,
         ff_remains = 0,
         innervate_ready = false,
         in_combat = false,
@@ -189,6 +190,30 @@ assert_true(moonfire.matches(make_ctx(), make_state({ moonfire_remains = 0 })),
     "Moonfire matches when debuff expired")
 assert_false(moonfire.matches(make_ctx(), make_state({ moonfire_remains = 8 })),
     "Moonfire skips when debuff is still fresh")
+
+-- ============================================================================
+-- InsectSwarm equivalence (TBC guide: second DoT, refresh <=2s, mana floor)
+-- ============================================================================
+local insectswarm = find_strategy("InsectSwarm")
+assert_true(insectswarm.matches(make_ctx(), make_state({ insect_remains = 0 })),
+    "InsectSwarm matches when debuff expired")
+assert_false(insectswarm.matches(make_ctx(), make_state({ insect_remains = 8 })),
+    "InsectSwarm skips when debuff is still fresh")
+assert_false(insectswarm.matches(make_ctx(), make_state({ insect_remains = 0, mana_pct = 5 })),
+    "InsectSwarm holds at the mana floor")
+
+-- ============================================================================
+-- Starfire equivalence (static filler; movement falls through to Wrath)
+-- ============================================================================
+local starfire = find_strategy("Starfire")
+assert_true(starfire.matches(make_ctx({ is_moving = false }), make_state()),
+    "Starfire matches when stationary")
+assert_false(starfire.matches(make_ctx({ is_moving = true }), make_state()),
+    "Starfire skips while moving")
+assert_true(index_of("Starfire") < index_of("Wrath"),
+    "Starfire outranks Wrath as the default filler")
+assert_true(index_of("InsectSwarm") < index_of("Starfire"),
+    "InsectSwarm outranks the fillers (guide dot priority)")
 
 -- ============================================================================
 -- Wrath equivalence

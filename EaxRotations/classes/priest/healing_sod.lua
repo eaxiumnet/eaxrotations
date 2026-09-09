@@ -1,7 +1,12 @@
 -- healing_sod.lua -- Priest healing rotation for Season of Discovery.
--- WHAT: emergency Penance, shielding, direct healing, and Renew triage.
+-- WHAT: emergency Penance, shielding, group raid heals (PoM/CoH), direct healing, and Renew upkeep.
 -- WHEN: SoD runtime with an injured friendly target selected by healer context.
--- WHY: adds the pinned source's implemented Penance path to native healer safety.
+-- WHY:  the corpus file cast only the pinned Penance/PWS/FlashHeal/Renew core; the SoD
+--       healer runes players actually engrave (Wowhead SoD healer rotation guide) --
+--       Prayer of Mending (Legs rune, spell 401859) and Circle of Healing (Gloves rune,
+--       402842) -- were absent. Binding Heal (Cloak engrave 402853) is deliberately NOT
+--       added: its castable SoD ability id is not verifiable from available sources, and
+--       guessing ids breaks the source-audit contract.
 -- SAFETY: absent targets and malformed health/rune state always fail closed.
 
 local NS = _G.EaxRotations
@@ -13,6 +18,11 @@ local define = spec_kit.define_sod_action_for_class({})
 
 local ACTION = {
     Penance = define("SodPenance", 402284, { rune_id = 402174 }, "Penance"),
+    -- Wowhead-verified SoD rune spells (Legs / Gloves). No rune_id gate: the
+    -- engraving ids are not verifiable, and has_sod_rune with a guessed id
+    -- would disable the lanes for players whose rune map keys differ.
+    PrayerOfMending = define("SodPrayerOfMending", 401859, {}, "PrayerOfMending"),
+    CircleOfHealing = define("SodCircleOfHealing", 402842, {}, "CircleOfHealing"),
     PowerWordShield = define("SodPowerWordShield", 10901, {}, "PowerWordShield"),
     FlashHeal = define("SodFlashHeal", 10917, {}, "FlashHeal"),
     Renew = define("SodRenew", 10929, {}, "Renew"),
@@ -24,7 +34,8 @@ local function build_state(context)
         heal_target = lowest and lowest.unit or nil,
         lowest_hp = lowest and (lowest.effective_hp or lowest.hp) or nil,
         has_weakened_soul = lowest and lowest.has_weakened_soul == true or false,
-    }, { lowest_hp = 100 })
+        party_injured_count = type(context) == "table" and context.party_injured_count or nil,
+    }, { lowest_hp = 100, party_injured_count = 0 })
 end
 
 local function heal_matches(context, state, descriptor, threshold)
@@ -57,6 +68,16 @@ local strategies = {
     heal_strategy("PowerWordShield", ACTION.PowerWordShield, 55, function(state)
         return state ~= nil and state.has_weakened_soul ~= true
     end),
+    -- Circle of Healing: raid heal for group damage (2+ injured allies), the
+    -- party_injured_count engine gate mirroring holy_wotlk's parse-critical
+    -- CoH lane. Fires in the shared priest_wotlk_circle_healing battery
+    -- scenario (inherited by SCENARIOS_SOD).
+    heal_strategy("CircleOfHealing", ACTION.CircleOfHealing, 65, function(state)
+        return state ~= nil and (state.party_injured_count or 0) >= 2
+    end),
+    -- Prayer of Mending: efficient bounce heal filling the band above the PWS
+    -- threshold, before raw FlashHeal throughput.
+    heal_strategy("PrayerOfMending", ACTION.PrayerOfMending, 60),
     heal_strategy("FlashHeal", ACTION.FlashHeal, 70),
     heal_strategy("Renew", ACTION.Renew, 90),
 }

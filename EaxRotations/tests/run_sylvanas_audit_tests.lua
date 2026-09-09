@@ -84,7 +84,11 @@ local SOD_RUNE_IDS = {
     [400014] = 400014,  -- rogue/tank_sod.lua:14    (JustAFleshWound)
     [401502] = 401502,  -- mage/dps_mage_sod.lua:19
     [401977] = 401977,  -- priest/shadow_sod.lua:21
+    [401859] = 401859,  -- priest/healing_sod.lua (PrayerOfMending, SoD Legs rune, wowhead-verified)
+    [400613] = 400613,  -- mage/dps_mage_sod.lua (LivingBomb, SoD Helm rune, wowhead-verified)
     [402284] = 402284,  -- priest/healing_sod.lua:15
+    [417045] = 417045,  -- druid/feral_sod.lua (TigersFury, SoD rune, wowhead-verified)
+    [402842] = 402842,  -- priest/healing_sod.lua (CircleOfHealing, SoD Gloves rune, wowhead-verified)
     [402668] = 402668,  -- priest/shadow_sod.lua:17
     [402799] = 402799,  -- priest/shadow_sod.lua:20
     [402911] = 402911,  -- warrior/dps_warrior_sod.lua:16
@@ -114,6 +118,8 @@ local SOD_RUNE_IDS = {
     [412532] = 412532,  -- mage/dps_mage_sod.lua:18
     [412758] = 412758,  -- warlock/tank_sod.lua:13
     [414644] = 414644,  -- druid/tank_sod.lua:16    (Lacerate)
+    [409809] = 409809,  -- druid/tank_sod.lua:15    (SurvivalInstincts, SoD rune, wowhead-verified)
+    [408024] = 408024,  -- druid/tank_sod.lua:15    (SurvivalInstincts buff, wowhead-verified)
     [414684] = 414684,  -- druid/balance_sod.lua:16
     [415073] = 415073,  -- paladin/retribution_sod.lua:16 (Exorcism)
     [415236] = 415236,  -- shaman/restoration_sod.lua:17 (HealingRain)
@@ -555,7 +561,7 @@ local function run_self_tests()
     -- an UNPINNED rune id must fail even in sod mode.
     local sod_pinned_count = 0
     for _ in pairs(SOD_RUNE_IDS) do sod_pinned_count = sod_pinned_count + 1 end
-    expect(sod_pinned_count, 58, "SOD_RUNE_IDS size")
+    expect(sod_pinned_count, 64, "SOD_RUNE_IDS size")
     local dup_runes = {}
     for id in pairs(SOD_RUNE_IDS) do
         if dup_runes[id] then error("duplicate SOD_RUNE_IDS entry: " .. tostring(id)) end

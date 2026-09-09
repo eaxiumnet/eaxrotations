@@ -33,6 +33,15 @@ local ACTION = {
     Lifebloom = define("Lifebloom", { 48451, 33763 }, "Lifebloom"),
     Nourish = define("Nourish", { 50464 }, "Nourish"),
     Innervate = define("Innervate", { 29166 }, "Innervate"),
+    -- Guide cooldowns (Icy-Veins WotLK resto priority #1/#4 + battle rez):
+    -- NS is the emergency enabler (next Nature spell instant), HT its payload,
+    -- Rebirth the per-encounter battle rez (10 min CD, Wowhead), Tranquility
+    -- the party-wide burst channel. Rank ladders mirror leveling_wotlk.lua
+    -- (audit-clean) and the Wowhead-verified WotLK max ranks.
+    NaturesSwiftness = define("NaturesSwiftness", { 17116 }, "NaturesSwiftness"),
+    HealingTouch = define("HealingTouch", { 48378, 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
+    Rebirth = define("Rebirth", { 48477, 26994, 20484 }, "Rebirth"),
+    Tranquility = define("Tranquility", { 48447 }, "Tranquility"),
 }
 
 -- Max-rank-first HoT buff tables: WotLK Rejuv/Regrowth/Lifebloom auras are
@@ -41,6 +50,22 @@ local ACTION = {
 local REJUVENATION_BUFF = { 48441, 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 local REGROWTH_BUFF = { 48443, 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }
 local LIFEBLOOM_BUFF = { 48451, 33763 }
+
+-- Nature's Swiftness self-buff (aura id = spell id 17116, Wowhead). The
+-- NS+HT pair is split across two lanes exactly like the TBC sibling: cast NS
+-- when a critical ally exists and the buff is absent; spend it on Healing
+-- Touch when the buff is present.
+local NATURES_SWIFTNESS_BUFF = { 17116 }
+local NATURES_SWIFTNESS_EXPECTED_CD = 180  -- 3 min (Wowhead)
+local TRANQUILITY_EXPECTED_CD = 600        -- 8 min (Wowhead)
+local REBIRTH_EXPECTED_CD = 600            -- 10 min in WotLK (Wowhead; TBC was 1200)
+
+-- try_cast/spell_ready opts (TBC sibling idiom: skip_range for self-aura CDs,
+-- expected_cooldown feeds the swing-diagnostic drift check).
+local NS_OPTS = { skip_range = true, expected_cooldown = NATURES_SWIFTNESS_EXPECTED_CD }
+local TRANQUILITY_OPTS = { skip_range = true, expected_cooldown = TRANQUILITY_EXPECTED_CD }
+local REBIRTH_OPTS = { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }
+
 
 -- Nourish gains +20% per HoT on the target in WotLK; the gate simply needs a
 -- hurt ally (spot-heal lane), the HoT-bonus math is implicit.
@@ -56,6 +81,7 @@ local resto_state = {
     regrowth_remains = 0,
     lifebloom_remains = 0,
     lifebloom_stacks = 0,
+    has_natures_swiftness = false,
 }
 
 local function build_state(context)
@@ -83,6 +109,9 @@ local function build_state(context)
     state.regrowth_remains = (lowest_unit and NS.buff_remains and NS.buff_remains(lowest_unit, REGROWTH_BUFF)) or 0
     state.lifebloom_remains = (lowest_unit and NS.buff_remains and NS.buff_remains(lowest_unit, LIFEBLOOM_BUFF)) or 0
     state.lifebloom_stacks = (lowest_unit and NS.buff_stacks and NS.buff_stacks(lowest_unit, LIFEBLOOM_BUFF)) or 0
+    -- Nature's Swiftness self-buff (emergency pair enable state, TBC sibling
+    -- resto_sylvanas has_natures_swiftness idiom).
+    state.has_natures_swiftness = (me and NS.buff_up and NS.buff_up(me, NATURES_SWIFTNESS_BUFF)) or false
     return state
 end
 
@@ -181,9 +210,80 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Innervate, target = "self" },
     },
+    -- Guide cooldowns (Icy-Veins WotLK resto priority; mirrors TBC sibling
+    -- resto_sylvanas lanes RebirthBattleRez / NaturesSwiftness pair /
+    -- TranquilityEmergency):
+    {
+        name = "Rebirth",
+        conditions = {
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                -- Group-utility guard (TBC sibling idiom): battle rez is a
+                -- group tool; solo no target exists anyway.
+                local in_group = (context and (context.is_group or context.is_raid))
+                    or (NS.is_in_party and NS.is_in_party())
+                    or (NS.is_in_raid and NS.is_in_raid())
+                if not in_group then return false end
+                local dead = NS.find_dead_party_ally and NS.find_dead_party_ally() or nil
+                if not dead then return false end
+                -- TBC sibling form: is_player is a unit METHOD (mock + live
+                -- engine both expose the callable; accept boolean too).
+                local isp = (type(dead.is_player) == "function") and dead.is_player(dead) or dead.is_player
+                if not isp then return false end
+                local ok, ready = pcall(NS.spell_ready, ACTION.Rebirth, dead, REBIRTH_OPTS)
+                return ok and ready == true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local dead = NS.find_dead_party_ally and NS.find_dead_party_ally() or nil
+            if not dead then return false end
+            return NS.try_cast(ACTION.Rebirth, dead, "[RESTO] Rebirth battle rez", REBIRTH_OPTS) == true
+        end },
+    },
+    {
+        name = "NaturesSwiftness",
+        conditions = {
+            { type = "in_combat" },
+            { type = "state", field = "lowest_hp_pct", op = "<=", value = 30 },
+            { type = "state", field = "has_natures_swiftness", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.NaturesSwiftness, target = "self", opts = NS_OPTS },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.NaturesSwiftness, nil, "[RESTO] Nature's Swiftness", NS_OPTS) == true
+        end },
+    },
+    {
+        name = "NaturesSwiftnessHealingTouch",
+        conditions = {
+            { type = "in_combat" },
+            { type = "state", field = "lowest_hp_pct", op = "<=", value = 30 },
+            { type = "state", field = "has_natures_swiftness", op = "truthy" },
+            { type = "spell_ready", spell = ACTION.HealingTouch, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.HealingTouch, target = "friendly" },
+    },
+    {
+        name = "Tranquility",
+        conditions = {
+            { type = "in_combat" },
+            { type = "state", field = "party_injured_count", op = ">=", value = 3 },
+            { type = "state", field = "lowest_hp_pct", op = "<=", value = 50 },
+            { type = "spell_ready", spell = ACTION.Tranquility, target = "self", opts = TRANQUILITY_OPTS },
+        },
+        action = { type = "custom", fn = function(context, state)
+            -- Channeled, self-centered: cast on self (nil target = self idiom).
+            return NS.try_cast(ACTION.Tranquility, nil, "[RESTO] Tranquility party burst", TRANQUILITY_OPTS) == true
+        end },
+    },
 }
 
 local strategies = {
+    -- Emergency/utility band first (guide priority: NS emergency + battle rez
+    -- outrank HoT upkeep; Rebirth must not sit behind cast-time heals).
+    { name = "NaturesSwiftness" },
+    { name = "NaturesSwiftnessHealingTouch" },
+    { name = "Rebirth" },
+    { name = "Tranquility" },
     { name = "WildGrowth" },
     { name = "Swiftmend" },
     { name = "Lifebloom" },

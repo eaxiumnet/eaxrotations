@@ -29,7 +29,9 @@ assert_eq(type(rotation), "table", "real SoD class module must load")
 assert_eq(NS.rotation_registry.playstyles.combat, rotation.strategies,
     "production class module must register through the real registry")
 
-local strategy = rotation.strategies[1]
+-- BladeFlurry/AdrenalineRush opt-in cooldowns now lead the arc; the
+-- FanOfKnives AoE lane is the first unconditional production strategy.
+local strategy = rotation.strategies[3]
 assert_eq(strategy.name, "FanOfKnives", "source-backed strategy name")
 assert_eq(strategy.matches(context, rotation.build_state(context)), true,
     "equipped rune enables the production strategy")

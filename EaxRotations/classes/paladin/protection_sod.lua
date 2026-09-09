@@ -19,8 +19,26 @@ local ACTION = {
     HammerOfTheRighteous = define("SodHammerOfTheRighteous", 407632, { rune_id = 407632, min_phase = 3 }, "HammerOfTheRighteous"),
     Exorcism = define("SodExorcism", 415073, { min_phase = 2 }, "Exorcism"),
     ShieldOfRighteousness = define("SodShieldOfRighteousness", 440658, { rune_id = 440658, min_phase = 4 }, "ShieldOfRighteousness"),
+    -- Guide priority: baseline Seal of Martyrdom upkeep (348700, same id
+    -- the retri_sod seal lane carries) and seal-gated Judgement on CD.
+    SealMartyr = define("SodSealMartyr", 348700, {}, "SealMartyr"),
+    Judgement = define("SodJudgement", 20271, {}, "Judgement"),
 }
 local HOLY_SHIELD_BUFF = { 20928 }
+local SEAL_MARTYR_BUFF = { 348700 }
+
+-- Seal of Martyrdom drains caster HP per swing (era-correct martyr
+-- mechanic): hold the refresh lane while dangerously low so the upkeep
+-- itself cannot kill the tank.
+local SEAL_HP_FLOOR = 15
+-- Seal resolution mirrors retribution_sod: the real read path is the
+-- player buff map via NS.buff_up, not a context field.
+local function seal_buff_up()
+    if type(NS.buff_up) ~= "function" then return false end
+    local ok, up = pcall(NS.buff_up, NS.GetPlayer and NS.GetPlayer() or nil, SEAL_MARTYR_BUFF)
+    if ok then return up == true end
+    return false
+end
 
 local function build_state(context)
     local charges = context and context.holy_shield_charges or nil
@@ -31,6 +49,7 @@ local function build_state(context)
     return spec_kit.safe_state({
         hp_pct = context and (context.hp_pct or context.hp) or nil,
         holy_shield_charges = charges,
+        seal_up = seal_buff_up(),
     }, { hp_pct = 100, holy_shield_charges = 0 })
 end
 
@@ -53,6 +72,15 @@ local function target_strategy(name, descriptor)
 end
 
 local strategies = {
+    -- Seal upkeep (guide: keep Martyrdom up for holy procs + mana return).
+    -- No target needed; fails safe at the martyr HP floor.
+    { name = "SealMartyr", matches = function(context, state)
+        return available(context, ACTION.SealMartyr, false)
+            and (state and state.seal_up or false) ~= true
+            and (state and state.hp_pct or 100) > SEAL_HP_FLOOR
+    end, execute = function(context)
+        return NS.try_cast(ACTION.SealMartyr.action, NS.PLAYER_UNIT, "[SOD PROTECTION] SealMartyr", { skip_range = true })
+    end },
     {
         name = "LayOnHands",
         matches = function(context, state)
@@ -80,6 +108,14 @@ local strategies = {
             return NS.try_cast(ACTION.HolyShield.action, NS.PLAYER_UNIT, "[SOD PROTECTION] HolyShield", { skip_range = true })
         end,
     },
+    -- Judgement on cooldown with the seal up (the upkeep lane refreshes
+    -- first when it is down); the battery's sod_seal_up scenario
+    -- presents the seal-buff window.
+    { name = "Judgement", matches = function(context, state)
+        return available(context, ACTION.Judgement, true) and (state and state.seal_up or false) == true
+    end, execute = function(context)
+        return NS.try_cast(ACTION.Judgement.action, context.target, "[SOD PROTECTION] Judgement")
+    end },
     target_strategy("AvengersShield", ACTION.AvengersShield),
     target_strategy("HammerOfTheRighteous", ACTION.HammerOfTheRighteous),
     target_strategy("Exorcism", ACTION.Exorcism),

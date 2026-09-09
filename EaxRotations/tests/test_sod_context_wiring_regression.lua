@@ -270,7 +270,7 @@ assert_true(contains_id_set(debuff_remains_calls, { 25203, 25202, 11556, 11555, 
 -- ============================================================================
 package.loaded["classes/druid/feral_sod"] = nil
 local feral = require("classes/druid/feral_sod")
-local runes_feral = { [407988] = true, [409828] = true, [407995] = true }
+local runes_feral = { [407988] = true, [409828] = true, [407995] = true, [417045] = true, [417141] = true }
 local function feral_ctx(with_state)
     local c = { is_sod = true, sod_phase = 8, in_combat = true, target = {}, me = {},
         sod_runes = runes_feral }
@@ -285,8 +285,8 @@ local function feral_ctx(with_state)
 end
 local fc_w = feral_ctx(true)
 local fs_w = feral.build_state(fc_w)
-assert_true(feral.strategies[2].matches(fc_w, fs_w), "feral SavageRoar FIRES with wired in_cat_form")
-assert_true(feral.strategies[4].matches(fc_w, fs_w), "feral Rip FIRES with wired state (5cp, ttd 30)")
+assert_true(feral.strategies[5].matches(fc_w, fs_w), "feral SavageRoar FIRES with wired in_cat_form")
+assert_true(feral.strategies[7].matches(fc_w, fs_w), "feral Rip FIRES with wired state (5cp, ttd 30)")
 local fc_wo = feral_ctx(false)
 local fs_wo = feral.build_state(fc_wo)
 assert_eq(feral.strategies[2].matches(fc_wo, fs_wo), false, "feral SavageRoar SILENT without wired form")
