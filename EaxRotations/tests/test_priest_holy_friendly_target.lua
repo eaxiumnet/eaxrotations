@@ -217,4 +217,44 @@ assert_true(ft_idx < efh_idx, "C10: FriendlyTarget must come BEFORE EmergencyFla
 assert_true(ft_idx < pom_idx, "C10: FriendlyTarget must come BEFORE PrayerOfMending")
 print("  [ PASS ] C10: strategy ordering (first, before all other heals)")
 
+-- C11-C14: Divine Spirit + Inner Fire self-upkeep lanes (2026-09-10 TBC
+-- healer guide-pass, mirror discipline). The NS mock has buff_up absent ->
+-- has_divine_spirit/has_inner_fire read false; spell_ready/spell_exists stubs
+-- return true, so the lanes fire whenever the hold-side gates pass.
+local ds = find_strategy("DivineSpirit")
+local fire = find_strategy("InnerFire")
+reset_ft()
+-- the lane's safe-in-combat gate requires a valid enemy target (or OOC) —
+-- pass has_valid_enemy_target so the fire side is observable in combat
+local ds_fire_ctx = make_context({ has_valid_enemy_target = true })
+assert_true(ds.matches(ds_fire_ctx, base_state({ has_divine_spirit = false, divine_spirit_ready = true })),
+    "C11: DivineSpirit fires when buff down + ready")
+assert_false(ds.matches(ds_fire_ctx, base_state({ has_divine_spirit = true, divine_spirit_ready = true })),
+    "C12: DivineSpirit held while buff already up")
+assert_true(fire.matches(ds_fire_ctx, base_state({ has_inner_fire = false, inner_fire_ready = true })),
+    "C13: InnerFire fires when buff down + ready")
+assert_false(fire.matches(ds_fire_ctx, base_state({ has_inner_fire = true, inner_fire_ready = true })),
+    "C14: InnerFire held while buff already up")
+-- also held when in combat with NO valid target (safe-buff gate)
+assert_false(ds.matches(make_context(), base_state({ has_divine_spirit = false, divine_spirit_ready = true })),
+    "C15: DivineSpirit held in combat without a valid target")
+-- both held when the matching toggle is off
+assert_false(ds.matches(make_context({ settings = { holy_use_divine_spirit = false }, has_valid_enemy_target = true }),
+    base_state({ has_divine_spirit = false, divine_spirit_ready = true })),
+    "C16: DivineSpirit held when holy_use_divine_spirit off")
+assert_false(fire.matches(make_context({ settings = { holy_use_inner_fire = false }, has_valid_enemy_target = true }),
+    base_state({ has_inner_fire = false, inner_fire_ready = true })),
+    "C17: InnerFire held when holy_use_inner_fire off")
+-- ordering: upkeep slots after FearWard, before ShackleUndead
+local ds_idx, fire_idx, fw_idx, su_idx
+for i = 1, #strategies do
+    if strategies[i].name == "DivineSpirit" then ds_idx = i end
+    if strategies[i].name == "InnerFire" then fire_idx = i end
+    if strategies[i].name == "FearWard" then fw_idx = i end
+    if strategies[i].name == "ShackleUndead" then su_idx = i end
+end
+assert_true(ds_idx and fire_idx and fw_idx and su_idx, "C18: upkeep + anchor strategies present")
+assert_true(fw_idx < ds_idx and ds_idx < fire_idx and fire_idx < su_idx, "C18: DivineSpirit/InnerFire between FearWard and ShackleUndead")
+print("  [ PASS ] C11-C18: DivineSpirit + InnerFire upkeep (fire/hold/order)")
+
 print("PASS test_priest_holy_friendly_target")

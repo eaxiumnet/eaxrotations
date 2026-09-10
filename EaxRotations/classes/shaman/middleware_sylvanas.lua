@@ -288,6 +288,49 @@ local strategies = {
         end,
     },
 
+    -- ============================================================================
+    -- OOC Ancestral Spirit: dead party member between pulls (20777 max rank,
+    -- 10s cast; OOC-only so it never races the healing spec's casting loop).
+    -- Mirrors paladin OOCRedeem / priest OOCResurrect / druid ReviveOOC.
+    -- Ladder era-verified (Wowhead TBC): 20777/20776/20610/20609/2008.
+    -- ============================================================================
+    {
+        name = "OOCSpirit",
+        priority = 1000,
+        is_defensive = true,
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "use_resurrection", true) then return false end
+            if context.in_combat then return false end
+            local spell = SPELLS.AncestralSpirit or { id = { 20777, 20776, 20610, 20609, 2008 }, name = "AncestralSpirit" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then return true end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.AncestralSpirit or { id = { 20777, 20776, 20610, 20609, 2008 }, name = "AncestralSpirit" }
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then
+                            return NS.try_cast(spell, member, "[SHAMAN] Ancestral Spirit")
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
     -- Auto-consumable usage
     { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end },
 

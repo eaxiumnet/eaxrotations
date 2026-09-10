@@ -187,7 +187,7 @@ for _, gap_name in ipairs(parity_gaps) do
     end
 end
 
- local expected_count = 37 -- 32 original + ManaPotion + FSRPause + FearWard + MassDispel + ShackleUndead
+ local expected_count = 39 -- 32 original + ManaPotion + FSRPause + FearWard + MassDispel + ShackleUndead + DivineSpirit + InnerFire (2026-09-10 self-buff upkeep)
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
 
 print("PASS test_holy_priest_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/6 parity gaps closed)")

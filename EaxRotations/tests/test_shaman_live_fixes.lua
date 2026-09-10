@@ -169,7 +169,7 @@ package.loaded["shared/potion_helper_sylvanas"] = {
     MANA_POTION_IDS = {},
 }
 package.loaded["shared/aoe_hit_volume_sylvanas"] = { install = function() end }
-package.loaded["shared/tbc_data_sylvanas"] = { SPELLS = { shaman = {} } }
+package.loaded["shared/tbc_data_sylvanas"] = { SPELLS = { shaman = {} }, ITEMS = { flasks = {}, potions = {}, elixirs = {}, food = {}, drinks = {}, weapon_buffs = {}, drums = {} }, BUFFS = {} }
 package.loaded["common/utility/inventory_helper"] = { has_item = function() return nil end }
 package.loaded["shared/cooldown_planner_sylvanas"] = {
     is_major_offensive_cd_active = function() return false end,
@@ -369,5 +369,46 @@ NS.ShamanHealing.all_members_above_hp = function() return true end
 assert_true(rmt.matches(rmt_ctx, rmt_state), "ManaTide fires when group mana low")
 NS.ShamanHealing.group_mana_avg = function() return 90 end
 assert_false(rmt.matches(rmt_ctx, rmt_state), "ManaTide held when group mana high")
+
+-- ============================================================================
+-- 5. Middleware OOCSpirit (2026-09-10 TBC healer guide-pass): OOC rez lane
+--    mirrors paladin OOCRedeem / priest OOCResurrect / druid ReviveOOC —
+--    fires on a dead party member between pulls, held in combat and when
+--    the use_resurrection toggle is off. Ladder 20777/20776/20610/20609/2008
+--    (Wowhead-verified TBC ranks).
+-- ============================================================================
+package.loaded["classes/shaman/middleware_sylvanas"] = nil
+local mw_registry = {}
+NS.register_class_middleware = function(class, list) mw_registry[class] = list end
+local mw_ok, mw = pcall(dofile, "EaxRotations/classes/shaman/middleware_sylvanas.lua")
+assert_true(mw_ok and type(mw) == "table", "shaman middleware must load: " .. tostring(mw))
+local dead_ally = { is_alive = function() return false end }
+local live_ally = { is_alive = function() return true end }
+NS.GetPartyMembers = function() return { dead_ally } end
+local spirit = find_strategy(mw_registry.shaman, "OOCSpirit")
+
+-- fire: OOC + dead party member
+try_cast_records = {}
+local spirit_ctx = { in_combat = false, me = PLAYER, settings = {} }
+assert_true(spirit.matches(spirit_ctx), "OOCSpirit matches OOC with a dead party member")
+assert_true(spirit.execute(spirit_ctx), "OOCSpirit execute casts the rez")
+assert_eq(#try_cast_records, 1, "OOCSpirit made exactly one cast attempt")
+local spirit_ladder
+for _, rec in ipairs(try_cast_records) do
+    if type(rec.spell) == "table" then
+        local ids = rec.spell.ids or (type(rec.spell.id) == "table" and rec.spell.id) or (rec.spell._meta and rec.spell._meta.ids)
+        if type(ids) == "table" then spirit_ladder = ids end
+    end
+end
+assert_true(type(spirit_ladder) == "table" and spirit_ladder[1] == 20777, "OOCSpirit ladder starts at 20777 (TBC max rank)")
+
+-- hold: in combat
+assert_false(spirit.matches({ in_combat = true, me = PLAYER, settings = {} }), "OOCSpirit held in combat")
+-- hold: setting off
+assert_false(spirit.matches({ in_combat = false, me = PLAYER, settings = { use_resurrection = false } }), "OOCSpirit held when use_resurrection off")
+-- hold: everyone alive
+NS.GetPartyMembers = function() return { live_ally } end
+assert_false(spirit.matches({ in_combat = false, me = PLAYER, settings = {} }), "OOCSpirit held when no dead ally")
+NS.GetPartyMembers = function() return { dead_ally } end
 
 print("PASS test_shaman_live_fixes")

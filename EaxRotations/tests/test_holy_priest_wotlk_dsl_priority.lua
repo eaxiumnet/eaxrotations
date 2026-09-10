@@ -108,7 +108,9 @@ function tests.priority_order()
     -- slot (index 3), gated on 2+ injured party members. 2026-09-09 guide-gap
     -- lanes: DesperatePrayer (self-save, slot 2) and Lightwell (sustained raid
     -- pressure, slot 4) — both outside the sim APL, flanking it per guide.
-    local expected = { "GuardianSpirit", "DesperatePrayer", "DivineHymn", "HymnOfHope", "GreaterHeal", "Lightwell", "CircleOfHealing", "Renew", "PrayerOfMending", "FlashHeal" }
+    -- 2026-09-10: DivineSpirit + InnerFire self-upkeep insert at slots 5-6
+    -- (buff-maintenance position, after the emergency/hymn band).
+    local expected = { "GuardianSpirit", "DesperatePrayer", "DivineHymn", "HymnOfHope", "DivineSpirit", "InnerFire", "GreaterHeal", "Lightwell", "CircleOfHealing", "Renew", "PrayerOfMending", "FlashHeal" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -182,9 +184,9 @@ tests.test_heals_use_lowest_friendly_target = function()
     local state = build_state(ctx)
     if state.target_hp ~= 35 then return false, "Holy priest should score the lowest friendly unit" end
     last_execute_target = nil
-    -- GreaterHeal is index 5 after the 2026-09-09 DesperatePrayer insert
-    -- (index 2 is the self-save lane).
-    if not strategies[5].execute(ctx, state) then return false, "Greater Heal should execute" end
+    -- GreaterHeal is index 7 after the 2026-09-10 DivineSpirit/InnerFire
+    -- self-upkeep insert (slots 5-6 follow the self-save/hymn band).
+    if not strategies[7].execute(ctx, state) then return false, "Greater Heal should execute" end
     if last_execute_target ~= ally then return false, "Greater Heal should target the lowest friendly unit" end
     return true
 end

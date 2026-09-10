@@ -770,3 +770,18 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   lanes fire in existing scenarios (mana 100/in_combat for the procs and
   FF; Hurricane needs no new scenario — in_combat + aoe defaults true cover
   the 3-enemy volume gate via the `aoe` scenario).
+
+
+## Addendum 2026-09-10 (d) — holy priest self-upkeep (guide-pass continuation)
+
+- **priest/holy_wotlk.lua 10 -> 12**: DivineSpirit (48073, WotLK max rank r6
+  +80 spirit, single rank — Wowhead-verified) + InnerFire (48168 r9, +2440
+  armor/+120 SP, era reference map covers it). Buff-maintenance slot after the
+  hymn band, before GreaterHeal. Battery: priest/holy 12 strategies, never-fires
+  = 0 (era total still 0). 48073 audit-pinned VALID_RANK_ALIAS; allowlist
+  231 -> 232. Pinned in test_holy_priest_wotlk_dsl_priority.lua (order/insert)
+  — both new lanes fire in the base scenario.
+- **Mortal Strike cross-era verification** (user report follow-up): all four
+  era arms files proven to fire MS through the real files under the capturing
+  mock; vanilla suite MS assert upgraded from boolean-only to fire/hold pins
+  (test_arms_vanilla_strategies.lua).
