@@ -30,6 +30,9 @@ local dance = false       -- Shadow Dance buff (51713) up
 local behind = false
 local daggers = false
 local buffs = {}
+local debuffs = {}    -- [id] = seconds remaining (Rupture hold lane)
+local self_buffs = {} -- [id] = seconds remaining (SnD)
+local ready = true    -- NS.spell_ready result (Preparation lane)
 
 local me = {
     get_health_percentage = function() return 100 end,
@@ -45,6 +48,9 @@ local function reset_env()
     energy, cp = 0, 0
     combat, casting, dance, behind, daggers = true, false, false, false, false
     buffs = {}
+    debuffs = {}
+    self_buffs = {}
+    ready = true
 end
 
 _G.EaxRotations = {
@@ -65,6 +71,19 @@ _G.EaxRotations = {
         end
         return false
     end,
+    buff_remains = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if self_buffs[id] then return self_buffs[id] end
+        end
+        return 0
+    end,
+    debuff_remains = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if debuffs[id] then return debuffs[id] end
+        end
+        return 0
+    end,
+    spell_ready = function() return ready end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -162,5 +181,43 @@ assert_lane("Backstab blocked without daggers equipped", "Backstab",
     function() behind = true; daggers = false; energy = 100 end, false)
 assert_lane("Backstab blocked below 60 energy", "Backstab",
     function() behind = true; daggers = true; energy = 59 end, false)
+
+-- ============================================================================
+-- Hemorrhage: universal builder (energy >= 35, combo < 5). Covers the
+-- Backstab-blocked case (no positional/dagger gate).
+-- ============================================================================
+assert_lane("Hemorrhage fires at 40 energy with 0 combo", "Hemorrhage",
+    function() energy = 40 end, true)
+assert_lane("Hemorrhage blocked below 35 energy", "Hemorrhage",
+    function() energy = 34 end, false)
+assert_lane("Hemorrhage blocked at 5 combo points (finisher range)", "Hemorrhage",
+    function() energy = 100; cp = 5 end, false)
+assert_lane("Hemorrhage still fires without daggers/behind (fallback builder)", "Hemorrhage",
+    function() energy = 40; behind = false; daggers = false end, true)
+
+-- ============================================================================
+-- SliceAndDice: refresh window (< 3s remains) + >= 1 combo point.
+-- ============================================================================
+assert_lane("SliceAndDice fires with SnD down at 1 combo", "SliceAndDice",
+    function() cp = 1 end, true)
+assert_lane("SliceAndDice blocked while SnD is up", "SliceAndDice",
+    function() cp = 2; self_buffs[6774] = 12 end, false)
+assert_lane("SliceAndDice blocked with no combo points", "SliceAndDice",
+    function() cp = 0 end, false)
+
+-- ============================================================================
+-- Rupture: bleed uptime (< 3s remains) + >= 1 combo point.
+-- ============================================================================
+assert_lane("Rupture fires with the bleed down at 1 combo", "Rupture",
+    function() cp = 1 end, true)
+assert_lane("Rupture blocked while the bleed is up", "Rupture",
+    function() cp = 3; debuffs[48672] = 10 end, false)
+
+-- ============================================================================
+-- Preparation: defensive-CD reset (spell_ready gated, fails closed).
+-- ============================================================================
+assert_lane("Preparation fires when ready", "Preparation", function() end, true)
+assert_lane("Preparation blocked while on cooldown", "Preparation",
+    function() ready = false end, false)
 
 print("PASS test_rogue_subtlety_wotlk_strategies")

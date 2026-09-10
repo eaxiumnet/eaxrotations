@@ -325,3 +325,15 @@ code deliverable.
 - `docs/parse_specs/tbc/` — the 9 documented guide divergences (expand in P4).
 - wowsims/wotlk @ 563e4a08 (`tools/evidence/apl/SOURCES.md`) — APL provenance.
 - Platform docs: docs.project-sylvanas.net/dev/ — engine surface + conventions.
+
+---
+
+## 7. Campaign trail (post-draft updates)
+
+- **2026-09-10 — PR #17 merged** (`feat(rotations): WotLK DPS/tank
+  guide-pass, healer close-out, spell-coverage sweep`, rebase-merged as
+  35ab29e3; repo linear-history precedent). Carried the WotLK DPS/tank
+  guide-pass, the healer deep-rate close-out (Divine Hymn, Hymn of Hope,
+  Lay on Hands, disc fillers), the era-wide spell-coverage sweep (SoC AoE,
+  Blast Wave, Maim interrupt, OOC rez lanes), WotLK battery 455 -> 463
+  strategies with never-fires = 0, and all pins/scorecard/seed/addenda.

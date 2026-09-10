@@ -26,6 +26,8 @@ local longcd = true
 local debuffs = {}
 local buffs = {}
 local not_ready = {}
+local enemies = 1      -- enemy_count seen by the FaerieFire/Hurricane lanes
+local aoe_ok = true    -- NS.aoe_target_meets result (Hurricane volume gate)
 
 local function moonfire(secs) debuffs[48463] = secs end
 local function insect_swarm(secs) debuffs[48468] = secs end
@@ -36,6 +38,7 @@ local function lunar(up) set_buff(48518, up) end
 local function reset_env()
     mana, combat, longcd = 100, true, true
     debuffs, buffs, not_ready = {}, {}, {}
+    enemies, aoe_ok = 1, true
 end
 
 _G.EaxRotations = {
@@ -60,6 +63,9 @@ _G.EaxRotations = {
         if not_ready[id] then return false end
         return true
     end,
+    aoe_target_meets = function() return aoe_ok end,
+    AOE_RADIUS = { SELF_10 = 10 },
+    try_cast = function() return true end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -79,6 +85,7 @@ local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         mana_pct = mana,
+        enemy_count = enemies,
         target = { get_health_percentage = function() return 100 end },
         settings = {},
     }
@@ -147,5 +154,29 @@ assert_lane("Starfire blocked during solar Eclipse (Wrath window)", "Starfire",
     function() solar(true) end, false)
 assert_lane("Starfire blocked below 15% mana", "Starfire",
     function() mana = 14 end, false)
+
+-- ============================================================================
+-- FaerieFire: debuff upkeep (3% spell hit) — refresh window like the DoTs.
+-- ============================================================================
+assert_lane("FaerieFire fires when the debuff is down", "FaerieFire",
+    function() end, true)
+assert_lane("FaerieFire fires in the refresh window", "FaerieFire",
+    function() debuffs[26993] = 2.9 end, true)
+assert_lane("FaerieFire blocked while the debuff is healthy", "FaerieFire",
+    function() debuffs[26993] = 3.1 end, false)
+
+-- ============================================================================
+-- HurricaneAoE: 3+ enemies in the 10y self radius (channeled AoE slot).
+-- ============================================================================
+assert_lane("HurricaneAoE fires into a 3-enemy pack", "HurricaneAoE",
+    function() enemies = 3 end, true)
+assert_lane("HurricaneAoE blocked at 2 enemies", "HurricaneAoE",
+    function() enemies = 2 end, false)
+assert_lane("HurricaneAoE fail-closed without the AoE module", "HurricaneAoE",
+    function() enemies = 4; aoe_ok = false end, false)
+assert_lane("HurricaneAoE blocked out of combat", "HurricaneAoE",
+    function() enemies = 4; combat = false end, false)
+assert_lane("HurricaneAoE blocked while on cooldown", "HurricaneAoE",
+    function() enemies = 4; not_ready[48467] = true end, false)
 
 print("PASS test_druid_balance_wotlk_strategies")

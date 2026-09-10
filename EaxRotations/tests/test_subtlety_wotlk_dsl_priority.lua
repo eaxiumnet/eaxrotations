@@ -81,7 +81,7 @@ print("=== test_subtlety_wotlk_dsl_priority ===")
 local sub = dofile("EaxRotations/classes/rogue/subtlety_wotlk.lua")
 assert_true(type(sub) == "table", "subtlety_wotlk should return a table")
 assert_true(type(sub.strategies) == "table", "subtlety_wotlk should expose strategies")
-assert_true(#sub.strategies == 6, "subtlety_wotlk should have 6 strategies")
+assert_true(#sub.strategies == 10, "subtlety_wotlk should have 10 strategies")
 
 local registered = _G.EaxRotations._registered_subtlety
 assert_true(registered ~= nil, "subtlety_wotlk should register under 'subtlety'")
@@ -94,12 +94,16 @@ local expected_order = {
     "Kick",
     "Premeditation",
     "ShadowDance",
+    "Preparation",
     "Ambush",
+    "SliceAndDice",
+    "Rupture",
     "Eviscerate",
     "Backstab",
+    "Hemorrhage",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 10 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(sub.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], sub.strategies[i].name))
@@ -149,7 +153,7 @@ test("Ambush: matches when dance up, behind, energy >= 60", function()
     state.shadow_dance_up = true
     state.is_behind = true
     state.energy = 60
-    assert_true(sub.strategies[4].matches(ctx, state), "Ambush should match with dance up, behind and energy >= 60")
+    assert_true(sub.strategies[5].matches(ctx, state), "Ambush should match with dance up, behind and energy >= 60")
 end)
 
 test("Ambush: does not match when dance down", function()
@@ -157,7 +161,7 @@ test("Ambush: does not match when dance down", function()
     state.shadow_dance_up = false
     state.is_behind = true
     state.energy = 100
-    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when dance down")
+    assert_false(sub.strategies[5].matches(ctx, state), "Ambush should not match when dance down")
 end)
 
 test("Ambush: does not match when energy < 60", function()
@@ -165,7 +169,7 @@ test("Ambush: does not match when energy < 60", function()
     state.shadow_dance_up = true
     state.is_behind = true
     state.energy = 45
-    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match when energy < 60")
+    assert_false(sub.strategies[5].matches(ctx, state), "Ambush should not match when energy < 60")
 end)
 
 test("Ambush: does not match in front of the target", function()
@@ -173,20 +177,20 @@ test("Ambush: does not match in front of the target", function()
     state.shadow_dance_up = true
     state.is_behind = false
     state.energy = 100
-    assert_false(sub.strategies[4].matches(ctx, state), "Ambush should not match in front (behind gate)")
+    assert_false(sub.strategies[5].matches(ctx, state), "Ambush should not match in front (behind gate)")
 end)
 
 -- Eviscerate (4): combo_points >= 4
 test("Eviscerate: matches when combo >= 4", function()
     local state = sub.build_state(ctx)
     state.combo_points = 4
-    assert_true(sub.strategies[5].matches(ctx, state), "Eviscerate should match with combo >= 4")
+    assert_true(sub.strategies[8].matches(ctx, state), "Eviscerate should match with combo >= 4")
 end)
 
 test("Eviscerate: does not match with combo < 4", function()
     local state = sub.build_state(ctx)
     state.combo_points = 3
-    assert_false(sub.strategies[5].matches(ctx, state), "Eviscerate should not match with combo < 4")
+    assert_false(sub.strategies[8].matches(ctx, state), "Eviscerate should not match with combo < 4")
 end)
 
 -- Backstab (5): is_behind AND daggers AND energy >= 60
@@ -195,7 +199,7 @@ test("Backstab: matches when behind with daggers and energy >= 60", function()
     state.energy = 60
     state.is_behind = true
     state.has_daggers = true
-    assert_true(sub.strategies[6].matches(ctx, state), "Backstab should match when behind with daggers and energy >= 60")
+    assert_true(sub.strategies[9].matches(ctx, state), "Backstab should match when behind with daggers and energy >= 60")
 end)
 
 test("Backstab: does not match when energy < 60", function()
@@ -203,7 +207,7 @@ test("Backstab: does not match when energy < 60", function()
     state.energy = 45
     state.is_behind = true
     state.has_daggers = true
-    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match when energy < 60")
+    assert_false(sub.strategies[9].matches(ctx, state), "Backstab should not match when energy < 60")
 end)
 
 test("Backstab: does not match in front of the target", function()
@@ -211,7 +215,7 @@ test("Backstab: does not match in front of the target", function()
     state.energy = 100
     state.is_behind = false
     state.has_daggers = true
-    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match in front (behind gate)")
+    assert_false(sub.strategies[9].matches(ctx, state), "Backstab should not match in front (behind gate)")
 end)
 
 test("Backstab: does not match without daggers", function()
@@ -219,7 +223,7 @@ test("Backstab: does not match without daggers", function()
     state.energy = 100
     state.is_behind = true
     state.has_daggers = false
-    assert_false(sub.strategies[6].matches(ctx, state), "Backstab should not match without daggers (dagger gate)")
+    assert_false(sub.strategies[9].matches(ctx, state), "Backstab should not match without daggers (dagger gate)")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

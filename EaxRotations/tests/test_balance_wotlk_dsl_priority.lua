@@ -83,7 +83,7 @@ print("=== test_balance_wotlk_dsl_priority ===")
 local balance = dofile("EaxRotations/classes/druid/balance_wotlk.lua")
 assert_true(type(balance) == "table", "balance_wotlk should return a table")
 assert_true(type(balance.strategies) == "table", "balance_wotlk should expose strategies")
-assert_true(#balance.strategies == 6, "balance_wotlk should have 6 strategies")
+assert_true(#balance.strategies == 8, "balance_wotlk should have 8 strategies")
 
 local registered = _G.EaxRotations._registered_balance
 assert_true(registered ~= nil, "balance_wotlk should register under 'balance'")
@@ -98,9 +98,11 @@ local expected_order = {
     "Starfire",
     "Wrath",
     "InsectSwarm",
+    "FaerieFire",
+    "HurricaneAoE",
 }
 
-test("priority order: 6 strategies match expected order", function()
+test("priority order: 8 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(balance.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], balance.strategies[i].name))

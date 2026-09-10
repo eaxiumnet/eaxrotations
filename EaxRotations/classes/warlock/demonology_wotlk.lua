@@ -21,6 +21,10 @@ local ACTION = {
     Corruption = define("Corruption", { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
     SoulFire = define("SoulFire", { 47825, 30545, 27211, 17924, 6353 }, "SoulFire"),
+    -- Demo signature proc payload (Molten Core buff 47245/47246/71165):
+    -- Incinerate 47838 = WotLK max rank (ladder mirrors destruction_wotlk,
+    -- audit-pinned).
+    Incinerate = define("Incinerate", { 47838, 32231, 29722 }, "Incinerate"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
 }
 
@@ -29,11 +33,17 @@ local ACTION = {
 local IMMOLATE_DEBUFF = { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CORRUPTION_DEBUFF = { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local METAMORPHOSIS_BUFF = { 47241 }
+-- Wowhead-verified proc-buff ids: Molten Core ranks 47245/47246/71165;
+-- Decimation is the single-rank 63165 (10s, sub-35% target).
+local MOLTEN_CORE_BUFF = { 71165, 47246, 47245 }
+local DECIMATION_BUFF = { 63165 }
 
 local DEMO_SCHEMA = {
     enemy_count = 1, in_combat = false,
     immolate_remains = 0, corruption_remains = 0,
     metamorphosis_up = false,
+    molten_core_up = false,
+    decimation_up = false,
     hp = 100, mana_pct = 100,
 }
 
@@ -52,11 +62,17 @@ local function build_state(context)
     state.immolate_remains = (target and NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF)) or 0
     state.corruption_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CORRUPTION_DEBUFF)) or 0
     state.metamorphosis_up = (me and NS.buff_up and NS.buff_up(me, METAMORPHOSIS_BUFF)) or false
+    state.molten_core_up = (me and NS.buff_up and NS.buff_up(me, MOLTEN_CORE_BUFF)) or false
+    state.decimation_up = (me and NS.buff_up and NS.buff_up(me, DECIMATION_BUFF)) or false
+    -- Demo signature procs (Wowhead-verified buff ids): Molten Core
+    -- (Corruption-tick proc empowering the next 3 Incinerate/Soul Fire casts)
+    -- and Decimation (Shadow Bolt/Incinerate/Soul Fire on a sub-35% target
+    -- procs a fast, shard-free Soul Fire for 10s).
     return state
 end
 
 -- ============================================================================
--- Declarative Strategy DSL definitions (5 strategies, 100% declarative)
+-- Declarative Strategy DSL definitions (8 strategies, 100% declarative)
 -- ============================================================================
 local DSL_DEFS = {
     {
@@ -84,6 +100,27 @@ local DSL_DEFS = {
             { type = "state", field = "immolate_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DEMONOLOGY WOTLK] Immolate" },
+    },
+    {
+        name = "IncinerateProc",
+        conditions = {
+            -- Molten Core window: the Corruption-tick proc empowers the next
+            -- 3 Incinerates (+18% dmg, -30% cast). Spend it before resuming
+            -- Shadow Bolt; ShadowBolt is skipped while the buff is up.
+            { type = "state", field = "molten_core_up", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.Incinerate, target = "target", label = "[DEMONOLOGY WOTLK] Incinerate (Molten Core)" },
+    },
+    {
+        name = "SoulFireDecimation",
+        conditions = {
+            -- Decimation window (sub-35% target procs 63165): instant,
+            -- shard-free Soul Fire beats every filler in the execute band.
+            { type = "state", field = "decimation_up", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.SoulFire, target = "target", label = "[DEMONOLOGY WOTLK] Soul Fire (Decimation)" },
     },
     {
         name = "SoulFire",
@@ -118,6 +155,8 @@ local DSL_DEFS = {
 -- ============================================================================
 local strategies = {
     { name = "Metamorphosis" },
+    { name = "IncinerateProc" },
+    { name = "SoulFireDecimation" },
     { name = "Corruption" },
     { name = "Immolate" },
     { name = "SoulFire" },
