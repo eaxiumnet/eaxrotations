@@ -59,11 +59,13 @@ local ACTION = {
     CureDisease      = define("CureDisease",      { 528 }, "CureDisease"),
     DesperatePrayer  = define("DesperatePrayer",  { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
     DispelMagic      = define("DispelMagic",      { 988, 527 }, "DispelMagic"),
+    DivineSpirit     = define("DivineSpirit",     { 25312, 27841, 14819, 14818, 14752 }, "DivineSpirit"),
     FearWard         = define("FearWard",         { 6346 }, "FearWard"),
     Fade             = define("Fade",             { 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
     FlashHeal        = define("FlashHeal",        { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
     GreaterHeal      = define("GreaterHeal",      { 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
     HolyFire         = define("HolyFire",         { 25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }, "HolyFire"),
+    InnerFire        = define("InnerFire",        { 25431, 10952, 10951, 1006, 602, 7128, 588 }, "InnerFire"),
     InnerFocus       = define("InnerFocus",       { 14751 }, "InnerFocus"),
     Lightwell        = define("Lightwell",        { 28275, 27871, 27870, 724 }, "Lightwell"),
     MassDispel       = define("MassDispel",       { 32375 }, "MassDispel"),  -- TBC: AoE magic dispel for dungeon pack efficiency (per WoWHead)
@@ -94,6 +96,9 @@ local BINDING_HEAL_RANKS = NS.PriestBINDING_HEAL_RANKS
 local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false end
 
 local INNER_FOCUS_BUFF = { 14751 }  -- matches ACTION.InnerFocus rank ID
+-- Self-buff upkeep ladders (mirror discipline; TBC ranks, bridge-verified):
+local DIVINE_SPIRIT_BUFF = { 25312, 27841, 14819, 14818, 14752 }
+local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
 -- Holy Concentration (34753/34754/34859/34860) is a WotLK talent — these buff
 -- IDs cannot exist on the TBC 2.5.5 client, so state.clearcasting is always
@@ -201,6 +206,11 @@ local HOLY_SCHEMA = {
     abolish_disease_ready = false,
     symbol_of_hope_ready = false,
     friendly_target_ready = false,
+    -- Self-buff upkeep (mirror discipline): Divine Spirit spellpower + Inner Fire armor/spirit
+    has_divine_spirit = false,
+    divine_spirit_ready = false,
+    has_inner_fire = false,
+    inner_fire_ready = false,
     mana_pct = 100,
     shackle_undead_ready = false,
     target_creature_type = nil,
@@ -239,10 +249,13 @@ local holy_state = {
  shadowfiend_ready = false,
  dispel_magic_ready = false,
  cure_disease_ready = false,
- abolish_disease_ready = false,
- friendly_target = nil,
- friendly_target_ready = false,
- shackle_undead_ready = false,
+ abolish_disease_ready = false,    friendly_target = nil,
+    friendly_target_ready = false,
+    has_divine_spirit = false,
+    divine_spirit_ready = false,
+    has_inner_fire = false,
+    inner_fire_ready = false,
+    shackle_undead_ready = false,
  target_creature_type = nil,
  has_pushback = false,
 }
@@ -419,6 +432,11 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  holy_state.abolish_disease_ready = spell_exists(ACTION.AbolishDisease) and spell_ready(ACTION.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.symbol_of_hope_ready = spell_exists(ACTION.SymbolOfHope) and spell_ready(ACTION.SymbolOfHope, NS.PLAYER_UNIT)
  holy_state.fear_ward_ready = spell_exists(ACTION.FearWard) and spell_ready(ACTION.FearWard, NS.PLAYER_UNIT, { skip_range = true })
+ -- Self-buff upkeep (mirror discipline_sylvanas): Divine Spirit + Inner Fire
+ holy_state.has_divine_spirit = NS.buff_up(NS.PLAYER_UNIT, DIVINE_SPIRIT_BUFF) or false
+ holy_state.divine_spirit_ready = spell_exists(ACTION.DivineSpirit) and spell_ready(ACTION.DivineSpirit, NS.PLAYER_UNIT, { skip_range = true })
+ holy_state.has_inner_fire = NS.buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF) or false
+ holy_state.inner_fire_ready = spell_exists(ACTION.InnerFire) and spell_ready(ACTION.InnerFire, NS.PLAYER_UNIT, { skip_range = true })
  local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
  holy_state.friendly_target = ft
  holy_state.friendly_target_ready = ft ~= nil
@@ -647,6 +665,43 @@ local DSL_DEFS = {
                 return try_cast(state.healthstone_id, nil, "[HOLY] Healthstone", { skip_range = true })
             end
             return false
+        end },
+    },
+    -- Divine Spirit: self spellpower/spirit upkeep (mirror discipline; guides:
+    -- keep up between pulls and in combat when safe).
+    {
+        name = "DivineSpirit",
+        conditions = {
+            { type = "state", field = "has_divine_spirit", op = "falsy" },
+            { type = "state", field = "divine_spirit_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "holy_use_divine_spirit", true) then return false end
+                if NS.cooldown_remains and NS.cooldown_remains(ACTION.DivineSpirit, 10) > 0 then return false end
+                local enemies = state.enemy_count or context.enemies_count or 0
+                if context.in_combat and enemies == 0 and not context.has_valid_enemy_target then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.DivineSpirit, NS.PLAYER_UNIT, "[HOLY] Divine Spirit (self upkeep)")
+        end },
+    },
+    -- Inner Fire: self armor/spirit upkeep (mirror discipline).
+    {
+        name = "InnerFire",
+        conditions = {
+            { type = "state", field = "has_inner_fire", op = "falsy" },
+            { type = "state", field = "inner_fire_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "holy_use_inner_fire", true) then return false end
+                if NS.cooldown_remains and NS.cooldown_remains(ACTION.InnerFire, 10) > 0 then return false end
+                local enemies = state.enemy_count or context.enemies_count or 0
+                if context.in_combat and enemies == 0 and not context.has_valid_enemy_target then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[HOLY] Inner Fire (self upkeep)")
         end },
     },
     {
@@ -1097,6 +1152,8 @@ local strategies = {
  },
  { name = "SymbolOfHope" },
  { name = "FearWard" },
+ { name = "DivineSpirit" },
+ { name = "InnerFire" },
  { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return try_cast(ACTION.ShackleUndead, context.target, "[HOLY] ShackleUndead", { expected_cooldown = 1.5 }) end },
  {
   name = "RenewTank",

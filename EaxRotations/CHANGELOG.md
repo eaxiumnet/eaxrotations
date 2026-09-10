@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Rotation Content — TBC healer guide-pass + shaman OOC rez + Mortal Strike verification
+
+- **TBC shaman gets its OOC resurrection lane** (the era-wide spell-coverage
+  sweep gave OOC rez to paladin/priest/druid middleware but skipped shaman):
+  OOCSpirit in shaman/middleware_sylvanas.lua mirrors the paladin OOCRedeem
+  idiom — dead party member between pulls, OOC-only, use_resurrection toggle
+  (default on). Ladder 20777/20776/20610/20609/2008 all Wowhead-verified TBC
+  ranks (Ancestral Spirit, 10s cast, 72% base mana) and bridge-present, so no
+  new audit pins were needed. Pinned fire + hold-in-combat + hold-setting-off
+  + hold-no-dead-ally in test_shaman_live_fixes.lua.
+- **Priest holy self-buff upkeep** (the last guide-depth gap vs its discipline
+  sibling): Divine Spirit + Inner Fire lanes added to holy_sylvanas.lua
+  (TBC ladder 25312/27841/14819/14818/14752 + 25431/10952/10951/1006/602/7128/588,
+  bridge-present) and holy_wotlk.lua (era-correct single ranks 48073 r6 and
+  48168 r9, Wowhead-verified; 48073 audit-pinned as VALID_RANK_ALIAS, allowlist
+  231 -> 232). Both eras: buff-down + ready gates, safe-in-combat guard in TBC,
+  buff-maintenance priority slot between the hymn/emergency band and target
+  triage. Pinned fire/hold/order in test_priest_holy_friendly_target.lua (C11-C18)
+  and test_holy_priest_wotlk_dsl_priority.lua.
+- **Mortal Strike verified across all four eras** (user report: 'arms MS never
+  fires'): the lane exists in arms_vanilla/arms_sylvanas (battle-stance + 30
+  rage + spell_ready via the real engine gates), dps_warrior_sod (SoD id 12294,
+  is_sod + stance-gated), and arms_wotlk (DSL lane, ms_cd/rage/in-combat via the
+  real cooldown API). Live fire probes through each real file under the capturing
+  mock all cast; the vanilla suite's boolean-only MS assert was replaced with
+  real fire/hold pins (fire at 40 and 30 rage, hold in defensive/berserker
+  stance, hold below 30 rage, hold when spell_ready reports false).
+
 ### Rotation Content — SoD guide-priority expansion wave
 - **Every SoD spec now implements its published playstyle priority.** All
   twelve sub-priority specs were expanded against their Icy-Veins / Wowhead

@@ -289,6 +289,7 @@ local WOTLK_REFERENCE_ALIASES = {
     -- file-derived bridge omits both.
     [64901] = { kind = "VALID_RANK_ALIAS", family = "Divine Hymn", source = "wowhead WotLK Classic spell=64901/divine-hymn" },
     [64904] = { kind = "VALID_RANK_ALIAS", family = "Hymn of Hope", source = "wowhead WotLK Classic spell=64904/hymn-of-hope" },
+    [48073] = { kind = "VALID_RANK_ALIAS", family = "Divine Spirit", source = "wowhead WotLK Classic spell=48073/divine-spirit (WotLK max rank r6, +80 spirit; TBC ladder 14752/14818/14819/25312/27841 bridge-omitted in WotLK)" },
     -- W3.3 shaman live-fix pins (2026-08-13): Windfury Weapon (WotLK max
     -- rank — the wowsims enhancement APL variant is literally "default_wf"),
     -- Water Shield (WotLK max rank, resto mana sustain), Tidal Waves (Riptide
@@ -1014,7 +1015,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 231, "pinned allowlist size") -- +6 DPS thin-spec close-out pins 2026-09-10 (48660 Hemorrhage, 48467 Hurricane, 71165/47246/47245 Molten Core, 63165 Decimation) -- +2 healer close-out pins 2026-09-10 (64901 Divine Hymn, 64904 Hymn of Hope) -- +2 spell-coverage sweep pins 2026-09-10 (49802 Maim, 42945 Blast Wave) -- prior: +13 DPS/tank guide-pass pins 2026-09-09 (61336/22812/46968/48817/37897/31898/53023/49821/48158/48157/32379/2944/13750) -- prior: +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 232, "pinned allowlist size") -- +1 holy upkeep pin 2026-09-10 (48073 Divine Spirit WotLK max; 48168 Inner Fire already in the era reference map) -- +6 DPS thin-spec close-out pins 2026-09-10 (48660 Hemorrhage, 48467 Hurricane, 71165/47246/47245 Molten Core, 63165 Decimation) -- +2 healer close-out pins 2026-09-10 (64901 Divine Hymn, 64904 Hymn of Hope) -- +2 spell-coverage sweep pins 2026-09-10 (49802 Maim, 42945 Blast Wave) -- prior: +13 DPS/tank guide-pass pins 2026-09-09 (61336/22812/46968/48817/37897/31898/53023/49821/48158/48157/32379/2944/13750) -- prior: +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

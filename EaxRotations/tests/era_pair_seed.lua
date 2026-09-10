@@ -296,7 +296,7 @@ return {
     {
         spec = "priest/holy",
         missing_in = "vanilla",
-        names = { "BindingHeal", "CircleOfHealing", "ClearcastingGreaterHeal", "DivineHymn", "FSRPause", "FearWard", "GuardianSpirit", "HymnOfHope", "ManaPotion", "MassDispel", "PrayerOfMending", "PreemptiveGreaterHeal", "PsychicScream", "Renew", "ShackleUndead", "Shadowfiend", "Silence", "SurgeOfLightSmite", "SymbolOfHope" },
+        names = { "BindingHeal", "CircleOfHealing", "ClearcastingGreaterHeal", "DivineHymn", "DivineSpirit", "FSRPause", "FearWard", "GuardianSpirit", "HymnOfHope", "InnerFire", "ManaPotion", "MassDispel", "PrayerOfMending", "PreemptiveGreaterHeal", "PsychicScream", "Renew", "ShackleUndead", "Shadowfiend", "Silence", "SurgeOfLightSmite", "SymbolOfHope" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

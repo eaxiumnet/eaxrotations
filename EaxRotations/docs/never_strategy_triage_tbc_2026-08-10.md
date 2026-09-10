@@ -557,3 +557,26 @@ sibling's own idiom (8 -> 11, never-fires=0):
   still green. Era-pair seed regenerated (1342 names: TBC caster gains 3
   lanes vs the vanilla mirror - intentional divergence, 0 unallowlisted);
   scorecard/ACCURACY regenerated (druid/caster row now 11 | 0).
+
+
+## Addendum 2026-09-10 (d) — TBC healer guide-pass: shaman OOC rez + priest holy self-buffs
+
+Guide-driven close-out against the TBC healer files (scorecard ranking: shaman/resto
+thinnest). No TBC never-lane changed; strict gate stays 0 unclassified drift.
+
+- **shaman/middleware_sylvanas.lua — OOCSpirit (new, +1 lane)**: the 2026-09-09
+  coverage sweep gave OOC rez lanes to paladin/priest/druid middleware but
+  skipped shaman. OOCSpirit mirrors paladin OOCRedeem (dead party member scan,
+  OOC-only, use_resurrection default-on). Ancestral Spirit ladder
+  20777/20776/20610/20609/2008 Wowhead-verified (20777 = 600 HP/800 mana max
+  rank; the earlier guesses 25422/25423 redirect to Chain Heal and were
+  rejected). All ranks bridge-present — no new audit pins. Battery-neutral:
+  middleware strategies are outside the per-spec battery. Pinned fire + 3 hold
+  sides in test_shaman_live_fixes.lua.
+- **priest/holy_sylvanas.lua 37 -> 39**: DivineSpirit + InnerFire self-buff
+  upkeep (mirror discipline_sylvanas buff tables, bridge-present). Buff-down +
+  ready gates + safe-in-combat guard + toggle gates holy_use_divine_spirit /
+  holy_use_inner_fire. Slot: after FearWard, before ShackleUndead (buff-
+  maintenance band). never-fires unchanged (EncounterReactions remains the one
+  pre-existing correctly-silent classified lane). Pinned C11-C18 in
+  test_priest_holy_friendly_target.lua.

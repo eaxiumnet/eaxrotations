@@ -46,10 +46,19 @@ local ACTION = {
     -- Bridge-omitted, so the WotLK audit pins them as alias ids.
     DivineHymn = define("DivineHymn", 64901, "DivineHymn"),
     HymnOfHope = define("HymnOfHope", 64904, "HymnOfHope"),
+    -- 2026-09-10 guide-pass self-upkeep (mirror holy_sylvanas/discipline):
+    -- Divine Spirit WotLK max 48073 r6 (+80 spirit; single rank — the TBC
+    -- ladder ends at 70, so the WotLK file pins the one verified id, matching
+    -- the Maim/Pyroblast single-rank precedent); Inner Fire WotLK max 48168 r9
+    -- (+2440 armor/+120 SP; TBC ladder bridge/audit-covered).
+    DivineSpirit = define("DivineSpirit", 48073, "DivineSpirit"),
+    InnerFire = define("InnerFire", { 48168, 25431, 10952, 10951, 1006, 602, 7128, 588 }, "InnerFire"),
 }
 
 local RENEW_BUFF = { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local GUARDIAN_SPIRIT_BUFF = { 47788 }
+local DIVINE_SPIRIT_BUFF = { 48073 }
+local INNER_FIRE_BUFF = { 48168, 25431, 10952, 10951, 1006, 602, 7128, 588 }
 
 local holy_state = {
     target_hp = 100,
@@ -58,6 +67,10 @@ local holy_state = {
     in_combat = false,
     renew_remains = 0,
     guardian_spirit_up = false,
+    has_divine_spirit = false,
+    divine_spirit_ready = false,
+    has_inner_fire = false,
+    inner_fire_ready = false,
     injured_count = 0,
     lowest_hp = 100,
     player_hp = 100,
@@ -80,6 +93,11 @@ local function build_state(context)
     -- injured threshold. nil-safe default 0 keeps the CoH lane inert solo.
     state.injured_count = (context and context.party_injured_count) or 0
     state.lowest_hp = (context and context.lowest_hp) or state.target_hp
+    -- Self-buff upkeep (mirror holy_sylvanas): buff down + spell ready gates.
+    state.has_divine_spirit = (me and NS.buff_up and NS.buff_up(me, DIVINE_SPIRIT_BUFF)) or false
+    state.divine_spirit_ready = NS.spell_ready and NS.spell_ready(ACTION.DivineSpirit, me, { skip_range = true }) or false
+    state.has_inner_fire = (me and NS.buff_up and NS.buff_up(me, INNER_FIRE_BUFF)) or false
+    state.inner_fire_ready = NS.spell_ready and NS.spell_ready(ACTION.InnerFire, me, { skip_range = true }) or false
     -- Player's own hp (engine alias of context.hp, main_sylvanas.lua) — the
     -- Desperate Prayer self-save band.
     state.player_hp = (context and (context.player_hp or context.hp))
@@ -193,6 +211,25 @@ end
         },
         action = { type = "cast", spell = ACTION.FlashHeal, target = "friendly" },
     },
+    -- 2026-09-10 guide-pass self-upkeep lanes: cast at the buff-maintenance
+    -- position (OOC or in combat — Inner Fire charges are the panic argument;
+    -- guides keep both up at all times, no combat-only gate).
+    {
+        name = "DivineSpirit",
+        conditions = {
+            { type = "state", field = "has_divine_spirit", op = "falsy" },
+            { type = "state", field = "divine_spirit_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.DivineSpirit, target = "self" },
+    },
+    {
+        name = "InnerFire",
+        conditions = {
+            { type = "state", field = "has_inner_fire", op = "falsy" },
+            { type = "state", field = "inner_fire_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.InnerFire, target = "self" },
+    },
     }
 
 local strategies = {
@@ -200,6 +237,8 @@ local strategies = {
     { name = "DesperatePrayer" },
     { name = "DivineHymn" },
     { name = "HymnOfHope" },
+    { name = "DivineSpirit" },
+    { name = "InnerFire" },
     { name = "GreaterHeal" },
     { name = "Lightwell" },
     { name = "CircleOfHealing" },

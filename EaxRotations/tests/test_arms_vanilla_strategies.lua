@@ -118,4 +118,26 @@ assert_true(ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 1, set
     or ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 1, settings = {} }) == false,
     "MortalStrike matches returns boolean")
 
+-- Mortal Strike fire/hold pins (2026-09-10 user-report follow-up: "MS doesn't
+-- fire" — pin both sides through the real matcher so a regression can't hide):
+-- FIRES: battle stance + rage >= 30 + off cooldown + target present.
+assert_true(ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 1, settings = {} }),
+    "MortalStrike FIRES in battle stance with 40 rage")
+assert_true(ms.matches({ target = {}, target_hp = 80, rage = 30, stance = 1, settings = {} }),
+    "MortalStrike FIRES at the 30-rage boundary (inclusive)")
+-- HOLDS: wrong stance (zerker — MS is battle-stance-only in vanilla).
+assert_false(ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 3, settings = {} }),
+    "MortalStrike HELD in berserker stance")
+assert_false(ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 2, settings = {} }),
+    "MortalStrike HELD in defensive stance")
+-- HOLDS: below the 30-rage cost.
+assert_false(ms.matches({ target = {}, target_hp = 80, rage = 29, stance = 1, settings = {} }),
+    "MortalStrike HELD below 30 rage")
+-- HOLDS: spell_ready false (on cooldown — the user-visible 'MS never fires'
+-- symptom when the engine's spell_ready gate fails; the hold side is by-design).
+_G.EaxRotations.spell_ready = function() return false end
+assert_false(ms.matches({ target = {}, target_hp = 80, rage = 40, stance = 1, settings = {} }),
+    "MortalStrike HELD when the engine reports the spell not ready")
+_G.EaxRotations.spell_ready = function() return true end
+
 print("PASS test_arms_vanilla_strategies")
