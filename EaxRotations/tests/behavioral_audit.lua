@@ -2347,6 +2347,11 @@ M.SCENARIOS = {
     -- additive window; no lane loses one, so never-lists are unchanged.
     { name = "druid_wotlk_tranquility", overrides = { party_injured_count = 4, lowest_hp = 40, mana_pct = 80, friends_hp = { 40, 60, 80 }, friend_class = 11 } },
     { name = "druid_wotlk_ns_burst",    overrides = { buff_up_map = { [17116] = true }, lowest_hp = 25, mana_pct = 80, friends_hp = { 25, 70, 90 }, friend_class = 11 } },
+    -- Healer save window (2026-09-10): the tight band where cast-time heals
+    -- can no longer land in time — LayOnHands (paladin holy, <= 20) and
+    -- GuardianSpirit (priest holy, < 30) both gate here. mana 80 keeps the
+    -- hymn-of-hope mana lane held so the save stays the lane's only fire.
+    { name = "healer_save_window", overrides = { lowest_hp = 15, friends_hp = { 15, 55, 80 }, friend_class = 11 } },
     -- W3.4 balance_wotlk (2026-08-13): lunar-phase Eclipse spell-switch — the
     -- Starfire lane reads eclipse_lunar (48518, buff_remains_map-aware NS.buff_up)
     -- mirroring the pinned wowsims APL's Starfire-on-lunar gate; the scenario

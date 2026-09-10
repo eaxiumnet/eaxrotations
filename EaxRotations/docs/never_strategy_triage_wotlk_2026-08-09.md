@@ -681,3 +681,60 @@ The healing deep-rate's last two holy-priest omissions closed. `classes/priest/h
 Order: GuardianSpirit -> DesperatePrayer -> GreaterHeal -> Lightwell -> CircleOfHealing -> Renew -> PrayerOfMending -> FlashHeal. Sim-APL block (GreaterHeal/CoH/Renew/PoM) unchanged and still conformance-mapped (test_apl_conformance 153/153).
 
 Pins: `test_priest_holy_wotlk_strategies` +7 fire/hold sides (inclusive 30% band, cooldown holds via a keyed spell_ready mock); `test_holy_priest_wotlk_dsl_priority` order array + positional GreaterHeal execute pin updated (17/17). Battery: priest/holy 8 strategies never-fires=0 in druid_wotlk_wildgrowth (3 injured) / druid_wotlk_tranquility (4 injured) / low_self-family (player_hp 15) windows — no new scenarios needed. Spell audit: +14 Wowhead-verified VALID_RANK_ALIAS entries (allowlist 194 -> 208; note 48084/48085 are the Lightwell Renew buffs, excluded), size pin updated. Scorecard/badges/era-pair seed regenerated; suite count unchanged (no new suites).
+
+## Addendum 2026-09-09 (c) — DPS/tank guide-pass lanes: frost mage, combat rogue, shadow priest, three tanks
+
+The DPS/tank mirror of the healer waves. Six files expanded against their published playstyles (Wowhead/Icy-Veins class guides; every new id Wowhead-WotLK-verified):
+
+| File | Lanes | New lanes (guide-driven) |
+|---|---|---|
+| `mage/frost_wotlk.lua` | 6 -> 8 | **IcyVeins** (12472, 3-min haste CD, long-CD consent) and **SummonWaterElemental** (31687, re-summon held while the pet is alive via real `NS.has_pet`) |
+| `rogue/combat_wotlk.lua` | 7 -> 8 | **AdrenalineRush** (13750 — single rank, era-shared with TBC, initially misclassified TBC_ID_IN_WOTLK; 3-min CD, long-CD consent) |
+| `priest/shadow_wotlk.lua` | 9 -> 11 | **ShadowWordDeath** (48158 max / 48157 / 32379 / 2944, <=25% execute band — recoil damage makes it strictly an execute finisher) and **MindSear** (53023 max / 49821, 3+ enemy AoE filler) |
+| `warrior/protection_wotlk.lua` | 9 -> 10 | **Shockwave** (46968, 20s CD AoE stun, 2+ enemies at 15+ rage) |
+| `paladin/protection_wotlk.lua` | 7 -> 9 | **HolyWrath** (48817 / 37897 / 31898, 2+ enemies vs creature-type 3=demon / 6=undead) and **DivinePlea** (54428, <50% mana return — bridge-carried) |
+| `druid/bear_wotlk.lua` | 8 -> 9 | **SurvivalInstincts** (61336, 3-min CD emergency defensive at <35% hp) |
+
+Pins: six existing behavioral suites extended with fire/hold sides through each file's real `build_state` (`test_mage_frost_wotlk_strategies` +9, `test_rogue_combat_wotlk_strategies` +4, `test_priest_shadow_wotlk_strategies` +5, `test_protection_wotlk_strategies` +4, `test_paladin_protection_wotlk_strategies` +9, `test_druid_bear_wotlk_strategies` +4 — the bear and prot-paladin mocks gained the `cooldown_remains` read they previously lacked; their new lanes fail closed without it). Battery: all eight lanes fire in existing shared scenarios (prot_cd_window/battle_ready, shadow_cleave, undead_target, low_mana/low_self) — WotLK totals 447 -> 455 strategies, never-fires=0, strict gate holds. Spell audit: +13 Wowhead-verified VALID_RANK_ALIAS entries (allowlist 208 -> 221). Scorecard/badges/era-pair seed regenerated; suite count unchanged.
+
+Deliberate exclusions (honest residue): Bloodlust/Heroism already lane-owned by enhancement_wotlk (engine-wide hero window covers the rest); Commanding Shout deliberately absent from fury per the fury APL battle-shout policy (BattleShout lane exists; the two shout ids never stack in-era).
+
+
+## Addendum 2026-09-10 — full spell-coverage sweep (utility/AoE/rez close-out)
+
+A name-level matrix of every class spell in the WotLK bridge vs all 43 spec
+files (plus the era-shared class/middleware files) found four real gaps and one
+dead capability; all closed with the era-shared patterns:
+
+| File | Lanes | New lanes (coverage-driven) |
+|---|---|---|
+| `mage/fire_wotlk.lua` | 8 -> 9 | **BlastWaveAoE** (42945 — Wowhead-verified WotLK max rank, 10y radius, 30s CD; audit alias pinned): 3+ enemies via the real `aoe_target_meets` SELF_10 gate, slot between FireBlast and ScorchFinal |
+| `warlock/affliction_wotlk.lua` | 8 -> 9 | **SeedOfCorruptionAoE** (47836/27243 — leveling file's audit-proven ladder): 4+ enemy multi-DoT, unholy Pestilence volume idiom |
+| `druid/cat_wotlk.lua` | 11 -> 12 | **MaimInterrupt** (49802, audit alias pinned): mirrors the TBC cat_sylvanas MaimInterrupt — 1+ CP, 35 energy, target casting |
+| `mage/arcane_wotlk.lua` | — | none: Spellsteal is middleware-owned (mage/middleware_sylvanas.lua ranked OffensiveDispelDB scan) — matrix false positive |
+| `priest/class_sylvanas.lua` + middleware | — | **OOCResurrect** middleware strategy (era-shared ladder 20770/10881/10880/2010/2006; WotLK 48171 max rank kept in the era-shared middleware fallback per the shadow-ladder architecture): dead party scan between pulls |
+| `paladin/class_sylvanas.lua` + middleware | — | **OOCRedeem** middleware strategy (Redemption ladder 20773 max — 25898 was disproven as GBOK and removed before landing) |
+| `druid/class_sylvanas.lua` + middleware | — | **ReviveOOC** middleware strategy (Revive 50769 WotLK max / 24341 TBC rank, era-resolved by `get_spell_id` first-learned-id) — OOC counterpart of the Rebirth battle-rez lane |
+
+Battery: all three new combat lanes fire in existing shared scenarios
+(target_casting/wotlk_interrupts, hurricane_aoe) — WotLK 455 -> 458
+strategies, never-fires=0. Pins: `test_mage_fire_wotlk_strategies` +4
+(fire/volume-hold/fail-closed/OOC-hold), `test_warlock_affliction_wotlk_
+strategies` +3, `test_druid_cat_wotlk_strategies` +4 (fire/no-cast/0-CP/
+energy-hold; the suite mock gained a bank-aware `is_casting` target). Static
+suites re-baselined: fire 9, cat 12, affliction 9 (BlastWaveAoE/SoC AoE/
+MaimInterrupt inserted into each expected_order). Spell audit: WotLK
+allowlist 221 -> 223 (Maim 49802, Blast Wave 42945); sylvanas audit clean
+(the era-shared class files stay TBC-valid — WotLK-only ranks live in the
+middleware fallbacks, validated by `get_spell_id` first-learned-id
+resolution). Scorecard/ACCURACY/era-pair seed (1355 names) regenerated.
+
+## Addendum 2026-09-10 (b) — healer deep-rate close-out: hymns, Lay on Hands, disc fillers
+
+The healing deep-rate's final four graded gaps, same guide discipline (all single-rank/new ids Wowhead-verified before landing):
+
+- **Holy priest** `classes/priest/holy_wotlk.lua` 8 -> 10: **DivineHymn** (64901, single rank — 64902/64903 verified as unrelated ids on Wowhead; 3+ `party_injured_count`, lowest < 60, Tranquility idiom, channeled self-cast) and **HymnOfHope** (64904, single rank; mana < 40 — casting while wounded wastes the heal half). Slotted under the self-save band, ahead of target triage.
+- **Holy paladin** `classes/paladin/holy_wotlk.lua` 9 -> 10: **LayOnHands** (era-shared 633, already TBC-bridge-accepted) as the <= 20% mana-free full-heal save on the DEDICATED beacon target (stable-target idiom, never the lowest-HP member), leading the order.
+- **Discipline priest** `classes/priest/discipline_wotlk.lua` 6 -> 8: the direct-heal filler band the file lacked — **GreaterHeal** (< 50%, mana >= 30) and **FlashHeal** (< 70%, mana >= 20) after Renew, before PowerInfusion; `build_state` now reads `mana_pct` the way its sibling healer files do.
+
+Battery: new shared scenario **healer_save_window** (lowest 15, mana-neutral) makes the tight <= 20 save band observable; all 41 WotLK specs hold never-fires=0 (priest/holy 10, priest/discipline 8, paladin/holy 10 in-battery). Spell audit: +2 VALID_RANK_ALIAS (64901/64904, allowlist 221 -> 223). Suites extended in place: three dsl_priority order/count updates (`test_holy_wotlk_dsl_priority` 9 -> 10 + index shift, `test_holy_priest_wotlk_dsl_priority` order + GreaterHeal slot 3 -> 5, `test_discipline_wotlk_dsl_priority` order) and three behavioral suites extended with fire/hold sides (`test_priest_holy_wotlk_strategies` +7, `test_priest_discipline_wotlk_strategies` +6 incl. a scenario mana variable, `test_paladin_holy_wotlk_strategies` +4 incl. the spell_ready mock the paladin suite previously lacked). Scorecard/ACCURACY/era-pair seed regenerated; suite count unchanged (563).

@@ -44,13 +44,13 @@ return {
     {
         spec = "druid/bear",
         missing_in = "sylvanas",
-        names = { "FeralFaerieFire", "HealingPotion", "Healthstone", "SwipeBear" },
+        names = { "BarkskinBear", "FeralFaerieFire", "HealingPotion", "Healthstone", "SurvivalInstincts", "SwipeBear" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "druid/bear",
         missing_in = "vanilla",
-        names = { "Bash", "FeralCharge", "FeralChargePull", "FeralFaerieFire", "Lacerate", "MangleBear", "SwipeBear" },
+        names = { "BarkskinBear", "Bash", "FeralCharge", "FeralChargePull", "FeralFaerieFire", "Lacerate", "MangleBear", "SurvivalInstincts", "SwipeBear" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -86,7 +86,7 @@ return {
     {
         spec = "druid/cat",
         missing_in = "wotlk",
-        names = { "Barkskin", "Bash", "BiteTrick", "CatForm", "ClawFallback", "Dash", "EmergencyPowershift", "EngineeringBomb", "FaerieFireStealthLock", "FeralCharge", "FeralChargeCat", "FerociousBiteTtd", "HealthPotion", "Healthstone", "MaimControl", "MaimInterrupt", "ManaPotion", "MangleDebuff", "MangleFiller", "PoolForBuilderTick", "PoolForExecuteBite", "PoolForRip", "PounceOpener", "Powershift", "Prowl", "RakeSnapshot", "RakeTab", "RavageOpener", "RemoveCurse", "RipSnapshot", "RipTrick", "ShredTrick", "StealthMangle", "StealthShred", "TrackHumanoids", "TravelForm" },
+        names = { "Barkskin", "Bash", "BiteTrick", "CatForm", "ClawFallback", "Dash", "EmergencyPowershift", "EngineeringBomb", "FaerieFireStealthLock", "FeralCharge", "FeralChargeCat", "FerociousBiteTtd", "HealthPotion", "Healthstone", "MaimControl", "ManaPotion", "MangleDebuff", "MangleFiller", "PoolForBuilderTick", "PoolForExecuteBite", "PoolForRip", "PounceOpener", "Powershift", "Prowl", "RakeSnapshot", "RakeTab", "RavageOpener", "RemoveCurse", "RipSnapshot", "RipTrick", "ShredTrick", "StealthMangle", "StealthShred", "TrackHumanoids", "TravelForm" },
         reason = "WotLK-era build-out: druid_cat_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -164,7 +164,7 @@ return {
     {
         spec = "mage/arcane",
         missing_in = "sylvanas",
-        names = { "ArcaneBarrage", "Frostbolt", "MageArmor", "MirrorImage" },
+        names = { "ArcaneBarrage", "ArcaneExplosion", "Frostbolt", "MageArmor", "MirrorImage" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
@@ -176,19 +176,19 @@ return {
     {
         spec = "mage/arcane",
         missing_in = "wotlk",
-        names = { "Blink", "ColdSnap", "ColdSnapIVReset", "FireBlast", "FireBlastExecute", "FireballLeveling", "FrostNova", "Frostbolt", "FrostboltConserve", "FrostboltLeveling", "Healthstone", "IceBarrier", "IceBlock", "ManaShield", "Polymorph", "Slow" },
+        names = { "ArcaneExplosion", "Blink", "ColdSnap", "ColdSnapIVReset", "FireBlast", "FireBlastExecute", "FireballLeveling", "FrostNova", "Frostbolt", "FrostboltConserve", "FrostboltLeveling", "Healthstone", "IceBarrier", "IceBlock", "ManaShield", "Polymorph", "Slow" },
         reason = "WotLK-era build-out: mage_arcane_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
         spec = "mage/fire",
         missing_in = "sylvanas",
-        names = { "LivingBomb", "ScorchFinal" },
+        names = { "BlastWaveAoE", "LivingBomb", "ScorchFinal" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "mage/fire",
         missing_in = "vanilla",
-        names = { "BlastWave", "DragonsBreath", "Healthstone", "LivingBomb", "ScorchFinal" },
+        names = { "BlastWave", "BlastWaveAoE", "DragonsBreath", "Healthstone", "LivingBomb", "ScorchFinal" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -200,31 +200,31 @@ return {
     {
         spec = "mage/frost",
         missing_in = "sylvanas",
-        names = { "DeepFreeze", "FrostfireBolt", "IceLance" },
+        names = { "DeepFreeze", "FrostfireBolt", "IceLance", "SummonWaterElemental" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "mage/frost",
         missing_in = "vanilla",
-        names = { "Blink", "DeepFreeze", "FrostArmor", "FrostfireBolt", "FrozenIceLance", "Healthstone", "IceLance", "IcyVeins", "MageArmor", "WaterElemental" },
+        names = { "Blink", "DeepFreeze", "FrostArmor", "FrostfireBolt", "FrozenIceLance", "Healthstone", "IceLance", "IcyVeins", "MageArmor", "SummonWaterElemental", "WaterElemental" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "mage/frost",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "Evocation", "FireBlast", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBarrier", "IceBlock", "IcyVeins", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
+        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "Evocation", "FireBlast", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBarrier", "IceBlock", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
         reason = "WotLK-era build-out: mage_frost_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
         spec = "paladin/holy",
         missing_in = "sylvanas",
-        names = { "BeaconOfLight", "DivineFavorHolyLight", "DivinePlea", "FlashOfLight", "HolyLight", "JudgementOfWisdom", "SacredShield", "SealOfWisdom" },
+        names = { "BeaconOfLight", "DivineFavorHolyLight", "DivinePlea", "FlashOfLight", "HolyLight", "JudgementOfWisdom", "LayOnHands", "SacredShield", "SealOfWisdom" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "paladin/holy",
         missing_in = "vanilla",
-        names = { "AvengingWrathHeavyHealing", "BeaconOfLight", "DivineFavorHolyLight", "DivineFavorHolyShockCombo", "DivineIlluminationHeavyHealing", "DivinePlea", "FSRPause", "FlashOfLight", "HammerOfJustice", "Healthstone", "HolyLight", "JudgementOfWisdom", "LightGraceBuild", "LightGraceChain", "Repentance", "SacredShield", "SealOfWisdom" },
+        names = { "AvengingWrathHeavyHealing", "BeaconOfLight", "DivineFavorHolyLight", "DivineFavorHolyShockCombo", "DivineIlluminationHeavyHealing", "DivinePlea", "FSRPause", "FlashOfLight", "HammerOfJustice", "Healthstone", "HolyLight", "JudgementOfWisdom", "LayOnHands", "LightGraceBuild", "LightGraceChain", "Repentance", "SacredShield", "SealOfWisdom" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -236,19 +236,19 @@ return {
     {
         spec = "paladin/protection",
         missing_in = "sylvanas",
-        names = { "AvengersShield", "HammerOfTheRighteous", "ShieldOfRighteousness" },
+        names = { "AvengersShield", "DivinePlea", "HammerOfTheRighteous", "ShieldOfRighteousness" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "paladin/protection",
         missing_in = "vanilla",
-        names = { "AvengerShield", "AvengersShield", "AvengingWrath", "BlessingOfKingsParty", "DivineProtection", "HammerOfTheRighteous", "Healthstone", "Repentance", "RighteousDefense", "SealOfCommandAoE", "ShieldOfRighteousness", "TurnEvil" },
+        names = { "AvengerShield", "AvengersShield", "AvengingWrath", "BlessingOfKingsParty", "DivinePlea", "DivineProtection", "HammerOfTheRighteous", "Healthstone", "Repentance", "RighteousDefense", "SealOfCommandAoE", "ShieldOfRighteousness", "TurnEvil" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "paladin/protection",
         missing_in = "wotlk",
-        names = { "AvengerShield", "AvengingWrath", "BlessingOfKingsParty", "BlessingOfProtectionAlly", "BlessingOfSanctuary", "Cleanse", "DevotionAura", "DivineProtection", "DivineShield", "Exorcism", "FlashOfLight", "HammerOfJustice", "HammerOfWrath", "Healthstone", "HolyLight", "HolyShock", "HolyWrath", "LayOnHands", "ManaPotion", "Repentance", "RighteousDefense", "SealOfCommandAoE", "SealOfWisdom", "SealRighteousness", "TurnEvil" },
+        names = { "AvengerShield", "AvengingWrath", "BlessingOfKingsParty", "BlessingOfProtectionAlly", "BlessingOfSanctuary", "Cleanse", "DevotionAura", "DivineProtection", "DivineShield", "Exorcism", "FlashOfLight", "HammerOfJustice", "HammerOfWrath", "Healthstone", "HolyLight", "HolyShock", "LayOnHands", "ManaPotion", "Repentance", "RighteousDefense", "SealOfCommandAoE", "SealOfWisdom", "SealRighteousness", "TurnEvil" },
         reason = "WotLK-era build-out: paladin_protection_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -272,31 +272,31 @@ return {
     {
         spec = "priest/discipline",
         missing_in = "sylvanas",
-        names = { "Penance", "PowerWordShield", "PowerWordShieldLowest", "PrayerOfMending", "Renew" },
+        names = { "FlashHeal", "Penance", "PowerWordShield", "PowerWordShieldLowest", "PrayerOfMending", "Renew" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "priest/discipline",
         missing_in = "vanilla",
-        names = { "BindingHeal", "FSRPause", "ManaPotion", "MassDispel", "PainSuppression", "Penance", "PowerWordShield", "PrayerOfFortitude", "PrayerOfMending", "PrayerOfMendingTank", "PreemptiveGreaterHeal", "Renew", "Shadowfiend", "Silence", "SymbolOfHope" },
+        names = { "BindingHeal", "FSRPause", "FlashHeal", "ManaPotion", "MassDispel", "PainSuppression", "Penance", "PowerWordShield", "PrayerOfFortitude", "PrayerOfMending", "PrayerOfMendingTank", "PreemptiveGreaterHeal", "Renew", "Shadowfiend", "Silence", "SymbolOfHope" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "priest/discipline",
         missing_in = "wotlk",
-        names = { "BindingHeal", "DispelMagic", "DivineSpirit", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "GreaterHeal", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "InnerFocus", "ManaPotion", "MassDispel", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SymbolOfHope" },
+        names = { "BindingHeal", "DispelMagic", "DivineSpirit", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "InnerFocus", "ManaPotion", "MassDispel", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SymbolOfHope" },
         reason = "WotLK-era build-out: priest_discipline_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
         spec = "priest/holy",
         missing_in = "sylvanas",
-        names = { "GuardianSpirit", "Renew", "UnavailableClassicPriestHealA" },
+        names = { "DivineHymn", "GuardianSpirit", "HymnOfHope", "Renew", "UnavailableClassicPriestHealA" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "priest/holy",
         missing_in = "vanilla",
-        names = { "BindingHeal", "CircleOfHealing", "ClearcastingGreaterHeal", "FSRPause", "FearWard", "GuardianSpirit", "ManaPotion", "MassDispel", "PrayerOfMending", "PreemptiveGreaterHeal", "PsychicScream", "Renew", "ShackleUndead", "Shadowfiend", "Silence", "SurgeOfLightSmite", "SymbolOfHope" },
+        names = { "BindingHeal", "CircleOfHealing", "ClearcastingGreaterHeal", "DivineHymn", "FSRPause", "FearWard", "GuardianSpirit", "HymnOfHope", "ManaPotion", "MassDispel", "PrayerOfMending", "PreemptiveGreaterHeal", "PsychicScream", "Renew", "ShackleUndead", "Shadowfiend", "Silence", "SurgeOfLightSmite", "SymbolOfHope" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -308,19 +308,19 @@ return {
     {
         spec = "priest/shadow",
         missing_in = "sylvanas",
-        names = { "ManaBelow5Wand" },
+        names = { "ManaBelow5Wand", "MindSear" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "priest/shadow",
         missing_in = "vanilla",
-        names = { "Healthstone", "ManaEmergencyWand", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PreCombatPull", "SWDCCBreak", "ShadowWordDeath", "Shadowfiend", "VTSpread", "VampiricTouch" },
+        names = { "Healthstone", "ManaEmergencyWand", "MindSear", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PreCombatPull", "SWDCCBreak", "ShadowWordDeath", "Shadowfiend", "VTSpread", "VampiricTouch" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "priest/shadow",
         missing_in = "wotlk",
-        names = { "DispelMagic", "Fade", "FlashHeal", "Healthstone", "HolyNovaAoE", "InnerFire", "InnerFocusMindBlast", "ManaBelow5Wand", "ManaEmergencyWand", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PowerWordShield", "PreCombatPull", "PsychicScream", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "SWDCCBreak", "SWPSpread", "ShackleUndead", "ShadowWordDeath", "Shadowform", "Starshards", "VTSpread", "VampiricEmbrace" },
+        names = { "DispelMagic", "Fade", "FlashHeal", "Healthstone", "HolyNovaAoE", "InnerFire", "InnerFocusMindBlast", "ManaBelow5Wand", "ManaEmergencyWand", "MovingSWP", "MultiDotSWP", "MultiDotVT", "PowerWordFortitude", "PowerWordShield", "PreCombatPull", "PsychicScream", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "SWDCCBreak", "SWPSpread", "ShackleUndead", "Shadowform", "Starshards", "VTSpread", "VampiricEmbrace" },
         reason = "WotLK-era build-out: priest_shadow_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -362,7 +362,7 @@ return {
     {
         spec = "rogue/combat",
         missing_in = "wotlk",
-        names = { "AdrenalineRush", "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "KidneyShot", "Rupture", "ShivPurge", "Sprint", "Stealth", "Vanish" },
+        names = { "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "KidneyShot", "Rupture", "ShivPurge", "Sprint", "Stealth", "Vanish" },
         reason = "WotLK-era build-out: rogue_combat_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -440,13 +440,13 @@ return {
     {
         spec = "warlock/affliction",
         missing_in = "sylvanas",
-        names = { "Corruption", "DeathCoilSurvival", "DemonArmorBuff", "DrainSoul", "Haunt", "Healthstone", "PvP_Fear", "PvP_HowlOfTerror", "ShadowBolt", "ShadowWard" },
+        names = { "Corruption", "DeathCoilSurvival", "DemonArmorBuff", "DrainSoul", "Haunt", "Healthstone", "PvP_Fear", "PvP_HowlOfTerror", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowWard" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warlock/affliction",
         missing_in = "vanilla",
-        names = { "CC_Fear", "CC_HowlOfTerror", "Corruption", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "FelArmorBuff", "Haunt", "ImmolateSpread", "MovingCorruption", "RainOfFire", "SeedOfCorruption", "ShadowBolt", "ShadowEmbraceMaintenance", "ShadowburnExecute", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "UnstableAffliction", "UnstableAfflictionSpread" },
+        names = { "CC_Fear", "CC_HowlOfTerror", "Corruption", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "FelArmorBuff", "Haunt", "ImmolateSpread", "MovingCorruption", "RainOfFire", "SeedOfCorruption", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowEmbraceMaintenance", "ShadowburnExecute", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "UnstableAffliction", "UnstableAfflictionSpread" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -536,13 +536,13 @@ return {
     {
         spec = "warrior/protection",
         missing_in = "sylvanas",
-        names = { "BerserkerStance" },
+        names = { "BerserkerStance", "Shockwave" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warrior/protection",
         missing_in = "vanilla",
-        names = { "BerserkerStance", "CommandingShout", "ConcussionBlow", "Devastate", "Healthstone", "Intervene", "RageDumpSafetyNet", "ShieldSlamPurge", "SpellReflection", "StanceSwitch", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
+        names = { "BerserkerStance", "CommandingShout", "ConcussionBlow", "Devastate", "Healthstone", "Intervene", "RageDumpSafetyNet", "ShieldSlamPurge", "Shockwave", "SpellReflection", "StanceSwitch", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

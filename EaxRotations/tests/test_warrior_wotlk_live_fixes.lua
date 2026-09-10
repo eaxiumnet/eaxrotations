@@ -459,9 +459,9 @@ assert_true(type(prot) == "table" and type(prot.build_state) == "function", "pro
 
 local prot_order = {
     "LastStand", "BerserkerStance", "Pummel", "HeroicStrike", "ShieldBlock",
-    "ShieldSlam", "Revenge", "ThunderClap", "Devastate",
+    "ShieldSlam", "Revenge", "ThunderClap", "Shockwave", "Devastate",
 }
-assert_eq(#prot.strategies, 9, "protection has 9 strategies")
+assert_eq(#prot.strategies, 10, "protection has 10 strategies")
 
 -- W3.4 rage chain: protection reads rage via the REAL chain (context.rage
 -- first, then me:get_power(NS.POWER_RAGE)) — the mock unit is get_rage-less.

@@ -321,3 +321,27 @@ priest/leveling Fade (threat_pct >= 99; the battery threat channel stays
 capped at 95 by the Soulshatter fires-ONLY-in-threat_high exclusivity
 contract) — noted, deliberately not forced. Cross-era contract re-verified:
 tbc 11, wotlk 0, sod 0.
+
+## Addendum 2026-09-09 — vanilla guide sweep: mage/arcane gains its missing AoE lane
+
+Sweep of all 40 vanilla scorecard rows: every thin-looking row was inspected
+against its published priority. warrior/kebab 13 vs its TBC sibling 16 is
+legitimate era-slimming (Commanding Shout does not exist in vanilla;
+Pummel/Healthstone handling differs per the TBC addendum), NOT a gap. The one
+genuine guide gap found: mage/arcane_vanilla carried the full AP/Frost hybrid
+(burn/conserve phases, PoM+AP sync, Clearcasting consumption) but had NO AoE
+lane at all.
+
+- Added ArcaneExplosion (ladder id 1449, present in every mock spell table —
+  no bridge change needed): fire_vanilla's own idiom, aoe_self_meets 3+ /
+  SELF_10, stationary-only so movement still falls through to FireBlast.
+  Slotted after FireBlast, before Frostbolt, so the single-target nuke stays
+  the default filler and the AoE lane wins only inside real AoE windows.
+- Battery: mage/arcane 14 -> 15, never-fires=0; no other vanilla spec moved
+  (vanilla never stays pinned at 9, all pre-triaged).
+- Pinned in test_arcane_vanilla_strategies.lua: fail-closed without the AoE
+  volume module, moving-hold (FireBlast owns moving), 3-enemy fire, volume
+  hold, and the ordering contract. Suite count unchanged (563).
+- Era-pair seed regenerated (1344 names; vanilla arcane +1 lane vs the TBC
+  mirror is the intentional divergence, 0 unallowlisted). Scorecard row now
+  mage/arcane | 15 | 0.

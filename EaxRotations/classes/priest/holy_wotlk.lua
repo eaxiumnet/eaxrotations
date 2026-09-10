@@ -40,6 +40,12 @@ local ACTION = {
     -- era, bridge-omitted, audit-pinned) -> 48088 r7 -> 48089 r8 max (pinned
     -- via the holy APL fixture id 48089).
     CircleOfHealing = define("CircleofHealing", { 48089, 48088, 34866, 34865, 34864, 34863, 34862, 34861 }, "CircleofHealing"),
+    -- 2026-09-10 guide-gap raid cooldowns (the deep-rate's last hymn omissions).
+    -- Divine Hymn 64901 / Hymn of Hope 64904 are SINGLE-RANK WotLK spells
+    -- (Wowhead-verified; 64902/64903 are unrelated ids — redirects confirmed).
+    -- Bridge-omitted, so the WotLK audit pins them as alias ids.
+    DivineHymn = define("DivineHymn", 64901, "DivineHymn"),
+    HymnOfHope = define("HymnOfHope", 64904, "HymnOfHope"),
 }
 
 local RENEW_BUFF = { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
@@ -113,6 +119,34 @@ end
         },
         action = { type = "cast", spell = ACTION.DesperatePrayer, target = "self" },
     },
+    -- Hymns sit with the emergency band (after the self-save, before target
+    -- triage): Divine Hymn is the party burst channel (Tranquility idiom:
+    -- 3+ injured, lowest < 60), Hymn of Hope the mana-return channel —
+    -- casting it while wounded wastes the heal half.
+    {
+        name = "DivineHymn",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "injured_count", op = ">=", value = 3 },
+            { type = "state", field = "lowest_hp", op = "<", value = 60 },
+            { type = "spell_ready", spell = ACTION.DivineHymn, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            -- Channeled, self-centered party burst (nil target = self idiom).
+            return NS.try_cast(ACTION.DivineHymn, nil, "[HOLY] Divine Hymn party burst") == true
+        end },
+    },
+    {
+        name = "HymnOfHope",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "spell_ready", spell = ACTION.HymnOfHope, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.HymnOfHope, nil, "[HOLY] Hymn of Hope mana return") == true
+        end },
+    },
     {
         name = "GreaterHeal",
         conditions = {
@@ -164,6 +198,8 @@ end
 local strategies = {
     { name = "GuardianSpirit" },
     { name = "DesperatePrayer" },
+    { name = "DivineHymn" },
+    { name = "HymnOfHope" },
     { name = "GreaterHeal" },
     { name = "Lightwell" },
     { name = "CircleOfHealing" },

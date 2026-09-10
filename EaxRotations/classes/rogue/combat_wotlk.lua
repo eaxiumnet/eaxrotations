@@ -25,6 +25,10 @@ local ACTION = {
     Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     BladeFlurry = define("BladeFlurry", 13877, "BladeFlurry"),
     KillingSpree = define("KillingSpree", 51690, "KillingSpree"),
+    -- 2026-09-09 guide pass: Adrenaline Rush 13750 (3-min CD, 100% energy
+    -- regen for 15s; single rank, Wowhead-verified) — the combat APL's
+    -- remaining missing burst cooldown.
+    AdrenalineRush = define("AdrenalineRush", 13750, "AdrenalineRush"),
     -- Baseline rogue interrupt (3.3.5): not in the wowsims combat APL, so it
     -- sits outside the pinned order (first, like arcane Counterspell).
     Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
@@ -41,6 +45,7 @@ local combat_state = {
     snd_active = false,
     blade_flurry_ready = false,
     killing_spree_ready = false,
+    adrenaline_rush_ready = false,
     target_is_casting = false,
 }
 
@@ -62,6 +67,7 @@ local function build_state(context)
     -- cooldown_remaining() method (mock-only), so the lanes were dead live.
     state.blade_flurry_ready = (ACTION.BladeFlurry and NS.cooldown_remains and NS.cooldown_remains(ACTION.BladeFlurry) <= 0) or false
     state.killing_spree_ready = (ACTION.KillingSpree and NS.cooldown_remains and NS.cooldown_remains(ACTION.KillingSpree) <= 0) or false
+    state.adrenaline_rush_ready = (ACTION.AdrenalineRush and NS.cooldown_remains and NS.cooldown_remains(ACTION.AdrenalineRush) <= 0) or false
     return state
 end
 
@@ -114,6 +120,18 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.KillingSpree, target = "target" },
     },
     {
+        name = "AdrenalineRush",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "adrenaline_rush_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.AdrenalineRush, target = "self" },
+    },
+    {
         name = "Eviscerate",
         conditions = {
             { type = "state", field = "combo_points", op = ">=", value = 4 },
@@ -138,6 +156,7 @@ local strategies = {
     { name = "Eviscerate" },
     { name = "BladeFlurry" },
     { name = "KillingSpree" },
+    { name = "AdrenalineRush" },
     { name = "SinisterStrike" },
 }
 

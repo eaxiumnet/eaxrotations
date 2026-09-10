@@ -88,7 +88,7 @@ print("=== test_fire_wotlk_dsl_priority ===")
 local fire = dofile("EaxRotations/classes/mage/fire_wotlk.lua")
 assert_true(type(fire) == "table", "fire_wotlk should return a table")
 assert_true(type(fire.strategies) == "table", "fire_wotlk should expose strategies")
-assert_true(#fire.strategies == 8, "fire_wotlk should have 8 strategies")
+assert_true(#fire.strategies == 9, "fire_wotlk should have 9 strategies")
 
 local registered = _G.EaxRotations._registered_fire
 assert_true(registered ~= nil, "fire_wotlk should register under 'fire'")
@@ -103,11 +103,12 @@ local expected_order = {
     "Pyroblast",
     "LivingBomb",
     "FireBlast",
+    "BlastWaveAoE",
     "ScorchFinal",
     "Fireball",
 }
 
-test("priority order: 8 strategies match expected order", function()
+test("priority order: 9 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(fire.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], fire.strategies[i].name))
@@ -255,13 +256,13 @@ test("ScorchFinal: follows FireBlast and only matches at TTD <= 4s", function()
     ctx.ttd = 4
     local state = fire.build_state(ctx)
     assert_true(fire.strategies[6].name == "FireBlast", "FireBlast must precede the final Scorch")
-    assert_true(fire.strategies[7].name == "ScorchFinal", "final Scorch must be its own post-FireBlast strategy")
+    assert_true(fire.strategies[8].name == "ScorchFinal", "final Scorch must be its own post-FireBlast strategy")
     assert_false(fire.strategies[3].matches(ctx, state), "a non-expiring Scorch aura must disable early Scorch")
-    assert_true(fire.strategies[7].matches(ctx, state), "final Scorch should match at 4s TTD")
+    assert_true(fire.strategies[8].matches(ctx, state), "final Scorch should match at 4s TTD")
 
     ctx.ttd = 5
     state = fire.build_state(ctx)
-    assert_false(fire.strategies[7].matches(ctx, state), "final Scorch must not be unconditional above 4s TTD")
+    assert_false(fire.strategies[8].matches(ctx, state), "final Scorch must not be unconditional above 4s TTD")
 
     _G.EaxRotations.debuff_remains = orig_debuff
     ctx.ttd = nil
@@ -299,7 +300,7 @@ test("LivingBomb, Scorch, and Fireball ignore unsupported mana thresholds", func
     assert_true(fire.strategies[3].matches(ctx, state), "Scorch should not have a mana threshold")
     ctx.ttd = nil
     state = fire.build_state(ctx)
-    assert_true(fire.strategies[8].matches(ctx, state), "Fireball should not have a mana threshold")
+    assert_true(fire.strategies[9].matches(ctx, state), "Fireball should not have a mana threshold")
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     _G.EaxRotations.debuff_remains = orig_debuff
 end)

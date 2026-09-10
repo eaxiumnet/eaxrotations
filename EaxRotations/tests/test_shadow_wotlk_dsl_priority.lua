@@ -81,7 +81,7 @@ print("=== test_shadow_wotlk_dsl_priority ===")
 local shadow = dofile("EaxRotations/classes/priest/shadow_wotlk.lua")
 assert_true(type(shadow) == "table", "shadow_wotlk should return a table")
 assert_true(type(shadow.strategies) == "table", "shadow_wotlk should expose strategies")
-assert_true(#shadow.strategies == 7, "shadow_wotlk should have 7 strategies")
+assert_true(#shadow.strategies == 9, "shadow_wotlk should have 9 strategies")
 
 local registered = _G.EaxRotations._registered_shadow
 assert_true(registered ~= nil, "shadow_wotlk should register under 'shadow'")
@@ -99,11 +99,13 @@ local expected_order = {
     "ShadowWordPain",
     "VampiricTouch",
     "MindBlast",
+    "MindSear",
     "MindFlay",
     "Shadowfiend",
+    "ShadowWordDeath",
 }
 
-test("priority order: 7 strategies match expected order", function()
+test("priority order: 9 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(shadow.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], shadow.strategies[i].name))
@@ -196,32 +198,32 @@ test("MindBlast: does not match when mana < 20", function()
     assert_false(ok, "MindBlast should not match when mana < 20")
 end)
 
--- MindFlay (6): matches when mana >= 20
+-- MindFlay (7): matches when mana >= 20
 test("MindFlay: matches when mana >= 20", function()
     local state = shadow.build_state(ctx)  -- default mana 80
-    assert_true(shadow.strategies[6].matches(ctx, state), "MindFlay should match when mana >= 20")
+    assert_true(shadow.strategies[7].matches(ctx, state), "MindFlay should match when mana >= 20")
 end)
 
 test("MindFlay: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.get_mana_percentage
     _G.EaxRotations.me.get_mana_percentage = function() return 10 end
     local state = shadow.build_state(ctx)
-    local ok = shadow.strategies[6].matches(ctx, state)
+    local ok = shadow.strategies[7].matches(ctx, state)
     _G.EaxRotations.me.get_mana_percentage = orig_mana
     assert_false(ok, "MindFlay should not match when mana < 20")
 end)
 
--- Shadowfiend (7): matches when in combat and mana < 60
+-- Shadowfiend (8): matches when in combat and mana < 60
 test("Shadowfiend: matches when mana < 60", function()
     local state = shadow.build_state(ctx)
     state.mana_pct = 45
-    assert_true(shadow.strategies[7].matches(ctx, state), "Shadowfiend should match when mana < 60")
+    assert_true(shadow.strategies[8].matches(ctx, state), "Shadowfiend should match when mana < 60")
 end)
 
 test("Shadowfiend: does not match at high mana", function()
     local state = shadow.build_state(ctx)
     state.mana_pct = 80
-    assert_false(shadow.strategies[7].matches(ctx, state), "Shadowfiend should not match at high mana")
+    assert_false(shadow.strategies[8].matches(ctx, state), "Shadowfiend should not match at high mana")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

@@ -108,7 +108,7 @@ function tests.priority_order()
     -- Healer wave (2026-09-09): PainSuppression (emergency save) leads,
     -- the pinned APL order PWS -> Penance -> PoM -> Renew is unchanged,
     -- PowerInfusion (pressure cooldown) trails.
-    local expected = { "PainSuppression", "PowerWordShield", "Penance", "PrayerOfMending", "Renew", "PowerInfusion" }
+    local expected = { "PainSuppression", "PowerWordShield", "Penance", "PrayerOfMending", "Renew", "GreaterHeal", "FlashHeal", "PowerInfusion" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

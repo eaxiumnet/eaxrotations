@@ -29,9 +29,12 @@ local function corr(secs) debuffs[47813] = secs end
 local function agony(secs) debuffs[47864] = secs end
 local function haunt(secs) debuffs[59164] = secs end
 
+local enemies, aoe_ok = 1, false
+
 local function reset_env()
     combat, target_hp, hp, mana = true, 100, 100, 100
     debuffs = {}
+    enemies, aoe_ok = 1, false
 end
 
 _G.EaxRotations = {
@@ -44,6 +47,7 @@ _G.EaxRotations = {
         return 0
     end,
     buff_up = function() return false end,
+    aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -65,7 +69,7 @@ local function scenario(label, strategy_name, expect)
         mana_pct = mana,
         hp = hp,
         target_hp = target_hp,
-        enemy_count = 1,
+        enemy_count = enemies,
         target = { is_casting = function() return false end },
         settings = {},
     }
@@ -143,5 +147,15 @@ assert_lane("LifeTap blocked below the hp floor", "LifeTap",
     function() mana = 30; hp = 49 end, false)
 assert_lane("LifeTap blocked out of combat", "LifeTap",
     function() mana = 30; combat = false end, false)
+
+-- ============================================================================
+-- SeedOfCorruptionAoE: 4+ enemy packs via the real aoe_target_meets gate.
+-- ============================================================================
+assert_lane("SeedOfCorruptionAoE fires into a 4-enemy pack", "SeedOfCorruptionAoE",
+    function() enemies = 4; aoe_ok = true end, true)
+assert_lane("SeedOfCorruptionAoE blocked at 3 enemies", "SeedOfCorruptionAoE",
+    function() enemies = 3; aoe_ok = true end, false)
+assert_lane("SeedOfCorruptionAoE fail-closed without the AoE module", "SeedOfCorruptionAoE",
+    function() enemies = 5; aoe_ok = false end, false)
 
 print("PASS test_warlock_affliction_wotlk_strategies")

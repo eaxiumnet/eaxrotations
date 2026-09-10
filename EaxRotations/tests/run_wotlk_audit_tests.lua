@@ -143,6 +143,8 @@ local WOTLK_REFERENCE_ALIASES = {
     [47471] = { kind = "VALID_RANK_ALIAS", family = "Execute", source = "wowhead WotLK Classic spell=47471 (47498 disproven: Devastate rank 3)" },
     [11958] = { kind = "VALID_RANK_ALIAS", family = "Cold Snap", source = "wowhead WotLK Classic spell=11958 (12472 disproven: Icy Veins)" },
     [42873] = { kind = "VALID_RANK_ALIAS", family = "Fire Blast", source = "wowhead WotLK Classic spell=42873" },
+    [49802] = { kind = "VALID_RANK_ALIAS", family = "Maim", source = "wowhead WotLK Classic spell=49802 (stun finisher, interrupts casting, 10s CD; single WotLK rank)" },
+    [42945] = { kind = "VALID_RANK_ALIAS", family = "Blast Wave", source = "wowhead WotLK Classic spell=42945 (1047-1233 Fire, 10y radius, 30s CD; 42945 is the WotLK max rank)" },
     [42914] = { kind = "VALID_RANK_ALIAS", family = "Ice Lance", source = "wowhead WotLK Classic spell=42914" },
     [47610] = { kind = "VALID_RANK_ALIAS", family = "Frostfire Bolt", source = "wowhead WotLK Classic spell=47610 (max rank, 722-838 dmg; 44614 = rank 1) + ui/mage/apls/frost.apl.json" },
     -- W3.3 mage live-fixes (2026-08-13): the four mage *_wotlk.lua files were
@@ -275,6 +277,11 @@ local WOTLK_REFERENCE_ALIASES = {
     [16190] = { kind = "VALID_RANK_ALIAS", family = "Mana Tide Totem", source = "wowhead WotLK Classic spell=16190/mana-tide-totem" },
     [55459] = { kind = "VALID_RANK_ALIAS", family = "Chain Heal", source = "wowhead WotLK Classic spell=55459/chain-heal" },
     [49276] = { kind = "VALID_RANK_ALIAS", family = "Lesser Healing Wave", source = "wowhead WotLK Classic spell=49276/lesser-healing-wave" },
+    -- 2026-09-10 healer guide-gap pins: the two priest hymns are SINGLE-RANK
+    -- WotLK spells (Wowhead-verified; 64902/64903 are unrelated ids). The
+    -- file-derived bridge omits both.
+    [64901] = { kind = "VALID_RANK_ALIAS", family = "Divine Hymn", source = "wowhead WotLK Classic spell=64901/divine-hymn" },
+    [64904] = { kind = "VALID_RANK_ALIAS", family = "Hymn of Hope", source = "wowhead WotLK Classic spell=64904/hymn-of-hope" },
     -- W3.3 shaman live-fix pins (2026-08-13): Windfury Weapon (WotLK max
     -- rank — the wowsims enhancement APL variant is literally "default_wf"),
     -- Water Shield (WotLK max rank, resto mana sustain), Tidal Waves (Riptide
@@ -332,6 +339,20 @@ local WOTLK_REFERENCE_ALIASES = {
     [27871] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r3)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r3)" },
     [27870] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r2)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r2)" },
     [7001] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (r1)", source = "wowhead WotLK Classic spell=724/lightwell (r1, 801 heal)" },
+    -- 2026-09-09 DPS/tank guide-pass pins (each Wowhead wotlk verified):
+    [61336] = { kind = "VALID_RANK_ALIAS", family = "Survival Instincts", source = "wowhead.com/wotlk/spell=61336 - talent, 3-min CD, +30% hp 20s" },
+    [22812] = { kind = "VALID_RANK_ALIAS", family = "Barkskin", source = "wowhead.com/wotlk/spell=22812 - single rank, DR usable in form" },
+    [46968] = { kind = "VALID_RANK_ALIAS", family = "Shockwave", source = "wowhead.com/wotlk/spell=46968 - prot talent, 20s CD cone stun" },
+    [48817] = { kind = "VALID_RANK_ALIAS", family = "Holy Wrath", source = "wowhead.com/wotlk/spell=48817 - 30s CD, 10yd stun/damage" },
+    [37897] = { kind = "VALID_RANK_ALIAS", family = "Holy Wrath", source = "wowhead.com/wotlk/spell=37897 - rank 12 (70)" },
+    [31898] = { kind = "VALID_RANK_ALIAS", family = "Holy Wrath", source = "wowhead.com/wotlk/spell=31898 - rank 5 (60)" },
+    [53023] = { kind = "VALID_RANK_ALIAS", family = "Mind Sear", source = "wowhead.com/wotlk/spell=53023 - max rank r5 (74)" },
+    [49821] = { kind = "VALID_RANK_ALIAS", family = "Mind Sear", source = "wowhead.com/wotlk/spell=49821 - rank 1 (50)" },
+    [48158] = { kind = "VALID_RANK_ALIAS", family = "Shadow Word: Death", source = "wowhead.com/wotlk/spell=48158 - max rank r9 (76)" },
+    [48157] = { kind = "VALID_RANK_ALIAS", family = "Shadow Word: Death", source = "wowhead.com/wotlk/spell=48157 - rank 8 (72)" },
+    [32379] = { kind = "VALID_RANK_ALIAS", family = "Shadow Word: Death", source = "wowhead.com/wotlk/spell=32379 - rank 7 (68)" },
+    [2944] = { kind = "VALID_RANK_ALIAS", family = "Shadow Word: Death", source = "wowhead.com/wotlk/spell=2944 - rank 1 (10)" },
+    [13750] = { kind = "VALID_RANK_ALIAS", family = "Adrenaline Rush", source = "wowhead WotLK Classic spell=13750/adrenaline-rush - single rank, era-shared with TBC (3-min CD)" },
 }
 
 -- Resolved 2026-08-08: 48785/48782/48826 verified as real WotLK ranks (now
@@ -986,7 +1007,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 208, "pinned allowlist size") -- +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 225, "pinned allowlist size") -- +2 healer close-out pins 2026-09-10 (64901 Divine Hymn, 64904 Hymn of Hope) -- +2 spell-coverage sweep pins 2026-09-10 (49802 Maim, 42945 Blast Wave) -- prior: +13 DPS/tank guide-pass pins 2026-09-09 (61336/22812/46968/48817/37897/31898/53023/49821/48158/48157/32379/2944/13750) -- prior: +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

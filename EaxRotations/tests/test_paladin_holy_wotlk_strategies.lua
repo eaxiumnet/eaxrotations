@@ -21,6 +21,7 @@ local function assert_false(v, label) if v then error(label or "assert_false fai
 
 local lowest_hp = 100
 local mana = 100
+local ready_map = {}   -- per-spell-id readiness for the spell_ready lanes
 local buffs = {}      -- spell id -> true (unit-agnostic: only one unit is ever
                       -- beacon-buffed or self-buffed in a scenario)
 
@@ -34,6 +35,7 @@ local me = { get_health_percentage = function() return 100 end }
 local function reset_env()
     lowest_hp, mana = 100, 100
     buffs = {}
+    ready_map = {}
 end
 
 _G.EaxRotations = {
@@ -45,6 +47,11 @@ _G.EaxRotations = {
             if buffs[id] then return true end
         end
         return false
+    end,
+    spell_ready = function(action)
+        -- define_action resolves a ladder to its first id (no NS.spell_action
+        -- in this mock), so readiness is keyed by 633 (Lay on Hands).
+        return ready_map[action] ~= false
     end,
     try_cast = function() return true end,
     log = function() end,
@@ -133,5 +140,18 @@ assert_lane("FlashOfLight blocked at/above 70% ally hp", "FlashOfLight",
     function() lowest_hp = 70; mana = 100 end, false)
 assert_lane("FlashOfLight blocked below 20% mana", "FlashOfLight",
     function() lowest_hp = 50; mana = 19 end, false)
+
+-- ============================================================================
+-- Lay on Hands: mana-free full-heal save (2026-09-10 guide-gap lane) —
+-- <= 20 emergency band, cast on the dedicated beacon target.
+-- ============================================================================
+assert_lane("LayOnHands fires on a dying ally", "LayOnHands",
+    function() lowest_hp = 19 end, true)
+assert_lane("LayOnHands fires at the 20% boundary (inclusive band)", "LayOnHands",
+    function() lowest_hp = 20 end, true)
+assert_lane("LayOnHands blocked at 21% ally hp", "LayOnHands",
+    function() lowest_hp = 21 end, false)
+assert_lane("LayOnHands blocked on cooldown", "LayOnHands",
+    function() lowest_hp = 15; ready_map[633] = false end, false)
 
 print("PASS test_paladin_holy_wotlk_strategies")

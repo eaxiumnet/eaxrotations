@@ -18,6 +18,15 @@ local ok_cls, cls_id = pcall(function() return player and player:get_class() end
 if not ok_cls or cls_id ~= enums.class_id.DRUID then return nil end
 
 local SPELLS = {
+    Revive = NS.spell_action({
+        name = "Revive",
+        ids = {24341},
+        cast_time = 10,
+        cooldown = 0,
+        power_cost = 72,
+        power_type = "mana",
+        school = "nature",
+    }),
     Barkskin = NS.spell_action({
         name = "Barkskin",
         ids = {22812},

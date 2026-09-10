@@ -30,6 +30,7 @@ local enemy_count = 1
 local longcd = true
 local bf_cd = 0
 local ks_cd = 0
+local ar_cd = 0
 local buffs = {}     -- 6774/5171 = Slice and Dice buff
 
 local me = {
@@ -45,7 +46,7 @@ local function set_buff(id, up) buffs[id] = up or nil end
 local function reset_env()
     energy, cp, snd = 0, 0, 0
     combat, casting, enemy_count, longcd = true, false, 1, true
-    bf_cd, ks_cd = 0, 0
+    bf_cd, ks_cd, ar_cd = 0, 0, 0
     buffs = {}
 end
 
@@ -72,6 +73,7 @@ _G.EaxRotations = {
     cooldown_remains = function(action)
         if action == 13877 then return bf_cd end
         if action == 51690 then return ks_cd end
+        if action == 13750 then return ar_cd end
         return 0
     end,
     should_use_long_cd = function(context, cd) return longcd end,
@@ -189,5 +191,18 @@ assert_lane("SinisterStrike fires at 45 energy", "SinisterStrike",
     function() energy = 45 end, true)
 assert_lane("SinisterStrike blocked below 45 energy", "SinisterStrike",
     function() energy = 44 end, false)
+
+-- ============================================================================
+-- Adrenaline Rush: in combat + cooldown ready + long-CD consent (2026-09-09
+-- guide pass). Real cooldown_remains read on 13750.
+-- ============================================================================
+assert_lane("AdrenalineRush fires off cooldown in combat", "AdrenalineRush",
+    function() end, true)
+assert_lane("AdrenalineRush blocked while on cooldown", "AdrenalineRush",
+    function() ar_cd = 120 end, false)
+assert_lane("AdrenalineRush blocked out of combat", "AdrenalineRush",
+    function() combat = false end, false)
+assert_lane("AdrenalineRush blocked when long-CD gate refuses", "AdrenalineRush",
+    function() longcd = false end, false)
 
 print("PASS test_rogue_combat_wotlk_strategies")

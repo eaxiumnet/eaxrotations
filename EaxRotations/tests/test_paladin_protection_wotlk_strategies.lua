@@ -27,6 +27,8 @@ local debuffs = {}
 local buffs = {}
 local hs_charges = 0
 local not_ready = {}
+local cds = {}
+local creature_type = 1
 
 local function consecration(secs) debuffs[48819] = secs end
 local function set_buff(id, up) buffs[id] = up or nil end
@@ -38,6 +40,7 @@ local function reset_env()
     now = now + 10   -- advance past the Righteous Fury 3s anti-loop throttle
     debuffs, buffs, not_ready = {}, {}, {}
     hs_charges = 0
+    cds, creature_type = {}, 1
 end
 
 _G.EaxRotations = {
@@ -68,6 +71,10 @@ _G.EaxRotations = {
         if not_ready[id] then return false end
         return true
     end,
+    cooldown_remains = function(action)
+        local id = type(action) == "number" and action or (action and action.id)
+        return cds[id] or 0
+    end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -88,7 +95,10 @@ local function scenario(label, strategy_name, expect)
         in_combat = combat,
         mana_pct = mana,
         enemy_count = enemy_count,
-        target = { get_health_percentage = function() return 100 end },
+        target = {
+            get_health_percentage = function() return 100 end,
+            get_creature_type = function() return creature_type end,
+        },
         settings = {},
     }
     local state = result.build_state(ctx)
@@ -161,5 +171,30 @@ assert_lane("HolyShield blocked while on cooldown", "HolyShield",
     function() not_ready[48927] = true end, false)
 assert_lane("HolyShield blocked out of combat", "HolyShield",
     function() combat = false end, false)
+
+-- ============================================================================
+-- Holy Wrath: AoE burst vs demon (3) / undead (6) targets on 2+ enemies
+-- (2026-09-09 guide pass). Real cooldown_remains read on 48817.
+-- ============================================================================
+assert_lane("HolyWrath fires on undead adds", "HolyWrath",
+    function() enemy_count = 2; creature_type = 6 end, true)
+assert_lane("HolyWrath fires on demon adds", "HolyWrath",
+    function() enemy_count = 3; creature_type = 3 end, true)
+assert_lane("HolyWrath blocked on humanoid pulls", "HolyWrath",
+    function() enemy_count = 2; creature_type = 7 end, false)
+assert_lane("HolyWrath blocked single-target", "HolyWrath",
+    function() enemy_count = 1; creature_type = 6 end, false)
+assert_lane("HolyWrath blocked while on cooldown", "HolyWrath",
+    function() enemy_count = 2; creature_type = 6; cds[48817] = 20 end, false)
+
+-- ============================================================================
+-- Divine Plea: mana return at < 50% mana off CD (2026-09-09 guide pass).
+-- ============================================================================
+assert_lane("DivinePlea fires at 49% mana", "DivinePlea", function() mana = 49 end, true)
+assert_lane("DivinePlea blocked at 50% mana", "DivinePlea", function() mana = 50 end, false)
+assert_lane("DivinePlea blocked while on cooldown", "DivinePlea",
+    function() mana = 20; cds[54428] = 60 end, false)
+assert_lane("DivinePlea blocked out of combat", "DivinePlea",
+    function() mana = 20; combat = false end, false)
 
 print("PASS test_paladin_protection_wotlk_strategies")

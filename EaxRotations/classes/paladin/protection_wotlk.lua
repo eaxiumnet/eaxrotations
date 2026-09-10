@@ -34,6 +34,11 @@ local ACTION = {
     -- Holy Shield ladder: 48927 = 3.3.5 max rank, 27179/20925 = TBC-era ranks
     -- (all pinned in run_wotlk_audit_tests.lua WOTLK_REFERENCE_ALIASES).
     HolyShield = define("HolyShield", { 48927, 27179, 20925 }, "HolyShield"),
+    -- 2026-09-09 guide pass: Holy Wrath 48817 (30s CD, self-centered Holy
+    -- AoE + undead/demon stun) and Divine Plea 54428 (25% mana, -50% healing
+    -- 15s — bridge-verified; retribution_wotlk already defines 54428).
+    HolyWrath = define("HolyWrath", { 48817, 37897, 31898 }, "HolyWrath"),
+    DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
 }
 
 local CONSECRATION_DEBUFF = { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }
@@ -51,6 +56,9 @@ local protection_state = {
     righteous_fury_up = false,
     holy_shield_up = false,
     holy_shield_charges = 0,
+    holy_wrath_ready = false,
+    divine_plea_ready = false,
+    target_creature_type = 0,
     holy_shield_ready = false,
 }
 
@@ -73,6 +81,9 @@ local function build_state(context)
     state.in_combat = (context.in_combat == true)
     state.consecration_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CONSECRATION_DEBUFF)) or 0
     state.righteous_fury_up = (me and NS.buff_up and NS.buff_up(me, RIGHTEOUS_FURY_BUFF)) or false
+    state.holy_wrath_ready = (ACTION.HolyWrath and NS.cooldown_remains and NS.cooldown_remains(ACTION.HolyWrath) <= 0) or false
+    state.divine_plea_ready = (ACTION.DivinePlea and NS.cooldown_remains and NS.cooldown_remains(ACTION.DivinePlea) <= 0) or false
+    state.target_creature_type = (target and target.get_creature_type and target:get_creature_type()) or 0
     state.holy_shield_up = (me and NS.buff_up and NS.buff_up(me, HOLY_SHIELD_BUFF)) or false
     -- Pattern 11: buff.points[1] is the remaining Holy Shield block count
     -- (8 base, 10 with Imp Holy Shield) — drive the proactive refresh floor.
@@ -149,6 +160,29 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.RighteousFury, target = "self" },
     },
+    {
+        name = "DivinePlea",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "divine_plea_ready", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.DivinePlea, target = "self" },
+    },
+    {
+        name = "HolyWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "holy_wrath_ready", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "custom", fn = function(context, state)
+                -- 3=demon, 6=undead (the ret HolyWrath band)
+                local ct = state.target_creature_type or 0
+                return ct == 3 or ct == 6
+            end },
+        },
+        action = { type = "cast", spell = ACTION.HolyWrath, target = "self" },
+    },
     -- Holy Shield charge management (Pattern 11): refresh when the buff is down
     -- OR remaining blocks drop to the configured floor (default 2). Keeps the
     -- 100%-uptime tanking convention without re-casting a full-charge shield.
@@ -178,8 +212,10 @@ local strategies = {
     { name = "ShieldOfRighteousness" },
     { name = "HammerOfTheRighteous" },
     { name = "Consecration" },
+    { name = "HolyWrath" },
     { name = "Judgement" },
     { name = "RighteousFury" },
+    { name = "DivinePlea" },
     { name = "HolyShield" },
 }
 

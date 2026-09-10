@@ -28,6 +28,8 @@ local now_ms = 0
 local channeling = false
 local channel_spell = 0
 local channel_start = 0
+local thp = 100
+local enemy_count = 1
 
 local function vt(secs) debuffs[48160] = secs end
 local function swp(secs) debuffs[48125] = secs end
@@ -37,6 +39,7 @@ local function reset_env()
     combat, mana, casting, now_ms = true, 100, false, 0
     debuffs, not_ready = {}, {}
     channeling, channel_spell, channel_start = false, 0, 0
+    thp, enemy_count = 100, 1
 end
 
 _G.EaxRotations = {
@@ -78,7 +81,8 @@ local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         mana_pct = mana,
-        enemy_count = 1,
+        enemy_count = enemy_count,
+        target_hp = thp,
         target = { is_casting = function() return casting end },
         settings = {},
     }
@@ -168,5 +172,20 @@ assert_lane("Shadowfiend fires at 59% mana", "Shadowfiend", function() mana = 59
 assert_lane("Shadowfiend blocked at 60% mana", "Shadowfiend", function() mana = 60 end, false)
 assert_lane("Shadowfiend blocked out of combat", "Shadowfiend",
     function() mana = 40; combat = false end, false)
+
+-- ============================================================================
+-- ShadowWordDeath: execute lane — target hp <= 25% (2026-09-09 guide pass).
+-- Note: SW:D recoil damage makes it strictly an execute-window finisher.
+-- ============================================================================
+assert_lane("SW:D fires at 25% target hp", "ShadowWordDeath", function() thp = 25 end, true)
+assert_lane("SW:D blocked above 25% target hp", "ShadowWordDeath", function() thp = 30 end, false)
+assert_lane("SW:D blocked out of combat", "ShadowWordDeath",
+    function() thp = 20; combat = false end, false)
+
+-- ============================================================================
+-- MindSear: AoE filler on 3+ enemies (2026-09-09 guide pass).
+-- ============================================================================
+assert_lane("MindSear fires on 3 enemies", "MindSear", function() enemy_count = 3 end, true)
+assert_lane("MindSear blocked single-target", "MindSear", function() end, false)
 
 print("PASS test_priest_shadow_wotlk_strategies")

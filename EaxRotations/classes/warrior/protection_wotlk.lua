@@ -37,6 +37,9 @@ local ACTION = {
     -- it sits outside the pinned order (first, like the rogue Kick template).
     Pummel = define("Pummel", { 6554, 6552 }, "Pummel"),
     LastStand = define("LastStand", 12975, "LastStand"),
+    -- 2026-09-09 guide pass: Shockwave 46968 (protection talent, 20s CD,
+    -- frontal-cone stun + AP-scaled damage; Wowhead-verified).
+    Shockwave = define("Shockwave", 46968, "Shockwave"),
     BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),
 }
 
@@ -96,6 +99,7 @@ local protection_state = {
     target_is_casting = false,
     tclap_remains = 0,
     shield_block_ready = false,
+    shockwave_ready = false,
     last_stand_ready = false,
     shield_slam_cd = 99,
     revenge_cd = 99,
@@ -133,6 +137,7 @@ local function build_state(context)
     state.last_stand_ready = cd_remaining(ACTION.LastStand) <= 0
     state.shield_slam_cd = cd_remaining(ACTION.ShieldSlam)
     state.revenge_cd = cd_remaining(ACTION.Revenge)
+    state.shockwave_ready = cd_remaining(ACTION.Shockwave) <= 0
     state.pummel_ready = cd_remaining(ACTION.Pummel) <= 0
     state.heroic_swing_imminent = swing_time_until(me) <= HEROIC_SWING_WINDOW
 
@@ -237,6 +242,16 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.ThunderClap, target = "target" },
     },
     {
+        name = "Shockwave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "shockwave_ready", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "rage", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Shockwave, target = "target" },
+    },
+    {
         name = "Devastate",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -258,6 +273,7 @@ local strategies = {
     { name = "ShieldSlam" },
     { name = "Revenge" },
     { name = "ThunderClap" },
+    { name = "Shockwave" },
     { name = "Devastate" },
 }
 

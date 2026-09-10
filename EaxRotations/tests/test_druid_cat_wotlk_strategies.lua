@@ -23,6 +23,7 @@ local thp = 100
 local energy = 0
 local cp = 0
 local combat = true
+local casting = false
 local behind = false
 local stealthed = false
 local debuffs = {}
@@ -40,6 +41,7 @@ local function set_buff(id, up) buffs[id] = up or nil end
 local function reset_env()
     thp, energy, cp = 100, 0, 0
     combat, behind, stealthed = true, false, false
+    casting = false
     debuffs, buff_remains_map, buffs, not_ready = {}, {}, {}, {}
 end
 
@@ -91,7 +93,8 @@ local function scenario(label, strategy_name, expect)
         combo_points = cp,
         is_behind = behind,
         is_stealthed = stealthed,
-        target = { get_health_percentage = function() return thp end },
+        target_is_casting = casting,
+        target = { get_health_percentage = function() return thp end, is_casting = function() return casting end },
         settings = {},
     }
     local state = result.build_state(ctx)
@@ -233,5 +236,17 @@ assert_lane("ShredOmen blocked at 5 combo points", "ShredOmen",
     function() set_buff(16864, true); behind = true; cp = 5 end, false)
 assert_lane("ShredOmen blocked in front of the target", "ShredOmen",
     function() set_buff(16864, true); behind = false; cp = 4 end, false)
+
+-- ============================================================================
+-- MaimInterrupt: CP + energy interrupt (WotLK cat gap vs the TBC sibling).
+-- ============================================================================
+assert_lane("MaimInterrupt fires on a casting target at 1+ CP", "MaimInterrupt",
+    function() casting = true; cp = 1; energy = 60 end, true)
+assert_lane("MaimInterrupt blocked when the target is not casting", "MaimInterrupt",
+    function() cp = 2; energy = 60 end, false)
+assert_lane("MaimInterrupt blocked at 0 combo points", "MaimInterrupt",
+    function() casting = true; energy = 60 end, false)
+assert_lane("MaimInterrupt blocked below 35 energy", "MaimInterrupt",
+    function() casting = true; cp = 2; energy = 34 end, false)
 
 print("PASS test_druid_cat_wotlk_strategies")

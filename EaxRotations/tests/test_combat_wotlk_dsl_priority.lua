@@ -112,7 +112,7 @@ local failed = 0
 function tests.priority_order()
     -- wowsims combat APL order (ui/rogue/apls/combat.apl.json): SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike.
     -- Kick is a baseline interrupt NOT in the fixture — first, outside the pinned order.
-    local expected = { "Kick", "SliceAndDice", "Eviscerate", "BladeFlurry", "KillingSpree", "SinisterStrike" }
+    local expected = { "Kick", "SliceAndDice", "Eviscerate", "BladeFlurry", "KillingSpree", "AdrenalineRush", "SinisterStrike" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

@@ -20,9 +20,10 @@ local function assert_false(v, label) if v then error(label or "assert_false fai
 local friendly_hp = 100
 local weakened = false
 local renew_remains = 0
+local mana = 100
 
 local function reset_env()
-    friendly_hp, weakened, renew_remains = 100, false, 0
+    friendly_hp, weakened, renew_remains, mana = 100, false, 0, 100
 end
 
 local function renew(secs) renew_remains = secs end
@@ -63,7 +64,7 @@ local function scenario(label, strategy_name, expect)
     }
     local ctx = {
         in_combat = true,
-        mana_pct = 100,
+        mana_pct = mana,
         enemy_count = 0,
         lowest = { unit = friendly },
         settings = {},
@@ -105,5 +106,23 @@ assert_lane("Prayer of Mending is ungated (matches any state)", "PrayerOfMending
 assert_lane("Renew fires when the HoT is down", "Renew", function() end, true)
 assert_lane("Renew refreshes at 2.9s remaining", "Renew", function() renew(2.9) end, true)
 assert_lane("Renew blocked at the 3.0s boundary", "Renew", function() renew(3) end, false)
+
+-- ============================================================================
+-- Direct-heal fillers (2026-09-10 guide-gap lanes): Greater Heal < 50 at
+-- mana >= 30, Flash Heal < 70 at mana >= 20 — the mana-gated band after
+-- Renew so the shield engine never starves itself.
+-- ============================================================================
+assert_lane("Greater Heal fires below 50% at 30% mana", "GreaterHeal",
+    function() friendly_hp = 49; mana = 30 end, true)
+assert_lane("Greater Heal blocked at/above 50%", "GreaterHeal",
+    function() friendly_hp = 50; mana = 100 end, false)
+assert_lane("Greater Heal blocked below 30% mana", "GreaterHeal",
+    function() friendly_hp = 40; mana = 29 end, false)
+assert_lane("Flash Heal fires below 70% at 20% mana", "FlashHeal",
+    function() friendly_hp = 69; mana = 20 end, true)
+assert_lane("Flash Heal blocked at/above 70%", "FlashHeal",
+    function() friendly_hp = 70; mana = 100 end, false)
+assert_lane("Flash Heal blocked below 20% mana", "FlashHeal",
+    function() friendly_hp = 50; mana = 19 end, false)
 
 print("PASS test_priest_discipline_wotlk_strategies")

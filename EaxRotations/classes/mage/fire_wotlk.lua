@@ -24,6 +24,7 @@ local ACTION = {
     LivingBomb = define("LivingBomb", { 55360 }, "LivingBomb"),
     FireBlast = define("FireBlast", { 42873 }, "FireBlast"),
     Scorch = define("Scorch", { 42859 }, "Scorch"),
+    BlastWave = define("BlastWave", { 42945 }, "BlastWave"), -- 42945 = Wowhead-verified WotLK max rank (1047-1233 dmg, 30s CD)
     Fireball = define("Fireball", { 42833, 38692, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Combustion = define("Combustion", 11129, "Combustion"),
     Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
@@ -136,6 +137,21 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.FireBlast, target = "target" },
     },
     {
+        name = "BlastWaveAoE",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "custom", fn = function(context, state)
+                -- AoE wave when the pack is big enough (3+ in 10y self radius,
+                -- hurricane_aoe idiom) — Blast Wave sits between FireBlast and
+                -- Scorch in the guide's cleave order.
+                return (state.enemy_count or 1) >= 3
+                    and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BlastWave, target = "self" },
+    },
+    {
         name = "Scorch",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -173,6 +189,7 @@ local strategies = {
     { name = "Pyroblast" },
     { name = "LivingBomb" },
     { name = "FireBlast" },
+    { name = "BlastWaveAoE" },
     { name = "ScorchFinal" },
     { name = "Fireball" },
 }

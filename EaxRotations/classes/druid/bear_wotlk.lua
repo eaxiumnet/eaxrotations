@@ -30,6 +30,11 @@ local ACTION = {
     FeralFaerieFire = define("FaerieFireFeral", { 27011, 17392, 17391, 17390, 16857 }, "FeralFaerieFire"),
     -- Same 4 ranks in WotLK as TBC (no new rank) — era-stable ladder.
     FrenziedRegeneration = define("FrenziedRegeneration", { 26999, 22896, 22895, 22842 }, "FrenziedRegeneration"),
+    -- 2026-09-09 guide pass: Survival Instincts 61336 (3-min CD, +30% max
+    -- hp 20s in form; Wowhead-verified) and Barkskin 22812 (DR, usable in
+    -- form) — the tank's missing panic defensives.
+    SurvivalInstincts = define("SurvivalInstincts", 61336, "SurvivalInstincts"),
+    Barkskin = define("Barkskin", 22812, "Barkskin"),
 }
 
 -- Max-rank-first debuff/aura tables: the WotLK Lacerate/Mangle DoT auras use
@@ -47,6 +52,8 @@ local bear_state = {
     lacerate_remains = 0,
     mangle_remains = 0,
     faerie_fire_remains = 0,
+    survival_instincts_ready = false,
+    barkskin_ready = false,
 }
 
 local function build_state(context)
@@ -62,6 +69,8 @@ local function build_state(context)
     state.lacerate_remains = (target and NS.debuff_remains and NS.debuff_remains(target, LACERATE_DEBUFF)) or 0
     state.mangle_remains = (target and NS.debuff_remains and NS.debuff_remains(target, MANGLE_DEBUFF)) or 0
     state.faerie_fire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_FERAL_DEBUFF)) or 0
+    state.survival_instincts_ready = (ACTION.SurvivalInstincts and NS.cooldown_remains and NS.cooldown_remains(ACTION.SurvivalInstincts) <= 0) or false
+    state.barkskin_ready = (ACTION.Barkskin and NS.cooldown_remains and NS.cooldown_remains(ACTION.Barkskin) <= 0) or false
     return state
 end
 
@@ -108,6 +117,24 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.FeralFaerieFire, target = "target" },
     },
     {
+        name = "SurvivalInstincts",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "survival_instincts_ready", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 35 },
+        },
+        action = { type = "cast", spell = ACTION.SurvivalInstincts, target = "self" },
+    },
+    {
+        name = "BarkskinBear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "barkskin_ready", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.Barkskin, target = "self" },
+    },
+    {
         name = "Maul",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -135,6 +162,8 @@ local strategies = {
     { name = "SwipeBear" },
     { name = "MangleBear" },
     { name = "FeralFaerieFire" },
+    { name = "SurvivalInstincts" },
+    { name = "BarkskinBear" },
     { name = "Maul" },
     { name = "FrenziedRegeneration" },
 }

@@ -168,6 +168,47 @@ local strategies = {
         or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
+    -- OOC Resurrection: dead party member between pulls (Resurrection 48171,
+    -- 10s cast; OOC-only so it never races the healing spec's casting loop).
+    -- ============================================================================
+    {
+        name = "OOCResurrect",
+        priority = 1000,
+        is_defensive = true,
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "use_resurrection", true) then return false end
+            if context.in_combat then return false end
+            local spell = SPELLS.Resurrection or { id = { 48171, 20770, 10881, 10880, 2010, 2006 }, name = "Resurrection" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then return true end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Resurrection or { id = { 48171, 20770, 10881, 10880, 2010, 2006 }, name = "Resurrection" }
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then
+                            return NS.try_cast(spell, member, "[PRIEST] Resurrection")
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
     -- Mass Dispel: purge Divine Shield / Ice Block (PvP fight-winning purge)
     -- ============================================================================
     {

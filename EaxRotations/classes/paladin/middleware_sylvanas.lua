@@ -144,6 +144,47 @@ local strategies = {
         or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
+    -- OOC Redemption: dead party member between pulls (25898 max rank, 10s
+    -- cast; OOC-only so it never races the healing spec's casting loop).
+    -- ============================================================================
+    {
+        name = "OOCRedeem",
+        priority = 1000,
+        is_defensive = true,
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "use_resurrection", true) then return false end
+            if context.in_combat then return false end
+            local spell = SPELLS.Redemption or { id = { 25898, 20773, 20772, 10324, 10322, 7328 }, name = "Redemption" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then return true end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Redemption or { id = { 25898, 20773, 20772, 10324, 10322, 7328 }, name = "Redemption" }
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then
+                            return NS.try_cast(spell, member, "[PALADIN] Redemption")
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ============================================================================
     -- DIVINE SHIELD (Emergency — highest priority)
     -- ============================================================================
     {
