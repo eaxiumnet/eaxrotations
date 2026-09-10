@@ -27,6 +27,8 @@ local long_cd_refused = {}
 local function corr(secs) debuffs[47813] = secs end
 local function immo(secs) debuffs[47811] = secs end
 local function meta(up) buffs[47241] = up or nil end
+local function molten_core(up) buffs[71165] = up or nil end  -- MC proc (71165/47246/47245)
+local function decimation(up) buffs[63165] = up or nil end
 
 local function reset_env()
     combat, hp, mana = true, 100, 100
@@ -140,5 +142,30 @@ assert_lane("LifeTap blocked below the hp floor", "LifeTap",
     function() mana = 50; hp = 54 end, false)
 assert_lane("LifeTap blocked out of combat", "LifeTap",
     function() mana = 50; combat = false end, false)
+
+-- ============================================================================
+-- IncinerateProc: Molten Core window (buff 71165) — spend before resuming
+-- Shadow Bolt; the shadow filler is NOT held while the buff is down.
+-- ============================================================================
+assert_lane("IncinerateProc fires with Molten Core up", "IncinerateProc",
+    function() molten_core(true) end, true)
+assert_lane("IncinerateProc blocked without Molten Core", "IncinerateProc",
+    function() end, false)
+assert_lane("IncinerateProc blocked below 30% mana", "IncinerateProc",
+    function() molten_core(true); mana = 29 end, false)
+
+-- ============================================================================
+-- SoulFireDecimation: Decimation window (buff 63165, sub-35% target proc).
+-- ============================================================================
+assert_lane("SoulFireDecimation fires with Decimation up", "SoulFireDecimation",
+    function() decimation(true) end, true)
+assert_lane("SoulFireDecimation blocked without Decimation", "SoulFireDecimation",
+    function() end, false)
+assert_lane("SoulFireDecimation blocked below 30% mana", "SoulFireDecimation",
+    function() decimation(true); mana = 29 end, false)
+
+-- Plain SoulFire filler still gated at 30% mana.
+assert_lane("SoulFire blocked at 29% mana", "SoulFire",
+    function() mana = 29 end, false)
 
 print("PASS test_warlock_demonology_wotlk_strategies")

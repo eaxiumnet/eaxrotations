@@ -32,6 +32,13 @@ local ACTION = {
     Starfall = define("Starfall", 48505, "Starfall"),
     Wrath = define("Wrath", { 48461, 26985, 26984, 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
     Starfire = define("Starfire", { 48465, 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
+    -- Guide-priority additions: Faerie Fire debuff upkeep (3% spell hit,
+    -- caster ladder — no WotLK rank exists; 26993 stays the max, mirroring
+    -- caster_sylvanas) and Hurricane 48467 (Wowhead-verified single WotLK
+    -- rank; channeled 10y AoE). Hurricane is a CHANNEL action (resto_wotlk
+    -- Tranquility idiom) — a plain cast would re-queue every GCD.
+    FaerieFire = define("FaerieFire", { 26993, 9907, 9749, 778, 770 }, "FaerieFire"),
+    Hurricane = define("Hurricane", { 48467 }, "Hurricane"),
 }
 
 -- Max-rank-first debuff tables: the WotLK DoT auras are 48463 (Moonfire) /
@@ -42,6 +49,7 @@ local ECLIPSE_SOLAR_BUFF = { 48517 }
 local ECLIPSE_LUNAR_BUFF = { 48518 }
 local INSECT_SWARM_DEBUFF = { 48468, 27013, 24977, 24976, 24975, 24974, 5570 }
 local MOONFIRE_DEBUFF = { 48463, 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
+local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
 
 local balance_state = {
     mana_pct = 100,
@@ -52,6 +60,7 @@ local balance_state = {
     eclipse_lunar = false,
     insect_swarm_remains = 0,
     moonfire_remains = 0,
+    faerie_remains = 0,
 }
 
 local function build_state(context)
@@ -71,6 +80,7 @@ local function build_state(context)
     state.eclipse_lunar = (me and NS.buff_up and NS.buff_up(me, ECLIPSE_LUNAR_BUFF)) or false
     state.insect_swarm_remains = (target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF)) or 0
     state.moonfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF)) or 0
+    state.faerie_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF)) or 0
     return state
 end
 
@@ -138,11 +148,39 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Wrath, target = "target" },
     },
     {
+        name = "FaerieFire",
+        conditions = {
+            -- Debuff upkeep (guide priority): 3% spell hit on the target;
+            -- refresh in the last 3s like the DoT lanes.
+            { type = "state", field = "faerie_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.FaerieFire, target = "target" },
+    },
+    {
         name = "InsectSwarm",
         conditions = {
             { type = "state", field = "insect_swarm_remains", op = "<", value = 3 },
         },
         action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
+    },
+    {
+        name = "HurricaneAoE",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- AoE wave (3+ in 10y self radius, hurricane_aoe idiom) —
+                -- the guide's balance cleave slot after DoTs are rolling.
+                return (state.enemy_count or 1) >= 3
+                    and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context and context.target, context)
+            end },
+            -- Channel readiness (real engine cooldown read).
+            { type = "spell_ready", spell = ACTION.Hurricane, target = "target" },
+        },
+        -- Channeled AoE (resto_wotlk Tranquility idiom — the DSL has no
+        -- channel action type; a custom fn routes the cast directly).
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Hurricane, context and context.target, "[BALANCE WOTLK] Hurricane") == true
+        end },
     },
 }
 
@@ -156,6 +194,8 @@ local strategies = {
     { name = "Starfire" },
     { name = "Wrath" },
     { name = "InsectSwarm" },
+    { name = "FaerieFire" },
+    { name = "HurricaneAoE" },
 }
 
 -- Name-based substitution preserves the existing priority order.

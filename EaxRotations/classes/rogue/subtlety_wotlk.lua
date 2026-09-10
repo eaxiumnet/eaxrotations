@@ -30,9 +30,24 @@ local ACTION = {
     Eviscerate = define("Eviscerate", { 48668, 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
     -- Baseline rogue interrupt (3.3.5); not in any wowsims APL fixture.
     Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
+    -- Guide-faithful arc (subtlety WotLK priority: build with Hemo, keep
+    -- SnD/Rupture uptime, reset defensive CDs with Preparation). Hemo 48660
+    -- and Preparation 14185 are the Wowhead-verified WotLK ranks; the
+    -- SnD/Rupture/Backstab ladders mirror assassination_wotlk verbatim.
+    -- Single verified WotLK rank (Maim/Pyroblast single-id precedent): the
+    -- TBC-era lower ranks (26864/17348/17347/16511) are not WotLK-bridge
+    -- members and the audit correctly rejects them here.
+    Hemorrhage = define("Hemorrhage", { 48660 }, "Hemorrhage"),
+    SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
+    Rupture = define("Rupture", { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+    Preparation = define("Preparation", 14185, "Preparation"),
 }
 
 local SHADOW_DANCE_BUFF = { 51713 }
+-- Finisher/refresh tables mirror assassination_wotlk (SnD is a self-buff,
+-- Rupture a target bleed — max-rank-first so remains reads resolve at 80).
+local SLICE_AND_DICE_BUFF = { 6774, 5171 }
+local RUPTURE_DEBUFF = { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
 
 local subtlety_state = {
     energy = 0,
@@ -43,6 +58,8 @@ local subtlety_state = {
     has_daggers = false,
     is_behind = false,
     target_is_casting = false,
+    snd_remains = 0,
+    rupture_remains = 0,
 }
 
 local function build_state(context)
@@ -57,6 +74,8 @@ local function build_state(context)
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
+    state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0
+    state.rupture_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF)) or 0
     state.shadow_dance_up = (me and NS.buff_up and NS.buff_up(me, SHADOW_DANCE_BUFF)) or false
     -- Dagger check: Backstab requires a dagger main-hand (TBC sibling
     -- convention — dagger_set.is_dagger map over equipped item ids).
@@ -123,13 +142,51 @@ local DSL_DEFS = {
         conditions = {
             -- Backstab requires a dagger in the main hand AND being behind the
             -- target; without the gates the lane queues failed casts (TBC
-            -- sibling convention). When blocked the rotation degrades to the
-            -- fallback builder.
+            -- sibling convention). When blocked the Hemorrhage builder below
+            -- is the fallback (energy >= 35, no positional requirement).
             { type = "state", field = "is_behind", op = "truthy" },
             { type = "state", field = "has_daggers", op = "truthy" },
             { type = "state", field = "energy", op = ">=", value = 60 },
         },
         action = { type = "cast", spell = ACTION.Backstab, target = "target" },
+    },
+    {
+        name = "Hemorrhage",
+        conditions = {
+            -- Universal builder (guide priority): no positional/dagger gate,
+            -- so it covers the Backstab-blocked case. Backstab sits above it
+            -- and wins when its gates pass (higher damage).
+            { type = "state", field = "energy", op = ">=", value = 35 },
+            { type = "state", field = "combo_points", op = "<", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.Hemorrhage, target = "target" },
+    },
+    {
+        name = "Preparation",
+        conditions = {
+            -- Defensive-CD reset (guide burst slot); TBC sibling puts it in
+            -- the burst block, gated on readiness only.
+            { type = "spell_ready", spell = ACTION.Preparation, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Preparation, target = "self" },
+    },
+    {
+        name = "SliceAndDice",
+        conditions = {
+            { type = "state", field = "snd_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },
+    },
+    {
+        name = "Rupture",
+        conditions = {
+            -- Bleed uptime beats raw Eviscerate damage in sub (Rupture above
+            -- Eviscerate; assassination sibling thresholds).
+            { type = "state", field = "rupture_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.Rupture, target = "target" },
     },
 }
 
@@ -139,9 +196,13 @@ local strategies = {
     { name = "Kick" },
     { name = "Premeditation" },
     { name = "ShadowDance" },
+    { name = "Preparation" },
     { name = "Ambush" },
+    { name = "SliceAndDice" },
+    { name = "Rupture" },
     { name = "Eviscerate" },
     { name = "Backstab" },
+    { name = "Hemorrhage" },
 }
 
 for i = 1, #strategies do

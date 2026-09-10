@@ -41,6 +41,33 @@
   SoD rotation matrix rows, the druid/hunter, mage/paladin/priest and
   assassin group suites, and the caster DSL priority suite.
 
+### Rotation Content — WotLK DPS thin-spec close-out (guide-driven)
+
+- **The three thinnest WotLK DPS files now implement their published
+  priorities.** The healer deep-rate's DPS counterpart (scorecard ranked
+  subtlety 6 lanes as the era's lowest DPS row, demonology 6, balance 6)
+  closed the guide gaps:
+  - **Subtlety rogue** (`rogue/subtlety_wotlk.lua`): 6 -> 10 — Hemorrhage
+    48660 universal builder (no positional/dagger gate; fixes the stale
+    "fallback builder" comment that pointed at nothing), Slice and Dice +
+    Rupture finisher uptime (assassination sibling thresholds), Preparation
+    14185 defensive-CD reset (spell_ready-gated, fails closed). Backstab
+    stays the positional builder; Hemo catches the blocked case.
+  - **Demonology warlock** (`warlock/demonology_wotlk.lua`): 6 -> 8 — the
+    two signature proc lanes the file never modeled: Molten Core
+    (buff 71165/47246/47245) hard-prioritizes Incinerate 47838 during the
+    Corruption-tick proc window, and Decimation (buff 63165) fires instant,
+    shard-free Soul Fire in the sub-35% execute band.
+  - **Balance druid** (`druid/balance_wotlk.lua`): 6 -> 8 — Faerie Fire
+    debuff upkeep (3% spell hit; caster ladder, 26993 max — no WotLK rank
+    exists) and Hurricane 48467 channeled 10y AoE (3+ enemies, the
+    BlastWaveAoE/Pestilence volume idiom; the DSL has no channel action, so
+    the lane uses the resto_wotlk Tranquility custom-fn idiom).
+- Every new lane is pinned fire/hold in its existing behavioral suite
+  (subtlety 16, demonology, balance) and every lane fires somewhere real in
+  the WotLK battery (never-fires = 0 for all three specs, era total still
+  0). All new ids Wowhead-verified; spell-audit allowlist +6 (231 total).
+
 ### Rotation Content — WotLK healer expansion wave (guide-driven, three passes)
 - **Every WotLK healer now implements its published playstyle priority.**
   The healer deep-rate against live Icy-Veins WotLK rotation pages and the

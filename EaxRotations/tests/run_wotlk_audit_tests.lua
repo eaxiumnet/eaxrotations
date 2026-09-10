@@ -145,6 +145,13 @@ local WOTLK_REFERENCE_ALIASES = {
     [42873] = { kind = "VALID_RANK_ALIAS", family = "Fire Blast", source = "wowhead WotLK Classic spell=42873" },
     [49802] = { kind = "VALID_RANK_ALIAS", family = "Maim", source = "wowhead WotLK Classic spell=49802 (stun finisher, interrupts casting, 10s CD; single WotLK rank)" },
     [42945] = { kind = "VALID_RANK_ALIAS", family = "Blast Wave", source = "wowhead WotLK Classic spell=42945 (1047-1233 Fire, 10y radius, 30s CD; 42945 is the WotLK max rank)" },
+    -- DPS thin-spec close-out (2026-09-10): subtlety arc, demo procs, balance AoE.
+    [14185] = { kind = "VALID_RANK_ALIAS", family = "Preparation", source = "wowhead WotLK Classic spell=14185/preparation (defensive-CD reset; single rank)" },
+    [48467] = { kind = "VALID_RANK_ALIAS", family = "Hurricane", source = "wowhead WotLK Classic spell=48467/hurricane (channeled 10y AoE, single WotLK rank)" },
+    [71165] = { kind = "VALID_AURA_ALIAS", family = "Molten Core", source = "wowhead WotLK Classic spell=71165/molten-core (proc buff, +18% Incinerate/Soul Fire, 15s; ranks 47245/47246/71165)" },
+    [47246] = { kind = "VALID_AURA_ALIAS", family = "Molten Core", source = "wowhead WotLK Classic spell=71165 family (Molten Core rank 2)" },
+    [47245] = { kind = "VALID_AURA_ALIAS", family = "Molten Core", source = "wowhead WotLK Classic spell=47245/molten-core (Molten Core rank 1)" },
+    [63165] = { kind = "VALID_AURA_ALIAS", family = "Decimation", source = "wowhead WotLK Classic spell=63165/decimation (proc buff, sub-35% Soul Fire, 10s; single rank)" },
     [42914] = { kind = "VALID_RANK_ALIAS", family = "Ice Lance", source = "wowhead WotLK Classic spell=42914" },
     [47610] = { kind = "VALID_RANK_ALIAS", family = "Frostfire Bolt", source = "wowhead WotLK Classic spell=47610 (max rank, 722-838 dmg; 44614 = rank 1) + ui/mage/apls/frost.apl.json" },
     -- W3.3 mage live-fixes (2026-08-13): the four mage *_wotlk.lua files were
@@ -1007,7 +1014,7 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 225, "pinned allowlist size") -- +2 healer close-out pins 2026-09-10 (64901 Divine Hymn, 64904 Hymn of Hope) -- +2 spell-coverage sweep pins 2026-09-10 (49802 Maim, 42945 Blast Wave) -- prior: +13 DPS/tank guide-pass pins 2026-09-09 (61336/22812/46968/48817/37897/31898/53023/49821/48158/48157/32379/2944/13750) -- prior: +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 231, "pinned allowlist size") -- +6 DPS thin-spec close-out pins 2026-09-10 (48660 Hemorrhage, 48467 Hurricane, 71165/47246/47245 Molten Core, 63165 Decimation) -- +2 healer close-out pins 2026-09-10 (64901 Divine Hymn, 64904 Hymn of Hope) -- +2 spell-coverage sweep pins 2026-09-10 (49802 Maim, 42945 Blast Wave) -- prior: +13 DPS/tank guide-pass pins 2026-09-09 (61336/22812/46968/48817/37897/31898/53023/49821/48158/48157/32379/2944/13750) -- prior: +14 holy priest guide-gap pins 2026-09-09 (25437/19243/19242/19241/19240/19238/19236/13908/48087/48086/28275/27871/27870/7001) -- prior: +10 WotLK healer wave pins 2026-09-09 (17116/48477/26994/20484/48447/20216/20166/33206/10060/16188) -- prior: +4 warrior W3.3 pins (57823/46916/70847/12975) +6 priest CoH TBC-era ranks (34861/34862/34863/34864/34865/34866) 2026-08-13
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")

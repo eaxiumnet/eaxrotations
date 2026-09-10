@@ -738,3 +738,35 @@ The healing deep-rate's final four graded gaps, same guide discipline (all singl
 - **Discipline priest** `classes/priest/discipline_wotlk.lua` 6 -> 8: the direct-heal filler band the file lacked — **GreaterHeal** (< 50%, mana >= 30) and **FlashHeal** (< 70%, mana >= 20) after Renew, before PowerInfusion; `build_state` now reads `mana_pct` the way its sibling healer files do.
 
 Battery: new shared scenario **healer_save_window** (lowest 15, mana-neutral) makes the tight <= 20 save band observable; all 41 WotLK specs hold never-fires=0 (priest/holy 10, priest/discipline 8, paladin/holy 10 in-battery). Spell audit: +2 VALID_RANK_ALIAS (64901/64904, allowlist 221 -> 223). Suites extended in place: three dsl_priority order/count updates (`test_holy_wotlk_dsl_priority` 9 -> 10 + index shift, `test_holy_priest_wotlk_dsl_priority` order + GreaterHeal slot 3 -> 5, `test_discipline_wotlk_dsl_priority` order) and three behavioral suites extended with fire/hold sides (`test_priest_holy_wotlk_strategies` +7, `test_priest_discipline_wotlk_strategies` +6 incl. a scenario mana variable, `test_paladin_holy_wotlk_strategies` +4 incl. the spell_ready mock the paladin suite previously lacked). Scorecard/ACCURACY/era-pair seed regenerated; suite count unchanged (563).
+## Addendum 2026-09-10 (c) — DPS thin-spec close-out: subtlety, demonology, balance
+
+The healer deep-rate's DPS counterpart: the scorecard's thinnest WotLK DPS
+rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
+6) were re-read against the published WotLK priorities and expanded.
+
+- **rogue/subtlety_wotlk.lua 6 -> 10**: Hemorrhage 48660 universal builder
+  (no positional/dagger gate — also replaces the stale "fallback builder"
+  comment that pointed at nothing), Slice and Dice + Rupture uptime
+  (assassination sibling thresholds), Preparation 14185 spell_ready-gated
+  reset (fails closed). Pinned in test_rogue_subtlety_wotlk_strategies.lua
+  (Hemo 4 pins, SnD 3, Rupture 2, Prep 2) and the dsl_priority suite
+  (count/order/index updates).
+- **warlock/demonology_wotlk.lua 6 -> 8**: Molten Core proc window
+  (buff 71165/47246/47245) hard-prioritizes Incinerate 47838; Decimation
+  (buff 63165) fires instant shard-free Soul Fire in the sub-35% band. The
+  plain SoulFire filler and its 30% mana gate are restored/kept intact.
+  Pinned in test_warlock_demonology_wotlk_strategies.lua (7 new fire/hold).
+- **druid/balance_wotlk.lua 6 -> 8**: Faerie Fire upkeep (caster ladder,
+  26993 max — no WotLK rank exists; 3% spell hit) and Hurricane 48467
+  channeled 10y AoE (3+ enemies; custom-fn channel idiom from
+  resto_wotlk Tranquility since the DSL has no channel action type).
+  Pinned in test_druid_balance_wotlk_strategies.lua (8 new fire/hold).
+- Ids 48467 / 71165 / 47246 / 47245 / 63165 / 14185 pinned in the WotLK
+  spell audit (Wowhead-verified); allowlist 225 -> 231. 48660 was already
+  pinned (sim/rogue/hemorrhage.go). The Hemorrhage ladder was trimmed to the
+  single WotLK rank — the audit rejected the TBC-era lower ranks
+  (26864/17348/17347/16511) as TBC_ID_IN_WOTLK, correctly.
+- Battery: all three specs never-fires = 0 (era total still 0). The new
+  lanes fire in existing scenarios (mana 100/in_combat for the procs and
+  FF; Hurricane needs no new scenario — in_combat + aoe defaults true cover
+  the 3-enemy volume gate via the `aoe` scenario).
