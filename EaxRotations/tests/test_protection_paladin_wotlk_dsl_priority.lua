@@ -80,7 +80,7 @@ print("=== test_protection_paladin_wotlk_dsl_priority ===")
 local prot = dofile("EaxRotations/classes/paladin/protection_wotlk.lua")
 assert_true(type(prot) == "table", "protection_paladin_wotlk should return a table")
 assert_true(type(prot.strategies) == "table", "protection_paladin_wotlk should expose strategies")
-assert_true(#prot.strategies == 7, "protection_paladin_wotlk should have 7 strategies")
+assert_true(#prot.strategies == 9, "protection_paladin_wotlk should have 9 strategies")
 
 local registered = _G.EaxRotations._registered_protection
 assert_true(registered ~= nil, "protection_paladin_wotlk should register under 'protection'")
@@ -93,12 +93,14 @@ local expected_order = {
     "ShieldOfRighteousness",
     "HammerOfTheRighteous",
     "Consecration",
+    "HolyWrath",
     "Judgement",
     "RighteousFury",
+    "DivinePlea",
     "HolyShield",
 }
 
-test("priority order: 7 strategies match expected order", function()
+test("priority order: 9 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(prot.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], prot.strategies[i].name))
@@ -165,21 +167,21 @@ end)
 -- Judgement: should match when in combat
 test("Judgement: matches when in combat", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[5].matches(ctx, state), "Judgement should match when in combat")
+    assert_true(prot.strategies[6].matches(ctx, state), "Judgement should match when in combat")
 end)
 
 -- RighteousFury (6): upkeep lane — fires when the buff is down (first match at
 -- the -999 initial stamp; the throttle then holds for 3s at the fixed clock).
 test("RighteousFury: matches when buff down", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[6].matches(ctx, state), "RighteousFury should match when the buff is down")
+    assert_true(prot.strategies[7].matches(ctx, state), "RighteousFury should match when the buff is down")
 end)
 
 test("RighteousFury: does not match when buff up", function()
     local orig_buff = _G.EaxRotations.buff_up
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[6].matches(ctx, state)
+    local ok = prot.strategies[7].matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff
     assert_false(ok, "RighteousFury should not match when the buff is up")
 end)
@@ -188,7 +190,7 @@ end)
 -- configured floor (default 2), and hold while charges are above it.
 test("HolyShield: matches when buff down", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[7].matches(ctx, state), "HolyShield should match when the buff is down")
+    assert_true(prot.strategies[9].matches(ctx, state), "HolyShield should match when the buff is down")
 end)
 
 test("HolyShield: matches when charges at the refresh floor", function()
@@ -197,7 +199,7 @@ test("HolyShield: matches when charges at the refresh floor", function()
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     _G.EaxRotations.buff_points = function(unit, ids) return { 2 } end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[7].matches(ctx, state)
+    local ok = prot.strategies[9].matches(ctx, state)
     _G.EaxRotations.buff_points = orig_points
     _G.EaxRotations.buff_up = orig_buff
     assert_true(ok, "HolyShield should refresh when charges are at the floor (2)")
@@ -209,7 +211,7 @@ test("HolyShield: does not match when charges above the floor", function()
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     _G.EaxRotations.buff_points = function(unit, ids) return { 5 } end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[7].matches(ctx, state)
+    local ok = prot.strategies[9].matches(ctx, state)
     _G.EaxRotations.buff_points = orig_points
     _G.EaxRotations.buff_up = orig_buff
     assert_false(ok, "HolyShield should hold while 5 charges remain (> floor 2)")

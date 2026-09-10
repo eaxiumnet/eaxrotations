@@ -80,7 +80,7 @@ print("=== test_holy_wotlk_dsl_priority ===")
 local holy = dofile("EaxRotations/classes/paladin/holy_wotlk.lua")
 assert_true(type(holy) == "table", "holy_wotlk should return a table")
 assert_true(type(holy.strategies) == "table", "holy_wotlk should expose strategies")
-assert_true(#holy.strategies == 9, "holy_wotlk should have 9 strategies")
+assert_true(#holy.strategies == 10, "holy_wotlk should have 10 strategies")
 
 local registered = _G.EaxRotations._registered_holy
 assert_true(registered ~= nil, "holy_wotlk should register under 'holy'")
@@ -92,6 +92,7 @@ assert_true(registered ~= nil, "holy_wotlk should register under 'holy'")
 -- Divine Favor before the big HL, Divine Plea) leads the guide priority;
 -- the Beacon/SS/H Shock/HL/FoL core is unchanged behind it.
 local expected_order = {
+    "LayOnHands",
     "SealOfWisdom",
     "JudgementOfWisdom",
     "DivineFavorHolyLight",
@@ -126,7 +127,7 @@ test("healing strategies use the lowest friendly target", function()
     local state = holy.build_state(ctx_friendly)
     assert_true(state.target_hp == 35, "Holy paladin should score the lowest friendly unit")
     last_execute_target = nil
-    assert_true(holy.strategies[8].execute(ctx_friendly, state), "Holy Light should execute")
+    assert_true(holy.strategies[9].execute(ctx_friendly, state), "Holy Light should execute")
     assert_true(last_execute_target == ally, "Holy Light should target the lowest friendly unit")
 end)
 
@@ -134,39 +135,39 @@ end)
 test("BeaconOfLight: matches when buff down", function()
     local state = holy.build_state(ctx)
     state.beacon_up = false
-    assert_true(holy.strategies[5].matches(ctx, state), "BeaconOfLight should match when buff down")
+    assert_true(holy.strategies[6].matches(ctx, state), "BeaconOfLight should match when buff down")
 end)
 
 test("BeaconOfLight: does not match when buff up", function()
     local state = holy.build_state(ctx)
     state.beacon_up = true
-    assert_false(holy.strategies[5].matches(ctx, state), "BeaconOfLight should not match when buff up")
+    assert_false(holy.strategies[6].matches(ctx, state), "BeaconOfLight should not match when buff up")
 end)
 
 -- SacredShield (6): matches when sacred_shield_up falsy
 test("SacredShield: matches when buff down", function()
     local state = holy.build_state(ctx)
     state.sacred_shield_up = false
-    assert_true(holy.strategies[6].matches(ctx, state), "SacredShield should match when buff down")
+    assert_true(holy.strategies[7].matches(ctx, state), "SacredShield should match when buff down")
 end)
 
 test("SacredShield: does not match when buff up", function()
     local state = holy.build_state(ctx)
     state.sacred_shield_up = true
-    assert_false(holy.strategies[6].matches(ctx, state), "SacredShield should not match when buff up")
+    assert_false(holy.strategies[7].matches(ctx, state), "SacredShield should not match when buff up")
 end)
 
 -- HolyShock (7): target_hp < 80
 test("HolyShock: matches when target below 80", function()
     local state = holy.build_state(ctx)
     state.target_hp = 79
-    assert_true(holy.strategies[7].matches(ctx, state), "HolyShock should match when target < 80")
+    assert_true(holy.strategies[8].matches(ctx, state), "HolyShock should match when target < 80")
 end)
 
 test("HolyShock: does not match when target healthy", function()
     local state = holy.build_state(ctx)
     state.target_hp = 90
-    assert_false(holy.strategies[7].matches(ctx, state), "HolyShock should not match when target >= 80")
+    assert_false(holy.strategies[8].matches(ctx, state), "HolyShock should not match when target >= 80")
 end)
 
 -- HolyLight (8): target_hp < 50 and mana_pct >= 30
@@ -174,21 +175,21 @@ test("HolyLight: matches when target < 50 and mana >= 30", function()
     local state = holy.build_state(ctx)
     state.target_hp = 40
     state.mana_pct = 30
-    assert_true(holy.strategies[8].matches(ctx, state), "HolyLight should match with target < 50 and mana >= 30")
+    assert_true(holy.strategies[9].matches(ctx, state), "HolyLight should match with target < 50 and mana >= 30")
 end)
 
 test("HolyLight: does not match when target >= 50", function()
     local state = holy.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 100
-    assert_false(holy.strategies[8].matches(ctx, state), "HolyLight should not match when target >= 50")
+    assert_false(holy.strategies[9].matches(ctx, state), "HolyLight should not match when target >= 50")
 end)
 
 test("HolyLight: does not match when mana < 30", function()
     local state = holy.build_state(ctx)
     state.target_hp = 40
     state.mana_pct = 20
-    assert_false(holy.strategies[8].matches(ctx, state), "HolyLight should not match when mana < 30")
+    assert_false(holy.strategies[9].matches(ctx, state), "HolyLight should not match when mana < 30")
 end)
 
 -- FlashOfLight (9): target_hp < 70 and mana_pct >= 20
@@ -196,72 +197,72 @@ test("FlashOfLight: matches when target < 70 and mana >= 20", function()
     local state = holy.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 20
-    assert_true(holy.strategies[9].matches(ctx, state), "FlashOfLight should match with target < 70 and mana >= 20")
+    assert_true(holy.strategies[10].matches(ctx, state), "FlashOfLight should match with target < 70 and mana >= 20")
 end)
 
 test("FlashOfLight: does not match when target >= 70", function()
     local state = holy.build_state(ctx)
     state.target_hp = 75
     state.mana_pct = 100
-    assert_false(holy.strategies[9].matches(ctx, state), "FlashOfLight should not match when target >= 70")
+    assert_false(holy.strategies[10].matches(ctx, state), "FlashOfLight should not match when target >= 70")
 end)
 
 test("FlashOfLight: does not match when mana < 20", function()
     local state = holy.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 10
-    assert_false(holy.strategies[9].matches(ctx, state), "FlashOfLight should not match when mana < 20")
+    assert_false(holy.strategies[10].matches(ctx, state), "FlashOfLight should not match when mana < 20")
 end)
 
 -- Healer wave pins (2026-09-09): the mana-game band. Mock spell_ready is
 -- always true and buff_up always false, so upkeep lanes fire by default.
 test("SealOfWisdom (1): matches when the seal is down", function()
     local state = holy.build_state(ctx)
-    assert_true(holy.strategies[1].matches(ctx, state), "SealOfWisdom should match when buff down")
+    assert_true(holy.strategies[2].matches(ctx, state), "SealOfWisdom should match when buff down")
 end)
 
 test("SealOfWisdom: does not match when the seal is up", function()
     local state = holy.build_state(ctx)
     state.seal_wisdom_up = true
-    assert_false(holy.strategies[1].matches(ctx, state), "SealOfWisdom should not match when buff up")
+    assert_false(holy.strategies[2].matches(ctx, state), "SealOfWisdom should not match when buff up")
 end)
 
 test("JudgementOfWisdom (2): matches at mana <= 90 with judgement ready", function()
     local state = holy.build_state(ctx)
     state.mana_pct = 90
-    assert_true(holy.strategies[2].matches(ctx, state), "JudgementOfWisdom should match at full judge readiness")
+    assert_true(holy.strategies[3].matches(ctx, state), "JudgementOfWisdom should match at full judge readiness")
 end)
 
 test("JudgementOfWisdom: does not match at full mana", function()
     local state = holy.build_state(ctx)
     state.mana_pct = 100
-    assert_false(holy.strategies[2].matches(ctx, state), "JudgementOfWisdom should not match above the 90 gate")
+    assert_false(holy.strategies[3].matches(ctx, state), "JudgementOfWisdom should not match above the 90 gate")
 end)
 
 test("DivineFavorHolyLight (3): matches on an injured target with mana", function()
     local state = holy.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 30
-    assert_true(holy.strategies[3].matches(ctx, state), "DivineFavorHolyLight should match under the 75 band")
+    assert_true(holy.strategies[4].matches(ctx, state), "DivineFavorHolyLight should match under the 75 band")
 end)
 
 test("DivineFavorHolyLight: does not match on a healthy target", function()
     local state = holy.build_state(ctx)
     state.target_hp = 90
     state.mana_pct = 100
-    assert_false(holy.strategies[3].matches(ctx, state), "DivineFavorHolyLight should not match above the 75 band")
+    assert_false(holy.strategies[4].matches(ctx, state), "DivineFavorHolyLight should not match above the 75 band")
 end)
 
 test("DivinePlea (4): matches at mana <= 50", function()
     local state = holy.build_state(ctx)
     state.mana_pct = 50
-    assert_true(holy.strategies[4].matches(ctx, state), "DivinePlea should match in the mana emergency band")
+    assert_true(holy.strategies[5].matches(ctx, state), "DivinePlea should match in the mana emergency band")
 end)
 
 test("DivinePlea: does not match at high mana", function()
     local state = holy.build_state(ctx)
     state.mana_pct = 80
-    assert_false(holy.strategies[4].matches(ctx, state), "DivinePlea should not match above the 50 gate")
+    assert_false(holy.strategies[5].matches(ctx, state), "DivinePlea should not match above the 50 gate")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

@@ -31,6 +31,11 @@ local ACTION = {
     -- Mana-game cooldowns (Icy-Veins WotLK holy priority; ids Wowhead-verified).
     -- DivinePlea 54428 already lives in retribution_wotlk.lua (audit-clean).
     DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
+    -- 2026-09-10 guide-gap save: Lay on Hands is the mana-free full heal
+    -- (Wowhead-verified era-shared id 633; the TBC bridge carries it, so
+    -- the sylvanas audit already accepts it). Reserved for the <= 20
+    -- emergency band - a regular heal arrives too late below a dying tank.
+    LayOnHands = define("LayOnHands", 633, "LayOnHands"),
     DivineFavor = define("DivineFavor", 20216, "DivineFavor"),
     -- JoP is the WotLK talent (54152 r5/54154 r1/54155 r2, 15% haste).
     Judgement = define("Judgement", { 20271, 53407, 53408 }, "Judgement"),
@@ -197,10 +202,27 @@ local DSL_DEFS = {
             return NS.try_cast(ACTION.DivinePlea, nil, "[HOLY] Divine Plea mana return") == true
         end },
     },
+    -- Save lane: the last-resort full heal, cast on the DEDICATED beacon
+    -- target (tank or self) - the same stable-target idiom Beacon uses;
+    -- the <= 20 band is where cast-time heals can no longer land in time.
+    {
+        name = "LayOnHands",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<=", value = 20 },
+            { type = "spell_ready", spell = ACTION.LayOnHands, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.LayOnHands, state.beacon_target, "[HOLY] Lay on Hands save") == true
+        end },
+    },
 }
 
 local strategies = {
-    -- Mana-game band first (guide: SoW uptime + judge-on-CD IS the HPS
+    -- Save first (the <= 20 emergency band outranks every upkeep lane),
+    -- then the mana-game band (guide: SoW uptime + judge-on-CD IS the HPS
+    -- engine; Divine Favor buffs the next big Holy Light).
+    { name = "LayOnHands" },
     -- engine; Divine Favor buffs the next big Holy Light).
     { name = "SealOfWisdom" },
     { name = "JudgementOfWisdom" },

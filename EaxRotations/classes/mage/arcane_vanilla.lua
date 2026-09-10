@@ -315,6 +315,15 @@ local function fire_blast_matches(context, s)
     return false
 end
 
+--- Arcane Explosion: self-centered AoE (2026-09-09 guide pass). The spec had
+--- NO AoE lane; fire_vanilla's idiom (aoe_self_meets 3+/10yd) is the era
+--- pattern. Stationary-only so movement still falls through to FireBlast.
+local function arcane_explosion_matches(context, s)
+    if s.is_moving then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
+    return NS.spell_ready(SPELLS.ArcaneExplosion, context.target)
+end
+
 --- Frostbolt: primary nuke for Vanilla Arcane (AP Frost hybrid)
 local function frostbolt_matches(context, s)
     if s.is_moving then return false end
@@ -426,6 +435,11 @@ local strategies = {
     { name = "FireBlast",
       matches = fire_blast_matches,
       execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast") end },
+
+    -- AoE: Arcane Explosion (3+ enemies within 10yd, stationary)
+    { name = "ArcaneExplosion",
+      matches = arcane_explosion_matches,
+      execute = function(context) return NS.try_cast(SPELLS.ArcaneExplosion, context.target, "[ARCANE] ArcaneExplosion") end },
 
     -- Primary nuke: Frostbolt (Vanilla Arcane = AP-boosted Frostbolt)
     { name = "Frostbolt",

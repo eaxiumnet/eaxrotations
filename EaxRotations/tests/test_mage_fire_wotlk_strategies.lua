@@ -31,13 +31,17 @@ local function lb(secs) debuffs[55360] = secs end
 local function scorch(secs) debuffs[22959] = secs end
 local function hot_streak(up) buffs[44448] = up or nil end
 
+local enemies, aoe_ok = 1, false
+
 local function reset_env()
     combat, casting, ttd, scorch_cast_time = true, false, 999, nil
     debuffs, buffs, not_ready, long_cd_refused = {}, {}, {}, {}
+    enemies, aoe_ok = 1, false
 end
 
 _G.EaxRotations = {
     me = { get_health_percentage = function() return 100 end },
+    aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
     GetPlayer = function() return _G.EaxRotations.me end,
     debuff_remains = function(unit, ids)
         for _, id in ipairs(ids) do
@@ -80,7 +84,7 @@ local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         mana_pct = 100,
-        enemy_count = 1,
+        enemy_count = enemies,
         ttd = ttd,
         scorch_cast_time = scorch_cast_time,
         target = { is_casting = function() return casting end },
@@ -168,5 +172,17 @@ assert_lane("ScorchFinal blocked at TTD above 4", "ScorchFinal", function() ttd 
 -- ============================================================================
 assert_lane("Fireball fires in combat", "Fireball", function() end, true)
 assert_lane("Fireball blocked out of combat", "Fireball", function() combat = false end, false)
+
+-- ============================================================================
+-- BlastWaveAoE: 3+ enemies in the 10y self radius (guide cleave slot).
+-- ============================================================================
+assert_lane("BlastWaveAoE fires into a 3-enemy pack", "BlastWaveAoE",
+    function() enemies = 3; aoe_ok = true end, true)
+assert_lane("BlastWaveAoE blocked at 2 enemies", "BlastWaveAoE",
+    function() enemies = 2; aoe_ok = true end, false)
+assert_lane("BlastWaveAoE fail-closed without the AoE module", "BlastWaveAoE",
+    function() enemies = 4; aoe_ok = false end, false)
+assert_lane("BlastWaveAoE blocked out of combat", "BlastWaveAoE",
+    function() enemies = 4; aoe_ok = true; combat = false end, false)
 
 print("PASS test_mage_fire_wotlk_strategies")

@@ -37,6 +37,7 @@ local ACTION = {
     SavageRoar = define("SavageRoar", 52610, "SavageRoar"),
     FerociousBite = define("FerociousBite", { 48576, 24248, 31018, 22829, 22828, 22827, 22568 }, "FerociousBite"),
     Shred = define("Shred", { 48572, 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
+    Maim = define("Maim", { 49802 }, "Maim"), -- 49802 = WotLK Maim (Wowhead spell=49802, stun+interrupt finisher, 10s CD)
 }
 
 -- Max-rank-first debuff/aura tables: WotLK DoT auras use the WotLK spell ids
@@ -93,6 +94,7 @@ local function build_state(context)
     state.clearcasting = (me and NS.buff_up and NS.buff_up(me, OMEN_OF_CLARITY_BUFF)) or false
     state.has_tigers_fury = (me and NS.buff_up and NS.buff_up(me, TIGERS_FURY_BUFF)) or false
     state.is_stealthed = (context and context.is_stealthed == true) or (me and NS.buff_up and NS.buff_up(me, PROWL_BUFF)) or false
+    state.target_is_casting = (target and target.is_casting and target:is_casting()) or (context and context.target_is_casting) or false
     -- Strict behind check for Shred (spell requires being behind target)
     if context and context.is_behind ~= nil then
         state.is_behind = context.is_behind == true
@@ -125,6 +127,16 @@ local DSL_DEFS = {
             { type = "state", field = "energy", op = ">=", value = 60 },
         },
         action = { type = "cast", spell = ACTION.Ravage, target = "target" },
+    },
+    {
+        name = "MaimInterrupt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+            { type = "state", field = "energy", op = ">=", value = 35 },
+        },
+        action = { type = "cast", spell = ACTION.Maim, target = "target" },
     },
     {
         name = "TigersFury",
@@ -235,6 +247,7 @@ local DSL_DEFS = {
 local strategies = {
     { name = "FaerieFireFeral" },
     { name = "Ravage" },
+    { name = "MaimInterrupt" },
     { name = "TigersFury" },
     { name = "Berserk" },
     { name = "SavageRoar" },

@@ -20,6 +20,7 @@ local ACTION = {
     Haunt = define("Haunt", { 59164, 48181 }, "Haunt"),
     Corruption = define("Corruption", { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     CurseOfAgony = define("CurseOfAgony", { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    SeedOfCorruption = define("SeedOfCorruption", { 47836, 27243 }, "SeedOfCorruption"),
     DrainSoul = define("DrainSoul", { 47855, 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
     ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
@@ -93,6 +94,20 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target" },
     },
     {
+        name = "SeedOfCorruptionAoE",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- Era-correct AoE DoT: SoC on the primary target when the pack
+                -- is big enough that spamming Shadow Bolt is a DPS loss
+                -- (4+ targets — mirrors unholy Pestilence's volume gate).
+                return (state.enemy_count or 1) >= 4
+                    and NS.aoe_target_meets and NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SeedOfCorruption, target = "target" },
+    },
+    {
         name = "DrainSoul",
         conditions = {
             { type = "state", field = "target_hp", op = "<", value = 25 },
@@ -127,6 +142,7 @@ local strategies = {
     { name = "Corruption" },
     { name = "UnstableAffliction" },
     { name = "CurseOfAgony" },
+    { name = "SeedOfCorruptionAoE" },
     { name = "DrainSoul" },
     { name = "ShadowBolt" },
     { name = "LifeTap" },

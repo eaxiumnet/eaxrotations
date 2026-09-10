@@ -36,6 +36,11 @@ local ACTION = {
     -- Shadowfiend: single rank (34433), unchanged since TBC; the wowsims
     -- shadow APL fires it as priority 1 (mana-return pet).
     Shadowfiend = define("Shadowfiend", 34433, "Shadowfiend"),
+    -- 2026-09-09 guide pass (wowsims shadow APL): Mind Sear AoE channel
+    -- (49821 rank 1 learned 50 / 53023 max rank 74) and Shadow Word: Death
+    -- execute (48158 max / 48157 rank at 75; 12s CD, backlash recoil).
+    MindSear = define("MindSear", { 53023, 49821 }, "MindSear"),
+    ShadowWordDeath = define("ShadowWordDeath", { 48158, 48157, 32379, 2944 }, "ShadowWordDeath"),
 }
 
 local VAMPIRIC_TOUCH_DEBUFF = { 48160, 34917, 34916, 34914 }
@@ -54,6 +59,7 @@ local shadow_state = {
     mb_ready = false,
     mf_channeling = false,
     should_clip_mf = false,
+    target_hp_pct = 100,
 }
 
 local function can_break_mind_flay(s)
@@ -69,6 +75,9 @@ local function build_state(context)
         or (me and me.get_mana_percentage and me:get_mana_percentage())
         or 100
     state.enemy_count = (context and context.enemy_count) or 1
+    -- Execute-band read (main_sylvanas.lua sets target_hp; guides fire
+    -- Shadow Word: Death at <= 25%).
+    state.target_hp_pct = (context and (context.target_hp or context.target_hp_pct or context.hp)) or 100
     state.in_combat = (context and context.in_combat) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.vampiric_touch_remains = (target and NS.debuff_remains and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF)) or 0
@@ -144,6 +153,22 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.MindBlast, target = "target" },
     },
     {
+        name = "ShadowWordDeath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp_pct", op = "<=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowWordDeath, target = "target" },
+    },
+    {
+        name = "MindSear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.MindSear, target = "target" },
+    },
+    {
         name = "MindFlay",
         conditions = {
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
@@ -172,8 +197,10 @@ local strategies = {
     { name = "ShadowWordPain" },
     { name = "VampiricTouch" },
     { name = "MindBlast" },
+    { name = "MindSear" },
     { name = "MindFlay" },
     { name = "Shadowfiend" },
+    { name = "ShadowWordDeath" },
 }
 
 -- Priority order mirrors wowsims shadow APL (ui/shadow_priest/apls/default.apl.json):

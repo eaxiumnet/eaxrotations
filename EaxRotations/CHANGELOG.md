@@ -41,7 +41,7 @@
   SoD rotation matrix rows, the druid/hunter, mage/paladin/priest and
   assassin group suites, and the caster DSL priority suite.
 
-### Rotation Content — WotLK healer expansion wave (guide-driven, two passes)
+### Rotation Content — WotLK healer expansion wave (guide-driven, three passes)
 - **Every WotLK healer now implements its published playstyle priority.**
   The healer deep-rate against live Icy-Veins WotLK rotation pages and the
   pinned wowsims APL fixtures found the WotLK healer tier thin (4–7 lanes
@@ -94,6 +94,25 @@
   `test_priest_holy_wotlk_strategies`,
   `test_holy_priest_wotlk_dsl_priority`); scorecard/ACCURACY/badges and the
   era-pair seed regenerated; no new suites — battery remains 563.
+
+- **Third pass (2026-09-10, deep-rate close-out)** — the last four graded healer gaps, same discipline:
+  - **Holy priest** (`priest/holy_wotlk.lua`): 8 -> 10 — Divine Hymn
+    (single-rank 64901; 3+ injured, lowest < 60 — the Tranquility idiom) and
+    Hymn of Hope (single-rank 64904; mana < 40), slotted under the
+    self-save band ahead of target triage.
+  - **Holy paladin** (`paladin/holy_wotlk.lua`): 9 -> 10 — Lay on Hands
+    (era-shared id 633) as the <= 20% mana-free full-heal save on the
+    dedicated beacon target; it leads the order.
+  - **Discipline priest** (`priest/discipline_wotlk.lua`): 6 -> 8 — the
+    direct-heal filler band the file lacked: Greater Heal (< 50%, mana
+    >= 30) and Flash Heal (< 70%, mana >= 20) after Renew, before Power
+    Infusion's pressure band (build_state now reads mana like its siblings).
+- Battery: new `healer_save_window` scenario (lowest 15) gives the tight
+  <= 20 save band observability; all 41 WotLK specs still never-fires = 0.
+  Ids 64901/64904 pinned in the WotLK spell-audit allowlist (221 -> 223;
+  64902/64903 verified as unrelated ids and excluded); 633 already accepted
+  era-shared. Suites extended in place (three dsl_priority + three
+  strategies suites); no new suites — battery remains 563.
 
 ---
 ## 2.25.0 — 2026-09-06

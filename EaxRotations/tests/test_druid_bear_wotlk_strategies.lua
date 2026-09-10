@@ -26,6 +26,7 @@ local enemy_count = 1
 local combat = true
 local debuffs = {}
 local not_ready = {}
+local cds = {}
 
 local function lacerate(secs) debuffs[48568] = secs end
 local function mangle(secs) debuffs[48564] = secs end
@@ -33,7 +34,7 @@ local function ff(secs) debuffs[27011] = secs end
 
 local function reset_env()
     hp, rage, enemy_count, combat = 100, 0, 1, true
-    debuffs, not_ready = {}, {}
+    debuffs, not_ready, cds = {}, {}, {}
 end
 
 _G.EaxRotations = {
@@ -49,6 +50,10 @@ _G.EaxRotations = {
         local id = type(spell) == "number" and spell or (spell and (spell.id or spell[1]))
         if not_ready[id] then return false end
         return true
+    end,
+    cooldown_remains = function(action)
+        local id = type(action) == "number" and action or (action and action.id)
+        return cds[id] or 0
     end,
     log = function() end,
     rotation_registry = { register = function() end },
@@ -153,5 +158,18 @@ assert_lane("FrenziedRegeneration blocked while on cooldown", "FrenziedRegenerat
     function() hp = 20; rage = 100; not_ready[26999] = true end, false)
 assert_lane("FrenziedRegeneration blocked out of combat", "FrenziedRegeneration",
     function() hp = 20; rage = 100; combat = false end, false)
+
+-- ============================================================================
+-- Survival Instincts: emergency defensive at < 35% hp off CD (2026-09-09
+-- guide pass). Real cooldown_remains read on 61336.
+-- ============================================================================
+assert_lane("SurvivalInstincts fires at 34% hp off cooldown", "SurvivalInstincts",
+    function() hp = 34 end, true)
+assert_lane("SurvivalInstincts blocked above 35% hp", "SurvivalInstincts",
+    function() hp = 35 end, false)
+assert_lane("SurvivalInstincts blocked while on cooldown", "SurvivalInstincts",
+    function() hp = 20; cds[61336] = 60 end, false)
+assert_lane("SurvivalInstincts blocked out of combat", "SurvivalInstincts",
+    function() hp = 20; combat = false end, false)
 
 print("PASS test_druid_bear_wotlk_strategies")

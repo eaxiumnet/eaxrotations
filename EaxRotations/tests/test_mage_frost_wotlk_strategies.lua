@@ -23,6 +23,9 @@ local combat = true
 local casting = false
 local debuffs = {}
 local buffs = {}
+local cds = {}
+local has_pet = false
+local longcd = true
 
 local function ffb(secs) debuffs[44549] = secs end
 local function root(secs) debuffs[42917] = secs end
@@ -30,7 +33,8 @@ local function fof(up) buffs[44545] = up or nil end
 
 local function reset_env()
     hp, mana, combat, casting = 100, 100, true, false
-    debuffs, buffs = {}, {}
+    debuffs, buffs, cds = {}, {}, {}
+    has_pet, longcd = false, true
 end
 
 _G.EaxRotations = {
@@ -54,6 +58,13 @@ _G.EaxRotations = {
         end
         return false
     end,
+    cooldown_remains = function(action, unit)
+        local id = type(action) == "number" and action or (action and action.id)
+        return cds[id] or 0
+    end,
+    has_pet = function() return has_pet end,
+    should_use_long_cd = function(context, cd) return longcd end,
+    PLAYER_UNIT = {},
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -137,5 +148,28 @@ assert_lane("IceLance blocked on an unfrozen target", "IceLance", function() end
 -- ============================================================================
 assert_lane("Frostbolt fires at 15 mana", "Frostbolt", function() mana = 15 end, true)
 assert_lane("Frostbolt blocked below 15 mana", "Frostbolt", function() mana = 14 end, false)
+
+-- ============================================================================
+-- Icy Veins + Summon Water Elemental: guide-pass burst lanes (2026-09-09).
+-- In combat, real cooldown_remains read, long-CD consent; the elemental also
+-- holds while the pet is alive.
+-- ============================================================================
+assert_lane("IcyVeins fires off cooldown in combat", "IcyVeins", function() end, true)
+assert_lane("IcyVeins blocked while on cooldown", "IcyVeins",
+    function() cds[12472] = 120 end, false)
+assert_lane("IcyVeins blocked out of combat", "IcyVeins",
+    function() combat = false end, false)
+assert_lane("IcyVeins blocked when long-CD gate refuses", "IcyVeins",
+    function() longcd = false end, false)
+assert_lane("SummonWaterElemental fires with no pet off cooldown", "SummonWaterElemental",
+    function() end, true)
+assert_lane("SummonWaterElemental held while the pet is alive", "SummonWaterElemental",
+    function() has_pet = true end, false)
+assert_lane("SummonWaterElemental blocked while on cooldown", "SummonWaterElemental",
+    function() cds[31687] = 180 end, false)
+assert_lane("SummonWaterElemental blocked out of combat", "SummonWaterElemental",
+    function() combat = false end, false)
+assert_lane("SummonWaterElemental blocked when long-CD gate refuses", "SummonWaterElemental",
+    function() longcd = false end, false)
 
 print("PASS test_mage_frost_wotlk_strategies")

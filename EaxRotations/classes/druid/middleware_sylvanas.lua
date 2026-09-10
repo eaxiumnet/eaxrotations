@@ -482,6 +482,49 @@ local strategies = {
     },
 
     -- ========================================================================
+    -- REVIVE (OOC resurrection — dead party member between pulls)
+    -- 50769 = Revive max rank (Wowhead WotLK Classic spell=50769, no form
+    -- restriction, 10s cast). Uses the same use_rebirth toggle + dead-scan
+    -- idiom as the Rebirth lane below; OOC-only so it never races combat-rez.
+    -- ========================================================================
+    {
+        name = "ReviveOOC",
+        priority = 1000,
+        is_defensive = true,
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "use_rebirth", true) then return false end
+            if context.in_combat then return false end
+            local spell = SPELLS.Revive or { id = { 24341, 50769 }, name = "Revive" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then return true end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Revive or { id = { 24341, 50769 }, name = "Revive" }
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then
+                            return NS.try_cast(spell, member, "[DRUID] Revive")
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
+    -- ========================================================================
     -- REBIRTH (Combat resurrection — dead party/raid member)
     -- ========================================================================
     {

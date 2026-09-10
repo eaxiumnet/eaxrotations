@@ -58,6 +58,16 @@ local SPELLS = {
         power_type = "mana",
         school = "holy",
     }),
+    Redemption = NS.spell_action({
+        name = "Redemption",
+        ids = {20773, 20772, 10324, 10322, 7328},
+        levels = {60, 48, 36, 24, 12},
+        cast_time = 10,
+        cooldown = 0,
+        power_cost = 64,
+        power_type = "mana",
+        school = "holy",
+    }),
     BlessingOfFreedom = NS.spell_action({
         name = "BlessingOfFreedom",
         ids = {1044},

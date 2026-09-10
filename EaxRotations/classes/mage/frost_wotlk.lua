@@ -28,6 +28,11 @@ local ACTION = {
     DeepFreeze = define("DeepFreeze", 44572, "DeepFreeze"),
     ColdSnap = define("ColdSnap", 11958, "ColdSnap"),
     Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
+    -- 2026-09-09 guide-pass additions (wowsims frost APL burst): Icy Veins
+    -- 12472 (20% haste, 3-min CD, single rank) and Summon Water Elemental
+    -- 31687 (permanent pet, 3-min CD, single rank) - both bridge-verified.
+    IcyVeins = define("IcyVeins", 12472, "IcyVeins"),
+    SummonWaterElemental = define("SummonWaterElemental", 31687, "SummonWaterElemental"),
 }
 
 -- 44549 = the Frostfire Bolt DEBUFF aura (wowsims APL refreshes FFB on it);
@@ -47,6 +52,9 @@ local frost_state = {
     frostfire_remains = 0,
     target_frozen = false,
     target_is_casting = false,
+    icy_veins_ready = false,
+    water_elemental_ready = false,
+    has_pet = false,
 }
 
 local function build_state(context)
@@ -64,6 +72,12 @@ local function build_state(context)
         or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    -- Cooldown availability (real API: NS.cooldown_remains, 0 = ready) for the
+    -- guide-pass burst lanes; has_pet drives the elemental re-summon hold.
+    local me_self = NS.PLAYER_UNIT or me
+    state.icy_veins_ready = (ACTION.IcyVeins and NS.cooldown_remains and NS.cooldown_remains(ACTION.IcyVeins, me_self) <= 0) or false
+    state.water_elemental_ready = (ACTION.SummonWaterElemental and NS.cooldown_remains and NS.cooldown_remains(ACTION.SummonWaterElemental, me_self) <= 0) or false
+    state.has_pet = (NS.has_pet and NS.has_pet()) or false
     state.frostfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FROSTFIRE_BOLT_DEBUFF)) or 0
     -- Frozen = target rooted by the Frost Nova family (incl. WotLK 42917) OR
     -- the Fingers of Frost proc (44545) — the wowsims DeepFreeze gate.
@@ -92,6 +106,31 @@ local DSL_DEFS = {
             { type = "state", field = "hp", op = "<", value = 50 },
         },
         action = { type = "cast", spell = ACTION.ColdSnap, target = "self" },
+    },
+    {
+        name = "SummonWaterElemental",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "water_elemental_ready", op = "truthy" },
+            { type = "state", field = "has_pet", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SummonWaterElemental, target = "self" },
+    },
+    {
+        name = "IcyVeins",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "icy_veins_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.IcyVeins, target = "self" },
     },
     {
         name = "DeepFreeze",
@@ -129,6 +168,8 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 local strategies = {
     { name = "Counterspell" },
+    { name = "SummonWaterElemental" },
+    { name = "IcyVeins" },
     { name = "ColdSnap" },
     { name = "DeepFreeze" },
     { name = "FrostfireBolt" },

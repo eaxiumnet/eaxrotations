@@ -79,4 +79,29 @@ assert_false(evo.matches({}, { in_combat = false, evocation_available = true, ma
 assert_true(evo.matches({}, { in_combat = true, evocation_available = true, mana_pct = 10, phase = "conserve" }),
     "Evocation matches at low mana in combat")
 
+-- 2026-09-09 guide pass: ArcaneExplosion AoE lane (was absent entirely).
+-- The suite mock has no aoe_self_meets, so the lane must fail CLOSED without
+-- the AoE volume module — that failure mode is pinned first.
+local aoe_ok = nil
+_G.EaxRotations.aoe_self_meets = function() return aoe_ok == true end
+local arcane_explosion = find("ArcaneExplosion")
+assert_false(arcane_explosion.matches({ target = {} }, { is_moving = false }),
+    "ArcaneExplosion held when the AoE volume gate is unavailable (fails closed)")
+aoe_ok = true
+assert_false(arcane_explosion.matches({ target = {} }, { is_moving = true }),
+    "ArcaneExplosion held while moving (FireBlast owns the moving filler)")
+assert_true(arcane_explosion.matches({ target = {} }, { is_moving = false }),
+    "ArcaneExplosion fires stationary with 3+ enemies in range")
+aoe_ok = false
+assert_false(arcane_explosion.matches({ target = {} }, { is_moving = false }),
+    "ArcaneExplosion held below the 3-enemy volume")
+aoe_ok = nil
+
+-- Order: AoE slots before the single-target nuke, after the moving filler.
+local function idx(name)
+    for i, s in ipairs(strategies) do if s.name == name then return i end end
+end
+assert_true(idx("FireBlast") < idx("ArcaneExplosion"), "FireBlast (moving filler) precedes the AoE lane")
+assert_true(idx("ArcaneExplosion") < idx("Frostbolt"), "ArcaneExplosion outranks Frostbolt in AoE windows")
+
 print("PASS test_arcane_vanilla_strategies")

@@ -169,6 +169,26 @@ assert_lane("Lightwell blocked on cooldown", "Lightwell",
     function() injured_count = 4; lowest_hp = 40; ready_map[48087] = false end, false)
 
 -- ============================================================================
+-- Hymns (2026-09-10 guide-gap lanes): Divine Hymn party burst (3+ injured,
+-- lowest < 60), Hymn of Hope mana return (< 40 mana). Single-rank spells —
+-- readiness keyed by 64901 / 64904.
+-- ============================================================================
+assert_lane("Divine Hymn fires with 3 injured and lowest below 60", "DivineHymn",
+    function() injured_count = 3; lowest_hp = 55 end, true)
+assert_lane("Divine Hymn blocked at/above 60 lowest hp", "DivineHymn",
+    function() injured_count = 3; lowest_hp = 60 end, false)
+assert_lane("Divine Hymn blocked with 2 injured", "DivineHymn",
+    function() injured_count = 2; lowest_hp = 50 end, false)
+assert_lane("Divine Hymn blocked on cooldown", "DivineHymn",
+    function() injured_count = 4; lowest_hp = 40; ready_map[64901] = false end, false)
+assert_lane("Hymn of Hope fires below 40 mana", "HymnOfHope",
+    function() mana = 39 end, true)
+assert_lane("Hymn of Hope blocked at 40 mana (strict gate)", "HymnOfHope",
+    function() mana = 40 end, false)
+assert_lane("Hymn of Hope blocked on cooldown", "HymnOfHope",
+    function() mana = 20; ready_map[64904] = false end, false)
+
+-- ============================================================================
 -- FlashHeal: lowest below 70% + mana >= 20.
 -- ============================================================================
 assert_lane("Flash Heal fires at 69% lowest hp", "FlashHeal",

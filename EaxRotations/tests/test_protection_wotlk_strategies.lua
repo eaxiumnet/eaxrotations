@@ -27,6 +27,7 @@ local target_casting = false
 local interruptible = true
 local tclap_remains = 0
 local swing = 999
+local shk_cd = 0
 
 local me = {
     get_power = function() return 0 end,
@@ -63,7 +64,11 @@ _G.EaxRotations = {
         end
         return 0
     end,
-    cooldown_remains = function(action) return cds[action and action.id] or 0 end,
+    cooldown_remains = function(action)
+        local id = action and action.id
+        if id == 46968 then return shk_cd end
+        return cds[id] or 0
+    end,
     swing_time_until = function() return swing end,
     is_interruptible = function() return interruptible end,
     spell_ready = function() return true end,
@@ -86,6 +91,7 @@ end
 local function scenario(label, strategy_name, mutations, expect_match)
     local save = { stance, hp, ctx_rage, enemy_count, target_casting, interruptible, tclap_remains, swing }
     for k in pairs(cds) do cds[k] = nil end
+    shk_cd = 0
     mutations()
     local ctx = {
         in_combat = true, target = mk_target(), settings = {},
@@ -174,5 +180,18 @@ scenario("Devastate fires at 15+ rage", "Devastate",
     function() ctx_rage = 18 end, true)
 scenario("Devastate blocked below 15 rage", "Devastate",
     function() ctx_rage = 10 end, false)
+
+-- ============================================================================
+-- Shockwave: 20s CD AoE stun on 2+ enemies at 15+ rage (2026-09-09 guide
+-- pass). WotLK lane reads via the internal cd_remaining helper.
+-- ============================================================================
+scenario("Shockwave fires on 2 enemies at 20 rage", "Shockwave",
+    function() ctx_rage = 20; enemy_count = 2 end, true)
+scenario("Shockwave blocked single-target", "Shockwave",
+    function() ctx_rage = 100; enemy_count = 1 end, false)
+scenario("Shockwave blocked below 15 rage", "Shockwave",
+    function() ctx_rage = 14; enemy_count = 2 end, false)
+scenario("Shockwave blocked while on cooldown", "Shockwave",
+    function() ctx_rage = 100; enemy_count = 2; shk_cd = 20 end, false)
 
 print("PASS test_protection_wotlk_strategies")

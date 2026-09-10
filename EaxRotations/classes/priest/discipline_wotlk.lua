@@ -36,6 +36,11 @@ local ACTION = {
     -- dispel_manager (magic_mass middleware owner) — not a rotation lane.
     PainSuppression = define("PainSuppression", 33206, "PainSuppression"),
     PowerInfusion = define("PowerInfusion", 10060, "PowerInfusion"),
+    -- 2026-09-10 guide-gap fillers: the APL's direct-heal band the file
+    -- lacked (after Renew, before PI under pressure). Ranks mirror the
+    -- holy file's audit-clean ladders.
+    GreaterHeal = define("GreaterHeal", { 48063, 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
+    FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
 }
 
 local WEAKENED_SOUL_DEBUFF = { 6788 }
@@ -43,6 +48,7 @@ local RENEW_BUFF = { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077
 
 local discipline_state = {
     target_hp = 100,
+    mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
     weakened_soul_up = false,
@@ -59,6 +65,10 @@ local function build_state(context)
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (me and me.get_mana_percentage and me:get_mana_percentage())
+        or 100
     state.weakened_soul_up = (target and NS.debuff_up and NS.debuff_up(target, WEAKENED_SOUL_DEBUFF)) or false
     state.renew_remains = (target and NS.buff_remains and NS.buff_remains(target, RENEW_BUFF)) or 0
     return state
@@ -111,6 +121,25 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Renew, target = "friendly" },
     },
+    -- Direct-heal fillers (guide band after Renew): Greater Heal for the
+    -- big top-up, Flash Heal for the fast band; both mana-gated so the
+    -- shield engine never starves itself.
+    {
+        name = "GreaterHeal",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.GreaterHeal, target = "friendly" },
+    },
+    {
+        name = "FlashHeal",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.FlashHeal, target = "friendly" },
+    },
 }
 
 local strategies = {
@@ -121,6 +150,8 @@ local strategies = {
     { name = "Penance" },
     { name = "PrayerOfMending" },
     { name = "Renew" },
+    { name = "GreaterHeal" },
+    { name = "FlashHeal" },
     { name = "PowerInfusion" },
 }
 

@@ -93,7 +93,7 @@ print("=== test_protection_wotlk_dsl_priority ===")
 local prot = dofile("EaxRotations/classes/warrior/protection_wotlk.lua")
 assert_true(type(prot) == "table", "protection_wotlk should return a table")
 assert_true(type(prot.strategies) == "table", "protection_wotlk should expose strategies")
-assert_true(#prot.strategies == 9, "protection_wotlk should have 9 strategies")
+assert_true(#prot.strategies == 10, "protection_wotlk should have 10 strategies")
 
 local registered = _G.EaxRotations._registered_protection
 assert_true(registered ~= nil, "protection_wotlk should register under 'protection'")
@@ -114,6 +114,7 @@ local expected_order = {
     "ShieldSlam",
     "Revenge",
     "ThunderClap",
+    "Shockwave",
     "Devastate",
 }
 
@@ -322,7 +323,7 @@ end)
 -- Devastate (9): should match when rage >= 15
 test("Devastate: matches when rage >= 15", function()
     local state = prot.build_state(ctx)
-    assert_true(prot.strategies[9].matches(ctx, state), "Devastate should match when rage >= 15")
+    assert_true(prot.strategies[10].matches(ctx, state), "Devastate should match when rage >= 15")
 end)
 
 -- Devastate: should NOT match when rage < 15
@@ -330,7 +331,7 @@ test("Devastate: does not match when rage < 15", function()
     local orig_rage = _G.EaxRotations.me.get_power
     _G.EaxRotations.me.get_power = function() return 10 end
     local state = prot.build_state(ctx)
-    local ok = prot.strategies[9].matches(ctx, state)
+    local ok = prot.strategies[10].matches(ctx, state)
     _G.EaxRotations.me.get_power = orig_rage
     assert_false(ok, "Devastate should not match when rage < 15")
 end)
