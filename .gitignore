@@ -13,4 +13,8 @@
 !/tools/evidence/
 !/tools/evidence/**
 !/tools/create_release_zip.py
+# Release guards: read by .github/workflows/ci.yml on a clean checkout, so the
+# files must be tracked (the /tools/* rule above ignores them otherwise).
+!/tools/release_staleness_check.lua
+!/tools/perf_cost_gate.lua
 EaxRotations/.omo/
