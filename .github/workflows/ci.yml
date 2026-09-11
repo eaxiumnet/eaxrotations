@@ -114,7 +114,18 @@ jobs:
         # STRICT is quoted deliberately: actionlint's shellcheck integration
         # flags an unquoted expansion (SC2086). An empty value is passed
         # through as an empty argument, which the guard's flag loop ignores.
-        run: lua tools/release_staleness_check.lua "$STRICT"
+        run: |
+          lua tools/release_staleness_check.lua "$STRICT"
+          # Zip-content audit (2026-09-11): the guard above proves a tag and
+          # a Release exist; this proves the zip users download is intact --
+          # asset version == release, the zip's own header.lua parses and
+          # matches the release AND this checkout's header.lua pin, >=900
+          # entries, lua/md-only shape (the "tag exists, zip is garbage"
+          # class no prior check covered). Reads header.lua from the checkout
+          # itself, so ci.yml stays a dumb run:. UNVERIFIED on network blips;
+          # hard-fails on real defects. GH_TOKEN (above) lets `gh` read the
+          # Release assets on CI.
+          python3 tools/release_zip_audit.py
 
   # Build the release artifact (eaxrotations.zip: tracked lua + md only) so
   # releases don't depend on the maintainer's machine. Runs only on master

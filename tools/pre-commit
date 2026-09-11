@@ -345,6 +345,13 @@ if ! "$LUA" tools/release_staleness_check.lua --self-test 2>&1; then
     echo "[pre-commit] Release-staleness guard self-test FAILED. Commit aborted."
     exit 1
 fi
+# The zip audit's offline self-test (Python tool bridged through a Lua shim,
+# per run_era_pair_seed_freshness.lua's pattern): same bar -- deterministic,
+# offline, no python hard-dependency beyond the shim's own detection.
+if ! "$LUA" tools/run_release_zip_audit_selftest.lua 2>&1; then
+    echo "[pre-commit] Release zip audit self-test FAILED. Commit aborted."
+    exit 1
+fi
 
 echo "[pre-commit] Version-consistency audit passed."
 
