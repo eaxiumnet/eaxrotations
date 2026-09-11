@@ -332,13 +332,13 @@ return {
     {
         spec = "rogue/assassination",
         missing_in = "sylvanas",
-        names = { "ColdBloodEviscerate", "Envenom", "HungerForBlood", "KickInterrupt", "PvP_Blind", "Rupture", "TricksOfTheTrade" },
+        names = { "ColdBlood", "ColdBloodEviscerate", "Envenom", "FanOfKnives", "Garrote", "HungerForBlood", "KickInterrupt", "PvP_Blind", "Rupture", "TricksOfTheTrade" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "rogue/assassination",
         missing_in = "vanilla",
-        names = { "AssassinationShivPurge", "BlindCC", "CloakOfShadows", "ColdBloodEnvenom", "DeadlyThrow", "Envenom", "EnvenomFinisher", "HungerForBlood", "Kick", "Mutilate", "Rupture", "ShivRefresh", "SinisterStrikeFallback", "TricksOfTheTrade" },
+        names = { "AssassinationShivPurge", "BlindCC", "CloakOfShadows", "ColdBlood", "ColdBloodEnvenom", "DeadlyThrow", "Envenom", "EnvenomFinisher", "FanOfKnives", "Garrote", "HungerForBlood", "Kick", "Mutilate", "Rupture", "ShivRefresh", "SinisterStrikeFallback", "TricksOfTheTrade" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -350,19 +350,19 @@ return {
     {
         spec = "rogue/combat",
         missing_in = "sylvanas",
-        names = { "KillingSpree" },
+        names = { "KillingSpree", "TricksOfTheTrade" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "rogue/combat",
         missing_in = "vanilla",
-        names = { "Blind", "CheapShot", "Envenom", "Garrote", "KillingSpree", "ShivPurge" },
+        names = { "Blind", "CheapShot", "Envenom", "Garrote", "KillingSpree", "ShivPurge", "TricksOfTheTrade" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "rogue/combat",
         missing_in = "wotlk",
-        names = { "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "KidneyShot", "Rupture", "ShivPurge", "Sprint", "Stealth", "Vanish" },
+        names = { "Backstab", "Blind", "CheapShot", "DamagePotion", "Envenom", "ExposeArmor", "Feint", "Garrote", "GhostlyStrike", "Gouge", "HealthPotion", "Hemorrhage", "KidneyShot", "ShivPurge", "Sprint", "Stealth", "Vanish" },
         reason = "WotLK-era build-out: rogue_combat_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -476,19 +476,19 @@ return {
     {
         spec = "warlock/destruction",
         missing_in = "sylvanas",
-        names = { "ChaosBolt", "HealthPotion", "ManaGem", "ShadowWard", "SoulFireBackdraft", "Trinket" },
+        names = { "ChaosBolt", "HealthPotion", "HellfireAoE", "ManaGem", "ShadowWard", "SoulFireBackdraft", "Trinket" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warlock/destruction",
         missing_in = "vanilla",
-        names = { "ChaosBolt", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DemonicSacrifice", "FelArmor", "Incinerate", "LifeTapMoving", "SeedOfCorruption", "Shadowfury", "SoulFireBackdraft", "SpellLock", "SummonFelguard" },
+        names = { "ChaosBolt", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DemonicSacrifice", "FelArmor", "HellfireAoE", "Incinerate", "LifeTapMoving", "SeedOfCorruption", "Shadowfury", "SoulFireBackdraft", "SpellLock", "SummonFelguard" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warlock/destruction",
         missing_in = "wotlk",
-        names = { "BacklashShadowBolt", "Corruption", "CreateHealthstone", "CurseOfAgony", "CurseOfDoom", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DeathCoil", "DemonArmor", "DemonicSacrifice", "DrainLife", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthPotion", "Hellfire", "LifeTapMoving", "ManaGem", "RainOfFire", "SearingPain", "SeedOfCorruption", "ShadowBolt", "ShadowWard", "Shadowburn", "Shadowfury", "SpellLock", "SummonFelguard", "SummonFelhunter", "SummonImp", "SummonSuccubus", "SummonVoidwalker", "Trinket" },
+        names = { "BacklashShadowBolt", "Corruption", "CreateHealthstone", "CurseOfAgony", "CurseOfDoom", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DeathCoil", "DemonArmor", "DemonicSacrifice", "DrainLife", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthPotion", "Hellfire", "LifeTapMoving", "ManaGem", "RainOfFire", "SearingPain", "SeedOfCorruption", "ShadowBolt", "ShadowWard", "Shadowfury", "SpellLock", "SummonFelguard", "SummonFelhunter", "SummonImp", "SummonSuccubus", "SummonVoidwalker", "Trinket" },
         reason = "WotLK-era build-out: warlock_destruction_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

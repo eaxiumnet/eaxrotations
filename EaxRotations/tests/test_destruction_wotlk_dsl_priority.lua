@@ -1,8 +1,8 @@
--- test_destruction_wotlk_dsl_priority.lua — WotLK Destruction DSL priority order validation.
+-- test_destruction_wotlk_dsl_priority.lua ï¿½ WotLK Destruction DSL priority order validation.
 -- WHAT:  Asserts the declarative DSL strategies appear in the correct priority order
 --        and that key match/no-match gates behave correctly under mocked combat state.
 -- WHEN:  Runs as part of the WotLK rotation test suite.
--- WHY:   Regression guard for the WotLK DSL adoption — ensures declarative conditions
+-- WHY:   Regression guard for the WotLK DSL adoption ï¿½ ensures declarative conditions
 --        produce the same behavior as the original imperative match functions.
 -- SAFETY: Uses synthetic context/state; no live game data required.
 
@@ -100,11 +100,17 @@ end
 -- ============================================================================
 local tests = {}
 
--- Priority order: Conflagrate > Immolate > ChaosBolt > Incinerate > SoulFire
+-- Priority order: the 2026-09-11 guide pass added CurseOfElements (APL entry
+-- 2) and Shadowburn (execute) above the old core; CoE's amp goes up before the
+-- damage cycle, so it is the top lane when the debuff is down.
 tests.priority_order = function()
     local ctx = make_context({})
     local first = find_first_match(ctx)
-    assert_equal("Immolate", first, "Immolate should be highest priority when debuff is expiring")
+    assert_equal("CurseOfElements", first, "CurseOfElements (amp upkeep) should be top when the curse is down")
+    -- Core damage cycle still resolves to Immolate when the amp is up.
+    local state = build_state(ctx)
+    state.elements_remains = 60
+    assert_equal("Immolate", find_first_match(ctx, state), "Immolate should be highest damage-priority when debuff is expiring")
 end
 
 -- Immolate: matches when debuff is expiring
@@ -157,6 +163,7 @@ end
 tests.test_Conflagrate_wins_before_Immolate_refresh = function()
     local ctx = make_context({})
     local state = build_state(ctx)
+    state.elements_remains = 60 -- curse up: the amp upkeep lane is out of the way
     state.immolate_remains = 1.5
     assert_equal("Conflagrate", find_first_match(ctx, state),
         "Conflagrate should precede the Immolate refresh at 1.5s remaining")
@@ -166,6 +173,7 @@ end
 tests.test_ChaosBolt_matches_when_high_mana = function()
     local ctx = make_context({})
     local state = build_state(ctx)
+    state.elements_remains = 60
     state.immolate_remains = 5
     local first = find_first_match(ctx, state)
     assert_equal("Conflagrate", first, "Conflagrate should win over ChaosBolt when Immolate active")

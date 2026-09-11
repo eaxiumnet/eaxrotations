@@ -31,6 +31,15 @@ local ACTION = {
     SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
     -- Baseline rogue interrupt (3.3.5); not in the mutilate APL fixture.
     Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
+    -- Guide-priority additions (mutilate APL + Icy-Veins WotLK assassination):
+    -- Cold Blood 14177 (single rank, Wowhead-verified; +100% crit on the next
+    -- offensive ability — the fixture's finisher combo is CB > Envenom at 5
+    -- combo points), Fan of Knives 51723 (single rank; 3-enemy AoE wave),
+    -- Garrote 48676 r9 (stealth opener DoT + 3s silence, replaces the Sinister
+    -- Strike-class opener when stealthed).
+    ColdBlood = define("ColdBlood", 14177, "ColdBlood"),
+    FanOfKnives = define("FanOfKnives", 51723, "FanOfKnives"),
+    Garrote = define("Garrote", 48676, "Garrote"),
 }
 
 -- WotLK max-rank Rupture (48672) first: literal ID matching — a max-level
@@ -60,6 +69,8 @@ local assassination_state = {
     hfb_up = false,
     has_daggers = false,
     target_is_casting = false,
+    is_stealthed = false,
+    cold_blood_ready = false,
 }
 
 local function build_state(context)
@@ -89,6 +100,10 @@ local function build_state(context)
     local is_dagger = dagger_set and dagger_set.is_dagger or {}
     state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
         and (off_id and off_id ~= 0 and is_dagger[off_id])
+    -- Stealth read (WotLK Max Level: Stealth rank 4 id 1784; the same table
+    -- the battery's stealth-opener scenarios drive via has_player_buff).
+    state.is_stealthed = (NS.buff_up and me and NS.buff_up(me, { 1784 })) or false
+    state.cold_blood_ready = (ACTION.ColdBlood and NS.cooldown_remains and NS.cooldown_remains(ACTION.ColdBlood) <= 0) or false
     return state
 end
 
@@ -159,6 +174,40 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Envenom, target = "target" },
     },
     {
+        name = "ColdBlood",
+        conditions = {
+            -- The fixture's finisher combo (entry 10): Cold Blood into
+            -- Envenom at 5 combo points — usable only right before a
+            -- finisher, never as a builder buff.
+            { type = "state", field = "combo_points", op = ">=", value = 5 },
+            { type = "state", field = "cold_blood_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.ColdBlood, target = "self" },
+    },
+    {
+        name = "FanOfKnives",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- AoE wave (3+ enemies, hurricane_aoe idiom).
+                return (state.enemy_count or 1) >= 3
+                    and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FanOfKnives, target = "target" },
+    },
+    {
+        name = "Garrote",
+        conditions = {
+            -- Stealth opener: only from stealth (pre-combat or Vanish window);
+            -- in-combat non-stealthed it is unreachable and would waste the
+            -- opener. The OOC stealth scenario is where a real rotation casts it.
+            { type = "state", field = "is_stealthed", op = "truthy" },
+            { type = "state", field = "in_combat", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.Garrote, target = "target" },
+    },
+    {
         name = "Mutilate",
         conditions = {
             { type = "state", field = "energy", op = ">=", value = 60 },
@@ -180,13 +229,16 @@ local DSL_DEFS = {
 -- Kick is a baseline interrupt, not in the mutilate APL fixture — first,
 -- outside the pinned order.
 local strategies = {
+    { name = "Garrote" },
     { name = "Kick" },
     { name = "SliceAndDice" },
     { name = "Rupture" },
     { name = "HungerForBlood" },
     { name = "TricksOfTheTrade" },
+    { name = "ColdBlood" },
     { name = "Envenom" },
     { name = "Mutilate" },
+    { name = "FanOfKnives" },
 }
 
 -- Name-based substitution preserves the existing priority order.
