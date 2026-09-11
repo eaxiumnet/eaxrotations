@@ -35,6 +35,16 @@ local ACTION = {
     -- form) — the tank's missing panic defensives.
     SurvivalInstincts = define("SurvivalInstincts", 61336, "SurvivalInstincts"),
     Barkskin = define("Barkskin", 22812, "Barkskin"),
+    -- 2026-09-10 bear guide pass (Icy-Veins/Wowhead WotLK bear priority):
+    -- tank-control + rage tools. All Wowhead-verified; Growl 6795 (single
+    -- taunt, 8s CD), Challenging Roar 5209 (10yd AoE taunt, 6s, 10-min CD),
+    -- Enrage 5229 (instant 20+10 rage, 1-min CD), Berserk 50334 (feral
+    -- 51-pt: bear abilities cost no rage for 15s — bridge-present and
+    -- already allowlisted via the cat pass).
+    Growl = define("Growl", 6795, "Growl"),
+    ChallengingRoar = define("ChallengingRoar", 5209, "ChallengingRoar"),
+    Enrage = define("Enrage", 5229, "Enrage"),
+    Berserk = define("Berserk", 50334, "Berserk"),
 }
 
 -- Max-rank-first debuff/aura tables: the WotLK Lacerate/Mangle DoT auras use
@@ -79,6 +89,35 @@ end
 -- -----------------------------------------------------------------------------
 local DSL_DEFS = {
     {
+        name = "Growl",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            -- Taunt only on real evidence the mob is heading elsewhere
+            -- (threat_pct < 100); NO readout (nil) holds it — fail closed,
+            -- mirroring tank_sod.lua's Growl. The dispatcher produces
+            -- context.threat_pct from NS.threat_status (main_sylvanas:1311),
+            -- so the DSL's nil-coercing "<" would fire on every missing
+            -- readout — the custom gate keeps that honest.
+            { type = "custom", fn = function(context)
+                if type(context) ~= "table" then return false end
+                local threat = type(context.threat_pct) == "number" and context.threat_pct or nil
+                return threat ~= nil and threat < 100
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Growl, target = "target" },
+    },
+    {
+        name = "ChallengingRoar",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            -- Pack-recovery side of the taunt pair: 3+ targets in the 10y
+            -- radius means single-target threat work has lost the pack.
+            { type = "state", field = "enemy_count", op = ">=", value = 3 },
+            { type = "spell_ready", spell = ACTION.ChallengingRoar, target = "target" },
+        },
+        action = { type = "cast", spell = ACTION.ChallengingRoar, target = "target" },
+    },
+    {
         name = "Lacerate",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -117,6 +156,14 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.FeralFaerieFire, target = "target" },
     },
     {
+        name = "Berserk",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "spell_ready", spell = ACTION.Berserk, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Berserk, target = "self" },
+    },
+    {
         name = "SurvivalInstincts",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -143,6 +190,15 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Maul, target = "target" },
     },
     {
+        name = "Enrage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = "<=", value = 10 },
+            { type = "spell_ready", spell = ACTION.Enrage, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Enrage, target = "self" },
+    },
+    {
         name = "FrenziedRegeneration",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -158,14 +214,18 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "Growl" },
+    { name = "ChallengingRoar" },
     { name = "Lacerate" },
     { name = "SwipeBear" },
     { name = "MangleBear" },
     { name = "FeralFaerieFire" },
+    { name = "Berserk" },
     { name = "SurvivalInstincts" },
     { name = "BarkskinBear" },
     { name = "Maul" },
     { name = "FrenziedRegeneration" },
+    { name = "Enrage" },
 }
 
 -- Name-based substitution preserves the existing priority order.

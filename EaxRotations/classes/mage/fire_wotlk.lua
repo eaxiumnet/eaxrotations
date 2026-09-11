@@ -28,6 +28,16 @@ local ACTION = {
     Fireball = define("Fireball", { 42833, 38692, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Combustion = define("Combustion", 11129, "Combustion"),
     Counterspell = define("Counterspell", { 2139 }, "Counterspell"),
+    -- 2026-09-10 fire guide pass (Icy-Veins/Wowhead WotLK fire priority):
+    -- Mirror Image 55342 (3 copies, 3-min CD — bridge-present) and Evocation
+    -- 12051 (bridge-present, arcane pass pins the same id). Dragon's Breath
+    -- 42949 = WotLK max rank (Wowhead: Rank 5, instant cone, 20s CD); WotLK
+    -- removed lower ranks from training, so the ladder is single-id — the
+    -- TBC-capped class table (33043/R4) must NOT appear here (audit rejects
+    -- TBC_ID_IN_WOTLK).
+    MirrorImage = define("MirrorImage", { 55342 }, "MirrorImage"),
+    Evocation = define("Evocation", { 12051 }, "Evocation"),
+    DragonsBreath = define("DragonsBreath", { 42949 }, "DragonsBreath"),
 }
 
 local LIVING_BOMB_DEBUFF = { 55360 }
@@ -40,6 +50,7 @@ local LIVING_BOMB_DEBUFF = { 55360 }
 local SCORCH_DEBUFF = { 22959 }
 local HOT_STREAK_BUFF = { 44448 }
 
+
 local fire_state = {
     enemy_count = 1,
     in_combat = false,
@@ -49,6 +60,8 @@ local fire_state = {
     ttd = 999,
     scorch_cast_time = nil,
     target_is_casting = false,
+    mana_pct = 100,
+    is_moving = false,
 }
 
 local function resolve_scorch_cast_time(context)
@@ -78,6 +91,14 @@ local function build_state(context)
     state.scorch_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF)) or 0
     state.hot_streak_proc = (me and NS.buff_up and NS.buff_up(me, HOT_STREAK_BUFF)) or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
+    -- mana_pct: dispatcher-set (main_sylvanas.lua:795); me:mana_pct() is the
+    -- IZI SDK unit method (arcane_wotlk.lua:67 idiom). is_moving feeds the
+    -- Dragon's Breath instant-cast window.
+    state.mana_pct = (context and context.mana_pct)
+        or (me and me.mana_pct and me:mana_pct())
+        or (NS.unit_mana_pct and NS.unit_mana_pct(me))
+        or 100
+    state.is_moving = (context and context.is_moving) or false
     return state
 end
 
@@ -161,6 +182,44 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Scorch, target = "target" },
     },
     {
+        name = "MirrorImage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "custom", fn = function(context)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.MirrorImage, target = "self" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self" },
+    },
+    {
+        name = "DragonsBreathAoE",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "custom", fn = function(context, state)
+                -- Cleave window: 3+ targets in the 10y cone (aoe_target_meets
+                -- with CONE_10, matching the BlastWave self-radius idiom) and
+                -- the mage stationary — Dragon's Breath is instant so it also
+                -- covers the movement case, but stationary-first keeps the
+                -- lane out of the caster's cast-clip path.
+                return (state.enemy_count or 1) >= 3
+                    and not state.is_moving
+                    and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DragonsBreath, target = "target" },
+    },
+    {
         name = "ScorchFinal",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
@@ -185,10 +244,13 @@ local DSL_DEFS = {
 local strategies = {
     { name = "Counterspell" },
     { name = "Combustion" },
+    { name = "MirrorImage" },
     { name = "Scorch" },
     { name = "Pyroblast" },
     { name = "LivingBomb" },
+    { name = "Evocation" },
     { name = "FireBlast" },
+    { name = "DragonsBreathAoE" },
     { name = "BlastWaveAoE" },
     { name = "ScorchFinal" },
     { name = "Fireball" },

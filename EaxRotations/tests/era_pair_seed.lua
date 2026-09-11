@@ -44,19 +44,19 @@ return {
     {
         spec = "druid/bear",
         missing_in = "sylvanas",
-        names = { "BarkskinBear", "FeralFaerieFire", "HealingPotion", "Healthstone", "SurvivalInstincts", "SwipeBear" },
+        names = { "BarkskinBear", "Berserk", "Enrage", "FeralFaerieFire", "HealingPotion", "Healthstone", "SurvivalInstincts", "SwipeBear" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "druid/bear",
         missing_in = "vanilla",
-        names = { "BarkskinBear", "Bash", "FeralCharge", "FeralChargePull", "FeralFaerieFire", "Lacerate", "MangleBear", "SurvivalInstincts", "SwipeBear" },
+        names = { "BarkskinBear", "Bash", "Berserk", "Enrage", "FeralCharge", "FeralChargePull", "FeralFaerieFire", "Lacerate", "MangleBear", "SurvivalInstincts", "SwipeBear" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "druid/bear",
         missing_in = "wotlk",
-        names = { "Barkskin", "Bash", "BashInterrupt", "BearForm", "ChallengingRoar", "DemoralizingRoar", "EnrageCombat", "FaerieFireFeral", "FaerieFirePull", "FeralCharge", "FeralChargePull", "GiftOfTheWild", "Growl", "HealingPotion", "Healthstone", "MarkOfTheWild", "PrePullEnrage", "Swipe", "SwipeAoE", "Thorns" },
+        names = { "Barkskin", "Bash", "BashInterrupt", "BearForm", "DemoralizingRoar", "EnrageCombat", "FaerieFireFeral", "FaerieFirePull", "FeralCharge", "FeralChargePull", "GiftOfTheWild", "HealingPotion", "Healthstone", "MarkOfTheWild", "PrePullEnrage", "Swipe", "SwipeAoE", "Thorns" },
         reason = "WotLK-era build-out: druid_bear_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -182,19 +182,19 @@ return {
     {
         spec = "mage/fire",
         missing_in = "sylvanas",
-        names = { "BlastWaveAoE", "LivingBomb", "ScorchFinal" },
+        names = { "BlastWaveAoE", "DragonsBreathAoE", "LivingBomb", "MirrorImage", "ScorchFinal" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "mage/fire",
         missing_in = "vanilla",
-        names = { "BlastWave", "BlastWaveAoE", "DragonsBreath", "Healthstone", "LivingBomb", "ScorchFinal" },
+        names = { "BlastWave", "BlastWaveAoE", "DragonsBreath", "DragonsBreathAoE", "Healthstone", "LivingBomb", "MirrorImage", "ScorchFinal" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "mage/fire",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "DragonsBreath", "Evocation", "Flamestrike", "FlamestrikeRank6", "Healthstone", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
+        names = { "ArcaneExplosion", "BlastWave", "Blizzard", "DragonsBreath", "Flamestrike", "FlamestrikeRank6", "Healthstone", "IceBarrier", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse" },
         reason = "WotLK-era build-out: mage_fire_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

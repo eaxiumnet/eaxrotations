@@ -31,12 +31,19 @@ local function lb(secs) debuffs[55360] = secs end
 local function scorch(secs) debuffs[22959] = secs end
 local function hot_streak(up) buffs[44448] = up or nil end
 
+-- 2026-09-10 fire guide pass: make the scenario's mana_pct controllable for
+-- the Evocation window pins, and is_moving for the Dragon's Breath gate.
+local mana = 100
+local moving = false
+
 local enemies, aoe_ok = 1, false
 
 local function reset_env()
     combat, casting, ttd, scorch_cast_time = true, false, 999, nil
     debuffs, buffs, not_ready, long_cd_refused = {}, {}, {}, {}
     enemies, aoe_ok = 1, false
+    mana = 100
+    moving = false
 end
 
 _G.EaxRotations = {
@@ -83,7 +90,8 @@ end
 local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
-        mana_pct = 100,
+        mana_pct = mana,
+        is_moving = moving,
         enemy_count = enemies,
         ttd = ttd,
         scorch_cast_time = scorch_cast_time,
@@ -184,5 +192,34 @@ assert_lane("BlastWaveAoE fail-closed without the AoE module", "BlastWaveAoE",
     function() enemies = 4; aoe_ok = false end, false)
 assert_lane("BlastWaveAoE blocked out of combat", "BlastWaveAoE",
     function() enemies = 4; aoe_ok = true; combat = false end, false)
+
+-- ============================================================================
+-- MirrorImage (55342): burst-CD lane behind the long-CD budget gate, mirroring
+-- the Combustion pin shape.
+-- ============================================================================
+assert_lane("MirrorImage fires with the long-CD budget open", "MirrorImage",
+    function() end, true)
+assert_lane("MirrorImage held when the long-CD budget refuses 180s", "MirrorImage",
+    function() long_cd_refused[180] = true end, false)
+assert_lane("MirrorImage blocked out of combat", "MirrorImage",
+    function() combat = false end, false)
+
+-- ============================================================================
+-- Evocation (12051): mana-recovery window at < 20% mana (arcane-pass gate).
+-- ============================================================================
+assert_lane("Evocation fires at 15% mana", "Evocation",
+    function() mana = 15 end, true)
+assert_lane("Evocation held at healthy mana", "Evocation",
+    function() mana = 60 end, false)
+
+-- ============================================================================
+-- DragonsBreathAoE (42949 WotLK R5): instant cone cleave at 3+ stationary.
+-- ============================================================================
+assert_lane("DragonsBreathAoE fires into a stationary 3-pack", "DragonsBreathAoE",
+    function() enemies = 3; aoe_ok = true end, true)
+assert_lane("DragonsBreathAoE blocked at 2 enemies", "DragonsBreathAoE",
+    function() enemies = 2; aoe_ok = true end, false)
+assert_lane("DragonsBreathAoE blocked while moving", "DragonsBreathAoE",
+    function() enemies = 3; aoe_ok = true; moving = true end, false)
 
 print("PASS test_mage_fire_wotlk_strategies")
