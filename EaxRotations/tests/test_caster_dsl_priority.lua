@@ -38,6 +38,10 @@ NS.mana_pct = function() return 100 end
 NS.time_now = function() return 0 end
 NS.broken_api_throttled = function() return false end
 NS.rotation_registry = { register = function() end }
+-- Rebirth battle-rez pin: the spec captures NS.find_dead_party_ally at
+-- require, so the pin drives a mutable upvalue instead of swapping the fn.
+NS._test_dead_ally = nil
+NS.find_dead_party_ally = function() return NS._test_dead_ally end
 NS.log = function() end
 
 local _setting = function(context, key, default)
@@ -267,6 +271,36 @@ AOE_OK = false
 assert_false(hurri.matches(make_ctx(), make_state({ barkskin_active = true })),
     "HurricaneAoE held without the AoE target volume")
 AOE_OK = nil -- restore neutral for any later reads
+
+-- ============================================================================
+-- Guide-pass lanes (2026-09-11): RebirthBattleRez + MarkOfTheWild
+-- ============================================================================
+local rebirth = find_strategy("RebirthBattleRez")
+local _dead_ally = { is_player = function() return true end }
+assert_true(rebirth ~= nil, "RebirthBattleRez lane exists")
+NS._test_dead_ally = _dead_ally
+assert_true(rebirth.matches(make_ctx(), make_state({})),
+    "RebirthBattleRez matches with a dead player ally in combat")
+NS._test_dead_ally = nil
+assert_false(rebirth.matches(make_ctx(), make_state({})),
+    "RebirthBattleRez held when no ally is dead")
+assert_false(rebirth.matches(make_ctx({ in_combat = false }), make_state({})),
+    "RebirthBattleRez held out of combat")
+NS._test_dead_ally = _dead_ally
+assert_false(rebirth.matches(make_ctx({ tank_alive = false }), make_state({})),
+    "RebirthBattleRez held while the tank is dead (wipe guard)")
+NS._test_dead_ally = nil
+
+local motw = find_strategy("MarkOfTheWild")
+assert_true(motw ~= nil, "MarkOfTheWild lane exists")
+assert_true(motw.matches(make_ctx(), make_state({ has_mark = false, motw_ready = true })),
+    "MarkOfTheWild fires when the mark is missing and the spell is ready")
+assert_false(motw.matches(make_ctx(), make_state({ has_mark = true, motw_ready = true })),
+    "MarkOfTheWild held while the mark is active")
+assert_false(motw.matches(make_ctx({ settings = { use_self_buffs = false } }), make_state({ has_mark = false, motw_ready = true })),
+    "MarkOfTheWild held when self-buffs are disabled")
+assert_false(motw.matches(make_ctx(), make_state({ has_mark = false, motw_ready = false })),
+    "MarkOfTheWild held when the spell is not ready")
 
 -- ============================================================================
 -- Summary

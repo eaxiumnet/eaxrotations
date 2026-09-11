@@ -62,13 +62,13 @@ return {
     {
         spec = "druid/caster",
         missing_in = "sylvanas",
-        names = { "HealingTouch", "HealthPotion", "ManaPotion", "MarkOfTheWild", "Rejuvenation" },
+        names = { "HealingTouch", "HealthPotion", "ManaPotion", "Rejuvenation" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "druid/caster",
         missing_in = "vanilla",
-        names = { "Bash", "FeralCharge", "ForceOfNature", "HurricaneAoE", "PreHurricaneBarkskin" },
+        names = { "Bash", "FeralCharge", "ForceOfNature", "HurricaneAoE", "PreHurricaneBarkskin", "RebirthBattleRez" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -326,7 +326,7 @@ return {
     {
         spec = "priest/smite",
         missing_in = "vanilla",
-        names = { "Healthstone", "PsychicScream", "ShackleUndead", "Silence" },
+        names = { "DivineSpirit", "Healthstone", "PowerWordFortitude", "PsychicScream", "ShackleUndead", "Silence" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -530,7 +530,7 @@ return {
     {
         spec = "warrior/kebab",
         missing_in = "vanilla",
-        names = { "CommandingShout", "Healthstone", "Pummel" },
+        names = { "BerserkerRage", "Bloodrage", "CommandingShout", "DeathWish", "Healthstone", "Pummel" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {

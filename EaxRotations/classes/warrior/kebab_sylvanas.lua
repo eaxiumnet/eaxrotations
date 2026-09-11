@@ -292,6 +292,18 @@ local DSL_DEFS = {
         end
         return try_cast(SPELLS.Whirlwind, NS.PLAYER_UNIT, format("[KEBAB] Whirlwind - Rage: %d", context.rage or 0), { skip_range = true })
     end } },
+    { name = "DeathWish", conditions = {
+        { type = "custom", fn = function(context, state)
+            local settings = settings_for(context)
+            if settings.kebab_use_death_wish == false then return false end
+            if not context.in_combat then return false end
+            if (context.target_hp or 100) < 20 then return false end
+            if not (spell_exists(SPELLS.DeathWish) and spell_ready(SPELLS.DeathWish, NS.PLAYER_UNIT)) then return false end
+            return true
+        end },
+    }, action = { type = "custom", fn = function()
+        return try_cast(SPELLS.DeathWish, NS.PLAYER_UNIT, "[KEBAB] Death Wish", { skip_range = true })
+    end } },
     { name = "MortalStrike", conditions = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
@@ -344,6 +356,30 @@ local DSL_DEFS = {
         end },
     }, action = { type = "custom", fn = function()
         return try_cast(SPELLS.CommandingShout, NS.PLAYER_UNIT, "[KEBAB] Commanding Shout", { skip_range = true })
+    end } },
+    { name = "Bloodrage", conditions = {
+        { type = "custom", fn = function(context, state)
+            local settings = settings_for(context)
+            if settings.kebab_use_rage_generation == false then return false end
+            if (context.rage or 0) >= 20 then return false end
+            if not context.in_combat and (context.hp or 100) < 90 then return false end
+            if not (spell_exists(SPELLS.Bloodrage) and spell_ready(SPELLS.Bloodrage, NS.PLAYER_UNIT)) then return false end
+            return true
+        end },
+    }, action = { type = "custom", fn = function()
+        return try_cast(SPELLS.Bloodrage, NS.PLAYER_UNIT, "[KEBAB] Bloodrage", { skip_range = true })
+    end } },
+    { name = "BerserkerRage", conditions = {
+        { type = "custom", fn = function(context, state)
+            local settings = settings_for(context)
+            if settings.kebab_use_rage_generation == false then return false end
+            if (context.rage or 0) >= 40 then return false end
+            if not context.in_combat then return false end
+            if not (spell_exists(SPELLS.BerserkerRage) and spell_ready(SPELLS.BerserkerRage, NS.PLAYER_UNIT)) then return false end
+            return true
+        end },
+    }, action = { type = "custom", fn = function()
+        return try_cast(SPELLS.BerserkerRage, NS.PLAYER_UNIT, "[KEBAB] Berserker Rage", { skip_range = true })
     end } },
     { name = "SunderMaintain", conditions = {
         { type = "custom", fn = function(context, state)
@@ -454,10 +490,13 @@ local strategies = {
     { name = "DamagePotion" },
     { name = "Healthstone" },
     { name = "Pummel" },
+    { name = "Bloodrage" },
+    { name = "BerserkerRage" },
     { name = "Execute" },
     { name = "SweepingStrikes" },
     { name = "MortalStrikeGeneralUse" },
     { name = "Whirlwind" },
+    { name = "DeathWish" },
     { name = "MortalStrike" },
     { name = "Overpower" },
     { name = "BattleShout", is_gcd_gated = false },

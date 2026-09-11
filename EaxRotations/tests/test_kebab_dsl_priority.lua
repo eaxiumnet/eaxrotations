@@ -123,6 +123,41 @@ local ok_pummel, _ = pcall(function()
     return pummel.matches(make_ctx({ target = { is_casting = function() return true end, is_cast_interruptible = function() return true end } }), make_state())
 end)
 
+-- ============================================================================
+-- Guide-pass lanes (2026-09-11): Bloodrage / BerserkerRage / DeathWish
+-- ============================================================================
+local bloodrage = find_strategy("Bloodrage")
+assert_true(bloodrage ~= nil, "Bloodrage lane exists")
+assert_true(bloodrage.matches(make_ctx({ rage = 15 }), make_state({})),
+    "Bloodrage fires below 20 rage in combat")
+assert_false(bloodrage.matches(make_ctx({ rage = 50 }), make_state({})),
+    "Bloodrage held at high rage")
+assert_false(bloodrage.matches(make_ctx({ rage = 15, in_combat = false, hp = 85 }), make_state({})),
+    "Bloodrage held out of combat when hurt")
+assert_false(bloodrage.matches(make_ctx({ rage = 15, settings = { kebab_use_rage_generation = false } }), make_state({})),
+    "Bloodrage held when rage generation is disabled")
+
+local brage = find_strategy("BerserkerRage")
+assert_true(brage ~= nil, "BerserkerRage lane exists")
+assert_true(brage.matches(make_ctx({ rage = 30 }), make_state({})),
+    "BerserkerRage fires below 40 rage in combat")
+assert_false(brage.matches(make_ctx({ rage = 50 }), make_state({})),
+    "BerserkerRage held at high rage")
+assert_false(brage.matches(make_ctx({ rage = 30, in_combat = false }), make_state({})),
+    "BerserkerRage held out of combat")
+
+local dwish = find_strategy("DeathWish")
+assert_true(dwish ~= nil, "DeathWish lane exists")
+assert_true(dwish.matches(make_ctx({ target_hp = 100 }), make_state({})),
+    "DeathWish fires on a healthy target in combat")
+assert_false(dwish.matches(make_ctx({ target_hp = 15 }), make_state({})),
+    "DeathWish held in execute band (rage savings)")
+assert_false(dwish.matches(make_ctx({ target_hp = 100, in_combat = false }), make_state({})),
+    "DeathWish held out of combat")
+assert_false(dwish.matches(make_ctx({ target_hp = 100, settings = { kebab_use_death_wish = false } }), make_state({})),
+    "DeathWish held when disabled")
+
+
 print(string.format("test_kebab_dsl_priority: %d passed, %d failed", _pass, _fail))
 if _fail > 0 then os.exit(1) end
 print("PASS test_kebab_dsl_priority")

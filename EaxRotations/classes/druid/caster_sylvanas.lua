@@ -11,6 +11,9 @@ if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+-- Dead-ally scan for the battle-rez lane (balance-sibling idiom).
+local _fnd_mod = require("shared/find_dead_party_ally_sylvanas")
+local _find_dead = NS.find_dead_party_ally or (_fnd_mod and _fnd_mod.find_dead_party_ally) or nil
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -26,6 +29,9 @@ local ACTION = {
     -- 2026-09-09 guide-pass additions (TBC balance-sibling idiom, class-table ladders):
     ForceOfNature = define("ForceOfNature", { 33831 }, "ForceOfNature"),
     Hurricane   = define("Hurricane",     { 27012, 17402, 17401, 16914 }, "Hurricane"),
+    -- 2026-09-11 guide-pass additions (balance-sibling upkeep/rez lanes):
+    Rebirth      = define("Rebirth",      { 26994, 20748, 20747, 20742, 20739, 20484 }, "Rebirth"),
+    MarkOfTheWild = define("MarkOfTheWild", { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }, "MarkOfTheWild"),
 }
 
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
@@ -33,6 +39,7 @@ local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
 local BARKSKIN_BUFF = { 22812 }
 local INSECT_SWARM_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+local MOTW_BUFF = { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
 
 -- Schema for safe_state (Pattern 14 nil-guard elimination).
 local CASTER_SCHEMA = {
@@ -43,6 +50,8 @@ local CASTER_SCHEMA = {
     barkskin_active = false,
     in_combat = false,
     is_group = false,
+    has_mark = false,
+    motw_ready = false,
     mana_pct = 100,
     target_hp = 100,
 }
@@ -69,6 +78,8 @@ local function build_state(context)
     caster_state.target_hp = context.target_hp or 100
     caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(ACTION.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
     caster_state.barkskin_active = NS.has_player_buff and NS.has_player_buff(BARKSKIN_BUFF) or false
+    caster_state.has_mark = NS.buff_up and NS.buff_up(context.me or NS.PLAYER_UNIT, MOTW_BUFF) or false
+    caster_state.motw_ready = NS.spell_ready and NS.spell_ready(ACTION.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true }) or false
     return spec_kit.safe_state(caster_state, CASTER_SCHEMA)
 end
 
@@ -274,6 +285,44 @@ local DSL_DEFS = {
             return NS.try_cast and NS.try_cast(ACTION.Wrath, context.target, "[CASTER] Wrath")
         end },
     },
+    -- Rebirth battle rez: in-combat player rez on a dead party ally
+    -- (balance-sibling RebirthBattleRez; hold while the tank is dead — the
+    -- 20-min CD usually belongs to the wipe, don't burn it into one).
+    {
+        name = "RebirthBattleRez",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.in_combat then return false end
+                if context.tank_alive == false then return false end
+                local dead = _find_dead and _find_dead() or nil
+                if not (dead and dead.is_player and dead:is_player()) then return false end
+                return NS.spell_ready and NS.spell_ready(ACTION.Rebirth, dead) or false
+            end },
+        },
+        action = { type = "custom", fn = function(context)
+            local dead = _find_dead and _find_dead() or nil
+            if not dead then return false end
+            return NS.try_cast and NS.try_cast(ACTION.Rebirth, dead, "[CASTER] Rebirth battle rez")
+        end },
+    },
+    -- Mark of the Wild self/group upkeep (balance-sibling MarkOfTheWild).
+    {
+        name = "MarkOfTheWild",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
+                if (state.has_mark and true) or false then return false end
+                if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me or NS.PLAYER_UNIT, MOTW_BUFF, ACTION.MarkOfTheWild) then
+                    return false
+                end
+                return true
+            end },
+            { type = "state", field = "motw_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.MarkOfTheWild, target = "self", label = "[CASTER] Mark of the Wild", opts = { skip_range = true } },
+    },
 }
 
 -- ============================================================================
@@ -284,6 +333,7 @@ local strategies = {
     { name = "Barkskin" },
     { name = "Thorns" },
     { name = "Innervate" },
+    { name = "RebirthBattleRez" },
     { name = "ForceOfNature" },
     { name = "FaerieFire" },
     { name = "Moonfire" },
@@ -292,6 +342,7 @@ local strategies = {
     { name = "HurricaneAoE" },
     { name = "Starfire", not_moving = true },
     { name = "Wrath", not_moving = true, min_mana = 10 },
+    { name = "MarkOfTheWild" },
 }
 
 -- Name-based substitution preserves the existing priority order.
