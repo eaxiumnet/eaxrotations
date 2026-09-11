@@ -35,7 +35,7 @@
 --
 -- USAGE:
 --   lua tools/release_staleness_check.lua                  # warn-only
---   lua tools/release_staleness_check.lua --strict         # exit 1 when STALE
+--   lua tools/release_staleness_check.lua --strict         # exit 1 when STALE or DRIFT
 --   lua tools/release_staleness_check.lua --self-test      # synthetic fixtures
 --   lua tools/release_staleness_check.lua --offline        # local tags only
 --   lua tools/release_staleness_check.lua --tags=2.24.2,2.25.0   # inject (tests)
@@ -128,6 +128,22 @@ end
 -- io.popen shells out to cmd.exe on Windows and /bin/sh elsewhere, so the
 -- stderr redirect has to match the platform. Suppressing stderr keeps the gate
 -- output clean when `git`/`gh` are missing or the remote is unreachable.
+-- Exit policy (2026-09-11 audit fix): owned HERE so ci.yml stays a dumb
+-- `run:` and the policy has exactly one home and one self-test.
+--   STALE fails under --strict -- the stall this guard exists for.
+--   DRIFT also fails under --strict: published-ahead-of-header means either a
+--   release was cut from the wrong commit or the four version pins were
+--   bypassed; either way master is inconsistent with what users download and
+--   must not ship unflagged (the audit proved `--tags=2.26.0 --strict`
+--   exited 0 before this). Warn-only mode never fails on a verdict; UNKNOWN
+--   is unconditional at the call site (unparseable header is always broken).
+local function exit_code(verdict_code, is_strict)
+    if is_strict and (verdict_code == "STALE" or verdict_code == "DRIFT") then
+        return 1
+    end
+    return 0
+end
+
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local NULL_SINK = IS_WINDOWS and "2>nul" or "2>/dev/null"
 
@@ -253,9 +269,18 @@ local function run_self_tests()
     expect((verdict(nil, "2.25.0")), "UNKNOWN", "unparseable header")
     expect((verdict("2.24.2", nil)), "UNPUBLISHED", "shipped but never published")
 
+    -- Exit policy: --strict fails on STALE *and* DRIFT; warn-only never does.
+    expect(exit_code("STALE", true), 1, "strict STALE fails")
+    expect(exit_code("DRIFT", true), 1, "strict DRIFT fails (published ahead of header)")
+    expect(exit_code("STALE", false), 0, "warn-only STALE passes")
+    expect(exit_code("DRIFT", false), 0, "warn-only DRIFT passes")
+    expect(exit_code("UP-TO-DATE", true), 0, "strict UP-TO-DATE passes")
+    expect(exit_code("UNPUBLISHED", true), 0, "strict UNPUBLISHED passes")
+    expect(exit_code("UNVERIFIED", true), 0, "strict UNVERIFIED passes (flaky network never reds a build)")
+
     print("[PASS] Release-staleness guard self-tests: header extraction, semantic "
-        .. "version compare (padding/rollover), date-tag filtering, and all five "
-        .. "verdicts on both sides")
+        .. "version compare (padding/rollover), date-tag filtering, all five "
+        .. "verdicts on both sides, and the strict exit policy (STALE + DRIFT)")
     os.exit(0)
 end
 
@@ -332,12 +357,12 @@ if code == "STALE" then
     print("    gh workflow run release-publish.yml -f version=" .. tostring(shipped))
     print("")
     print("  Then re-run this check -- it goes green once the tag exists.")
-    os.exit(strict and 1 or 0)
+    os.exit(exit_code(code, strict))
 elseif code == "DRIFT" then
     print("  [DRIFT] " .. reason .. ".")
     print("  Fix: bump header.lua (and the other three pins) to the published version,")
     print("  or publish the newer version if the release was the mistake.")
-    os.exit(0)
+    os.exit(exit_code(code, strict))
 elseif code == "UP-TO-DATE" then
     print("  [PASS] " .. reason .. ".")
     os.exit(0)
