@@ -8,15 +8,18 @@ real behavior of `shared/cast_trace_sylvanas.lua`; no guessing required.
 
 ## 1. Turning it on
 
-Open the EaxRotations menu → **Diagnostics** section (same in the legacy menu and
-the declarative menu):
+Open the EaxRotations menu → **Diagnostics** section:
 
 | Control | What it does |
 |---|---|
 | **Trace Casts** (checkbox) | Enables recording. When off, zero cost — nothing is recorded or allocated. |
-| **Last Casts** (readout) | Live view of the last 4 casts while the menu is open. |
+| **Last Casts** (readout) | Live view of the last 4 casts while the menu is open. **Legacy menu only** — the declarative host has no readout row. |
 | **Print Last Casts** (button) | Writes the last 8 casts to the addon log (`izi.log`), each line prefixed `[CastTrace]`. |
 | **Clear Trace** (button) | Empties the history. |
+
+Both menu hosts expose the **Trace Casts** toggle, **Print Last Casts** and
+**Clear Trace**. To inspect the history from the declarative host, use
+**Print Last Casts** — that host has no live readout.
 
 The trace keeps a **bounded ring buffer of the last 32 casts**. Print promptly
 after the fight — 32 GCDs go fast in AoE.
@@ -26,18 +29,20 @@ after the fight — 32 GCDs go fast in AoE.
 Every recorded cast looks like:
 
 ```
-[CastTrace] [rotation] MortalStrike: in_combat=true ms_cd=0 rage=42
+[CastTrace] [arms] MortalStrike: in_combat=true ms_cd=0 rage=42
 ```
 
 Breaking that down:
 
-- `[rotation]` — the strategy list that produced the cast (you may also see
-  `[defensive]`, `[interrupt]`, `[auto]`, etc.).
+- `[arms]` — the strategy list that produced the cast: the **active playstyle**
+  key (`arms`, `retribution`, `frost`, `leveling`, …), or `middleware` for the
+  pre-rotation middleware list. Those are the only two shapes the dispatcher
+  passes, so a line reads `[<active playstyle>]` or `[middleware]`.
 - `MortalStrike` — the decision lane (rule) that fired. This is the exact name
   from the spec file — what you see here is what the rotation actually chose.
 - `field=value ...` — up to 4 live state values the lane's conditions read, at
-  the moment it fired. Numbers show 1 decimal (or whole if large), booleans as
-  `true`/`false`.
+  the moment it fired. Numbers show one decimal unless the value is a whole
+  number or at least 100 (those render as integers); booleans as `true`/`false`.
 
 Lanes that were not compiled from the declarative DSL (e.g. middleware lanes
 like OOC resurrection) record **name only**, no state — that is expected, not a bug.
@@ -61,13 +66,14 @@ Mortal Strike's gate per era (real conditions from the spec files):
 |---|---|---|
 | WotLK | `warrior/arms_wotlk.lua` | `in_combat` AND `ms_cd <= 0` AND `rage >= 30` |
 | Vanilla / TBC | `warrior/arms_vanilla.lua`, `arms_sylvanas.lua` | battle stance AND rage ≥ 30 AND spell ready (a BattleStance lane swaps you back if you're in another stance) |
-| SoD | `dps_warrior_sod.lua` | SoD rune active + stance + rage gates |
+| SoD | `dps_warrior_sod.lua` | SoD flag + in combat + battle/berserker stance + rage ≥ 30 + spell ready. **No rune gate** — Mortal Strike is a base ability here; only the rune abilities (Rampage, Raging Blow, Quick Strike) carry a rune requirement. |
 
 ### Step 1 — Is MS firing at all?
 
 Enable Trace Casts, fight for ~10 seconds, click **Print Last Casts**.
 
-- **You see `[rotation] MortalStrike: ...` lines** → MS *is* firing. If a user
+- **You see `MortalStrike:` lines** (bracketed by your active playstyle, e.g.
+  `[arms] MortalStrike: ...`) → MS *is* firing. If a user
   still reports otherwise, compare their log with yours — the report is a
   perception/uptime issue, not a gate failure.
 - **MS never appears, but other rotation lanes do** → MS is being held. Go to Step 2.
@@ -116,7 +122,7 @@ engine health) from one fight's log.
 ## 5. Notes and limits
 
 - Recording is off by default; enabling it costs nothing per frame when off.
-- Ring capacity is 32 casts; the readout shows the last 4, Print writes the last 8.
+- Ring capacity is 32 casts; the readout (legacy menu) shows the last 4, Print writes the last 8.
 - Non-DSL lanes (middleware) record name only.
 - The trace is decision-layer only — it does not intercept the engine's cast
   itself. If the trace shows MS firing but the game shows no cast, the failure is
