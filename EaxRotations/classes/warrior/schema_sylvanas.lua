@@ -72,6 +72,8 @@ return {
                     { key = "kebab_use_ww_execute", type = "checkbox", label = "Kebab WW in Execute", default = true },
                     { key = "kebab_use_ms_execute", type = "checkbox", label = "Kebab MS in Execute", default = true },
                     { key = "kebab_use_overpower", type = "checkbox", label = "Kebab Use Overpower", default = true },
+                    { key = "kebab_use_rage_generation", type = "checkbox", label = "Kebab Rage Generation", default = true, description = "Use Bloodrage/Berserker Rage to regenerate rage when low" },
+                    { key = "kebab_use_death_wish", type = "checkbox", label = "Kebab Use Death Wish", default = true, description = "Use the Death Wish burst cooldown when available" },
                     { key = "kebab_hs_during_execute", type = "checkbox", label = "Kebab HS During Execute", default = true },
                     { key = "kebab_hs_rage_threshold", type = "slider", label = "Kebab HS Rage Threshold", min = 0, max = 100, default = 40 },
                     { key = "kebab_force_dw_priority", type = "checkbox", label = "Kebab Force DW Priority", default = false },

@@ -30,6 +30,30 @@
   real fire/hold pins (fire at 40 and 30 rage, hold in defensive/berserker
   stance, hold below 30 rage, hold when spell_ready reports false).
 
+### Rotation Content — TBC thin non-healer guide-pass (caster, kebab, smite)
+
+- **Druid caster** (leveling/solo caster playstyle, previously the era's
+  thinnest row at 11 lanes): Rebirth battle-rez (balance-sibling
+  RebirthBattleRez — dead player ally in combat, wipe guard when the tank is
+  dead) + Mark of the Wild self upkeep (balance-sibling gate set: self-buffs
+  toggle, no-mark, no-downgrade vs Gift/higher ranks). 11 -> 13 lanes.
+- **Warrior kebab (DW Arms)**: rage-generation lanes Bloodrage (below 20 rage,
+  OOC-safe when healthy) + Berserker Rage (below 40 rage in combat), and the
+  DeathWish burst CD (combat, non-execute, opt-out toggles) — all mirroring the
+  fury sibling's TBC guide gates. 16 -> 19 lanes.
+- **Priest smite**: Power Word: Fortitude (held while Prayer of Fortitude is
+  up) + Divine Spirit self upkeep, mirroring discipline's lanes; tail
+  placement so combat winners are unchanged (balance MoW precedent).
+  18 -> 20 lanes.
+- **Pins**: test_caster_dsl_priority (RebirthBattleRez fire + 3 holds,
+  MarkOfTheWild fire + 3 holds), test_kebab_dsl_priority (Bloodrage/BerserkerRage/
+  DeathWish fire + hold sides), test_smite_dsl_priority (PWF + DivineSpirit
+  fire + hold sides). Battery: all three specs never-fires = 0; TBC era total
+  unchanged at its pinned value.
+- **Evidence**: every id mirrored from bridge-present sibling ladders
+  (sylvanas audit 81/81 clean, no new pins needed); caster/kebab/smite
+  priority suites green; era-pair seed regenerated (1370 names).
+
 ### Rotation Content — SoD guide-priority expansion wave
 - **Every SoD spec now implements its published playstyle priority.** All
   twelve sub-priority specs were expanded against their Icy-Veins / Wowhead

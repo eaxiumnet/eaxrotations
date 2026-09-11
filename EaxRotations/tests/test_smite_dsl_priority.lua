@@ -131,6 +131,33 @@ local smash_filler = find_strategy("SmiteFiller")
 assert_true(smash_filler.matches(make_ctx(), make_state()), "SmiteFiller matches by default")
 assert_false(smash_filler.matches(make_ctx({ is_moving = true }), make_state()), "SmiteFiller skips when moving")
 
+-- ============================================================================
+-- Guide-pass lanes (2026-09-11): PowerWordFortitude / DivineSpirit upkeep
+-- ============================================================================
+local pwf = find_strategy("PowerWordFortitude")
+assert_true(pwf ~= nil, "PowerWordFortitude lane exists")
+assert_true(pwf.matches(make_ctx(), make_state({ has_power_word_fortitude = false, has_prayer_of_fortitude = false, pwf_ready = true })),
+    "PWF fires when neither Fortitude buff is present")
+assert_false(pwf.matches(make_ctx(), make_state({ has_power_word_fortitude = true, has_prayer_of_fortitude = false, pwf_ready = true })),
+    "PWF held while Power Word: Fortitude is active")
+assert_false(pwf.matches(make_ctx(), make_state({ has_power_word_fortitude = false, has_prayer_of_fortitude = true, pwf_ready = true })),
+    "PWF held while Prayer of Fortitude (group buff) is active")
+assert_false(pwf.matches(make_ctx({ settings = { use_self_buffs = false } }), make_state({ has_power_word_fortitude = false, has_prayer_of_fortitude = false, pwf_ready = true })),
+    "PWF held when self-buffs are disabled")
+assert_false(pwf.matches(make_ctx(), make_state({ has_power_word_fortitude = false, has_prayer_of_fortitude = false, pwf_ready = false })),
+    "PWF held when the spell is not ready")
+
+local dspir = find_strategy("DivineSpirit")
+assert_true(dspir ~= nil, "DivineSpirit lane exists")
+assert_true(dspir.matches(make_ctx(), make_state({ has_divine_spirit = false, divine_spirit_ready = true })),
+    "DivineSpirit fires when the buff is missing")
+assert_false(dspir.matches(make_ctx(), make_state({ has_divine_spirit = true, divine_spirit_ready = true })),
+    "DivineSpirit held while the buff is active")
+assert_false(dspir.matches(make_ctx({ settings = { use_self_buffs = false } }), make_state({ has_divine_spirit = false, divine_spirit_ready = true })),
+    "DivineSpirit held when self-buffs are disabled")
+assert_false(dspir.matches(make_ctx(), make_state({ has_divine_spirit = false, divine_spirit_ready = false })),
+    "DivineSpirit held when the spell is not ready")
+
 print(string.format("test_smite_dsl_priority: %d passed, %d failed", _pass, _fail))
 if _fail > 0 then os.exit(1) end
 print("PASS test_smite_dsl_priority")

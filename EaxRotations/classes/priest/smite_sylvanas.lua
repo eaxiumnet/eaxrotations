@@ -55,6 +55,9 @@ local ACTION = {
     PowerWordShield = define("PowerWordShield", {25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17}, "PowerWordShield"),
     PsychicScream   = define("PsychicScream",   {10890, 10888, 8124, 8122}, "PsychicScream"),
     Renew           = define("Renew",           {25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139}, "Renew"),
+    PowerWordFortitude = define("PowerWordFortitude", {25389, 10938, 10937, 2791, 1245, 1244, 1243}, "PowerWordFortitude"),
+    PrayerOfFortitude = define("PrayerOfFortitude", {25392, 21564, 21562}, "PrayerOfFortitude"),
+    DivineSpirit    = define("DivineSpirit",    {25312, 27841, 14819, 14818, 14752}, "DivineSpirit"),
     ShadowWordPain  = define("ShadowWordPain",  {25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589}, "ShadowWordPain"),
     ShadowWordDeath = define("ShadowWordDeath", {32996, 32379}, "ShadowWordDeath"),
     Shadowfiend     = define("Shadowfiend",     {34433}, "Shadowfiend"),
@@ -71,6 +74,9 @@ local DEVOURING_PLAGUE_DEBUFF = { 2944, 19276, 19277, 19278, 19279, 19280, 25467
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }  -- SoL proc auras: 33151 (1/2 talent) and 33154 (2/2 talent, both verified in the 2.5.5 DBC)
 local INNER_FOCUS_BUFF = 14751
 local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+local POWER_WORD_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231 }
+local DIVINE_SPIRIT_BUFF = { 25312, 27841, 14819, 14818, 14752 }
 local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 
@@ -110,6 +116,8 @@ local smite_state = {
     in_weave_window = false, dp_remaining = 0,
     has_inner_focus = false, has_inner_fire = false, inner_fire_remains = 0,
     has_renew = false, has_weakened_soul = false,
+    has_power_word_fortitude = false, has_prayer_of_fortitude = false, has_divine_spirit = false,
+    pwf_ready = false, divine_spirit_ready = false,
     inner_focus_ready = false, inner_fire_ready = false,
     power_word_shield_ready = false, renew_ready = false,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
@@ -123,6 +131,8 @@ local SMITE_SCHEMA = {
     in_weave_window = false, dp_remaining = 0,
     has_inner_focus = false, has_inner_fire = false, inner_fire_remains = 0,
     has_renew = false, has_weakened_soul = false,
+    has_power_word_fortitude = false, has_prayer_of_fortitude = false, has_divine_spirit = false,
+    pwf_ready = false, divine_spirit_ready = false,
     inner_focus_ready = true, inner_fire_ready = true,
     power_word_shield_ready = true, renew_ready = true,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
@@ -155,6 +165,11 @@ local function build_state(context)
         smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
     end
     smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
+    smite_state.has_power_word_fortitude = buff_up(NS.PLAYER_UNIT, POWER_WORD_FORTITUDE_BUFF)
+    smite_state.has_prayer_of_fortitude = buff_up(NS.PLAYER_UNIT, PRAYER_OF_FORTITUDE_BUFF)
+    smite_state.has_divine_spirit = buff_up(NS.PLAYER_UNIT, DIVINE_SPIRIT_BUFF)
+    smite_state.pwf_ready = spell_exists(ACTION.PowerWordFortitude) and spell_ready(ACTION.PowerWordFortitude, NS.PLAYER_UNIT, SKIP_RANGE)
+    smite_state.divine_spirit_ready = spell_exists(ACTION.DivineSpirit) and spell_ready(ACTION.DivineSpirit, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
     smite_state.hf_ready = spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, target)
     smite_state.mb_ready = spell_exists(ACTION.MindBlast) and spell_ready(ACTION.MindBlast, target)
@@ -525,6 +540,38 @@ local DSL_DEFS = {
             return try_cast(ACTION.ShackleUndead, context.target, "[SMITE] ShackleUndead")
         end },
     },
+    -- Power Word: Fortitude self/group upkeep (mirror discipline; tail position
+    -- = only when no DPS action is available, same placement balance uses for
+    -- MarkOfTheWild so combat winners are unchanged).
+    {
+        name = "PowerWordFortitude",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
+                if state.has_power_word_fortitude or state.has_prayer_of_fortitude then return false end
+                return true
+            end },
+            { type = "state", field = "pwf_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.PowerWordFortitude, NS.PLAYER_UNIT, "[SMITE] Power Word: Fortitude")
+        end },
+    },
+    -- Divine Spirit self upkeep (mirror discipline/holy).
+    {
+        name = "DivineSpirit",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
+                if state.has_divine_spirit then return false end
+                return true
+            end },
+            { type = "state", field = "divine_spirit_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.DivineSpirit, NS.PLAYER_UNIT, "[SMITE] Divine Spirit")
+        end },
+    },
 }
 
 -- ============================================================================
@@ -549,6 +596,8 @@ local strategies = {
     { name = "HolyNova" },
     { name = "ShackleUndead" },
     { name = "SmiteFiller" },
+    { name = "PowerWordFortitude" },
+    { name = "DivineSpirit" },
 }
 
 -- Name-based substitution preserves the existing priority order

@@ -580,3 +580,30 @@ thinnest). No TBC never-lane changed; strict gate stays 0 unclassified drift.
   maintenance band). never-fires unchanged (EncounterReactions remains the one
   pre-existing correctly-silent classified lane). Pinned C11-C18 in
   test_priest_holy_friendly_target.lua.
+
+## Addendum 2026-09-11 (e) — TBC thin non-healer guide-pass: caster, kebab, smite
+
+Scorecard-ranked thin-row close-out (caster 11, kebab 16, smite 18 — the three
+non-healer specs below 20 lanes). No TBC never-lane changed; strict gate stays
+at its pinned value.
+
+- **druid/caster_sylvanas.lua 11 -> 13**: RebirthBattleRez (balance-sibling:
+  dead player ally in combat, tank-dead wipe guard) + MarkOfTheWild self
+  upkeep (balance-sibling gate set: use_self_buffs, no-mark,
+  buff_would_downgrade vs Gift/higher ranks). Ladders mirrored from the
+  balance file (bridge-present). Both lanes fire in the shared bank
+  (rebirth_dead_ally + ooc_buffs scenarios) — never-fires = 0.
+- **warrior/kebab_sylvanas.lua 16 -> 19**: Bloodrage (rage < 20, OOC-safe
+  when healthy) + BerserkerRage (rage < 40, in-combat) + DeathWish burst
+  (in-combat, non-execute band, kebab_use_death_wish opt-out) — fury-sibling
+  gate shapes. Observable fire paths: the shared bank's low_rage scenario
+  (rage=15) drives both rage-generation lanes; standard scenarios (rage=70,
+  target_hp=100) drive DeathWish. Verified never=0 post-edit.
+  kebab_use_rage_generation shared toggle.
+- **priest/smite_sylvanas.lua 18 -> 20**: PowerWordFortitude (held while
+  Prayer of Fortitude is up) + DivineSpirit self upkeep — discipline-mirror
+  buff tables. Tail placement (balance MoW precedent) so combat winners are
+  unchanged; fires in ooc_buffs. never-fires = 0.
+- **Pins**: caster/kebab/smite DSL priority suites extended with fire + hold
+  sides for every new lane. Sylvanas spell audit 81/81 clean (all ids
+  bridge-present, no alias pins needed).
