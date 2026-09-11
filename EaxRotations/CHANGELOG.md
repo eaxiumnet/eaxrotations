@@ -30,6 +30,13 @@
   `v2026-06-26.<sha>` tags are ignored), and all five verdicts on both sides.
   Allowlisted in `.gitignore` so a clean CI checkout has it, matching how
   `update_badges.lua` / `spec_scorecard.lua` / `apl_status.lua` are tracked.
+- Those self-tests are now actually executed by the gate. They previously ran
+  nowhere: the guard is the one audit whose assertions no gate invoked. They are
+  offline and deterministic (injected tag lists, never the network), so they run
+  in `tools/pre-commit` step 14 beside the version-consistency audit's own
+  self-test, and as a `run_verify_all.lua` component — matching how every
+  sibling audit self-test is wired. Only the guard's live remote check stays a
+  CI master-push step, because it must reach the network.
 
 ### Rotation Content — TBC healer guide-pass + shaman OOC rez + Mortal Strike verification
 

@@ -21,7 +21,10 @@
 #  13. Clean-checkout dependency probe + self-test (untracked test-read
 #      targets; the env-gap class that failed only in CI)
 #  14. Version-consistency audit (header.lua plugin version == CHANGELOG top
-#      release) + self-test
+#      release) + self-test, plus the release-staleness guard's OFFLINE
+#      self-test (tools/release_staleness_check.lua — the guard's live remote
+#      check needs the network, so it stays a CI master-push step and only the
+#      deterministic half runs here)
 #  15. NS-member audit (static: every `NS.<member>(` call must target an
 #      assigned, engine-surface, or allowlisted member — the los_guard /
 #      cleanup_caches crash class) + self-test
@@ -313,6 +316,12 @@ echo "[pre-commit] Clean-checkout dependency probe passed."
 #     every reload (main.lua:1400) and the release convention used to bump the
 #     README badge + PvP footer but never header.lua — the audit closes that
 #     gap so a release can no longer ship a stale runtime version.
+#
+#     The release-staleness guard's self-test rides in this step too: it is the
+#     same version-integrity concern, and it is deterministic and offline (it
+#     takes injected tag lists, never the network), so it belongs in the commit
+#     gate exactly like the sibling audit self-tests. Only the guard's live
+#     check — remote tags + the Releases page — stays CI-only.
 # ---------------------------------------------------------------------------
 echo "[pre-commit] [14/19] Running version-consistency audit..."
 
@@ -324,6 +333,16 @@ fi
 
 if ! "$LUA" EaxRotations/tests/run_version_consistency_audit_tests.lua --self-test 2>&1; then
     echo "[pre-commit] Version-consistency audit self-test FAILED. Commit aborted."
+    exit 1
+fi
+
+# The release-staleness guard shipped with its own self-tests, but no gate ran
+# them. They take injected tag lists and never touch the network, so they are
+# deterministic and offline — the same bar as every sibling audit self-test
+# above. The guard's live check (remote tag list + the GitHub Releases page) is
+# network-bound and stays a CI master-push step.
+if ! "$LUA" tools/release_staleness_check.lua --self-test 2>&1; then
+    echo "[pre-commit] Release-staleness guard self-test FAILED. Commit aborted."
     exit 1
 fi
 

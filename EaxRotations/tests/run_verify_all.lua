@@ -322,6 +322,18 @@ local components = {
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
+    -- The release-staleness guard's own assertions. Offline and deterministic
+    -- (injected tag lists, never the network), so it is a component here like
+    -- every sibling audit self-test; only the guard's live remote check is
+    -- network-bound and therefore CI-only.
+    {
+        label = "release-staleness guard self-test",
+        cmd = "lua tools/release_staleness_check.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (version compare + verdicts fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
     {
         label = "ns-member audit",
         cmd = "lua " .. R .. "/run_ns_member_audit_tests.lua",
