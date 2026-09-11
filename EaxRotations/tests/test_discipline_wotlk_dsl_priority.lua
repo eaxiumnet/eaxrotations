@@ -108,7 +108,11 @@ function tests.priority_order()
     -- Healer wave (2026-09-09): PainSuppression (emergency save) leads,
     -- the pinned APL order PWS -> Penance -> PoM -> Renew is unchanged,
     -- PowerInfusion (pressure cooldown) trails.
-    local expected = { "PainSuppression", "PowerWordShield", "Penance", "PrayerOfMending", "Renew", "GreaterHeal", "FlashHeal", "PowerInfusion" }
+    -- 2026-09-11 guide-pass: DesperatePrayer joins the save band under
+    -- PainSuppression, InnerFocus leads the shield engine (free +25%-crit
+    -- cast), Shadowfiend (mana<60) and OOC DivineSpirit fill the mana game,
+    -- PowerInfusion stays last (pressure cooldown).
+    local expected = { "PainSuppression", "DesperatePrayer", "PowerWordShield", "InnerFocus", "Penance", "PrayerOfMending", "Renew", "GreaterHeal", "FlashHeal", "Shadowfiend", "DivineSpirit", "PowerInfusion" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -122,6 +126,8 @@ local function make_state(overrides)
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
         weakened_soul_up = false, renew_remains = 0,
+        has_inner_focus = false, inner_focus_ready = true,
+        has_divine_spirit = false, divine_spirit_ready = true,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -163,6 +169,17 @@ tests.test_PainSuppression_fires_in_emergency = test_match("PainSuppression", { 
 tests.test_PainSuppression_holds_when_stable = test_match("PainSuppression", { target_hp = 60 }, false)
 tests.test_PowerInfusion_fires_under_pressure = test_match("PowerInfusion", { target_hp = 40 }, true)
 tests.test_PowerInfusion_holds_when_healthy = test_match("PowerInfusion", { target_hp = 70 }, false)
+
+-- 2026-09-11 guide-pass pins: self-save, free-cast, mana game, OOC upkeep.
+tests.test_DesperatePrayer_fires_self_emergency = test_match("DesperatePrayer", { player_hp = 25 }, true)
+tests.test_DesperatePrayer_holds_when_healthy = test_match("DesperatePrayer", { player_hp = 60 }, false)
+tests.test_InnerFocus_fires_before_heal = test_match("InnerFocus", { target_hp = 50 }, true)
+tests.test_InnerFocus_holds_when_already_up = test_match("InnerFocus", { target_hp = 50, has_inner_focus = true }, false)
+tests.test_InnerFocus_holds_when_no_damage = test_match("InnerFocus", { target_hp = 90 }, false)
+tests.test_Shadowfiend_fires_low_mana = test_match("Shadowfiend", { mana_pct = 40 }, true)
+tests.test_Shadowfiend_holds_when_mana_ok = test_match("Shadowfiend", { mana_pct = 80 }, false)
+tests.test_DivineSpirit_fires_ooc_upkeep = test_match("DivineSpirit", { in_combat = false, has_divine_spirit = false, divine_spirit_ready = true }, true)
+tests.test_DivineSpirit_holds_when_up = test_match("DivineSpirit", { in_combat = false, has_divine_spirit = true, divine_spirit_ready = true }, false)
 
 tests.test_heals_use_lowest_friendly_target = function()
     local ally = { get_health_percentage = function() return 35 end }
