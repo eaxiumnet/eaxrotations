@@ -809,3 +809,21 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   insertion). Pinned in test_druid_bear_wotlk_strategies.lua,
   test_mage_fire_wotlk_strategies.lua, test_bear_wotlk_dsl_priority.lua,
   test_fire_wotlk_dsl_priority.lua.
+## Addendum (2026-09-11) — rogue/warlock thin guide-pass
+
+- **rogue/assassination_wotlk.lua 7 -> 10**: Garrote (48676 r9 single-id;
+  TBC ladder ranks rejected by the audit as TBC_ID_IN_WOTLK — correctly,
+  WotLK trains Rank 9 alone), ColdBlood (14177, 5-CP finisher combo lane,
+  ordered before Envenom per the mutilate fixture), FanOfKnives (51723,
+  3+ enemies). +5 alias pins 236 -> 241 (self-test-forced honest recount).
+- **rogue/combat_wotlk.lua 7 -> 9**: Rupture (48672, SnD >= 4s + 5 CP +
+  bleed < 2s) ordered BEFORE Eviscerate per the combat fixture (entries
+  3-4 vs 5-7), TricksOfTheTrade (57934, <= 50 energy).
+- **warlock/destruction_wotlk.lua 7 -> 10**: CurseOfElements (47865 r4
+  single-id; fixture id 47867 disproven as the live max rank), Shadowburn
+  (47827, execute < 35% HP), HellfireAoE (47823, channeled AoE, Hurricane
+  idiom).
+- Battery: never-fires = 0 for all three (era total still 0). New lanes
+  fire in existing shared scenarios. Pinned in the three behavioral
+  strategy suites + three DSL priority suites (the latter two converted to
+  name-resolved lane lookup).
