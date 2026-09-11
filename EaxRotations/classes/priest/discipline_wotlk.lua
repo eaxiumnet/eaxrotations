@@ -41,10 +41,30 @@ local ACTION = {
     -- holy file's audit-clean ladders.
     GreaterHeal = define("GreaterHeal", { 48063, 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
     FlashHeal = define("FlashHeal", { 48071, 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    -- 2026-09-11 guide-pass (sub-12 lane close-out): self-save + mana-return
+    -- + self-buff upkeep mirroring holy_wotlk's audit-clean shapes.
+    -- Desperate Prayer: racial self-save, talent spell so the ladder is
+    -- TBC-capped at 25437 (no WotLK rank increases — same ladder the holy
+    -- file pins; 25437 already VALID_RANK_ALIAS-pinned in the audit).
+    DesperatePrayer = define("DesperatePrayer", { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
+    -- Inner Focus 14751: single-rank talent (Wowhead-verified — no WotLK rank
+    -- increases; bridge omits it, audit pin added this pass). Guide usage:
+    -- lead the shield engine so the discounted cast is free (+25% crit).
+    InnerFocus = define("InnerFocus", 14751, "InnerFocus"),
+    -- Shadowfiend 34433: mana-return pet, already VALID_RANK_ALIAS-pinned
+    -- from the shadow pass (single rank, unchanged since TBC). Same
+    -- mana<60 band as shadow_wotlk's lane.
+    Shadowfiend = define("Shadowfiend", 34433, "Shadowfiend"),
+    -- Divine Spirit 48073: WotLK max rank r6 (+80 spirit), already
+    -- VALID_RANK_ALIAS-pinned from the holy upkeep wave. OOC upkeep — no
+    -- combat-only gate (spirit scales mana regen at every band).
+    DivineSpirit = define("DivineSpirit", 48073, "DivineSpirit"),
 }
 
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 local RENEW_BUFF = { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
+local DIVINE_SPIRIT_BUFF = { 48073 }
+local INNER_FOCUS_BUFF = { 14751 }
 
 local discipline_state = {
     target_hp = 100,
@@ -53,6 +73,11 @@ local discipline_state = {
     in_combat = false,
     weakened_soul_up = false,
     renew_remains = 0,
+    player_hp = 100,
+    has_divine_spirit = false,
+    divine_spirit_ready = false,
+    has_inner_focus = false,
+    inner_focus_ready = false,
 }
 
 local function build_state(context)
@@ -71,6 +96,16 @@ local function build_state(context)
         or 100
     state.weakened_soul_up = (target and NS.debuff_up and NS.debuff_up(target, WEAKENED_SOUL_DEBUFF)) or false
     state.renew_remains = (target and NS.buff_remains and NS.buff_remains(target, RENEW_BUFF)) or 0
+    -- 2026-09-11 guide-pass state (mirror holy_wotlk shapes):
+    -- player_hp — the Desperate Prayer self-save band.
+    state.player_hp = (context and (context.player_hp or context.hp))
+        or (me and me.get_health_percentage and me:get_health_percentage())
+        or 100
+    -- Self-buff upkeep: buff down + spell ready gates.
+    state.has_divine_spirit = (me and NS.buff_up and NS.buff_up(me, DIVINE_SPIRIT_BUFF)) or false
+    state.divine_spirit_ready = NS.spell_ready and NS.spell_ready(ACTION.DivineSpirit, me, { skip_range = true }) or false
+    state.has_inner_focus = (me and NS.buff_up and NS.buff_up(me, INNER_FOCUS_BUFF)) or false
+    state.inner_focus_ready = NS.spell_ready and NS.spell_ready(ACTION.InnerFocus, me, { skip_range = true }) or false
     return state
 end
 
@@ -140,18 +175,61 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.FlashHeal, target = "friendly" },
     },
+    -- 2026-09-11 guide-pass lanes: self-save outranks the heal band but sits
+    -- under the group-save (PainSuppression); Inner Focus leads the shield
+    -- engine (the free +25%-crit cast the guides save for PWS/GHeal); the
+    -- mana-return pet and OOC spirit upkeep mirror holy/shadow shapes.
+    {
+        name = "DesperatePrayer",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "player_hp", op = "<=", value = 30 },
+            { type = "spell_ready", spell = ACTION.DesperatePrayer, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.DesperatePrayer, target = "self" },
+    },
+    {
+        name = "InnerFocus",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "has_inner_focus", op = "falsy" },
+            { type = "state", field = "inner_focus_ready", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+        },
+        action = { type = "cast", spell = ACTION.InnerFocus, target = "self" },
+    },
+    {
+        name = "Shadowfiend",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Shadowfiend, target = "target" },
+    },
+    {
+        name = "DivineSpirit",
+        conditions = {
+            { type = "state", field = "has_divine_spirit", op = "falsy" },
+            { type = "state", field = "divine_spirit_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.DivineSpirit, target = "self" },
+    },
 }
 
 local strategies = {
     -- Save first (emergency band outranks the shield-spam engine), then the
     -- pinned APL order PWS -> Penance -> PoM -> Renew, then PI under pressure.
     { name = "PainSuppression" },
+    { name = "DesperatePrayer" },
     { name = "PowerWordShield" },
+    { name = "InnerFocus" },
     { name = "Penance" },
     { name = "PrayerOfMending" },
     { name = "Renew" },
     { name = "GreaterHeal" },
     { name = "FlashHeal" },
+    { name = "Shadowfiend" },
+    { name = "DivineSpirit" },
     { name = "PowerInfusion" },
 }
 

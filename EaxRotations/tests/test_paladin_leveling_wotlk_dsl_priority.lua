@@ -88,7 +88,7 @@ print("=== test_paladin_leveling_wotlk_dsl_priority ===")
 local lv = dofile("EaxRotations/classes/paladin/leveling_wotlk.lua")
 assert_true(type(lv) == "table", "leveling_wotlk should return a table")
 assert_true(type(lv.strategies) == "table", "leveling_wotlk should expose strategies")
-assert_true(#lv.strategies == 8, "leveling_wotlk should have 8 strategies")
+assert_true(#lv.strategies == 12, "leveling_wotlk should have 12 strategies")
 
 local registered = _G.EaxRotations._registered_leveling
 assert_true(registered ~= nil and registered.name == "leveling", "leveling_wotlk should register under 'leveling'")
@@ -97,6 +97,10 @@ assert_true(registered ~= nil and registered.name == "leveling", "leveling_wotlk
 -- Priority order test
 -- ============================================================================
 local expected_order = {
+    "AvengingWrath",
+    "DivinePlea",
+    "Exorcism",
+    "HolyWrath",
     "Seal",
     "BlessingOfMight",
     "DevotionAura",
@@ -107,7 +111,7 @@ local expected_order = {
     "CrusaderStrike",
 }
 
-test("priority order: 8 strategies match expected order", function()
+test("priority order: 12 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(lv.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], lv.strategies[i].name))
@@ -119,28 +123,37 @@ end)
 -- ============================================================================
 local ctx = { in_combat = true, target = {}, settings = {} }
 
--- Seal (1): not seal_up and mana >= 5
+-- Name-resolved lane lookup (the bear/fire pass proved positional indexes
+-- break silently when lanes are inserted).
+local function lane(name)
+    for _, s in ipairs(lv.strategies) do
+        if s.name == name then return s end
+    end
+    error("strategy not found: " .. name, 2)
+end
+
+-- Seal (by name): not seal_up and mana >= 5
 test("Seal: matches when no seal", function()
     local state = lv.build_state(ctx)
     state.seal_up = false
     state.mana_pct = 5
-    assert_true(lv.strategies[1].matches(ctx, state), "Seal should match when no seal")
+    assert_true(lane("Seal").matches(ctx, state), "Seal should match when no seal")
 end)
 
 test("Seal: does not match when seal up", function()
     local state = lv.build_state(ctx)
     state.seal_up = true
     state.mana_pct = 100
-    assert_false(lv.strategies[1].matches(ctx, state), "Seal should not match when seal up")
+    assert_false(lane("Seal").matches(ctx, state), "Seal should not match when seal up")
 end)
 
--- BlessingOfMight (2): OOC and not might_up and mana >= 5
+-- BlessingOfMight (by name): OOC and not might_up and mana >= 5
 test("BlessingOfMight: matches OOC without buff", function()
     local state = lv.build_state(ctx)
     state.in_combat = false
     state.might_up = false
     state.mana_pct = 5
-    assert_true(lv.strategies[2].matches(ctx, state), "BoM should match OOC without buff")
+    assert_true(lane("BlessingOfMight").matches(ctx, state), "BoM should match OOC without buff")
 end)
 
 test("BlessingOfMight: does not match in combat", function()
@@ -148,32 +161,32 @@ test("BlessingOfMight: does not match in combat", function()
     state.in_combat = true
     state.might_up = false
     state.mana_pct = 100
-    assert_false(lv.strategies[2].matches(ctx, state), "BoM should not match in combat")
+    assert_false(lane("BlessingOfMight").matches(ctx, state), "BoM should not match in combat")
 end)
 
--- DevotionAura (3): OOC and not aura_up
+-- DevotionAura (by name): OOC and not aura_up
 test("DevotionAura: matches OOC without aura", function()
     local state = lv.build_state(ctx)
     state.in_combat = false
     state.aura_up = false
-    assert_true(lv.strategies[3].matches(ctx, state), "Aura should match OOC without aura")
+    assert_true(lane("DevotionAura").matches(ctx, state), "Aura should match OOC without aura")
 end)
 
--- Judgement (4): in_combat and mana >= 10
+-- Judgement (by name): in_combat and mana >= 10
 test("Judgement: matches with mana", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.mana_pct = 10
-    assert_true(lv.strategies[4].matches(ctx, state), "Judgement should match with mana >= 10")
+    assert_true(lane("Judgement").matches(ctx, state), "Judgement should match with mana >= 10")
 end)
 
--- HammerOfWrath (5): in_combat and target_hp < 20 and mana >= 10
+-- HammerOfWrath (by name): in_combat and target_hp < 20 and mana >= 10
 test("HammerOfWrath: matches on low target", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.target_hp = 15
     state.mana_pct = 10
-    assert_true(lv.strategies[5].matches(ctx, state), "HoW should match on low target")
+    assert_true(lane("HammerOfWrath").matches(ctx, state), "HoW should match on low target")
 end)
 
 test("HammerOfWrath: does not match on healthy target", function()
@@ -181,46 +194,152 @@ test("HammerOfWrath: does not match on healthy target", function()
     state.in_combat = true
     state.target_hp = 80
     state.mana_pct = 100
-    assert_false(lv.strategies[5].matches(ctx, state), "HoW should not match on healthy target")
+    assert_false(lane("HammerOfWrath").matches(ctx, state), "HoW should not match on healthy target")
 end)
 
--- DivineStorm (6): in_combat and mana >= 20 and aoe gate
+-- DivineStorm (by name): in_combat and mana >= 20 and aoe gate
 test("DivineStorm: matches when AoE meets", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.mana_pct = 20
-    assert_true(lv.strategies[6].matches(ctx, state), "DivineStorm should match when AoE meets")
+    assert_true(lane("DivineStorm").matches(ctx, state), "DivineStorm should match when AoE meets")
 end)
 
 test("DivineStorm: does not match below mana", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.mana_pct = 10
-    assert_false(lv.strategies[6].matches(ctx, state), "DivineStorm should not match below 20 mana")
+    assert_false(lane("DivineStorm").matches(ctx, state), "DivineStorm should not match below 20 mana")
 end)
 
--- Consecration (7): in_combat and mana >= 25 and aoe gate
+-- Consecration (by name): in_combat and mana >= 25 and aoe gate
 test("Consecration: matches when AoE meets", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.mana_pct = 25
-    assert_true(lv.strategies[7].matches(ctx, state), "Consecration should match when AoE meets")
+    assert_true(lane("Consecration").matches(ctx, state), "Consecration should match when AoE meets")
 end)
 
--- CrusaderStrike (8): in_combat and mana >= 10
+-- CrusaderStrike (by name): in_combat and mana >= 10
 test("CrusaderStrike: matches with mana", function()
     local state = lv.build_state(ctx)
     state.in_combat = true
     state.mana_pct = 10
-    assert_true(lv.strategies[8].matches(ctx, state), "CrusaderStrike should match with mana >= 10")
+    assert_true(lane("CrusaderStrike").matches(ctx, state), "CrusaderStrike should match with mana >= 10")
 end)
 
 test("CrusaderStrike: does not match out of combat", function()
     local state = lv.build_state(ctx)
     state.in_combat = false
     state.mana_pct = 100
-    assert_false(lv.strategies[8].matches(ctx, state), "CrusaderStrike should not match OOC")
+    assert_false(lane("CrusaderStrike").matches(ctx, state), "CrusaderStrike should not match OOC")
 end)
+
+-- ============================================================================
+-- 2026-09-11 guide-pass lanes (fire/hold pins)
+-- ============================================================================
+
+-- AvengingWrath: in_combat + off cooldown + opt-in burst (default true;
+-- no should_use_long_cd in this mock -> the long-CD gate passes).
+test("AvengingWrath: matches in combat when ready", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.avenging_wrath_ready = true
+    assert_true(lane("AvengingWrath").matches(ctx, state), "AW should match when ready")
+end)
+
+test("AvengingWrath: does not match on cooldown", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.avenging_wrath_ready = false
+    assert_false(lane("AvengingWrath").matches(ctx, state), "AW should not match on cooldown")
+end)
+
+test("AvengingWrath: does not match OOC", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = false
+    state.avenging_wrath_ready = true
+    assert_false(lane("AvengingWrath").matches(ctx, state), "AW should not match OOC")
+end)
+
+-- DivinePlea: in_combat + mana < 40 + off cooldown.
+test("DivinePlea: matches in the low-mana band", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 35
+    state.divine_plea_cd = 0
+    assert_true(lane("DivinePlea").matches(ctx, state), "DivinePlea should match at mana 35")
+end)
+
+test("DivinePlea: does not match with mana ok", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 60
+    state.divine_plea_cd = 0
+    assert_false(lane("DivinePlea").matches(ctx, state), "DivinePlea should not match at mana 60")
+end)
+
+-- Exorcism: in_combat + mana >= 10 + undead/demon target (fail-closed).
+test("Exorcism: matches on undead target", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.target_creature_type = 6
+    assert_true(lane("Exorcism").matches(ctx, state), "Exorcism should match undead")
+end)
+
+test("Exorcism: matches on demon target", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.target_creature_type = 3
+    assert_true(lane("Exorcism").matches(ctx, state), "Exorcism should match demon")
+end)
+
+test("Exorcism: does not match beast target", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.target_creature_type = 1
+    assert_false(lane("Exorcism").matches(ctx, state), "Exorcism should not match beast")
+end)
+
+test("Exorcism: does not match unreadable creature type (fail-closed)", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.target_creature_type = nil
+    assert_false(lane("Exorcism").matches(ctx, state), "Exorcism should fail closed without creature type")
+end)
+
+-- HolyWrath: in_combat + mana >= 30 + 2+ enemies + undead/demon
+-- (protection_wotlk's exact band shape).
+test("HolyWrath: matches on undead AoE volume", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.enemy_count = 3
+    state.target_creature_type = 6
+    assert_true(lane("HolyWrath").matches(ctx, state), "HolyWrath should match undead AoE")
+end)
+
+test("HolyWrath: does not match single target", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.enemy_count = 1
+    state.target_creature_type = 6
+    assert_false(lane("HolyWrath").matches(ctx, state), "HolyWrath should not match on 1 enemy")
+end)
+
+test("HolyWrath: does not match beast targets", function()
+    local state = lv.build_state(ctx)
+    state.in_combat = true
+    state.mana_pct = 50
+    state.target_creature_type = 1
+    assert_false(lane("HolyWrath").matches(ctx, state), "HolyWrath should not match beasts")
+end)
+
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))
 if #failures > 0 then

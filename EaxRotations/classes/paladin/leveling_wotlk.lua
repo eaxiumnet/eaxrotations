@@ -40,6 +40,17 @@ local ACTION = {
     DivineStorm = define("DivineStorm", 53385, "DivineStorm"),
     Consecration = define("Consecration", { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
     HammerOfWrath = define("HammerOfWrath", { 48806, 27180, 24239, 24274, 24275 }, "HammerOfWrath"),
+    -- 2026-09-11 guide-pass (sub-12 lane close-out), mirroring the
+    -- audit-clean retribution_wotlk/protection_wotlk defines:
+    AvengingWrath = define("AvengingWrath", 31884, "AvengingWrath"),
+    DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
+    -- Full Exorcism ladder { 48801 ... 879 }: the level-1 rank is what a
+    -- leveling toon trains first; first-known-wins picks the right rank.
+    Exorcism = define("Exorcism", { 48801, 27138, 10314, 10313, 10312, 5615, 5614, 879 }, "Exorcism"),
+    -- Holy Wrath { 48817 r5, 37897 r4, 31898 r3 }: the three WotLK-trained
+    -- ranks, identical ladder to protection_wotlk (TBC/vanilla ranks are
+    -- rejected by the audit's era-family check).
+    HolyWrath = define("HolyWrath", { 48817, 37897, 31898 }, "HolyWrath"),
 }
 
 local SEAL_OF_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
@@ -58,6 +69,10 @@ local paladin_state = {
     seal_up = false,
     might_up = false,
     aura_up = false,
+    player_hp = 100,
+    avenging_wrath_ready = false,
+    divine_plea_cd = 99,
+    target_creature_type = nil,
 }
 
 local function build_state(context)
@@ -76,6 +91,20 @@ local function build_state(context)
     state.seal_up = (me and NS.buff_up and (NS.buff_up(me, SEAL_OF_COMMAND_BUFF) or NS.buff_up(me, SEAL_OF_VENGEANCE_BUFF) or NS.buff_up(me, SEAL_OF_RIGHTEOUSNESS_BUFF))) or false
     state.might_up = (me and NS.buff_up and NS.buff_up(me, BLESSING_OF_MIGHT_BUFF)) or false
     state.aura_up = (me and NS.buff_up and NS.buff_up(me, DEVOTION_AURA_BUFF)) or false
+    -- 2026-09-11 guide-pass state (mirror retribution_wotlk shapes):
+    state.player_hp = (context and (context.player_hp or context.hp))
+        or (me and me.get_health_percentage and me:get_health_percentage())
+        or 100
+    state.avenging_wrath_ready = NS.cooldown_remains and (NS.cooldown_remains(ACTION.AvengingWrath) <= 0) or false
+    state.divine_plea_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.DivinePlea) or 99
+    -- Creature-type read (fail-closed, pcall — the leveling_sylvanas
+    -- idiom): Exorcism only lands on undead (6) / demon (3) targets.
+    local ctype = nil
+    if target and target.get_creature_type then
+        local ok, v = pcall(target.get_creature_type, target)
+        if ok and type(v) == "number" then ctype = v end
+    end
+    state.target_creature_type = ctype
     return state
 end
 
@@ -164,10 +193,72 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.CrusaderStrike, target = "target" },
     },
+    -- 2026-09-11 guide-pass lanes: burst CD + mana game + holy-damage
+    -- fillers. AW is opt-in burst (should_use_long_cd, retribution idiom);
+    -- Divine Plea is the mana<40 band (ret idiom, -50% healing is a non-
+    -- factor while solo questing); Exorcism is the undead/demon filler
+    -- (fail-closed creature gate — no Art of War requirement while
+    -- leveling, unlike the ret rotation); Holy Wrath the 3+ undead/demon
+    -- AoE close-out (3+ enemies = real pull volume, mana>=30).
+    {
+        name = "AvengingWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "avenging_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_avenging_wrath", true) then return false end
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.AvengingWrath, target = "self" },
+    },
+    {
+        name = "DivinePlea",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "state", field = "divine_plea_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.DivinePlea, target = "self" },
+    },
+    {
+        name = "Exorcism",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+            { type = "custom", fn = function(context, state)
+                local t = state.target_creature_type
+                return t == 6 or t == 3
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Exorcism, target = "target" },
+    },
+    {
+        name = "HolyWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "custom", fn = function(context, state)
+                -- 3=demon, 6=undead — identical band to protection_wotlk's
+                -- HolyWrath lane (same battery-observable shape).
+                local t = state.target_creature_type
+                return t == 6 or t == 3
+            end },
+        },
+        action = { type = "cast", spell = ACTION.HolyWrath, target = "target" },
+    },
 }
 
 -- Priority order (compiled in place from DSL_DEFS below).
 local strategies = {
+    -- 2026-09-11 guide-pass: burst CD after the OOC upkeep trio, mana game
+    -- and holy fillers before the CS/DS spammable core.
+    { name = "AvengingWrath" },
+    { name = "DivinePlea" },
+    { name = "Exorcism" },
+    { name = "HolyWrath" },
     { name = "Seal" },
     { name = "BlessingOfMight" },
     { name = "DevotionAura" },
