@@ -38,6 +38,35 @@
   sibling audit self-test is wired. Only the guard's live remote check stays a
   CI master-push step, because it must reach the network.
 
+### Rotation Content — WotLK rogue/warlock thin guide-pass (the 7-lane trio)
+
+- **Rogue assassination 7 -> 10 lanes**: Garrote (48676 r9 stealth opener —
+  the only era-correct id; the audit rejected the TBC ladder as
+  TBC_ID_IN_WOTLK, correctly), Cold Blood (14177, single-rank talent, 5-CP
+  finisher combo), Fan of Knives (51723, 3+ enemy AoE). Cold Blood moved
+  ahead of Envenom to match the wowsims mutilate APL order (CB buffs the
+  Envenom).
+- **Rogue combat 7 -> 9 lanes**: Rupture (48672 r8, Serrated Blades DoT —
+  SnD >= 4s + 5 CP + bleed < 2s) moved AHEAD of Eviscerate to match the
+  wowsims combat APL (entries 3-4 before 5-7; otherwise Eviscerate eats the
+  5-CP slot first and Rupture is a dead lane in real first-match play), and
+  Tricks of the Trade (57934, <= 50 energy so it never delays a builder).
+- **Warlock destruction 7 -> 10 lanes**: Curse of the Elements (47865 r4 —
+  the APL fixture's 47867 is NOT the live WotLK max rank and is not
+  bridge-present; the amp goes up before the damage cycle per the fixture
+  order), Shadowburn (47827 r3, execute band < 35% HP), Hellfire (47823 r9,
+  channeled 3+ enemy AoE via the Hurricane channel idiom).
+- Spell audit: +5 WOTLK_REFERENCE_ALIASES pins 236 -> 241 (14177/48676/
+  47865/47827/47823, all Wowhead-verified max ranks; 51723 Fan of Knives is
+  bridge-present and needs no pin). The audit self-test caught a mis-placed
+  allowlist bump from an earlier pass attempt (pin bumped without entries
+  landing in the alias table) and forced the honest recount.
+
+  battery: all three specs never-fires = 0 (WotLK era total still 0); new
+  lanes fire in existing shared scenarios (execute for Shadowburn, aoe for
+  FoK/Hellfire, sap_setup stealth for Garrote, energy_low for ToTT). All six
+  static + behavioral suites extended with fire/hold pins; the two static
+  priority suites converted to name-resolved lane lookup.
 ### Rotation Content — WotLK bear/fire guide-pass (scorecard thinnest)
 
 - **Druid bear 8 -> 12 lanes** (was the thinnest WotLK tank): Growl
