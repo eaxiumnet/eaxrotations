@@ -335,6 +335,14 @@ local components = {
         end,
     },
     {
+        label = "release zip audit self-test",
+        cmd = "lua tools/run_release_zip_audit_selftest.lua",
+        check = function(c)
+            return { { "self-test [PASS] marker present (header/asset extraction + synthetic-zip audit path fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
         label = "ns-member audit",
         cmd = "lua " .. R .. "/run_ns_member_audit_tests.lua",
         check = function(c)

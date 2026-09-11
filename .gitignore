@@ -17,4 +17,6 @@
 # files must be tracked (the /tools/* rule above ignores them otherwise).
 !/tools/release_staleness_check.lua
 !/tools/perf_cost_gate.lua
+!/tools/release_zip_audit.py
+!/tools/run_release_zip_audit_selftest.lua
 EaxRotations/.omo/
