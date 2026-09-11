@@ -827,3 +827,22 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   fire in existing shared scenarios. Pinned in the three behavioral
   strategy suites + three DSL priority suites (the latter two converted to
   name-resolved lane lookup).
+
+## Addendum 2026-09-11: paladin/leveling + priest/discipline guide-pass (8 -> 12 lanes each)
+
+- paladin/leveling +4 lanes: AvengingWrath (opt-in burst via should_use_long_cd,
+  retribution idiom), DivinePlea (mana<40 band), Exorcism (fail-closed undead/demon
+  creature gate 3/6 via pcall get_creature_type read), HolyWrath (2+ enemies +
+  creature gate, protection_wotlk band shape). Battery: never=0, fires in pal_lev_seal
+  (creature 6) and undead_target (2 enemies). HolyWrath ladder trimmed to the three
+  WotLK ranks {48817,37897,31898} after the audit rejected TBC/vanilla ranks
+  (27139/10318/2812 TBC_ID_IN_WOTLK).
+- priest/discipline +4 lanes: DesperatePrayer (player_hp<=30 self-save, holy idiom),
+  InnerFocus (leads the shield engine, free +25%-crit cast), Shadowfiend (mana<60,
+  shadow idiom), DivineSpirit (OOC spirit upkeep, holy idiom). Battery: never=0, all
+  four fire in existing scenarios. One new audit pin: 14751 Inner Focus
+  (VALID_RANK_ALIAS, single-rank talent) - allowlist 241 -> 242.
+- Suites extended in place: test_discipline_wotlk_dsl_priority.lua (12->21 tests,
+  name-resolved), test_paladin_leveling_wotlk_dsl_priority.lua (14->26 tests,
+  positional->name-resolved conversion).
+

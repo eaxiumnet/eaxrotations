@@ -67,6 +67,35 @@
   FoK/Hellfire, sap_setup stealth for Garrote, energy_low for ToTT). All six
   static + behavioral suites extended with fire/hold pins; the two static
   priority suites converted to name-resolved lane lookup.
+### Rotation Content — WotLK disc priest / paladin leveling guide-pass (8 -> 12 lanes)
+
+- **Priest discipline 8 -> 12 lanes**: Desperate Prayer (25437, player_hp
+  <= 30 self-save — the holy racial idiom), Inner Focus (14751, single-rank
+  talent, leads the shield engine so the discounted cast is the free
+  +25%-crit PWS/GHeal), Shadowfiend (34433, mana < 60 mana-return pet — the
+  shadow idiom), Divine Spirit (48073 r6, OOC spirit upkeep — the holy
+  idiom). Priority keeps the pinned APL order PWS -> Penance -> PoM ->
+  Renew untouched; the save band gains Desperate Prayer under Pain
+  Suppression and PowerInfusion stays last.
+- **Paladin leveling 8 -> 12 lanes**: Avenging Wrath (31884, opt-in burst
+  via should_use_long_cd — the retribution idiom), Divine Plea (54428,
+  mana < 40 band), Exorcism (full ladder 48801..879, fail-closed undead/
+  demon creature gate via a pcall get_creature_type read — no Art of War
+  requirement while leveling, unlike the ret rotation), Holy Wrath
+  (48817/37897/31898, 2+ enemies + creature gate — protection_wotlk's
+  exact band shape). The audit's era-family check rejected my first
+  Holy Wrath ladder (TBC/vanilla ranks 27139/10318/2812) — trimmed to the
+  three WotLK-trained ranks.
+- Spell audit: +1 WOTLK_REFERENCE_ALIASES pin 241 -> 242 (14751 Inner
+  Focus, Wowhead-verified single-rank talent; 25437/34433/48073 reused
+  from prior waves' pins).
+- Battery: both specs never-fires = 0 (WotLK era total still 0); every new
+  lane fires in existing shared scenarios (pal_lev_seal creature 6 for
+  Exorcism, undead_target 2-enemy for HolyWrath, low_mana band for
+  DivinePlea/Shadowfiend). Suites extended in place: disc priority suite
+  12 -> 21 tests, paladin leveling suite 14 -> 26 tests, both converted to
+  name-resolved lane lookup.
+
 ### Rotation Content — WotLK bear/fire guide-pass (scorecard thinnest)
 
 - **Druid bear 8 -> 12 lanes** (was the thinnest WotLK tank): Growl

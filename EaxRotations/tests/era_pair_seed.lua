@@ -272,19 +272,19 @@ return {
     {
         spec = "priest/discipline",
         missing_in = "sylvanas",
-        names = { "FlashHeal", "Penance", "PowerWordShield", "PowerWordShieldLowest", "PrayerOfMending", "Renew" },
+        names = { "DesperatePrayer", "FlashHeal", "Penance", "PowerWordShield", "PowerWordShieldLowest", "PrayerOfMending", "Renew" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "priest/discipline",
         missing_in = "vanilla",
-        names = { "BindingHeal", "FSRPause", "FlashHeal", "ManaPotion", "MassDispel", "PainSuppression", "Penance", "PowerWordShield", "PrayerOfFortitude", "PrayerOfMending", "PrayerOfMendingTank", "PreemptiveGreaterHeal", "Renew", "Shadowfiend", "Silence", "SymbolOfHope" },
+        names = { "BindingHeal", "DesperatePrayer", "FSRPause", "FlashHeal", "ManaPotion", "MassDispel", "PainSuppression", "Penance", "PowerWordShield", "PrayerOfFortitude", "PrayerOfMending", "PrayerOfMendingTank", "PreemptiveGreaterHeal", "Renew", "Shadowfiend", "Silence", "SymbolOfHope" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "priest/discipline",
         missing_in = "wotlk",
-        names = { "BindingHeal", "DispelMagic", "DivineSpirit", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "InnerFocus", "ManaPotion", "MassDispel", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Shadowfiend", "Silence", "StopCast", "SymbolOfHope" },
+        names = { "BindingHeal", "DispelMagic", "EmergencyFlashHeal", "EmergencyPowerWordShield", "FSRPause", "Fade", "FearWard", "FriendlyTarget", "Healthstone", "HolyFire", "IdleShadowWordPain", "IdleSmite", "InnerFire", "ManaPotion", "MassDispel", "PowerWordFortitude", "PowerWordShieldLowest", "PowerWordShieldTank", "PrayerOfFortitude", "PrayerOfHealing", "PrayerOfMendingTank", "PreHeal", "PreemptiveGreaterHeal", "PsychicScream", "RenewLowest", "RenewTank", "ShackleUndead", "Silence", "StopCast", "SymbolOfHope" },
         reason = "WotLK-era build-out: priest_discipline_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
