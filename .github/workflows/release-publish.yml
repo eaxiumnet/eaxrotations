@@ -3,9 +3,16 @@ name: Publish release
 # Deliberate publish path — NEVER automatic. Releases are cut by running this
 # workflow by hand (or `gh workflow run release-publish.yml -f version=2.23.0`)
 # after a `release: vX.Y.Z` commit lands on master. This closes the root cause
-# of the 2.18.0→2.22.0 staleness: nothing in ci.yml ever created a tag or a
-# GitHub Release, so publishing silently stalled for four releases while the
-# changelog/badges advanced.
+#   of the 2.18.0→2.22.0 staleness: nothing in ci.yml ever created a tag or a
+#   GitHub Release, so publishing silently stalled for four releases while the
+#   changelog/badges advanced. The same stall recurred from 2.24.2 to 2.25.0.
+#
+# Stalls are now watched: ci.yml runs tools/release_staleness_check.lua
+#   (--strict, master pushes only), which fails when header.lua's shipped
+#   version is newer than the newest published vX.Y.Z tag and prints the exact
+#   command below as the fix. A red "release-staleness guard" step therefore
+#   means this workflow was never dispatched for the shipped version — not that
+#   the code is broken.
 #
 # Flow:
 #   1. Verify version consistency with the existing audit

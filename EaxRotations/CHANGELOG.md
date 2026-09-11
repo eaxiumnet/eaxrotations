@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Tooling — Release-Integrity Guard (shipped version vs published release)
+
+- **New gate: `tools/release_staleness_check.lua`** — fails when the version
+  this checkout ships (`EaxRotations/header.lua` plugin version) is newer than
+  the newest `vX.Y.Z` published on the remote. The publish workflow
+  (`.github/workflows/release-publish.yml`) is deliberately manual by design,
+  so a `release: vX.Y.Z` commit can land on master and stay green in CI while
+  no tag or Release is ever created — and users then download a zip without
+  the fixes already on master. That happened twice: the 2.18.0→2.22.0 gap, and
+  again from 2.24.2 until 2.25.0 was finally published on 2026-09-10, after
+  players reported perma-show/control-panel problems that had in fact been
+  fixed for a month in unreleased code.
+- Wired into CI as a `--strict` step on master pushes only. PR branches
+  legitimately predate their own publish so they are unaffected, and the
+  pre-commit gate stays offline and fast. On a stall the guard prints the exact
+  one-line remediation (`gh workflow run release-publish.yml -f version=X.Y.Z`)
+  and clears itself once the tag exists.
+- Compares against the **remote** tag list, not local tags: the publish
+  workflow creates the tag server-side, so a local checkout routinely tops out
+  at the previous release and would report a false STALE. An unreachable remote
+  reports UNVERIFIED and passes, so a network blip cannot red an unrelated
+  build. A `gh release list` cross-check warns when a version is tagged but no
+  GitHub Release (the downloadable zip) exists.
+- Self-tested (`--self-test`) on semantic-version compare (zero-padding and
+  numeric minor/patch rollover), date-tag filtering (the repo's historical
+  `v2026-06-26.<sha>` tags are ignored), and all five verdicts on both sides.
+  Allowlisted in `.gitignore` so a clean CI checkout has it, matching how
+  `update_badges.lua` / `spec_scorecard.lua` / `apl_status.lua` are tracked.
+
 ### Rotation Content — TBC healer guide-pass + shaman OOC rez + Mortal Strike verification
 
 - **TBC shaman gets its OOC resurrection lane** (the era-wide spell-coverage

@@ -79,6 +79,43 @@ jobs:
         # needed on a clean checkout.
         run: lua EaxRotations/tests/run_verify_all.lua
 
+      - name: release-staleness guard (shipped version vs newest published tag)
+        # Fails when header.lua ships a version that was never published — i.e.
+        # a `release: vX.Y.Z` commit is on master but the tag/Release users
+        # download from was never created. That stall cost two release cycles:
+        # the publish workflow is deliberately manual (release-publish.yml),
+        # so CI stayed green for a month while the Releases page served old
+        # code missing the fixes already on master. Remediation is one command,
+        # printed by the guard.
+        #
+        # Compares against the REMOTE tag list, not local tags: the publish
+        # workflow creates the tag server-side, so a local checkout routinely
+        # tops out at the previous release and would report a false STALE.
+        # An unreachable remote reports UNVERIFIED and passes, so a network
+        # blip can never red an unrelated build.
+        #
+        # Always runs and always prints its verdict, but only hard-fails where
+        # the fix is actionable (master pushes, manual dispatch). A PR branch
+        # cannot publish the stall away itself, so a PR based on an
+        # unpublished master is reported warn-only rather than going red for
+        # something its author cannot fix. The pre-commit gate stays
+        # offline and fast by design, so local commits pay no network cost.
+        env:
+          STRICT: ${{ github.event_name != 'pull_request' && '--strict' || '' }}
+          # Without a token `gh release list` is unauthenticated and the
+          # guard's Release cross-check silently degrades to "tag check
+          # only". That cross-check is the only thing that detects a version
+          # tagged but never given a downloadable Release (the publish
+          # workflow pushes the tag before it creates the Release, so a
+          # failure in between reproduces the exact stall), so the token is
+          # load-bearing, not incidental. github.token needs only the default
+          # read scope this job already has.
+          GH_TOKEN: ${{ github.token }}
+        # STRICT is quoted deliberately: actionlint's shellcheck integration
+        # flags an unquoted expansion (SC2086). An empty value is passed
+        # through as an empty argument, which the guard's flag loop ignores.
+        run: lua tools/release_staleness_check.lua "$STRICT"
+
   # Build the release artifact (eaxrotations.zip: tracked lua + md only) so
   # releases don't depend on the maintainer's machine. Runs only on master
   # pushes and manual dispatch — NOT on PRs — to avoid artifact churn.
