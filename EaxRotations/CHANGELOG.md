@@ -38,6 +38,25 @@
   sibling audit self-test is wired. Only the guard's live remote check stays a
   CI master-push step, because it must reach the network.
 
+### Rotation Content — WotLK bear/fire guide-pass (scorecard thinnest)
+
+- **Druid bear 8 -> 12 lanes** (was the thinnest WotLK tank): Growl
+  (single-target taunt with a fail-closed threat gate — fires only when the
+  dispatcher's threat readout is present and below 100), ChallengingRoar
+  (10yd AoE taunt, 3+ enemies), Enrage (rage-generation band gate), Berserk
+  (the 51-pt feral talent, opt-in burst). Era-correct single WotLK ids,
+  Wowhead-verified; spell audit allowlist 232 -> 235.
+- **Mage fire 9 -> 12 lanes**: Mirror Image (2+ enemies), Evocation
+  (in-combat mana < 40%, mirroring arcane's idiom), Dragon's Breath
+  (WotLK Rank 5 cone AoE, 3+ enemies; the TBC-era lower ranks are rejected
+  by the spell audit's era-family check, correctly — WotLK files carry only
+  the max rank). Allowlist -> 236.
+- Battery: both specs never-fires = 0 (WotLK era total still 0); new lanes
+  fire in existing shared scenarios. Static priority suites converted from
+  positional indexes to name-resolved lane lookup so future insertions
+  cannot silently descope them. Pinned fire/hold in the four bear/fire
+  behavioral + priority suites.
+
 ### Rotation Content — TBC healer guide-pass + shaman OOC rez + Mortal Strike verification
 
 - **TBC shaman gets its OOC resurrection lane** (the era-wide spell-coverage

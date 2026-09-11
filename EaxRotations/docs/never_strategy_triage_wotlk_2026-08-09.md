@@ -785,3 +785,27 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   era arms files proven to fire MS through the real files under the capturing
   mock; vanilla suite MS assert upgraded from boolean-only to fire/hold pins
   (test_arms_vanilla_strategies.lua).
+
+## Addendum 2026-09-11 — bear/fire guide-pass (scorecard thinnest)
+
+- **druid/bear_wotlk.lua 8 -> 12**: Growl (6795, 8s CD single-target taunt,
+  fail-closed threat gate mirroring tank_sod: fires only when the dispatcher's
+  threat readout is present AND < 100), ChallengingRoar (5209, 10yd AoE taunt,
+  6s CD, 3+ enemies), Enrage (5229, rage 10 <= 25 band, 1-min CD — the
+  TBC-era EnrageCombat/PrePullEnrage lanes now exist era-correctly), Berserk
+  (50334, opt-in burst via NS.should_use_long_cd). All Wowhead-verified;
+  6795/5209/5229 audit-pinned, allowlist 232 -> 235 (50334 already pinned,
+  sim/warrior source). Growl + ChallengingRoar removed from the era-pair
+  missing-in-wotlk list (they now exist).
+- **mage/fire_wotlk.lua 9 -> 12**: MirrorImage (55342, opt-in, in-combat +
+  2+ enemies), Evocation (12051, mana < 40% while in combat — mirrored from
+  arcane's idiom), DragonsBreathAoE (42949, WotLK max Rank 5 — TBC ladder
+  ranks rejected by the audit as TBC_ID_IN_WOTLK, correctly; 3+ enemies cone
+  AoE). 42949 audit-pinned; allowlist -> 236 total.
+- Battery: both specs never-fires = 0 (era total still 0). New lanes fire in
+  existing scenarios (threat_high 95<100 for Growl, bear_enrage rage=10 for
+  Enrage, low_mana for Evocation, aoe for the AoE bands). Static priority
+  suites converted to name-resolved lane lookup (positional indexes broke on
+  insertion). Pinned in test_druid_bear_wotlk_strategies.lua,
+  test_mage_fire_wotlk_strategies.lua, test_bear_wotlk_dsl_priority.lua,
+  test_fire_wotlk_dsl_priority.lua.
