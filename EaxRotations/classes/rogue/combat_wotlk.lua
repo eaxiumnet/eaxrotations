@@ -32,6 +32,12 @@ local ACTION = {
     -- Baseline rogue interrupt (3.3.5): not in the wowsims combat APL, so it
     -- sits outside the pinned order (first, like arcane Counterspell).
     Kick = define("Kick", { 38768, 1769, 1768, 1767, 1766 }, "Kick"),
+    -- Guide-priority additions (combat APL entries 4/5/13 + Icy-Veins):
+    -- Rupture 48672 r8 max (Serrated Blades makes the DoT a real finisher
+    -- when SnD has 4+s left and at 5 CP), Tricks of the Trade 57934 (threat
+    -- handoff at <= 50 energy so it never delays a builder).
+    Rupture = define("Rupture", { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+    TricksOfTheTrade = define("TricksOfTheTrade", 57934, "TricksOfTheTrade"),
 }
 
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
@@ -47,6 +53,7 @@ local combat_state = {
     killing_spree_ready = false,
     adrenaline_rush_ready = false,
     target_is_casting = false,
+    rupture_remains = 0,
 }
 
 local function build_state(context)
@@ -68,6 +75,9 @@ local function build_state(context)
     state.blade_flurry_ready = (ACTION.BladeFlurry and NS.cooldown_remains and NS.cooldown_remains(ACTION.BladeFlurry) <= 0) or false
     state.killing_spree_ready = (ACTION.KillingSpree and NS.cooldown_remains and NS.cooldown_remains(ACTION.KillingSpree) <= 0) or false
     state.adrenaline_rush_ready = (ACTION.AdrenalineRush and NS.cooldown_remains and NS.cooldown_remains(ACTION.AdrenalineRush) <= 0) or false
+    -- WotLK max-rank Rupture (48672) first: literal id matching, the same
+    -- table assassination tracks (a max-level client applies 48672).
+    state.rupture_remains = (target and NS.debuff_remains and NS.debuff_remains(target, { 48672, 26867, 11275, 11274, 11273, 8640, 8639, 1943 })) or 0
     return state
 end
 
@@ -139,6 +149,27 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Eviscerate, target = "target" },
     },
     {
+        name = "Rupture",
+        conditions = {
+            -- APL entry 4: Rupture when SnD has 4+s left (Serrated Blades
+            -- bleeds scale off SnD uptime) and 5 combo points banked —
+            -- below 5 CP Eviscerate wins the finisher slot.
+            { type = "state", field = "snd_remains", op = ">=", value = 4 },
+            { type = "state", field = "combo_points", op = ">=", value = 5 },
+            { type = "state", field = "rupture_remains", op = "<", value = 2 },
+        },
+        action = { type = "cast", spell = ACTION.Rupture, target = "target" },
+    },
+    {
+        name = "TricksOfTheTrade",
+        conditions = {
+            -- APL entry 13: cast at <= 50 energy so it never delays a
+            -- builder GCD (the same gate the assassination sibling uses).
+            { type = "state", field = "energy", op = "<=", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.TricksOfTheTrade, target = "self" },
+    },
+    {
         name = "SinisterStrike",
         conditions = {
             { type = "state", field = "energy", op = ">=", value = 45 },
@@ -153,7 +184,9 @@ local DSL_DEFS = {
 local strategies = {
     { name = "Kick" },
     { name = "SliceAndDice" },
+    { name = "Rupture" },
     { name = "Eviscerate" },
+    { name = "TricksOfTheTrade" },
     { name = "BladeFlurry" },
     { name = "KillingSpree" },
     { name = "AdrenalineRush" },

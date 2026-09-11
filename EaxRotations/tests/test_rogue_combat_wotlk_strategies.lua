@@ -31,6 +31,7 @@ local longcd = true
 local bf_cd = 0
 local ks_cd = 0
 local ar_cd = 0
+local rupture = 0        -- Rupture DoT remains (real debuff read on 48672)
 local buffs = {}     -- 6774/5171 = Slice and Dice buff
 
 local me = {
@@ -47,6 +48,7 @@ local function reset_env()
     energy, cp, snd = 0, 0, 0
     combat, casting, enemy_count, longcd = true, false, 1, true
     bf_cd, ks_cd, ar_cd = 0, 0, 0
+    rupture = 0
     buffs = {}
 end
 
@@ -58,6 +60,12 @@ _G.EaxRotations = {
     buff_remains = function(unit, ids)
         for _, id in ipairs(ids) do
             if id == 6774 or id == 5171 then return snd end
+        end
+        return 0
+    end,
+    debuff_remains = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if id == 48672 then return rupture end
         end
         return 0
     end,
@@ -204,5 +212,30 @@ assert_lane("AdrenalineRush blocked out of combat", "AdrenalineRush",
     function() combat = false end, false)
 assert_lane("AdrenalineRush blocked when long-CD gate refuses", "AdrenalineRush",
     function() longcd = false end, false)
+
+-- ============================================================================
+-- Rupture (2026-09-11 guide pass, APL entries 4-5): the Serrated Blades DoT
+-- finisher — SnD >= 4s + 5 combo points + bleed < 2s (real buff/debuff reads
+-- on 6774 and 48672). Below 5 CP Eviscerate wins the finisher slot.
+-- ============================================================================
+assert_lane("Rupture fires with SnD up, 5 CP, bleed down", "Rupture",
+    function() snd = 10; cp = 5 end, true)
+assert_lane("Rupture fires inside the 2s bleed window", "Rupture",
+    function() snd = 10; cp = 5; rupture = 1.9 end, true)
+assert_lane("Rupture blocked while the bleed is healthy", "Rupture",
+    function() snd = 10; cp = 5; rupture = 2.0 end, false)
+assert_lane("Rupture blocked with SnD below the 4s floor", "Rupture",
+    function() snd = 3.9; cp = 5 end, false)
+assert_lane("Rupture blocked below 5 combo points", "Rupture",
+    function() snd = 10; cp = 4 end, false)
+
+-- ============================================================================
+-- TricksOfTheTrade (guide pass, APL entry 13): threat handoff at <= 50 energy
+-- so it never delays a builder GCD (real ctx.energy read).
+-- ============================================================================
+assert_lane("TricksOfTheTrade fires at 50 energy", "TricksOfTheTrade",
+    function() energy = 50 end, true)
+assert_lane("TricksOfTheTrade blocked above 50 energy", "TricksOfTheTrade",
+    function() energy = 51 end, false)
 
 print("PASS test_rogue_combat_wotlk_strategies")

@@ -29,6 +29,9 @@ local dp = 0
 local combat = true
 local casting = false
 local daggers = false
+local stealthed = false  -- Garrote opener gate (real 1784 buff read)
+local aoe_ok = false     -- NS.aoe_target_meets verdict (Fan of Knives)
+local cb_cd = 0          -- Cold Blood cooldown
 local buffs = {}     -- 57993 = Envenom buff, 51662 = Hunger for Blood buff
 
 local me = {
@@ -44,6 +47,7 @@ local function set_buff(id, up) buffs[id] = up or nil end
 local function reset_env()
     energy, cp, snd, rupture, dp = 0, 0, 0, 0, 0
     combat, casting, daggers = true, false, false
+    stealthed, aoe_ok, cb_cd = false, false, 0
     buffs = {}
 end
 
@@ -67,10 +71,18 @@ _G.EaxRotations = {
     end,
     buff_up = function(unit, ids)
         for _, id in ipairs(ids) do
+            if id == 1784 and stealthed then return true end
             if buffs[id] then return true end
         end
         return false
     end,
+    -- Single-rank actions resolve to a bare spell id: Cold Blood = 14177.
+    cooldown_remains = function(action)
+        if action == 14177 then return cb_cd end
+        return 0
+    end,
+    aoe_target_meets = function(n, radius, target, ctx) return aoe_ok end,
+    AOE_RADIUS = { SELF_10 = 10 },
     debuff_remains = function(unit, ids)
         for _, id in ipairs(ids) do
             if id == 48672 then return rupture end
@@ -103,6 +115,7 @@ local function scenario(label, strategy_name, expect)
         in_combat = combat,
         energy = energy,
         combo_points = cp,
+        enemy_count = aoe_ok and 4 or 1,
         target = {
             get_health_percentage = function() return 100 end,
             is_casting = function() return casting end,
@@ -202,5 +215,37 @@ assert_lane("Mutilate blocked below 60 energy with daggers", "Mutilate",
     function() energy = 59; daggers = true end, false)
 assert_lane("Mutilate blocked without daggers equipped", "Mutilate",
     function() energy = 100; daggers = false end, false)
+
+-- ============================================================================
+-- Garrote (2026-09-11 guide pass): stealth opener — real 1784 buff read +
+-- out of combat (the OOC stealth window is where a real rotation casts it;
+-- in-combat non-stealthed it is unreachable).
+-- ============================================================================
+assert_lane("Garrote fires from stealth out of combat", "Garrote",
+    function() stealthed = true; combat = false end, true)
+assert_lane("Garrote blocked while stealthed but in combat", "Garrote",
+    function() stealthed = true; combat = true end, false)
+assert_lane("Garrote blocked unstealthed out of combat", "Garrote",
+    function() stealthed = false; combat = false end, false)
+
+-- ============================================================================
+-- ColdBlood (guide pass): the fixture's finisher combo — only at 5 combo
+-- points with the cooldown ready (real cooldown_remains read on 14177).
+-- ============================================================================
+assert_lane("ColdBlood fires at 5 CP off cooldown", "ColdBlood",
+    function() cp = 5 end, true)
+assert_lane("ColdBlood blocked below 5 CP", "ColdBlood",
+    function() cp = 4 end, false)
+assert_lane("ColdBlood blocked while on cooldown", "ColdBlood",
+    function() cp = 5; cb_cd = 30 end, false)
+
+-- ============================================================================
+-- FanOfKnives (guide pass): AoE wave — in combat + 3+ enemies in the 10y
+-- self radius (hurricane_aoe idiom, real volume read).
+-- ============================================================================
+assert_lane("FanOfKnives fires on a 4-enemy wave", "FanOfKnives",
+    function() aoe_ok = true end, true)
+assert_lane("FanOfKnives blocked when the volume read fails", "FanOfKnives",
+    function() aoe_ok = false end, false)
 
 print("PASS test_rogue_assassination_wotlk_strategies")

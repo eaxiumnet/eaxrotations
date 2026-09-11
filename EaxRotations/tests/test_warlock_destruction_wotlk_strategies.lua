@@ -22,14 +22,21 @@ local function assert_false(v, label) if v then error(label or "assert_false fai
 local combat = true
 local hp = 100
 local mana = 100
+local thp = 100        -- target HP (Shadowburn execute band)
+local enemies = 1      -- AoE volume (Hellfire wave)
+local sb_cd = 0        -- Shadowburn cooldown
+local aoe_ok = false   -- NS.aoe_target_meets verdict
+local spell_ok = true  -- NS.spell_ready verdict (Hellfire channel)
 local debuffs = {}
 local buffs = {}
 
 local function immo(secs) debuffs[47811] = secs end
+local function coe(secs) debuffs[47865] = secs end
 local function backdraft(up) buffs[54277] = up or nil end
 
 local function reset_env()
-    combat, hp, mana = true, 100, 100
+    combat, hp, mana, thp, enemies = true, 100, 100, 100, 1
+    sb_cd, aoe_ok, spell_ok = 0, false, true
     debuffs, buffs = {}, {}
 end
 
@@ -48,6 +55,15 @@ _G.EaxRotations = {
         end
         return false
     end,
+    -- Single-rank actions resolve to a bare spell id (combat-suite comment
+    -- convention): Shadowburn arrives as 47827.
+    cooldown_remains = function(action)
+        if action == 47827 then return sb_cd end
+        return 0
+    end,
+    spell_ready = function(action, unit) return spell_ok end,
+    aoe_target_meets = function(n, radius, target, ctx) return aoe_ok end,
+    AOE_RADIUS = { SELF_10 = 10 },
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -68,8 +84,11 @@ local function scenario(label, strategy_name, expect)
         in_combat = combat,
         mana_pct = mana,
         hp = hp,
-        enemy_count = 1,
-        target = { is_casting = function() return false end },
+        enemy_count = enemies,
+        target = {
+            is_casting = function() return false end,
+            get_health_percentage = function() return thp end,
+        },
         settings = {},
     }
     local state = result.build_state(ctx)
@@ -152,5 +171,39 @@ assert_lane("LifeTap blocked when hp is at the 50 floor", "LifeTap",
     function() mana = 20; hp = 50 end, false)
 assert_lane("LifeTap blocked out of combat", "LifeTap",
     function() mana = 20; combat = false end, false)
+
+-- ============================================================================
+-- CurseOfElements (2026-09-11 guide pass): amp upkeep — cast when < 30s left
+-- (the real debuff_remains read on the single WotLK-rank 47865).
+-- ============================================================================
+assert_lane("CurseOfElements fires when the amp is down", "CurseOfElements", function() end, true)
+assert_lane("CurseOfElements fires inside the 30s refresh window", "CurseOfElements",
+    function() coe(29) end, true)
+assert_lane("CurseOfElements blocked while the amp is healthy", "CurseOfElements",
+    function() coe(31) end, false)
+
+-- ============================================================================
+-- Shadowburn (guide pass): execute-band finisher — target HP < 35 + cooldown
+-- ready (real get_health_percentage + cooldown_remains reads on 47827).
+-- ============================================================================
+assert_lane("Shadowburn fires in the execute band", "Shadowburn",
+    function() thp = 34 end, true)
+assert_lane("Shadowburn blocked above the execute band", "Shadowburn",
+    function() thp = 35 end, false)
+assert_lane("Shadowburn blocked while on cooldown", "Shadowburn",
+    function() thp = 20; sb_cd = 15 end, false)
+
+-- ============================================================================
+-- HellfireAoE (guide pass): channeled AoE wave — in combat + 3+ enemies in
+-- the 10y self radius + channel ready (Hurricane idiom; real spell_ready).
+-- ============================================================================
+assert_lane("HellfireAoE fires on a 4-enemy wave", "HellfireAoE",
+    function() combat = true; enemies = 4; aoe_ok = true end, true)
+assert_lane("HellfireAoE blocked below the 3-enemy volume floor", "HellfireAoE",
+    function() combat = true; enemies = 4; aoe_ok = true; enemies = 2 end, false)
+assert_lane("HellfireAoE blocked when the AoE volume read fails", "HellfireAoE",
+    function() combat = true; enemies = 4; aoe_ok = false end, false)
+assert_lane("HellfireAoE blocked when the channel is not ready", "HellfireAoE",
+    function() combat = true; enemies = 4; aoe_ok = true; spell_ok = false end, false)
 
 print("PASS test_warlock_destruction_wotlk_strategies")

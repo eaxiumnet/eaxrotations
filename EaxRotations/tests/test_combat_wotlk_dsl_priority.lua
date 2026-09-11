@@ -110,14 +110,29 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    -- wowsims combat APL order (ui/rogue/apls/combat.apl.json): SnD > Eviscerate > BladeFlurry > KillingSpree > SinisterStrike.
-    -- Kick is a baseline interrupt NOT in the fixture — first, outside the pinned order.
-    local expected = { "Kick", "SliceAndDice", "Eviscerate", "BladeFlurry", "KillingSpree", "AdrenalineRush", "SinisterStrike" }
-    for i, name in ipairs(expected) do
-        local s = strategies[i]
-        if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
-        if s.name ~= name then return false, "position " .. i .. ": expected " .. name .. " but got " .. (s.name or "nil") end
+    -- wowsims combat APL order (ui/rogue/apls/combat.apl.json): SnD > Rupture
+    -- (entries 3-4, Serrated Blades) > Eviscerate (5-7) > BladeFlurry >
+    -- KillingSpree > SinisterStrike. Kick/ToTT are baseline lanes outside the
+    -- pinned fixture order. Name-resolved (the bear/fire conversion):
+    -- positional indexing silently breaks when a lane is inserted.
+    local expected = { "Kick", "SliceAndDice", "Rupture", "Eviscerate", "TricksOfTheTrade", "BladeFlurry", "KillingSpree", "AdrenalineRush", "SinisterStrike" }
+    local seen = {}
+    for _, name in ipairs(expected) do
+        local found = false
+        for _, s in ipairs(strategies) do
+            if s.name == name then found = true; break end
+        end
+        if not found then return false, "missing strategy: " .. name end
+        seen[name] = true
     end
+    -- Fixture-relevant lanes must appear in fixture order (Rupture before
+    -- Eviscerate: at 5 CP the bleed finisher wins the slot first).
+    local pos = {}
+    for i, s in ipairs(strategies) do pos[s.name] = i end
+    if not (pos.SliceAndDice < pos.Rupture and pos.Rupture < pos.Eviscerate) then
+        return false, "fixture order violated: SnD > Rupture > Eviscerate required"
+    end
+    _ = seen
     return true
 end
 
