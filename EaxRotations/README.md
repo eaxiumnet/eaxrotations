@@ -229,6 +229,7 @@ All contributions must pass `luac -p` and the full test suite.
 | Document | What You'll Find |
 |----------|-----------------|
 | [docs/ACCURACY.md](docs/ACCURACY.md) | Player-facing accuracy report — what every spec is proven to do, live-gated |
+| [docs/DEBUGGING_TRACE_CASTS.md](docs/DEBUGGING_TRACE_CASTS.md) | Debugging guide for the Trace Casts diagnostics — how to read why a spell did (not) fire |
 | [docs/PER_CLASS_RESEARCH.md](docs/PER_CLASS_RESEARCH.md) | Per-class research provenance, mechanic-by-mechanic code verification, and the honest limits |
 | [CHANGELOG.md](CHANGELOG.md) | Full release history with bug fixes, features, and perf wins |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Code style, conventions, and how to submit changes |
