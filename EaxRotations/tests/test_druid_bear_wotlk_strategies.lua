@@ -24,6 +24,11 @@ local hp = 100
 local rage = 0
 local enemy_count = 1
 local combat = true
+-- 2026-09-10 bear guide pass: controllable threat readout for the Growl
+-- fail-closed gate (the dispatcher produces ctx.threat_pct from
+-- NS.threat_status, main_sylvanas:1311; the battery presents it in
+-- threat_high=95).
+local threat_pct = nil
 local debuffs = {}
 local not_ready = {}
 local cds = {}
@@ -34,6 +39,7 @@ local function ff(secs) debuffs[27011] = secs end
 
 local function reset_env()
     hp, rage, enemy_count, combat = 100, 0, 1, true
+    threat_pct = nil
     debuffs, not_ready, cds = {}, {}, {}
 end
 
@@ -76,6 +82,7 @@ local function scenario(label, strategy_name, expect)
         rage = rage,
         hp = hp,
         enemy_count = enemy_count,
+        threat_pct = threat_pct,
         target = { get_health_percentage = function() return 100 end },
         settings = {},
     }
@@ -171,5 +178,44 @@ assert_lane("SurvivalInstincts blocked while on cooldown", "SurvivalInstincts",
     function() hp = 20; cds[61336] = 60 end, false)
 assert_lane("SurvivalInstincts blocked out of combat", "SurvivalInstincts",
     function() hp = 20; combat = false end, false)
+
+-- ============================================================================
+-- Growl (6795): taunt fires only on real evidence the mob is heading
+-- elsewhere — threat_pct < 100 AND a readout exists (fail closed, tank_sod
+-- idiom). The DSL's nil-coercing "<" would fire on every missing readout.
+-- ============================================================================
+assert_lane("Growl fires when the mob is heading elsewhere (95 < 100)", "Growl",
+    function() rage = 0; threat_pct = 95 end, true)
+assert_lane("Growl held while the mob is on the tank (100+)", "Growl",
+    function() rage = 0; threat_pct = 100 end, false)
+assert_lane("Growl held with NO threat readout (fail closed)", "Growl",
+    function() rage = 0; threat_pct = nil end, false)
+
+-- ============================================================================
+-- ChallengingRoar (5209): pack-recovery AoE taunt at 3+ targets.
+-- ============================================================================
+assert_lane("ChallengingRoar fires into a 3-pack", "ChallengingRoar",
+    function() enemy_count = 3 end, true)
+assert_lane("ChallengingRoar held on a single target", "ChallengingRoar",
+    function() enemy_count = 1 end, false)
+assert_lane("ChallengingRoar held while on cooldown", "ChallengingRoar",
+    function() enemy_count = 3; not_ready[5209] = true end, false)
+
+-- ============================================================================
+-- Berserk (50334): bear-side of the feral 51-pt (rage-free abilities 15s).
+-- ============================================================================
+assert_lane("Berserk fires in combat off cooldown", "Berserk",
+    function() rage = 50 end, true)
+assert_lane("Berserk held out of combat", "Berserk",
+    function() combat = false end, false)
+
+-- ============================================================================
+-- Enrage (5229): in-combat rage generation at <= 10 rage (TBC EnrageCombat
+-- precedent: starved-tank rage tool).
+-- ============================================================================
+assert_lane("Enrage fires while rage-starved (10)", "Enrage",
+    function() rage = 10 end, true)
+assert_lane("Enrage held with rage available", "Enrage",
+    function() rage = 30 end, false)
 
 print("PASS test_druid_bear_wotlk_strategies")
