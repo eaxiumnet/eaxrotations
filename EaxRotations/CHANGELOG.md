@@ -38,6 +38,51 @@
   sibling audit self-test is wired. Only the guard's live remote check stays a
   CI master-push step, because it must reach the network.
 
+### Rotation Content — WotLK school-lockout wave (engine LoC signal) + thin casters
+
+- **New shared module `shared/spell_school_gate_sylvanas.lua`**: the engine
+  exposes the interrupted-school mask via
+  `unit:get_loss_of_control_info().lockout_school` (a `schools_flag` bitmask) and
+  `main_sylvanas.lua` now publishes it as `context.school_lockout` each frame.
+  Before this wave **no rotation read that signal** (grep-verified zero
+  callers), so after an interrupt every spec kept queueing a school the engine
+  would refuse. The module is pure (no NS capture at require time — the
+  battery's shared-virgin guard), allocates nothing, and **fails open**: an
+  absent/zero mask reports "not locked", which is exactly the old behavior on
+  older clients and in the mock harness.
+- **Frost mage 8 -> 12 lanes**: Fire Blast (42873, the off-school instant) now
+  fires **only** while the frost school is interrupted, and every frost cast
+  (Frostbolt / Frostfire Bolt / Ice Lance / Deep Freeze) holds in that window;
+  plus Mirror Image (55342, 3-min burst), Evocation (12051, < 40% mana refill)
+  and the Ice Barrier shield band (43039 r8 max / 43038 r7).
+- **Balance druid 8 -> 11 lanes**: the canonical school swap — an arcane lock
+  drops Moonfire/Starfire and Wrath covers even with no Eclipse; a nature lock
+  drops the whole nature kit (Wrath, Insect Swarm, Faerie Fire, Hurricane) and
+  Starfire covers even during solar Eclipse, where it normally holds. Plus
+  Force of Nature (33831 burst), Barkskin (22812 defensive band) and Innervate
+  (29166 mana tool).
+- Spell audit: +3 WOTLK_REFERENCE_ALIASES pins 242 -> 245 — 33831 Force of
+  Nature (`VALID_SHARED_ID`: exists in both TBC and WotLK data, already
+  documented in `WOTLK_SHARED_IDS`; the classifier's `TBC_ID_IN_WOTLK` path
+  needed the alias entry) and 43039/43038 Ice Barrier ranks 8/7
+  (`VALID_BRIDGE_GAP`: Wowhead-verified real WotLK ranks the local bridge simply
+  stops short of at 33405 r6).
+- Battery: both specs never-fires = 0 (WotLK era total still 0). Three new
+  shared scenarios pin the lockout shapes (`school_locked_frost` 16 / `_nature`
+  8 / `_arcane` 64) and `school_lockout` is registered as a known context key.
+  Both behavioral suites extended with fire/hold pins on both sides of every
+  new gate; both static priority suites converted to name-resolved lane lookup
+  (12/11-lane order pinned). The battery exposed a real defect: the new
+  MirrorImage/Evocation lanes referenced `ACTION` entries that were never
+  defined (Evocation reported never-fires=1 until the defines landed).
+- Era-pair seed re-baselined (+2 names): the WotLK lanes' siblings cover the
+  same behavior under their own names (TBC/vanilla balance carry
+  `BarkskinDefense` / `InnervateHealer` / `InnervateSelf`; Mirror Image is a
+  WotLK-only talent), and the seed's stale "ForceOfNature missing in wotlk" row
+  is now correctly cleared.
+- scorecard: strategies 496 -> 503, rules 2588 -> 2595; druid/balance 8 -> 11
+  and mage/frost 8 -> 12, both still S+.
+
 ### Rotation Content — WotLK rogue/warlock thin guide-pass (the 7-lane trio)
 
 - **Rogue assassination 7 -> 10 lanes**: Garrote (48676 r9 stealth opener —
