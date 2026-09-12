@@ -83,10 +83,20 @@ print("=== test_frost_wotlk_dsl_priority ===")
 local frost = dofile("EaxRotations/classes/mage/frost_wotlk.lua")
 assert_true(type(frost) == "table", "frost_wotlk should return a table")
 assert_true(type(frost.strategies) == "table", "frost_wotlk should expose strategies")
-assert_true(#frost.strategies == 8, "frost_wotlk should have 8 strategies")
+assert_true(#frost.strategies == 12, "frost_wotlk should have 12 strategies")
 
 local registered = _G.EaxRotations._registered_frost
 assert_true(registered ~= nil, "frost_wotlk should register under 'frost'")
+
+-- Name-resolved lane lookup (2026-09-11): the static suite used to index
+-- strategies positionally; inserting the guide-pass lanes silently shifted
+-- every later reference. Resolve by name so lane order changes are safe.
+local function lane(name)
+    for i = 1, #frost.strategies do
+        if frost.strategies[i].name == name then return frost.strategies[i] end
+    end
+    error("strategy not found: " .. name)
+end
 
 -- ============================================================================
 -- Priority order test
@@ -95,14 +105,18 @@ local expected_order = {
     "Counterspell",
     "SummonWaterElemental",
     "IcyVeins",
+    "MirrorImage",
     "ColdSnap",
+    "IceBarrier",
+    "Evocation",
     "DeepFreeze",
     "FrostfireBolt",
+    "FireBlast",
     "IceLance",
     "Frostbolt",
 }
 
-test("priority order: 8 strategies match expected order", function()
+test("priority order: 12 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(frost.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], frost.strategies[i].name))
@@ -115,7 +129,7 @@ test("Counterspell: matches when target is casting", function()
     local c = { in_combat = true, target = {}, settings = {} }
     local state = frost.build_state(c)
     state.target_is_casting = true
-    assert_true(frost.strategies[1].matches(c, state), "Counterspell should match when target is casting")
+    assert_true(lane("Counterspell").matches(c, state), "Counterspell should match when target is casting")
 end)
 
 test("Counterspell: does not match when out of combat", function()
@@ -123,7 +137,7 @@ test("Counterspell: does not match when out of combat", function()
     local state = frost.build_state(c)
     state.in_combat = false
     state.target_is_casting = true
-    assert_false(frost.strategies[1].matches(c, state), "Counterspell should not match when out of combat")
+    assert_false(lane("Counterspell").matches(c, state), "Counterspell should not match when out of combat")
 end)
 
 test("Counterspell: does not match when target not casting", function()
@@ -131,7 +145,7 @@ test("Counterspell: does not match when target not casting", function()
     local state = frost.build_state(c)
     state.in_combat = true
     state.target_is_casting = false
-    assert_false(frost.strategies[1].matches(c, state), "Counterspell should not match when target not casting")
+    assert_false(lane("Counterspell").matches(c, state), "Counterspell should not match when target not casting")
 end)
 
 -- ============================================================================
@@ -145,7 +159,7 @@ test("ColdSnap: matches when HP < 50", function()
     local orig_hp = _G.EaxRotations.me.get_health_percentage
     _G.EaxRotations.me.get_health_percentage = function() return 40 end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[4].matches(ctx, state)
+    local ok = lane("ColdSnap").matches(ctx, state)
     _G.EaxRotations.me.get_health_percentage = orig_hp
     assert_true(ok, "ColdSnap should match when HP < 50")
 end)
@@ -153,7 +167,7 @@ end)
 -- ColdSnap: should NOT match when HP >= 50
 test("ColdSnap: does not match when HP >= 50", function()
     local state = frost.build_state(ctx)
-    assert_false(frost.strategies[4].matches(ctx, state), "ColdSnap should not match when HP >= 50")
+    assert_false(lane("ColdSnap").matches(ctx, state), "ColdSnap should not match when HP >= 50")
 end)
 
 -- DeepFreeze: should match when target is frozen
@@ -161,7 +175,7 @@ test("DeepFreeze: matches when target is frozen", function()
     local orig_debuff = _G.EaxRotations.debuff_up
     _G.EaxRotations.debuff_up = function(unit, ids) return true end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[5].matches(ctx, state)
+    local ok = lane("DeepFreeze").matches(ctx, state)
     _G.EaxRotations.debuff_up = orig_debuff
     assert_true(ok, "DeepFreeze should match when target is frozen")
 end)
@@ -169,7 +183,7 @@ end)
 -- DeepFreeze: should NOT match when target is not frozen
 test("DeepFreeze: does not match when target is not frozen", function()
     local state = frost.build_state(ctx)
-    assert_false(frost.strategies[5].matches(ctx, state), "DeepFreeze should not match when target is not frozen")
+    assert_false(lane("DeepFreeze").matches(ctx, state), "DeepFreeze should not match when target is not frozen")
 end)
 
 -- FrostfireBolt: should match when debuff remains < 3 and mana >= 20
@@ -181,7 +195,7 @@ test("FrostfireBolt: matches when debuff remains < 3 and mana >= 20", function()
     })
     -- frostfire_remains defaults to 0 (debuff_remains returns 0)
     -- mana_pct defaults to 80 from mock
-    assert_true(frost.strategies[6].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_true(lane("FrostfireBolt").matches({ in_combat = true, target = {}, settings = {} }, state),
         "FrostfireBolt should match when debuff remains < 3 and mana >= 20")
 end)
 
@@ -190,7 +204,7 @@ test("FrostfireBolt: does not match when debuff remains >= 3", function()
     local orig_debuff = _G.EaxRotations.debuff_remains
     _G.EaxRotations.debuff_remains = function(unit, ids) return 5 end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[6].matches(ctx, state)
+    local ok = lane("FrostfireBolt").matches(ctx, state)
     _G.EaxRotations.debuff_remains = orig_debuff
     assert_false(ok, "FrostfireBolt should not match when debuff remains >= 3")
 end)
@@ -200,7 +214,7 @@ test("FrostfireBolt: does not match when mana < 20", function()
     local orig_mana = _G.EaxRotations.me.mana_pct
     _G.EaxRotations.me.mana_pct = function() return 15 end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[6].matches(ctx, state)
+    local ok = lane("FrostfireBolt").matches(ctx, state)
     _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "FrostfireBolt should not match when mana < 20")
 end)
@@ -210,7 +224,7 @@ test("IceLance: matches when target is frozen", function()
     local orig_debuff = _G.EaxRotations.debuff_up
     _G.EaxRotations.debuff_up = function(unit, ids) return true end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[7].matches(ctx, state)
+    local ok = lane("IceLance").matches(ctx, state)
     _G.EaxRotations.debuff_up = orig_debuff
     assert_true(ok, "IceLance should match when target is frozen")
 end)
@@ -218,13 +232,13 @@ end)
 -- IceLance: should NOT match when target is not frozen
 test("IceLance: does not match when target is not frozen", function()
     local state = frost.build_state(ctx)
-    assert_false(frost.strategies[7].matches(ctx, state), "IceLance should not match when target is not frozen")
+    assert_false(lane("IceLance").matches(ctx, state), "IceLance should not match when target is not frozen")
 end)
 
 -- Frostbolt: should match when mana >= 15
 test("Frostbolt: matches when mana >= 15", function()
     local state = frost.build_state(ctx)
-    assert_true(frost.strategies[8].matches(ctx, state), "Frostbolt should match when mana >= 15")
+    assert_true(lane("Frostbolt").matches(ctx, state), "Frostbolt should match when mana >= 15")
 end)
 
 -- Frostbolt: should NOT match when mana < 15
@@ -232,7 +246,7 @@ test("Frostbolt: does not match when mana < 15", function()
     local orig_mana = _G.EaxRotations.me.mana_pct
     _G.EaxRotations.me.mana_pct = function() return 10 end
     local state = frost.build_state(ctx)
-    local ok = frost.strategies[8].matches(ctx, state)
+    local ok = lane("Frostbolt").matches(ctx, state)
     _G.EaxRotations.me.mana_pct = orig_mana
     assert_false(ok, "Frostbolt should not match when mana < 15")
 end)

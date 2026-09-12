@@ -13,6 +13,11 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+-- Engine school-lockout gate: after an interrupt the frost school can be locked,
+-- and every frost cast is refused by the engine. The gate reads the native
+-- lockout mask (main_sylvanas → context.school_lockout) so the rotation falls
+-- back to its off-school instant (Fire Blast) instead of spam-queueing Frostbolt.
+local school_gate = require("shared/spell_school_gate_sylvanas")
 
 -- Plain define_action (NOT define_action_for_class): NS.MageSpells is TBC-era,
 -- so the class-bound resolver would shadow these WotLK rank ladders with TBC
@@ -33,6 +38,19 @@ local ACTION = {
     -- 31687 (permanent pet, 3-min CD, single rank) - both bridge-verified.
     IcyVeins = define("IcyVeins", 12472, "IcyVeins"),
     SummonWaterElemental = define("SummonWaterElemental", 31687, "SummonWaterElemental"),
+    -- 2026-09-11 school-lockout wave: Fire Blast 42873 (fire school, instant) is
+    -- the OFF-SCHOOL fallback the frost guides name for a frost lockout; the
+    -- same audit-clean id fire_wotlk.lua defines. Ice Barrier is the full WotLK
+    -- ladder (43039 r8 max 3300 absorb, 43038 r7 2860 — both Wowhead-verified
+    -- this pass; 33405 r6 … 11426 r1 are bridge-present).
+    FireBlast = define("FireBlast", { 42873 }, "FireBlast"),
+    IceBarrier = define("IceBarrier", { 43039, 43038, 33405, 27134, 13033, 13032, 13031, 11426 }, "IceBarrier"),
+    -- Burst + mana-recovery defines for the same wave: Mirror Image 55342 (3
+    -- copies, 3-min CD) and Evocation 12051 (channeled mana refill) — the exact
+    -- single-rank ids fire_wotlk.lua / arcane_wotlk.lua already carry
+    -- audit-clean.
+    MirrorImage = define("MirrorImage", { 55342 }, "MirrorImage"),
+    Evocation = define("Evocation", { 12051 }, "Evocation"),
 }
 
 -- 44549 = the Frostfire Bolt DEBUFF aura (wowsims APL refreshes FFB on it);
@@ -43,6 +61,9 @@ local FROSTFIRE_BOLT_DEBUFF = { 44549 }
 local FROST_NOVA_DEBUFF = { 122, 865, 6131, 10230, 42917 }
 -- Fingers of Frost proc buff (wowsims APL gates DeepFreeze on aura 44545).
 local FINGERS_OF_FROST_BUFF = { 44545 }
+-- Ice Barrier shield aura (mirrors the action ladder: max-rank-first so a
+-- level-80 cast registers as up).
+local ICE_BARRIER_BUFF = { 43039, 43038, 33405, 27134, 13033, 13032, 13031, 11426 }
 
 local frost_state = {
     hp = 100,
@@ -55,6 +76,11 @@ local frost_state = {
     icy_veins_ready = false,
     water_elemental_ready = false,
     has_pet = false,
+    frost_locked = false,
+    fire_locked = false,
+    barrier_up = false,
+    barrier_ready = false,
+    evocation_ready = false,
 }
 
 local function build_state(context)
@@ -85,6 +111,15 @@ local function build_state(context)
         or (me and NS.buff_up and NS.buff_up(me, FINGERS_OF_FROST_BUFF))
         or false
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
+    -- School lockout (engine LoC mask, published by main_sylvanas): the frost
+    -- lanes hold while frost is locked and FireBlast is the off-school cast.
+    state.frost_locked = school_gate.locked(context, school_gate.SCHOOL.FROST)
+    state.fire_locked = school_gate.locked(context, school_gate.SCHOOL.FIRE)
+    -- Defensive shield + mana lanes (guide band: keep the barrier rolling when
+    -- pressured, Evocate when the pool runs dry). Both are real readiness reads.
+    state.barrier_up = (me and NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF)) or false
+    state.barrier_ready = (ACTION.IceBarrier and NS.spell_ready and NS.spell_ready(ACTION.IceBarrier, me_self, { skip_range = true })) or false
+    state.evocation_ready = (ACTION.Evocation and NS.spell_ready and NS.spell_ready(ACTION.Evocation, me_self, { skip_range = true })) or false
     return state
 end
 
@@ -136,6 +171,9 @@ local DSL_DEFS = {
         name = "DeepFreeze",
         conditions = {
             { type = "state", field = "target_frozen", op = "truthy" },
+            -- School lockout: DeepFreeze is frost — refuse to queue it while the
+            -- engine would reject the cast (FireBlast below covers the window).
+            { type = "state", field = "frost_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.DeepFreeze, target = "target" },
     },
@@ -144,13 +182,28 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "frostfire_remains", op = "<", value = 3 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
+            { type = "state", field = "frost_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.FrostfireBolt, target = "target" },
+    },
+    {
+        name = "FireBlast",
+        conditions = {
+            -- OFF-SCHOOL fallback (engine lockout signal): the frost school is
+            -- locked, so the only frost-side casts the engine accepts are none —
+            -- Fire Blast is the instant fire-school filler the guides name.
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "frost_locked", op = "truthy" },
+            { type = "state", field = "fire_locked", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.FireBlast, target = "target" },
     },
     {
         name = "IceLance",
         conditions = {
             { type = "state", field = "target_frozen", op = "truthy" },
+            { type = "state", field = "frost_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.IceLance, target = "target" },
     },
@@ -158,8 +211,43 @@ local DSL_DEFS = {
         name = "Frostbolt",
         conditions = {
             { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            { type = "state", field = "frost_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.Frostbolt, target = "target" },
+    },
+    -- 2026-09-11 guide-pass lanes (scorecard thinnest tier): burst CD, mana
+    -- recovery and the defensive shield band — each mirroring the audit-clean
+    -- fire_wotlk/arcane_wotlk idiom.
+    {
+        name = "MirrorImage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.MirrorImage, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.MirrorImage, target = "self" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "state", field = "evocation_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self" },
+    },
+    {
+        name = "IceBarrier",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "barrier_up", op = "falsy" },
+            { type = "state", field = "barrier_ready", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 70 },
+        },
+        action = { type = "cast", spell = ACTION.IceBarrier, target = "self" },
     },
 }
 
@@ -170,9 +258,13 @@ local strategies = {
     { name = "Counterspell" },
     { name = "SummonWaterElemental" },
     { name = "IcyVeins" },
+    { name = "MirrorImage" },
     { name = "ColdSnap" },
+    { name = "IceBarrier" },
+    { name = "Evocation" },
     { name = "DeepFreeze" },
     { name = "FrostfireBolt" },
+    { name = "FireBlast" },
     { name = "IceLance" },
     { name = "Frostbolt" },
 }

@@ -1462,6 +1462,21 @@ local function build_context()
     end
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
     _context.player_control_locked = _api.player_control_locked and _api.player_control_locked() or false
+    -- Engine school lockout (interrupted school): the native LoC info carries
+    -- lockout_school as a schools_flag bitmask. Published so specs can fall
+    -- back to their OFF-SCHOOL spell instead of queueing a locked cast
+    -- (shared/spell_school_gate_sylvanas.lua). Fail-open: a client/harness
+    -- without the field leaves the mask at 0 = "nothing locked".
+    _context.school_lockout = 0
+    if me then
+        local loc_fn = _api.safe_field and _api.safe_field(me, "get_loss_of_control_info") or nil
+        if loc_fn then
+            local ok, loc = pcall(fast, loc_fn, me)
+            if ok and type(loc) == "table" and loc.valid and type(loc.lockout_school) == "number" and loc.lockout_school > 0 then
+                _context.school_lockout = loc.lockout_school
+            end
+        end
+    end
     _context.combat_length_forecast = _context.ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)

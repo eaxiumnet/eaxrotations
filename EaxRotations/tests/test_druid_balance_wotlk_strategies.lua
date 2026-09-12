@@ -23,11 +23,14 @@ local function assert_false(v, label) if v then error(label or "assert_false fai
 local mana = 100
 local combat = true
 local longcd = true
+local hp = 100
 local debuffs = {}
 local buffs = {}
 local not_ready = {}
 local enemies = 1      -- enemy_count seen by the FaerieFire/Hurricane lanes
 local aoe_ok = true    -- NS.aoe_target_meets result (Hurricane volume gate)
+-- Engine school lockout mask (ctx.school_lockout) — 8 = nature, 64 = arcane.
+local lockout = 0
 
 local function moonfire(secs) debuffs[48463] = secs end
 local function insect_swarm(secs) debuffs[48468] = secs end
@@ -36,9 +39,9 @@ local function solar(up) set_buff(48517, up) end
 local function lunar(up) set_buff(48518, up) end
 
 local function reset_env()
-    mana, combat, longcd = 100, true, true
+    mana, combat, longcd, hp = 100, true, true, 100
     debuffs, buffs, not_ready = {}, {}, {}
-    enemies, aoe_ok = 1, true
+    enemies, aoe_ok, lockout = 1, true, 0
 end
 
 _G.EaxRotations = {
@@ -85,7 +88,10 @@ local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         mana_pct = mana,
+        hp = hp,
         enemy_count = enemies,
+        school_lockout = lockout,
+        me = _G.EaxRotations.me,
         target = { get_health_percentage = function() return 100 end },
         settings = {},
     }
@@ -178,5 +184,56 @@ assert_lane("HurricaneAoE blocked out of combat", "HurricaneAoE",
     function() enemies = 4; combat = false end, false)
 assert_lane("HurricaneAoE blocked while on cooldown", "HurricaneAoE",
     function() enemies = 4; not_ready[48467] = true end, false)
+
+-- ============================================================================
+-- School-lockout wave (2026-09-11): the engine's loss-of-control mask drives the
+-- canonical WotLK balance school-swap. Arcane lock (64) drops Starfire/Moonfire
+-- and Wrath takes over even with no Eclipse; nature lock (8) drops the whole
+-- nature kit (Wrath, Insect Swarm, Faerie Fire, Hurricane) and Starfire covers
+-- even during solar Eclipse, where it would normally hold.
+-- ============================================================================
+assert_lane("Wrath fires with no Eclipse while arcane is locked", "Wrath",
+    function() lockout = 64 end, true)
+assert_lane("Starfire holds while arcane is locked", "Starfire",
+    function() lockout = 64 end, false)
+assert_lane("Moonfire holds while arcane is locked", "Moonfire",
+    function() lockout = 64 end, false)
+assert_lane("Moonfire fires when only nature is locked", "Moonfire",
+    function() lockout = 8 end, true)
+assert_lane("Starfire fires during solar Eclipse while nature is locked", "Starfire",
+    function() solar(true); lockout = 8 end, true)
+assert_lane("Wrath holds during solar Eclipse while nature is locked", "Wrath",
+    function() solar(true); lockout = 8 end, false)
+assert_lane("InsectSwarm holds while nature is locked", "InsectSwarm",
+    function() lockout = 8 end, false)
+assert_lane("FaerieFire holds while nature is locked", "FaerieFire",
+    function() lockout = 8 end, false)
+assert_lane("HurricaneAoE holds while nature is locked", "HurricaneAoE",
+    function() enemies = 4; lockout = 8 end, false)
+
+-- ============================================================================
+-- Guide-pass lanes (2026-09-11): Force of Nature burst, Barkskin defensive band
+-- and Innervate mana tool — all through the real readiness reads.
+-- ============================================================================
+assert_lane("ForceOfNature fires in combat with the cooldown ready", "ForceOfNature",
+    function() end, true)
+assert_lane("ForceOfNature blocked when long-CD gate refuses", "ForceOfNature",
+    function() longcd = false end, false)
+assert_lane("ForceOfNature blocked while on cooldown", "ForceOfNature",
+    function() not_ready[33831] = true end, false)
+assert_lane("ForceOfNature blocked out of combat", "ForceOfNature",
+    function() combat = false end, false)
+assert_lane("Barkskin fires below 60% hp", "Barkskin", function() hp = 59 end, true)
+assert_lane("Barkskin blocked at 60% hp", "Barkskin", function() hp = 60 end, false)
+assert_lane("Barkskin blocked while on cooldown", "Barkskin",
+    function() hp = 40; not_ready[22812] = true end, false)
+assert_lane("Barkskin blocked out of combat", "Barkskin",
+    function() hp = 40; combat = false end, false)
+assert_lane("Innervate fires below 25% mana", "Innervate",
+    function() mana = 24 end, true)
+assert_lane("Innervate blocked at 25% mana", "Innervate",
+    function() mana = 25 end, false)
+assert_lane("Innervate blocked while on cooldown", "Innervate",
+    function() mana = 10; not_ready[29166] = true end, false)
 
 print("PASS test_druid_balance_wotlk_strategies")

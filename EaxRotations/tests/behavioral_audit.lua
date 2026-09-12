@@ -3136,6 +3136,13 @@ M.SCENARIOS = {
     -- top rank) + undead/demon target (Exorcism) or execute range (HoW).
     -- target_hp 15 satisfies HoW's <= 20; creature-type 6 the Exorcism gate.
     { name = "pal_lev_seal", overrides = { target_creature_type = 6, target_hp = 15, buff_remains_map = { [20375] = 30 } } },
+    -- School-lockout wave (2026-09-11): the engine publishes the player's
+    -- interrupted-school mask; these three shapes present each school the
+    -- thin casters fall back FROM. frost 16 = mage frost (Fire Blast is the
+    -- off-school cast), nature 8 / arcane 64 = balance (Wrath <-> Starfire).
+    { name = "school_locked_frost",  overrides = { school_lockout = 16, in_combat = true } },
+    { name = "school_locked_nature", overrides = { school_lockout = 8,  in_combat = true } },
+    { name = "school_locked_arcane", overrides = { school_lockout = 64, in_combat = true } },
     -- rogue/subtlety Ambush: stealth-up + behind + opener_preference
     -- explicitly "ambush". The auto-resolve path is battery-dead (constant-
     -- true try_interrupt makes is_caster_target true → auto picks garrote),
@@ -3618,6 +3625,11 @@ function M.build_context_for(class_key, scenario, era)
         -- Healer (c) close-out (2026-08-09): lifebloom feeds the heal-scan
         -- stub's Lifebloom let-bloom fields (resto druid LifebloomLetBloom).
         lifebloom=true,
+        -- Engine school-lockout signal (2026-09-11): main_sylvanas publishes
+        -- context.school_lockout from unit:get_loss_of_control_info()
+        -- .lockout_school; the spells-school gate reads it so a locked school
+        -- falls back off-school (school_locked_* scenarios below).
+        school_lockout=true,
         fsr_inside=true, fsr_seconds=true, fsr_regen_delta=true, fsr_pause_ok=true,
         -- Friendly-target context (ranked): friendly_target_hp presents a
         -- friendly unit via NS.get_friendly_target_entry so the 5 healer
