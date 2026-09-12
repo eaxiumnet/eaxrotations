@@ -9,6 +9,13 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
+-- Cast/channel end-time gate (2026-09-12): an interrupt that lands after the
+-- target's cast completes wastes its cooldown. Fail-open when the engine
+-- reports no end time (shared/cast_timing_sylvanas.lua).
+local _ct_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
+if not _ct_ok or type(cast_timing) ~= "table" then
+    cast_timing = { context_interrupt_open = function() return true end }
+end
 
 local define = spec_kit.define_action
 
@@ -87,9 +94,20 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.AspectOfTheDragonhawk, target = "self" },
     },
     {
+        -- Silencing Shot is an interrupt (20s CD, low damage): it must not
+        -- fire on cooldown against a target that is not casting, and must not
+        -- burn on a cast that lands first. The leveling sibling already gates
+        -- on target_casting; this lane previously fired unconditionally in
+        -- combat (2026-09-12 correctness pass).
         name = "SilencingShot",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                return cast_timing.context_interrupt_open(context, context and context.settings)
+            end },
             { type = "state", field = "in_combat", op = "truthy" },
+            -- context, not state: build_state() here does not expose
+            -- target_casting, but the dispatcher publishes context.target_casting.
+            { type = "context", field = "target_casting", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.SilencingShot, target = "target" },
     },

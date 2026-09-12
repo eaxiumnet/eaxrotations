@@ -181,6 +181,30 @@ end)
 NS.debuff_remains = original_debuff_remains
 if not ok_rend_healthy then error(err_rend_healthy) end
 
+-- ============================================================================
+-- Pummel end-time gate (2026-09-12, shared/cast_timing_sylvanas). An
+-- interrupt whose lead is at or below 0.30s is refused -- the cast lands
+-- first and the cooldown is wasted. Unknown remaining stays fail-open.
+-- ============================================================================
+local arms_pummel_target = {
+    get_health_percentage = function() return 50 end,
+    is_casting = function() return true end,
+}
+local function arms_pummel(remaining)
+    local c = {
+        in_combat = true, target = arms_pummel_target, me = {}, settings = {},
+        target_cast_remaining = remaining, rage = 30, stance = 1,
+        hp = 80, target_hp = 50, enemy_count = 1,
+    }
+    return find_in(arms.strategies, "Pummel").matches(c, arms.build_state(c))
+end
+expect_no_crash("arms_wotlk: Pummel end-time gate", function()
+    assert_true(arms_pummel(1.0), "Pummel fires with 1.0s left on the enemy cast")
+    assert_true(arms_pummel(0.31), "Pummel fires above the 0.30s lead floor")
+    assert_false(arms_pummel(0.30), "Pummel holds ON the 0.30s lead floor")
+    assert_false(arms_pummel(0.05), "Pummel holds when the cast lands first")
+end)
+
 print("Tests: " .. total_passed .. "/" .. total_tests .. " passed")
 if #failures > 0 then
     print("FAILURES:")

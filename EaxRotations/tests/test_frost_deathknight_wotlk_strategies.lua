@@ -294,4 +294,39 @@ assert_lane("FrostPresence fires from Blood Presence in auto mode",
 assert_lane("FrostPresence blocked while Frost Presence is up", "FrostPresence",
     function() set_buff(48263, true) end, false)
 
+-- ============================================================================
+-- Manager-backed interrupt lane (2026-09-12 cast-timing pass). frost_wotlk.lua
+-- registers Mind Freeze through interrupt_manager.register_interrupt_spell, so
+-- its gate is the shared cast_has_interrupt_window: an interrupt whose lead is
+-- at or below 0.30s is refused (the cast lands first and the cooldown is
+-- wasted). Driven here through the REAL spec file with the engine end-time
+-- accessor on the mock target; absent end time stays fail-open. The identical
+-- registration path backs deathknight/blood and deathknight/unholy.
+-- ============================================================================
+_G.EaxRotations.try_interrupt = function() return true end
+_G.EaxRotations.spell_ready = function() return true end
+_G.EaxRotations.gcd_remains = function() return 0 end
+_G.EaxRotations.try_cast = function() return true end
+_G.EaxRotations.time_now = function() return 0 end
+_G.EaxRotations.is_interruptible = function() return true end
+
+local function interrupt_probe(remaining)
+    local tgt = {
+        is_casting = function() return true end,
+        get_channeling_or_casting_remaining_sec = function() return remaining end,
+    }
+    local ctx = {
+        in_combat = true, me = me, target = tgt,
+        settings = { use_interrupt = true, interrupt_humanize_enabled = false },
+        target_cast_remaining = remaining,
+    }
+    return find_strategy("MindFreeze").matches(ctx, result.build_state(ctx))
+end
+
+assert_true(interrupt_probe(1.0), "MindFreeze fires with 1.0s left on the target cast")
+assert_true(interrupt_probe(0.31), "MindFreeze fires above the 0.30s lead floor")
+assert_false(interrupt_probe(0.30), "MindFreeze holds ON the 0.30s lead floor")
+assert_false(interrupt_probe(0.20), "MindFreeze holds with 0.20s left on the cast")
+assert_false(interrupt_probe(0.05), "MindFreeze holds when the cast lands first")
+
 print("PASS test_frost_deathknight_wotlk_strategies")

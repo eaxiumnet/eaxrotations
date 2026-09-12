@@ -82,13 +82,15 @@ end
 
 -- Apply a state mutation, evaluate ONE lane on an in-combat single-target ctx,
 -- assert the expected match, then restore the mutable scenario state.
+local cast_remaining = nil
+local cast_lead = nil
 local function scenario(label, strategy_name, mutations, expect_match, in_combat)
     local save = { stance, ctx_rage, target_hp, target_casting, interruptible, long_cd_ok }
     for k in pairs(cds) do cds[k] = nil end
     for k in pairs(buffs) do buffs[k] = nil end
     mutations()
     local combat = in_combat ~= false
-    local ctx = { in_combat = combat, target = mk_target(), settings = {}, enemy_count = 1, rage = ctx_rage }
+    local ctx = { in_combat = combat, target = mk_target(), settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining, enemy_count = 1, rage = ctx_rage }
     local state = result.build_state(ctx)
     local s = find_strategy(strategy_name)
     local matched = s.matches(ctx, state)
@@ -181,4 +183,9 @@ buffs[47436] = true
 assert_false(find_strategy("BattleShout").matches(bs_ctx, result.build_state(bs_ctx)),
     "BattleShout should not fire when the buff is up")
 
-print("PASS test_fury_wotlk_strategies")
+-- ============================================================================
+-- Pummel end-time gate (2026-09-12, shared/cast_timing_sylvanas). An
+-- interrupt whose lead is at or below 0.30s is refused -- the cast lands
+-- first and the cooldown is wasted. Unknown remaining stays fail-open.
+-- ============================================================================
+scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)print("PASS test_fury_wotlk_strategies")
