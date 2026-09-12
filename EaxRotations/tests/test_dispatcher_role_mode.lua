@@ -61,6 +61,10 @@ _G.EaxRotations = nil
 
 local NS = require("core_sylvanas")
 
+-- Capture the REAL core registry's register method before the test's mock
+-- registries replace NS.rotation_registry; section (e) proves the real merge.
+local real_register = NS.rotation_registry.register
+
 NS.izi = {
     spell = function(spell_id)
         return {
@@ -283,5 +287,85 @@ for _ = 1, 3 do dispatcher.on_rotation_update() end
 assert_true(NS.CastTrace.count() == 0, "toggle off -> repeated real ticks record nothing (count=" .. tostring(NS.CastTrace.count()) .. ")")
 NS.settings.eax_debug_trace_casts = nil
 NS._TRACE_CASTS = nil
+
+-- ============================================================================
+-- Channel-clip opt-in (2026-09-12): the dispatcher's "casting or channeling ->
+-- stop" early exit yields ONLY for a channel the active registry declared
+-- clip-managed (registry.channel_clip_ids) — which is what makes the shadow
+-- priest / affliction Mind Flay + Drain Soul clip lanes reachable at all.
+-- Everything else keeps the blanket skip, and a hard cast always keeps it.
+-- ============================================================================
+local clip_evaluated = {}
+local function clip_track(name)
+    return {
+        name = name,
+        category = "damage",
+        matches = function() clip_evaluated[#clip_evaluated + 1] = name; return false end,
+        execute = function() return false end,
+    }
+end
+
+local function shadow_registry(clip_ids)
+    local reg = {
+        class_config = { class_key = "priest", default_playstyle = "shadow" },
+        playstyles = { shadow = { clip_track("VampiricTouch") } },
+        options = { shadow = { get_state = function(ctx) return ctx end } },
+    }
+    if clip_ids then reg.channel_clip_ids = clip_ids end
+    return reg
+end
+
+NS.class_middleware = { priest = {} }
+NS.set_setting("playstyle", "shadow")
+NS.set_setting("active_playstyle", nil)
+
+-- (a) Declared clip channel + reconciling id -> the loop re-enters mid-channel.
+NS.rotation_registry = shadow_registry({ [48156] = true })
+player.is_casting = function() return false end
+player.is_channeling = function() return true end
+player.get_active_channel_spell_id = function() return 48156 end
+clip_evaluated = {}
+dispatcher.on_rotation_update()
+assert_true(#clip_evaluated == 1,
+    "declared clip channel: the playstyle loop must re-enter mid-channel (evaluated=" .. tostring(#clip_evaluated) .. ")")
+
+-- (b) Same channeling state, channel id NOT declared -> blanket skip holds.
+player.get_active_channel_spell_id = function() return 15407 end
+clip_evaluated = {}
+dispatcher.on_rotation_update()
+assert_true(#clip_evaluated == 0,
+    "undeclared channel: blanket skip must keep the loop out (evaluated=" .. tostring(#clip_evaluated) .. ")")
+
+-- (c) A hard cast never re-enters, even when the id matches.
+player.is_casting = function() return true end
+player.is_channeling = function() return false end
+player.get_active_channel_spell_id = function() return 48156 end
+clip_evaluated = {}
+dispatcher.on_rotation_update()
+assert_true(#clip_evaluated == 0,
+    "hard cast: the channel-clip opt-in must not apply (evaluated=" .. tostring(#clip_evaluated) .. ")")
+
+-- (d) Registry with no channel_clip_ids (the pre-signal shape) -> unchanged.
+NS.rotation_registry = shadow_registry(nil)
+player.is_casting = function() return false end
+player.is_channeling = function() return true end
+clip_evaluated = {}
+dispatcher.on_rotation_update()
+assert_true(#clip_evaluated == 0,
+    "registry without channel_clip_ids: blanket skip unchanged (evaluated=" .. tostring(#clip_evaluated) .. ")")
+
+-- (e) The REAL core registry merges declarations at register time (single owner).
+local real_registry = { playstyles = {}, options = {}, channel_clip_ids = {} }
+real_register(real_registry, "shadow", {}, { channel_clip_ids = { 47855, 11675 } })
+assert_true(real_registry.channel_clip_ids[47855] == true
+    and real_registry.channel_clip_ids[11675] == true,
+    "core register() must merge declared channel_clip_ids into the registry set")
+assert_true(real_registry.channel_clip_ids[48156] == nil,
+    "core register() must not invent undeclared clip ids")
+assert_true(real_registry.channel_clip_ids[true] == nil and real_registry.channel_clip_ids["47855"] == nil,
+    "core register() must ignore non-numeric clip ids")
+
+player.is_casting = function() return false end
+player.is_channeling = function() return false end
 
 print("PASS test_dispatcher_role_mode")

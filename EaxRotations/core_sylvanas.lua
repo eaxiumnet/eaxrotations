@@ -4806,7 +4806,9 @@ function NS.cast_best_heal_rank(ranks, target, context, label)
 
 end
 
-local registry = NS.rotation_registry or { playstyles = {}, options = {}, class_config = nil }
+local registry = NS.rotation_registry or { playstyles = {}, options = {}, class_config = nil, channel_clip_ids = {} }
+
+registry.channel_clip_ids = registry.channel_clip_ids or {}
 
 NS.rotation_registry = registry
 
@@ -4823,6 +4825,21 @@ function registry:register(name, strategies, options)
     self.playstyles[name] = strategies or EMPTY
 
     self.options[name] = options or EMPTY
+
+    -- Channel-clip opt-in (2026-09-12): a playstyle may declare
+    -- `channel_clip_ids = { <channel spell ids> }` for the channels its
+    -- rotation is allowed to clip (replace mid-channel with a higher-priority
+    -- cast). main_sylvanas consults this set in its per-frame channel skip so
+    -- ONLY declared channels re-enter the decision loop mid-channel; every
+    -- other channel keeps the blanket skip. Merged here so the registry is the
+    -- single owner and the dispatcher does one hash lookup per channeled frame.
+    local clip_ids = options and options.channel_clip_ids
+    if type(clip_ids) == "table" then
+        for i = 1, #clip_ids do
+            local id = clip_ids[i]
+            if type(id) == "number" and id > 0 then self.channel_clip_ids[id] = true end
+        end
+    end
 
     return true
 
@@ -5517,7 +5534,11 @@ function NS.action_execute(context, action, prefix)
 
     local target = target_for(context, action)
 
-    local opts = { skip_range = action.target == "self" or action.skip_range, skip_gcd = action.skip_gcd }
+    -- skip_casting (2026-09-12): a lane that clips a channel it declared via
+    -- registry channel_clip_ids must get past evaluate_cast's
+    -- "don't queue while casting/channeling" guard, which already honours this
+    -- opt. Fail-safe: absent/false keeps the existing refusal.
+    local opts = { skip_range = action.target == "self" or action.skip_range, skip_gcd = action.skip_gcd, skip_casting = action.skip_casting }
 
     local reason = format("%s %s", prefix or "[EAX]", action.name or "Action")
 

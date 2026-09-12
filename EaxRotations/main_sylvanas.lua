@@ -951,14 +951,24 @@ local function build_context()
     -- running; this says *how long is left*, which is what the interrupt gate
     -- needs: a cast that lands before the interrupt arrives must not claim the
     -- cooldown. Fail-open: 0 = unknown/none, so every gate behaves exactly as it
-    -- did before this signal existed. (The player's own channel time is
-    -- deliberately NOT published: core_sylvanas.evaluate_cast already refuses
-    -- every cast while channeling, so a self-side hold would change nothing.)
+    -- did before this signal existed.
     _context.target_cast_remaining = 0
     if target then
         local target_remaining = cast_timing.remaining(target)
         if type(target_remaining) == "number" and target_remaining > 0 then
             _context.target_cast_remaining = target_remaining
+        end
+    end
+    -- Channel-clip opt-in (2026-09-12): the id of the channel the PLAYER is
+    -- currently running, so the dispatcher can tell whether this channel is one
+    -- the active spec declared clip-managed (registry.channel_clip_ids) and may
+    -- therefore re-enter the decision loop mid-channel. 0 = none/unknown, which
+    -- keeps the pre-existing blanket channel skip.
+    _context.channel_spell_id = 0
+    if _context.is_channeling then
+        local channel_id = cast_timing.channel_id(me)
+        if type(channel_id) == "number" and channel_id > 0 then
+            _context.channel_spell_id = channel_id
         end
     end
 
@@ -1849,8 +1859,22 @@ function M.on_rotation_update()
     -- The evaluate_cast guard in try_cast already blocks re-casts, but this early exit
     -- prevents running the entire strategy match/execute loop (saves CPU every frame
     -- during cast-time spells and prevents OOC buff spam like Aspect of the Hawk).
+    --
+    -- Channel-clip opt-in (2026-09-12): a spec that declared its channel in
+    -- registry.channel_clip_ids may re-enter the decision loop mid-channel so a
+    -- higher-priority lane can clip it (the lane declares skip_casting so the
+    -- central guard lets the replacement through). A cast always keeps the skip,
+    -- and an undeclared channel keeps it too, so a spec that declares nothing
+    -- behaves exactly as before.
     if context.is_casting or context.is_channeling then
-        return true
+        local clip_ids = registry and registry.channel_clip_ids
+        local clip_open = (not context.is_casting)
+            and context.is_channeling
+            and type(clip_ids) == "table"
+            and clip_ids[context.channel_spell_id] == true
+        if not clip_open then
+            return true
+        end
     end
     if reaction_delay_active(context) then
         return true
