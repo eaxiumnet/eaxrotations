@@ -20,6 +20,11 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+-- Engine school-lockout gate: balance is the one caster school-swapping spec —
+-- Wrath is nature, Starfire/Moonfire are arcane. After an interrupt the locked
+-- school must be dropped for the other one, which is exactly what the gate
+-- below drives (main_sylvanas publishes the native lockout mask).
+local school_gate = require("shared/spell_school_gate_sylvanas")
 
 -- Plain define_action: file-local WotLK rank lists must win over the
 -- TBC-capped DruidSpells class table (precedent: mage/fire_wotlk.lua:20).
@@ -39,6 +44,12 @@ local ACTION = {
     -- Tranquility idiom) — a plain cast would re-queue every GCD.
     FaerieFire = define("FaerieFire", { 26993, 9907, 9749, 778, 770 }, "FaerieFire"),
     Hurricane = define("Hurricane", { 48467 }, "Hurricane"),
+    -- 2026-09-11 guide-pass lanes: Force of Nature 33831 (3 treants, 30s, the
+    -- balance burst CD — Wowhead-verified single rank; bear/resto siblings
+    -- already carry Barkskin 22812 and Innervate 29166 audit-clean).
+    ForceOfNature = define("ForceOfNature", 33831, "ForceOfNature"),
+    Barkskin = define("Barkskin", 22812, "Barkskin"),
+    Innervate = define("Innervate", { 29166 }, "Innervate"),
 }
 
 -- Max-rank-first debuff tables: the WotLK DoT auras are 48463 (Moonfire) /
@@ -52,6 +63,7 @@ local MOONFIRE_DEBUFF = { 48463, 26988, 26987, 9835, 9834, 9833, 8929, 8928, 892
 local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
 
 local balance_state = {
+    hp = 100,
     mana_pct = 100,
     enemy_count = 1,
     in_combat = false,
@@ -61,6 +73,10 @@ local balance_state = {
     insect_swarm_remains = 0,
     moonfire_remains = 0,
     faerie_remains = 0,
+    nature_locked = false,
+    arcane_locked = false,
+    barkskin_ready = false,
+    innervate_ready = false,
 }
 
 local function build_state(context)
@@ -81,6 +97,15 @@ local function build_state(context)
     state.insect_swarm_remains = (target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF)) or 0
     state.moonfire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF)) or 0
     state.faerie_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF)) or 0
+    -- School lockout (engine LoC mask): nature locks drop Wrath, arcane locks
+    -- drop Starfire/Moonfire — the fallback lane below casts the other school.
+    state.nature_locked = school_gate.locked(context, school_gate.SCHOOL.NATURE)
+    state.arcane_locked = school_gate.locked(context, school_gate.SCHOOL.ARCANE)
+    -- Defensive/utility readiness (real engine reads; Barkskin + Innervate are
+    -- the balance survival/mana tools in the guides).
+    state.hp = (context and context.hp) or (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.barkskin_ready = (ACTION.Barkskin and NS.spell_ready and NS.spell_ready(ACTION.Barkskin, me, { skip_range = true })) or false
+    state.innervate_ready = (ACTION.Innervate and NS.spell_ready and NS.spell_ready(ACTION.Innervate, me, { skip_range = true })) or false
     return state
 end
 
@@ -117,6 +142,10 @@ local DSL_DEFS = {
         name = "Moonfire",
         conditions = {
             { type = "state", field = "moonfire_remains", op = "<", value = 3 },
+            -- School lockout (engine LoC mask): Moonfire is arcane — while the
+            -- arcane school is interrupted the engine refuses it, so the lane
+            -- holds and Wrath (nature) keeps the damage flowing below.
+            { type = "state", field = "arcane_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.Moonfire, target = "target" },
     },
@@ -134,16 +163,33 @@ local DSL_DEFS = {
             { type = "OR", conditions = {
                 { type = "state", field = "eclipse_lunar", op = "truthy" },
                 { type = "state", field = "eclipse_solar", op = "falsy" },
+                -- School-lockout fallback: with nature interrupted, arcane is
+                -- the only school the engine accepts, so Starfire fires even
+                -- during solar eclipse (where it would normally hold).
+                { type = "state", field = "nature_locked", op = "truthy" },
             } },
             { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            -- School lockout: Starfire is arcane — an arcane interrupt refuses
+            -- the cast, so the lane holds and nature (Wrath) covers instead.
+            { type = "state", field = "arcane_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.Starfire, target = "target" },
     },
     {
         name = "Wrath",
         conditions = {
-            { type = "state", field = "eclipse_solar", op = "truthy" },
+            -- Eclipse: Wrath is the solar filler — plus the school-lockout
+            -- fallback below (arcane interrupted ⇒ nature is the only school
+            -- left, so Wrath fires regardless of eclipse state).
+            { type = "OR", conditions = {
+                { type = "state", field = "eclipse_solar", op = "truthy" },
+                { type = "state", field = "arcane_locked", op = "truthy" },
+            } },
             { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            -- School lockout: Wrath is nature; a nature interrupt holds it and
+            -- the arcane lanes above become the fallback — the canonical WotLK
+            -- balance school-swap the guides describe.
+            { type = "state", field = "nature_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.Wrath, target = "target" },
     },
@@ -153,6 +199,9 @@ local DSL_DEFS = {
             -- Debuff upkeep (guide priority): 3% spell hit on the target;
             -- refresh in the last 3s like the DoT lanes.
             { type = "state", field = "faerie_remains", op = "<", value = 3 },
+            -- Faerie Fire is nature: hold it while that school is interrupted
+            -- (refreshes as soon as the lock expires).
+            { type = "state", field = "nature_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.FaerieFire, target = "target" },
     },
@@ -160,6 +209,7 @@ local DSL_DEFS = {
         name = "InsectSwarm",
         conditions = {
             { type = "state", field = "insect_swarm_remains", op = "<", value = 3 },
+            { type = "state", field = "nature_locked", op = "falsy" },
         },
         action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
     },
@@ -173,14 +223,51 @@ local DSL_DEFS = {
                 return (state.enemy_count or 1) >= 3
                     and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context and context.target, context)
             end },
-            -- Channel readiness (real engine cooldown read).
+            -- Channel readiness (real engine cooldown read) + school lockout
+            -- (Hurricane is nature; a nature interrupt refuses the channel).
             { type = "spell_ready", spell = ACTION.Hurricane, target = "target" },
+            { type = "state", field = "nature_locked", op = "falsy" },
         },
         -- Channeled AoE (resto_wotlk Tranquility idiom — the DSL has no
         -- channel action type; a custom fn routes the cast directly).
         action = { type = "custom", fn = function(context, state)
             return NS.try_cast(ACTION.Hurricane, context and context.target, "[BALANCE WOTLK] Hurricane") == true
         end },
+    },
+    -- 2026-09-11 engine-signal wave (scorecard thinnest tier): the guide's
+    -- balance burst, defensive and mana tools. The school-lockout fallback is
+    -- expressed by the `*_locked` conditions on Moonfire/Starfire (arcane) and
+    -- Wrath (nature) above — when one school is interrupted the other keeps
+    -- casting, which is the whole point of the engine's lockout signal.
+    {
+        name = "ForceOfNature",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.ForceOfNature, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.ForceOfNature, target = "self" },
+    },
+    {
+        name = "Barkskin",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 60 },
+            { type = "state", field = "barkskin_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Barkskin, target = "self" },
+    },
+    {
+        name = "Innervate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 25 },
+            { type = "state", field = "innervate_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Innervate, target = "self" },
     },
 }
 
@@ -189,7 +276,10 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 local strategies = {
     { name = "MoonkinForm" },
+    { name = "ForceOfNature" },
     { name = "Starfall" },
+    { name = "Innervate" },
+    { name = "Barkskin" },
     { name = "Moonfire" },
     { name = "Starfire" },
     { name = "Wrath" },

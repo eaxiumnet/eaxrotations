@@ -83,17 +83,30 @@ print("=== test_balance_wotlk_dsl_priority ===")
 local balance = dofile("EaxRotations/classes/druid/balance_wotlk.lua")
 assert_true(type(balance) == "table", "balance_wotlk should return a table")
 assert_true(type(balance.strategies) == "table", "balance_wotlk should expose strategies")
-assert_true(#balance.strategies == 8, "balance_wotlk should have 8 strategies")
+assert_true(#balance.strategies == 11, "balance_wotlk should have 11 strategies")
 
 local registered = _G.EaxRotations._registered_balance
 assert_true(registered ~= nil, "balance_wotlk should register under 'balance'")
+
+-- Name-resolved lane lookup (2026-09-11): the static suite indexed strategies
+-- positionally; the guide-pass inserts silently shifted every later reference.
+-- Resolve by name so lane-order changes are safe.
+local function lane(name)
+    for i = 1, #balance.strategies do
+        if balance.strategies[i].name == name then return balance.strategies[i] end
+    end
+    error("strategy not found: " .. name)
+end
 
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
 local expected_order = {
     "MoonkinForm",
+    "ForceOfNature",
     "Starfall",
+    "Innervate",
+    "Barkskin",
     "Moonfire",
     "Starfire",
     "Wrath",
@@ -102,7 +115,7 @@ local expected_order = {
     "HurricaneAoE",
 }
 
-test("priority order: 8 strategies match expected order", function()
+test("priority order: 11 strategies match expected order", function()
     for i = 1, #expected_order do
         assert_true(balance.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], balance.strategies[i].name))
@@ -119,13 +132,13 @@ local ctx = { in_combat = true, target = {}, settings = {} }
 test("MoonkinForm: matches when not up", function()
     local state = balance.build_state(ctx)
     state.moonkin_up = false
-    assert_true(balance.strategies[1].matches(ctx, state), "MoonkinForm should match when not up")
+    assert_true(lane("MoonkinForm").matches(ctx, state), "MoonkinForm should match when not up")
 end)
 
 test("MoonkinForm: does not match when already up", function()
     local state = balance.build_state(ctx)
     state.moonkin_up = true
-    assert_false(balance.strategies[1].matches(ctx, state), "MoonkinForm should not match when already up")
+    assert_false(lane("MoonkinForm").matches(ctx, state), "MoonkinForm should not match when already up")
 end)
 
 -- Starfall: matches in combat with long cd allowed (W3.3: enemy_count gate
@@ -134,21 +147,21 @@ test("Starfall: matches when in combat, long cd allowed", function()
     local state = balance.build_state(ctx)
     state.in_combat = true
     state.enemy_count = 2
-    assert_true(balance.strategies[2].matches(ctx, state), "Starfall should match in combat")
+    assert_true(lane("Starfall").matches(ctx, state), "Starfall should match in combat")
 end)
 
 test("Starfall: does not match out of combat", function()
     local state = balance.build_state(ctx)
     state.in_combat = false
     state.enemy_count = 2
-    assert_false(balance.strategies[2].matches(ctx, state), "Starfall should not match out of combat")
+    assert_false(lane("Starfall").matches(ctx, state), "Starfall should not match out of combat")
 end)
 
 test("Starfall: matches on a single target (ST gate fix)", function()
     local state = balance.build_state(ctx)
     state.in_combat = true
     state.enemy_count = 1
-    assert_true(balance.strategies[2].matches(ctx, state), "Starfall should match with 1 enemy (was gated >= 2)")
+    assert_true(lane("Starfall").matches(ctx, state), "Starfall should match with 1 enemy (was gated >= 2)")
 end)
 
 test("Starfall: does not match when long cd blocked", function()
@@ -157,7 +170,7 @@ test("Starfall: does not match when long cd blocked", function()
     local state = balance.build_state(ctx)
     state.in_combat = true
     state.enemy_count = 2
-    local ok = balance.strategies[2].matches(ctx, state)
+    local ok = lane("Starfall").matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig
     assert_false(ok, "Starfall should not match when long cd blocked")
 end)
@@ -166,26 +179,26 @@ end)
 test("InsectSwarm: matches when debuff remains < 3", function()
     local state = balance.build_state(ctx)
     state.insect_swarm_remains = 1
-    assert_true(balance.strategies[6].matches(ctx, state), "InsectSwarm should match when debuff < 3")
+    assert_true(lane("InsectSwarm").matches(ctx, state), "InsectSwarm should match when debuff < 3")
 end)
 
 test("InsectSwarm: does not match when debuff remains >= 3", function()
     local state = balance.build_state(ctx)
     state.insect_swarm_remains = 5
-    assert_false(balance.strategies[6].matches(ctx, state), "InsectSwarm should not match when debuff >= 3")
+    assert_false(lane("InsectSwarm").matches(ctx, state), "InsectSwarm should not match when debuff >= 3")
 end)
 
 -- Moonfire: matches when debuff remains < 3
 test("Moonfire: matches when debuff remains < 3", function()
     local state = balance.build_state(ctx)
     state.moonfire_remains = 1
-    assert_true(balance.strategies[3].matches(ctx, state), "Moonfire should match when debuff < 3")
+    assert_true(lane("Moonfire").matches(ctx, state), "Moonfire should match when debuff < 3")
 end)
 
 test("Moonfire: does not match when debuff remains >= 3", function()
     local state = balance.build_state(ctx)
     state.moonfire_remains = 5
-    assert_false(balance.strategies[3].matches(ctx, state), "Moonfire should not match when debuff >= 3")
+    assert_false(lane("Moonfire").matches(ctx, state), "Moonfire should not match when debuff >= 3")
 end)
 
 -- Wrath: matches when mana >= 15 during solar eclipse (W3.3: Wrath is the
@@ -194,41 +207,41 @@ test("Wrath: matches when mana >= 15 during solar eclipse", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
     state.eclipse_solar = true
-    assert_true(balance.strategies[5].matches(ctx, state), "Wrath should match when mana >= 15 in solar eclipse")
+    assert_true(lane("Wrath").matches(ctx, state), "Wrath should match when mana >= 15 in solar eclipse")
 end)
 
 test("Wrath: does not match when mana < 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 10
     state.eclipse_solar = true
-    assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match when mana < 15")
+    assert_false(lane("Wrath").matches(ctx, state), "Wrath should not match when mana < 15")
 end)
 
 test("Wrath: does not match without solar eclipse (Starfire is the filler)", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
     state.eclipse_solar = false
-    assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match without solar eclipse")
+    assert_false(lane("Wrath").matches(ctx, state), "Wrath should not match without solar eclipse")
 end)
 
 -- Starfire: matches when mana >= 15 (same condition, lower priority)
 test("Starfire: matches when mana >= 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
-    assert_true(balance.strategies[4].matches(ctx, state), "Starfire should match when mana >= 15")
+    assert_true(lane("Starfire").matches(ctx, state), "Starfire should match when mana >= 15")
 end)
 
 test("Starfire: does not match when mana < 15", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 10
-    assert_false(balance.strategies[4].matches(ctx, state), "Starfire should not match when mana < 15")
+    assert_false(lane("Starfire").matches(ctx, state), "Starfire should not match when mana < 15")
 end)
 
 test("Starfire: does not match during solar eclipse (Wrath is buffed instead)", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
     state.eclipse_solar = true
-    assert_false(balance.strategies[4].matches(ctx, state), "Starfire should not match during solar eclipse")
+    assert_false(lane("Starfire").matches(ctx, state), "Starfire should not match during solar eclipse")
 end)
 
 -- W3.4 lunar-phase mirror (2026-08-13): lunar eclipse (48518) buffs Starfire —
@@ -238,14 +251,14 @@ test("Starfire: matches during lunar eclipse (eclipse_lunar up)", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
     state.eclipse_lunar = true
-    assert_true(balance.strategies[4].matches(ctx, state), "Starfire should match during lunar eclipse")
+    assert_true(lane("Starfire").matches(ctx, state), "Starfire should match during lunar eclipse")
 end)
 
 test("Wrath: does not match during lunar eclipse (Wrath is solar-buffed only)", function()
     local state = balance.build_state(ctx)
     state.mana_pct = 80
     state.eclipse_lunar = true
-    assert_false(balance.strategies[5].matches(ctx, state), "Wrath should not match during lunar eclipse")
+    assert_false(lane("Wrath").matches(ctx, state), "Wrath should not match during lunar eclipse")
 end)
 
 -- Eclipse state (W3.3): build_state must read both eclipse buffs from NS.buff_up

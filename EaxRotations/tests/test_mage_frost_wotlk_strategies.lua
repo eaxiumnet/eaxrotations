@@ -26,6 +26,8 @@ local buffs = {}
 local cds = {}
 local has_pet = false
 local longcd = true
+-- Engine school lockout mask (ctx.school_lockout) — 16 = frost, 4 = fire.
+local lockout = 0
 
 local function ffb(secs) debuffs[44549] = secs end
 local function root(secs) debuffs[42917] = secs end
@@ -34,7 +36,7 @@ local function fof(up) buffs[44545] = up or nil end
 local function reset_env()
     hp, mana, combat, casting = 100, 100, true, false
     debuffs, buffs, cds = {}, {}, {}
-    has_pet, longcd = false, true
+    has_pet, longcd, lockout = false, true, 0
 end
 
 _G.EaxRotations = {
@@ -62,6 +64,12 @@ _G.EaxRotations = {
         local id = type(action) == "number" and action or (action and action.id)
         return cds[id] or 0
     end,
+    -- Real readiness channel for the shield/mana/burst lanes (mirrors the
+    -- engine contract: NS.spell_ready(spell, unit, opts) -> boolean).
+    spell_ready = function(spell, unit, opts)
+        local id = type(spell) == "number" and spell or (spell and spell.id)
+        return (cds[id] or 0) <= 0
+    end,
     has_pet = function() return has_pet end,
     should_use_long_cd = function(context, cd) return longcd end,
     PLAYER_UNIT = {},
@@ -86,6 +94,8 @@ local function scenario(label, strategy_name, expect)
         hp = hp,
         mana_pct = mana,
         enemy_count = 1,
+        school_lockout = lockout,
+        me = _G.EaxRotations.me,
         target = { is_casting = function() return casting end },
         settings = {},
     }
@@ -171,5 +181,55 @@ assert_lane("SummonWaterElemental blocked out of combat", "SummonWaterElemental"
     function() combat = false end, false)
 assert_lane("SummonWaterElemental blocked when long-CD gate refuses", "SummonWaterElemental",
     function() longcd = false end, false)
+
+-- ============================================================================
+-- School lockout wave (2026-09-11): the engine's loss-of-control mask
+-- (ctx.school_lockout) drives the off-school fallback. Fire Blast fires ONLY
+-- while the frost school is interrupted; every frost cast holds in that window.
+-- ============================================================================
+assert_lane("FireBlast fires while the frost school is locked", "FireBlast",
+    function() lockout = 16 end, true)
+assert_lane("FireBlast blocked with no lockout", "FireBlast", function() end, false)
+assert_lane("FireBlast blocked when fire is locked too", "FireBlast",
+    function() lockout = 16 + 4 end, false)
+assert_lane("FireBlast blocked out of combat", "FireBlast",
+    function() lockout = 16; combat = false end, false)
+assert_lane("Frostbolt holds while the frost school is locked", "Frostbolt",
+    function() lockout = 16 end, false)
+assert_lane("Frostbolt fires with no lockout", "Frostbolt", function() end, true)
+assert_lane("IceLance holds on a frozen target under a frost lock", "IceLance",
+    function() root(2); lockout = 16 end, false)
+assert_lane("DeepFreeze holds on a frozen target under a frost lock", "DeepFreeze",
+    function() root(2); lockout = 16 end, false)
+assert_lane("FrostfireBolt holds under a frost lock", "FrostfireBolt",
+    function() lockout = 16 end, false)
+
+-- ============================================================================
+-- Guide-pass lanes (2026-09-11): Mirror Image burst, Evocation mana refill and
+-- the Ice Barrier shield band. All read real NS.spell_ready.
+-- ============================================================================
+assert_lane("MirrorImage fires off cooldown in combat", "MirrorImage", function() end, true)
+assert_lane("MirrorImage blocked while on cooldown", "MirrorImage",
+    function() cds[55342] = 180 end, false)
+assert_lane("MirrorImage blocked out of combat", "MirrorImage",
+    function() combat = false end, false)
+assert_lane("MirrorImage blocked when long-CD gate refuses", "MirrorImage",
+    function() longcd = false end, false)
+assert_lane("Evocation fires below 40 mana", "Evocation",
+    function() mana = 39 end, true)
+assert_lane("Evocation blocked at 40 mana", "Evocation",
+    function() mana = 40 end, false)
+assert_lane("Evocation blocked while on cooldown", "Evocation",
+    function() mana = 20; cds[12051] = 120 end, false)
+assert_lane("Evocation blocked out of combat", "Evocation",
+    function() mana = 20; combat = false end, false)
+assert_lane("IceBarrier fires below 70% hp with no shield up", "IceBarrier",
+    function() hp = 60 end, true)
+assert_lane("IceBarrier blocked at 70% hp", "IceBarrier",
+    function() hp = 70 end, false)
+assert_lane("IceBarrier held while the shield is already up", "IceBarrier",
+    function() hp = 60; buffs[43039] = true end, false)
+assert_lane("IceBarrier blocked while on cooldown", "IceBarrier",
+    function() hp = 60; cds[43039] = 30 end, false)
 
 print("PASS test_mage_frost_wotlk_strategies")
