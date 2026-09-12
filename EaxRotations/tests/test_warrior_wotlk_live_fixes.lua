@@ -353,7 +353,8 @@ reset_spy()
 spy.stance = 3
 local fury = dofile("EaxRotations/classes/warrior/fury_wotlk.lua")
 assert_true(type(fury) == "table" and type(fury.build_state) == "function", "fury_wotlk returns module table")
-assert_eq(#fury.strategies, 8, "fury has 8 strategies")
+-- 2026-09-12 guide pass: 8 -> 12 (Cleave, HeroicStrike, Recklessness, HeroicThrow).
+assert_eq(#fury.strategies, 12, "fury has 12 strategies")
 
 -- W3.4 rage chain: fury reads rage via the REAL chain (context.rage first,
 -- then me:get_power(NS.POWER_RAGE)) — the mock unit is get_rage-less.
