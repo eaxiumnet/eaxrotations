@@ -2011,6 +2011,11 @@ M.SCENARIOS = {
     { name = "mana_critical",     overrides = { mana_pct = 4, player_mana = 120, player_mana_pct = 4 } },
     { name = "moving",           overrides = { is_moving = true } },
     { name = "target_casting",   overrides = { target_is_casting = true } },
+    -- Engine end-time hold shape (2026-09-12): target is casting but only 0.05s
+    -- of it is left, so an interrupt would land after the cast finished and
+    -- burn its cooldown. The interrupt lanes HOLD here; they still fire in the
+    -- plain target_casting shape above (absent remaining = fail-open).
+    { name = "target_cast_finishing", overrides = { target_is_casting = true, target_cast_remaining = 0.05 } },
     -- WotLK rogue Kick interrupt (2026-08-10): the three *_wotlk.lua rogue
     -- rotations gained a baseline Kick strategy (combat/subtlety/assassination
     -- had zero interrupt handling). It gates on in_combat + target_is_casting
@@ -3630,6 +3635,12 @@ function M.build_context_for(class_key, scenario, era)
         -- .lockout_school; the spells-school gate reads it so a locked school
         -- falls back off-school (school_locked_* scenarios below).
         school_lockout=true,
+        -- Engine cast/channel END TIME (2026-09-12): main_sylvanas publishes
+        -- context.target_cast_remaining from
+        -- unit:get_channeling_or_casting_remaining_sec(); the interrupt gate
+        -- reads it so a cast that lands first does not claim the cooldown.
+        -- Absent by default = "unknown" = the fail-open pre-signal behavior.
+        target_cast_remaining=true,
         fsr_inside=true, fsr_seconds=true, fsr_regen_delta=true, fsr_pause_ok=true,
         -- Friendly-target context (ranked): friendly_target_hp presents a
         -- friendly unit via NS.get_friendly_target_entry so the 5 healer
