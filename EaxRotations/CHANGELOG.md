@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+### Rotation Content — WotLK channel-clip wave (Mind Flay / Drain Soul)
+
+- **The engine channel clock is now the source of truth for Mind Flay.** The
+  wowsims fixtures this repo pins already model channel clipping
+  (`shadow_wotlk.apl.json`: `channelSpell 48156 Mind Flay` with
+  `interruptIf: gcdTimeToReady <= channelClipDelay`; `affliction_wotlk.apl.json`:
+  a conditional Drain Soul interruption), but `shared/mf_tick_compute_sylvanas.lua`
+  derived its tick count as `now - get_active_channel_cast_start_time()`, which is
+  blind to a haste-scaled channel and rounds every tick onto a hardcoded 1s
+  cadence. It now reads the engine's channel accessors (`get_channel_elapsed_ms` /
+  `get_channel_duration_ms` / `get_channel_remaining_ms` via
+  `shared/cast_timing_sylvanas.lua`), derives the tick interval as `duration / 3`,
+  and returns the real seconds left in the channel. The start-time arithmetic is
+  kept only as the fail-open fallback for a harness/build with no channel clock,
+  so an unpopulated field behaves exactly as before.
+- **The clip lanes were unreachable in the live dispatcher.** `main_sylvanas`
+  early-exits the whole strategy loop while casting/channeling, so the shadow
+  VT / SW:P / DP / Mind Blast clip lanes could never fire against a live Mind Flay
+  even though the battery (which does not run the dispatcher skip) showed them
+  matching. Channels are now **opt-in clip-managed** through a playstyle's
+  `channel_clip_ids` register option (merged into `registry.channel_clip_ids`, one
+  hash lookup per channeled frame): only a declared channel re-enters the decision
+  loop mid-channel, every other channel keeps the blanket skip, and a hard cast
+  always keeps it. The clipper lanes carry `skip_casting` so `evaluate_cast` lets
+  the replacement through mid-channel.
+- **Shadow priest**: Mind Flay (48156 / 48158 / 48155) declared clip-managed; the
+  VT / SW:P / DP / Mind Blast lanes clip at a tick boundary. The clip gate gains
+  an engine end-time rule — a debuff that would expire before *this* channel ends
+  is refreshed now even outside the lane's own 3s window.
+- **Affliction warlock**: Drain Soul declared clip-managed; the
+  Haunt / Corruption / UA / CoA refresh lanes carry `skip_casting` so an
+  execute-phase channel can be interrupted by a DoT that needs refreshing
+  (mirrors the fixture's unconditional Drain Soul interruption).
+- No new spell ids (the Mind Flay and Drain Soul ranks already existed), so no
+  allowlist churn; battery never-fires stays **0** for every affected spec.
+- **Honest scope note — what the API cannot express:** a rotation cannot stop a
+  channel except by casting the replacement, and there is no engine-side
+  "wait for the next tick" primitive, so clipping is expressed as "let the next
+  lane fire mid-channel", not as an explicit channel-stop. The channel-remaining
+  argument to the clip gate is passed by WotLK shadow only; the TBC/vanilla shadow
+  files get the improved tick clock through the shared module but keep their
+  static-window clip gate (unchanged behavior).
+
 ### Tooling — Release-Integrity Guard (shipped version vs published release)
 
 - **New gate: `tools/release_staleness_check.lua`** — fails when the version
