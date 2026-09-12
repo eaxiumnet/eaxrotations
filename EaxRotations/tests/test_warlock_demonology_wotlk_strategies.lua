@@ -24,14 +24,19 @@ local debuffs = {}
 local buffs = {}
 local long_cd_refused = {}
 
+local boss, enemies, aoe_ok = false, 1, false
+
 local function corr(secs) debuffs[47813] = secs end
 local function immo(secs) debuffs[47811] = secs end
+local function cod(secs) debuffs[47867] = secs end
+local function agony(secs) debuffs[47864] = secs end
 local function meta(up) buffs[47241] = up or nil end
 local function molten_core(up) buffs[71165] = up or nil end  -- MC proc (71165/47246/47245)
 local function decimation(up) buffs[63165] = up or nil end
 
 local function reset_env()
     combat, hp, mana = true, 100, 100
+    boss, enemies, aoe_ok = false, 1, false
     debuffs, buffs, long_cd_refused = {}, {}, {}
 end
 
@@ -54,6 +59,7 @@ _G.EaxRotations = {
         if long_cd_refused[seconds] then return false end
         return true
     end,
+    aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -74,7 +80,8 @@ local function scenario(label, strategy_name, expect)
         in_combat = combat,
         mana_pct = mana,
         hp = hp,
-        enemy_count = 1,
+        target_is_boss = boss,
+        enemy_count = enemies,
         target = { is_casting = function() return false end },
         settings = {},
     }
@@ -167,5 +174,43 @@ assert_lane("SoulFireDecimation blocked below 30% mana", "SoulFireDecimation",
 -- Plain SoulFire filler still gated at 30% mana.
 assert_lane("SoulFire blocked at 29% mana", "SoulFire",
     function() mana = 29 end, false)
+
+-- ============================================================================
+-- 2026-09-12 guide-pass lanes: the curse pair (Curse of Doom on a long boss
+-- fight, Curse of Agony otherwise), the Metamorphosis-form Immolation Aura
+-- and the Seed of Corruption AoE dump. Fire + hold on both sides.
+-- ============================================================================
+assert_lane("CurseOfDoom fires on a boss with the curse down", "CurseOfDoom",
+    function() boss = true end, true)
+assert_lane("CurseOfDoom refreshes at 2.9s remaining on a boss", "CurseOfDoom",
+    function() boss = true; cod(2.9) end, true)
+assert_lane("CurseOfDoom blocked at the 3.0s boundary", "CurseOfDoom",
+    function() boss = true; cod(3) end, false)
+assert_lane("CurseOfDoom blocked on a non-boss target", "CurseOfDoom",
+    function() end, false)
+assert_lane("CurseOfDoom blocked out of combat", "CurseOfDoom",
+    function() boss = true; combat = false end, false)
+
+assert_lane("CurseOfAgony fires with the curse down", "CurseOfAgony", function() end, true)
+assert_lane("CurseOfAgony refreshes at 2.9s remaining", "CurseOfAgony",
+    function() agony(2.9) end, true)
+assert_lane("CurseOfAgony blocked at the 3.0s boundary", "CurseOfAgony",
+    function() agony(3) end, false)
+assert_lane("CurseOfAgony blocked out of combat", "CurseOfAgony",
+    function() combat = false end, false)
+
+assert_lane("ImmolationAura fires inside the Metamorphosis window", "ImmolationAura",
+    function() meta(true) end, true)
+assert_lane("ImmolationAura blocked outside Metamorphosis", "ImmolationAura",
+    function() end, false)
+assert_lane("ImmolationAura blocked out of combat", "ImmolationAura",
+    function() meta(true); combat = false end, false)
+
+assert_lane("SeedOfCorruptionAoE fires into a 4-enemy pack", "SeedOfCorruptionAoE",
+    function() enemies = 4; aoe_ok = true end, true)
+assert_lane("SeedOfCorruptionAoE blocked at 3 enemies", "SeedOfCorruptionAoE",
+    function() enemies = 3; aoe_ok = true end, false)
+assert_lane("SeedOfCorruptionAoE fail-closed without the AoE module", "SeedOfCorruptionAoE",
+    function() enemies = 5; aoe_ok = false end, false)
 
 print("PASS test_warlock_demonology_wotlk_strategies")

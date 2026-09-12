@@ -44,6 +44,16 @@ local ACTION = {
     -- sits outside the pinned order (first, like arms' class-sibling template).
     Pummel = define("Pummel", { 6554, 6552 }, "Pummel"),
     BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),
+    -- 2026-09-12 guide pass (Wowhead WotLK-verified): the wowsims fury APL
+    -- casts Cleave 47520 (rage>=12, targets>1) and Heroic Strike 47450
+    -- (rage>=12, single target) as queued rage dumps, and the prepull/
+    -- autocastOtherCooldowns block carries Recklessness (1719, Berserker
+    -- only, 5-min, +100% crit on the next 3 specials). Heroic Throw 57755
+    -- is the ranged gap-closer the APL fires when auto + both CDs are away.
+    Cleave = define("Cleave", { 47520, 25231, 20569, 11609, 11608, 7369, 845 }, "Cleave"),
+    HeroicStrike = define("HeroicStrike", { 47450, 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+    Recklessness = define("Recklessness", 1719, "Recklessness"),
+    HeroicThrow = define("HeroicThrow", 57755, "HeroicThrow"),
 }
 
 local BATTLE_SHOUT_BUFF = { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
@@ -52,6 +62,9 @@ local BLOODSURGE_BUFF = { 46916, 70847 }
 
 local EXECUTE_RAGE_MIN = 15 -- WotLK Execute costs 15 rage
 local PUMMEL_RAGE_MIN  = 10 -- Pummel costs 10 rage
+local HEROIC_RAGE_MIN   = 30  -- queued Heroic Strike / Cleave threshold (prot precedent)
+local HEROIC_SWING_WINDOW = 1.0 -- queue the strike when the next auto lands within 1s
+local RECKLESSNESS_CD   = 300 -- 5-min burst CD (Berserker stance only)
 
 -- -----------------------------------------------------------------------------
 -- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
@@ -69,6 +82,16 @@ local function cd_remaining(action)
         if type(v) == "number" then return v end
     end
     return 0
+end
+
+-- Seconds until the main-hand auto swing lands (999 when unknown: gate fails
+-- closed so a queued strike never fires without a real swing clock).
+local function swing_time_until(me)
+    if me and NS and type(NS.swing_time_until) == "function" then
+        local ok, v = pcall(NS.swing_time_until, me)
+        if ok and type(v) == "number" then return v end
+    end
+    return 999
 end
 
 local function target_is_interruptible(target)
@@ -95,6 +118,10 @@ local fury_state = {
     bloodthirst_cd = 99,
     whirlwind_cd = 99,
     pummel_ready = false,
+    recklessness_ready = false,
+    heroic_throw_ready = false,
+    heroic_swing_imminent = false,
+    in_melee_range = true,
 }
 
 -- -----------------------------------------------------------------------------
@@ -128,6 +155,12 @@ local function build_state(context)
     state.bloodthirst_cd = cd_remaining(ACTION.Bloodthirst)
     state.whirlwind_cd = cd_remaining(ACTION.Whirlwind)
     state.pummel_ready = cd_remaining(ACTION.Pummel) <= 0
+    state.recklessness_ready = cd_remaining(ACTION.Recklessness) <= 0
+    state.heroic_throw_ready = cd_remaining(ACTION.HeroicThrow) <= 0
+    state.heroic_swing_imminent = swing_time_until(me) <= HEROIC_SWING_WINDOW
+    -- context.in_melee_range is published by main_sylvanas (me:is_in_melee_range);
+    -- a harness without it keeps the melee default so nothing changes there.
+    state.in_melee_range = (context and context.in_melee_range ~= false)
 
     return state
 end
@@ -170,6 +203,20 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.BattleShout, target = "self" },
     },
+    -- Recklessness: the fury burst CD (Berserker-stance only, 5 min, +100% crit
+    -- on the next 3 special attacks). Sits with Death Wish above the fillers.
+    {
+        name = "Recklessness",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "recklessness_ready", op = "truthy" },
+            { type = "state", field = "stance", op = "==", value = STANCE.BERSERKER },
+            { type = "custom", fn = function(context, state)
+                return should_use_long_cd(context, RECKLESSNESS_CD)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Recklessness, target = "self" },
+    },
     {
         name = "DeathWish",
         conditions = {
@@ -199,6 +246,18 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Bloodthirst, target = "target" },
     },
+    -- Cleave: the AoE queued rage dump (wowsims fury APL: targets > 1). The
+    -- rage floor mirrors the prot Heroic-Strike dump so it cannot starve
+    -- Bloodthirst/Whirlwind.
+    {
+        name = "Cleave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "rage", op = ">=", value = HEROIC_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.Cleave, target = "target" },
+    },
     {
         name = "Whirlwind",
         conditions = {
@@ -208,6 +267,29 @@ local DSL_DEFS = {
             { type = "state", field = "stance", op = "==", value = STANCE.BERSERKER },
         },
         action = { type = "cast", spell = ACTION.Whirlwind, target = "target" },
+    },
+    -- Heroic Strike: the single-target queued rage dump, gated on the real
+    -- swing clock (prot precedent) so it only queues when the auto is imminent.
+    {
+        name = "HeroicStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = "<=", value = 1 },
+            { type = "state", field = "rage", op = ">=", value = HEROIC_RAGE_MIN },
+            { type = "state", field = "heroic_swing_imminent", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
+    },
+    -- Heroic Throw: the ranged filler the APL falls back to when out of melee
+    -- (auto swing + both main CDs unavailable). Gate fails closed in melee.
+    {
+        name = "HeroicThrow",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "in_melee_range", op = "falsy" },
+            { type = "state", field = "heroic_throw_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.HeroicThrow, target = "target" },
     },
     {
         name = "Slam",
@@ -242,11 +324,15 @@ local DSL_DEFS = {
 local strategies = {
     { name = "Pummel" },
     { name = "BattleShout" },
+    { name = "Recklessness" },
     { name = "DeathWish" },
     { name = "Execute" },
     { name = "Bloodthirst" },
+    { name = "Cleave" },
     { name = "Whirlwind" },
+    { name = "HeroicStrike" },
     { name = "Slam" },
+    { name = "HeroicThrow" },
     { name = "BerserkerStance" },
 }
 

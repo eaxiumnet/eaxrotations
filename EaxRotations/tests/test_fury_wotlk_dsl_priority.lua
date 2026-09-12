@@ -101,9 +101,19 @@ package.loaded["shared/aoe_hit_volume_sylvanas"] = nil
 print("=== test_fury_wotlk_dsl_priority ===")
 
 local fury = dofile("EaxRotations/classes/warrior/fury_wotlk.lua")
+
+-- Name-resolved lane lookup (2026-09-12): the guide pass inserted four lanes,
+-- so positional strategies[N] assertions would silently test the wrong lane
+-- (the bear/fire lesson). Resolve each pin by name instead.
+local function lane(name)
+    for i = 1, #fury.strategies do
+        if fury.strategies[i].name == name then return fury.strategies[i] end
+    end
+    error("fury lane not found: " .. name)
+end
 assert_true(type(fury) == "table", "fury_wotlk should return a table")
 assert_true(type(fury.strategies) == "table", "fury_wotlk should expose strategies")
-assert_true(#fury.strategies == 8, "fury_wotlk should have 8 strategies")
+assert_true(#fury.strategies == 12, "fury_wotlk should have 12 strategies")
 
 local registered = _G.EaxRotations._registered_fury
 assert_true(registered ~= nil, "fury_wotlk should register under 'fury'")
@@ -111,22 +121,40 @@ assert_true(registered ~= nil, "fury_wotlk should register under 'fury'")
 -- ============================================================================
 -- Priority order test
 -- ============================================================================
+-- 2026-09-12 guide pass: Cleave (AoE rage dump), HeroicStrike (queued single-
+-- target dump), Recklessness (Berserker burst CD) and HeroicThrow (ranged gap
+-- filler) join the list from the wowsims fury APL.
 local expected_order = {
     "Pummel",
     "BattleShout",
+    "Recklessness",
     "DeathWish",
     "Execute",
     "Bloodthirst",
+    "Cleave",
     "Whirlwind",
+    "HeroicStrike",
     "Slam",
+    "HeroicThrow",
     "BerserkerStance",
 }
 
-test("priority order: 7 strategies match expected order", function()
+test("priority order: 12 strategies match expected order", function()
     for i = 1, #expected_order do
+        assert_true(fury.strategies[i] ~= nil, "missing strategy at position " .. i)
         assert_true(fury.strategies[i].name == expected_order[i],
             string.format("Strategy %d should be %s, got %s", i, expected_order[i], fury.strategies[i].name))
     end
+end)
+
+-- The pinned wowsims chain (Bloodthirst < Whirlwind < Slam) must stay relative-
+-- ordered no matter what guide lanes are inserted around it.
+test("pinned chain stays ordered (Bloodthirst < Whirlwind < Slam)", function()
+    local pos = {}
+    for i = 1, #fury.strategies do pos[fury.strategies[i].name] = i end
+    assert_true(pos.Bloodthirst and pos.Whirlwind and pos.Slam, "pinned chain lanes must exist")
+    assert_true(pos.Bloodthirst < pos.Whirlwind and pos.Whirlwind < pos.Slam,
+        "Bloodthirst < Whirlwind < Slam order violated")
 end)
 
 -- ============================================================================
@@ -139,26 +167,26 @@ local cast_ctx = { in_combat = true, target = { is_casting = function() return t
 -- Pummel (1): matches when in combat and target is casting (baseline interrupt)
 test("Pummel: matches when target is casting", function()
     local state = fury.build_state(cast_ctx)
-    assert_true(fury.strategies[1].matches(cast_ctx, state), "Pummel should match when target is casting")
+    assert_true(lane("Pummel").matches(cast_ctx, state), "Pummel should match when target is casting")
 end)
 
 -- Pummel: should NOT match when target is not casting
 test("Pummel: does not match when target is not casting", function()
     local state = fury.build_state(ctx)
-    assert_false(fury.strategies[1].matches(ctx, state), "Pummel should not match when target is not casting")
+    assert_false(lane("Pummel").matches(ctx, state), "Pummel should not match when target is not casting")
 end)
 
 -- Pummel: should NOT match out of combat
 test("Pummel: does not match when out of combat", function()
     local state = fury.build_state({ in_combat = false, target = { is_casting = function() return true end }, settings = {} })
-    assert_false(fury.strategies[1].matches({ in_combat = false, target = { is_casting = function() return true end }, settings = {} }, state),
+    assert_false(lane("Pummel").matches({ in_combat = false, target = { is_casting = function() return true end }, settings = {} }, state),
         "Pummel should not match when out of combat")
 end)
 
 -- BattleShout (2): should match when buff is down
 test("BattleShout: matches when buff is down", function()
     local state = fury.build_state(ctx)
-    local s = fury.strategies[2]
+    local s = lane("BattleShout")
     assert_true(s.name == "BattleShout", "strategy[2] is BattleShout")
     assert_true(s.matches(ctx, state), "BattleShout should match when buff is down")
 end)
@@ -168,7 +196,7 @@ test("BattleShout: does not match when buff is up", function()
     local orig_buff_up = _G.EaxRotations.buff_up
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[2].matches(ctx, state)
+    local ok = lane("BattleShout").matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff_up
     assert_false(ok, "BattleShout should not match when buff is up")
 end)
@@ -176,7 +204,7 @@ end)
 -- DeathWish (3): should match when in combat and ready
 test("DeathWish: matches when in combat and ready", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[3].matches(ctx, state), "DeathWish should match when ready")
+    assert_true(lane("DeathWish").matches(ctx, state), "DeathWish should match when ready")
 end)
 
 -- DeathWish: should NOT match when should_use_long_cd returns false
@@ -184,7 +212,7 @@ test("DeathWish: does not match when long CD blocked", function()
     local orig_long_cd = _G.EaxRotations.should_use_long_cd
     _G.EaxRotations.should_use_long_cd = function(ctx, cd) return false end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[3].matches(ctx, state)
+    local ok = lane("DeathWish").matches(ctx, state)
     _G.EaxRotations.should_use_long_cd = orig_long_cd
     assert_false(ok, "DeathWish should not match when long CD blocked")
 end)
@@ -192,21 +220,21 @@ end)
 -- Execute (4): should match when target HP < 20% and rage >= 10
 test("Execute: matches when target HP < 20% and rage >= 10", function()
     local state = fury.build_state({ in_combat = true, target = { get_health_percentage = function() return 15 end }, settings = {} })
-    assert_true(fury.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_true(lane("Execute").matches({ in_combat = true, target = {}, settings = {} }, state),
         "Execute should match when target HP < 20% and rage >= 10")
 end)
 
 -- Execute: should NOT match when target HP >= 20%
 test("Execute: does not match when target HP >= 20%", function()
     local state = fury.build_state({ in_combat = true, target = { get_health_percentage = function() return 50 end }, settings = {} })
-    assert_false(fury.strategies[4].matches({ in_combat = true, target = {}, settings = {} }, state),
+    assert_false(lane("Execute").matches({ in_combat = true, target = {}, settings = {} }, state),
         "Execute should not match when target HP >= 20%")
 end)
 
 -- Bloodthirst (5): should match when rage >= 30
 test("Bloodthirst: matches when rage >= 30", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[5].matches(ctx, state), "Bloodthirst should match when rage >= 30")
+    assert_true(lane("Bloodthirst").matches(ctx, state), "Bloodthirst should match when rage >= 30")
 end)
 
 -- Bloodthirst: should NOT match when rage < 30
@@ -214,7 +242,7 @@ test("Bloodthirst: does not match when rage < 30", function()
     local orig_rage = _G.EaxRotations.me.get_power
     _G.EaxRotations.me.get_power = function() return 20 end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[5].matches(ctx, state)
+    local ok = lane("Bloodthirst").matches(ctx, state)
     _G.EaxRotations.me.get_power = orig_rage
     assert_false(ok, "Bloodthirst should not match when rage < 30")
 end)
@@ -222,7 +250,7 @@ end)
 -- Whirlwind (6): should match when rage >= 25
 test("Whirlwind: matches when rage >= 25", function()
     local state = fury.build_state(ctx)
-    assert_true(fury.strategies[6].matches(ctx, state), "Whirlwind should match when rage >= 25")
+    assert_true(lane("Whirlwind").matches(ctx, state), "Whirlwind should match when rage >= 25")
 end)
 
 -- Slam (7): Bloodsurge-proc-gated (wowsims fury APL: auraIsActive 46916/70847);
@@ -231,7 +259,7 @@ test("Slam: matches when rage >= 15 with Bloodsurge proc", function()
     local orig_buff_up = _G.EaxRotations.buff_up
     _G.EaxRotations.buff_up = function(unit, ids) return true end -- Bloodsurge proc up
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[7].matches(ctx, state)
+    local ok = lane("Slam").matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff_up
     assert_true(ok, "Slam should match when rage >= 15 and Bloodsurge is up")
 end)
@@ -239,7 +267,7 @@ end)
 -- Slam: should NOT match when the Bloodsurge proc is down (no free-cast spam)
 test("Slam: does not match without Bloodsurge proc", function()
     local state = fury.build_state(ctx)
-    assert_false(fury.strategies[7].matches(ctx, state), "Slam must not fire without Bloodsurge (proc gate)")
+    assert_false(lane("Slam").matches(ctx, state), "Slam must not fire without Bloodsurge (proc gate)")
 end)
 
 -- Slam: should NOT match when rage < 15 even with the proc
@@ -249,7 +277,7 @@ test("Slam: does not match when rage < 15", function()
     _G.EaxRotations.buff_up = function(unit, ids) return true end
     _G.EaxRotations.me.get_power = function() return 10 end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[7].matches(ctx, state)
+    local ok = lane("Slam").matches(ctx, state)
     _G.EaxRotations.buff_up = orig_buff_up
     _G.EaxRotations.me.get_power = orig_rage
     assert_false(ok, "Slam should not match when rage < 15")
@@ -260,14 +288,14 @@ test("BerserkerStance: matches when not in Berserker stance", function()
     local orig_stance = _G.EaxRotations.me.get_stance
     _G.EaxRotations.me.get_stance = function() return 1 end
     local state = fury.build_state(ctx)
-    local ok = fury.strategies[8].matches(ctx, state)
+    local ok = lane("BerserkerStance").matches(ctx, state)
     _G.EaxRotations.me.get_stance = orig_stance
     assert_true(ok, "BerserkerStance should match from Battle stance in combat")
 end)
 
 test("BerserkerStance: does not match when already in Berserker", function()
     local state = fury.build_state(ctx)
-    assert_false(fury.strategies[8].matches(ctx, state), "BerserkerStance should not match when already Berserker")
+    assert_false(lane("BerserkerStance").matches(ctx, state), "BerserkerStance should not match when already Berserker")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

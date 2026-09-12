@@ -30,6 +30,13 @@ local ACTION = {
     SeedOfCorruption = define("SeedOfCorruption", { 47836, 27243 }, "SeedOfCorruption"),
     DrainSoul = define("DrainSoul", DRAIN_SOUL_IDS, "DrainSoul"),
     ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    -- 2026-09-12 guide pass (Wowhead WotLK-verified): Curse of Doom 47867
+    -- (the 1min boss curse the wowsims affliction/demo fixtures cast when
+    -- remainingTime > 60s), Summon Infernal 1122 (10-min burst guardian)
+    -- and Drain Life 47857 (WotLK max rank, sustain band).
+    CurseOfDoom = define("CurseOfDoom", 47867, "CurseOfDoom"),
+    SummonInfernal = define("SummonInfernal", 1122, "SummonInfernal"),
+    DrainLife = define("DrainLife", 47857, "DrainLife"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
 }
 
@@ -40,6 +47,11 @@ local UNSTABLE_AFFLICTION_DEBUFF = { 47843, 30405, 30404, 30108 }
 local CORRUPTION_DEBUFF = { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local CURSE_OF_AGONY_DEBUFF = { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local HAUNT_DEBUFF = { 59164, 48181 }
+local CURSE_OF_DOOM_DEBUFF = { 47867 }
+-- Nightfall proc (WotLK talent): Corruption/Drain Life ticks roll Shadow
+-- Trance (17941, 10s), which makes the NEXT Shadow Bolt instant. The sim
+-- models it through the aura rather than a separate cast action.
+local SHADOW_TRANCE_BUFF = { 17941 }
 
 local affliction_state = {
     target_hp = 100,
@@ -51,7 +63,25 @@ local affliction_state = {
     haunt_remains = 0,
     corruption_remains = 0,
     agony_remains = 0,
+    cod_remains = 0,
+    target_is_boss = false,
+    shadow_trance_up = false,
+    infernal_ready = false,
 }
+
+-- Cooldown reads via the real API (NS.cooldown_remains / get_spell_cooldown,
+-- both 0 when unknown) — never the mock-only action:cooldown_remaining().
+local function cd_remaining(action)
+    if NS.cooldown_remains then
+        local v = NS.cooldown_remains(action)
+        if type(v) == "number" then return v end
+    end
+    if NS.get_spell_cooldown then
+        local v = NS.get_spell_cooldown(action)
+        if type(v) == "number" then return v end
+    end
+    return 0
+end
 
 local function build_state(context)
     local state = spec_kit.safe_state(affliction_state)
@@ -68,6 +98,10 @@ local function build_state(context)
     state.haunt_remains = (target and NS.debuff_remains and NS.debuff_remains(target, HAUNT_DEBUFF)) or 0
     state.corruption_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CORRUPTION_DEBUFF)) or 0
     state.agony_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF)) or 0
+    state.cod_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF)) or 0
+    state.target_is_boss = (context and context.target_is_boss) == true
+    state.shadow_trance_up = (me and NS.buff_up and NS.buff_up(me, SHADOW_TRANCE_BUFF)) or false
+    state.infernal_ready = cd_remaining(ACTION.SummonInfernal) <= 0
     return state
 end
 
@@ -100,6 +134,18 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target", opts = { skip_casting = true } },
     },
+    -- Long-fight boss curse: Curse of Doom out-values Curse of Agony only when
+    -- its 1-minute duration will run (a boss). Placed BEFORE CoA so it claims
+    -- the curse slot on a boss and CoA keeps it everywhere else.
+    {
+        name = "CurseOfDoom",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_boss", op = "truthy" },
+            { type = "state", field = "cod_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfDoom, target = "target", label = "[AFFL WOTLK] Curse of Doom" },
+    },
     {
         name = "SeedOfCorruptionAoE",
         conditions = {
@@ -113,6 +159,41 @@ local DSL_DEFS = {
             end },
         },
         action = { type = "cast", spell = ACTION.SeedOfCorruption, target = "target" },
+    },
+    -- Summon Infernal: the 10-minute burst guardian every WotLK warlock spec
+    -- opens with. Long-CD gate mirrors the Metamorphosis/DeathWish idiom.
+    {
+        name = "SummonInfernal",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "infernal_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 600) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SummonInfernal, target = "target", label = "[AFFL WOTLK] Summon Infernal" },
+    },
+    -- Nightfall proc: Shadow Trance (17941) makes the next Shadow Bolt
+    -- instant, so spend it ahead of the plain filler.
+    {
+        name = "NightfallProc",
+        conditions = {
+            { type = "state", field = "shadow_trance_up", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[AFFL WOTLK] Shadow Bolt (Nightfall)" },
+    },
+    -- Drain Life sustain band: solo/leveling self-healing is part of the
+    -- affliction identity (the TBC sibling carries the same lane).
+    {
+        name = "DrainLife",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 55 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.DrainLife, target = "target", label = "[AFFL WOTLK] Drain Life" },
     },
     {
         name = "DrainSoul",
@@ -148,8 +229,12 @@ local strategies = {
     { name = "Haunt" },
     { name = "Corruption" },
     { name = "UnstableAffliction" },
+    { name = "CurseOfDoom" },
     { name = "CurseOfAgony" },
     { name = "SeedOfCorruptionAoE" },
+    { name = "SummonInfernal" },
+    { name = "NightfallProc" },
+    { name = "DrainLife" },
     { name = "DrainSoul" },
     { name = "ShadowBolt" },
     { name = "LifeTap" },

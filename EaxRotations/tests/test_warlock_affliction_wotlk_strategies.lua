@@ -28,8 +28,14 @@ local function ua(secs) debuffs[47843] = secs end
 local function corr(secs) debuffs[47813] = secs end
 local function agony(secs) debuffs[47864] = secs end
 local function haunt(secs) debuffs[59164] = secs end
+local function cod(secs) debuffs[47867] = secs end
 
 local enemies, aoe_ok = 1, false
+-- 2026-09-12 guide-pass knobs: boss target, Shadow Trance (Nightfall) proc,
+-- Summon Infernal cooldown, and the inbound ctx/settings.
+local boss = false
+local trance = false
+local infernal_cd = 0
 -- Captured from the REAL spec: the register options and the opts the DSL hands
 -- to try_cast when a lane executes (channel-clip opt-in pins, 2026-09-12).
 local registered_options = nil
@@ -39,6 +45,7 @@ local function reset_env()
     combat, target_hp, hp, mana = true, 100, 100, 100
     debuffs = {}
     enemies, aoe_ok = 1, false
+    boss, trance, infernal_cd = false, false, 0
 end
 
 _G.EaxRotations = {
@@ -50,7 +57,20 @@ _G.EaxRotations = {
         end
         return 0
     end,
-    buff_up = function() return false end,
+    -- 17941 = Shadow Trance (Nightfall proc).
+    buff_up = function(unit, ids)
+        if ids then
+            for _, id in ipairs(ids) do
+                if id == 17941 then return trance end
+            end
+        end
+        return false
+    end,
+    cooldown_remains = function(spell)
+        local id = type(spell) == "number" and spell or (spell and spell.ids and spell.ids[1]) or 0
+        if id == 1122 then return infernal_cd end
+        return 0
+    end,
     aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
     try_cast = function(spell, target, label, opts) last_cast_opts = opts; return true end,
     log = function() end,
@@ -74,6 +94,7 @@ local function scenario(label, strategy_name, expect)
         mana_pct = mana,
         hp = hp,
         target_hp = target_hp,
+        target_is_boss = boss,
         enemy_count = enemies,
         target = { is_casting = function() return false end },
         settings = {},
@@ -162,6 +183,45 @@ assert_lane("SeedOfCorruptionAoE blocked at 3 enemies", "SeedOfCorruptionAoE",
     function() enemies = 3; aoe_ok = true end, false)
 assert_lane("SeedOfCorruptionAoE fail-closed without the AoE module", "SeedOfCorruptionAoE",
     function() enemies = 5; aoe_ok = false end, false)
+
+-- ============================================================================
+-- 2026-09-12 guide-pass lanes: Curse of Doom (long boss fight), Summon
+-- Infernal (long-CD guardian), Nightfall (Shadow Trance proc) and the Drain
+-- Life sustain band. Fire + hold on both sides of every new gate.
+-- ============================================================================
+assert_lane("CurseOfDoom fires on a boss with the curse down", "CurseOfDoom",
+    function() boss = true end, true)
+assert_lane("CurseOfDoom refreshes at 2.9s remaining on a boss", "CurseOfDoom",
+    function() boss = true; cod(2.9) end, true)
+assert_lane("CurseOfDoom blocked at the 3.0s boundary", "CurseOfDoom",
+    function() boss = true; cod(3) end, false)
+assert_lane("CurseOfDoom blocked on a non-boss target", "CurseOfDoom",
+    function() end, false)
+assert_lane("CurseOfDoom blocked out of combat", "CurseOfDoom",
+    function() boss = true; combat = false end, false)
+
+assert_lane("SummonInfernal fires when the 10-min CD is up", "SummonInfernal",
+    function() infernal_cd = 0 end, true)
+assert_lane("SummonInfernal blocked while the CD is running", "SummonInfernal",
+    function() infernal_cd = 30 end, false)
+assert_lane("SummonInfernal blocked out of combat", "SummonInfernal",
+    function() infernal_cd = 0; combat = false end, false)
+
+assert_lane("NightfallProc fires while Shadow Trance is up", "NightfallProc",
+    function() trance = true end, true)
+assert_lane("NightfallProc blocked without the proc", "NightfallProc",
+    function() end, false)
+assert_lane("NightfallProc blocked below 20% mana even with the proc", "NightfallProc",
+    function() trance = true; mana = 19 end, false)
+
+assert_lane("DrainLife fires below 55% hp with mana available", "DrainLife",
+    function() hp = 54 end, true)
+assert_lane("DrainLife blocked at the 55% hp boundary", "DrainLife",
+    function() hp = 55 end, false)
+assert_lane("DrainLife blocked below 20% mana", "DrainLife",
+    function() hp = 30; mana = 19 end, false)
+assert_lane("DrainLife blocked out of combat", "DrainLife",
+    function() hp = 30; combat = false end, false)
 
 -- ============================================================================
 -- Channel-clip opt-in (2026-09-12): Drain Soul is a declared clip-managed

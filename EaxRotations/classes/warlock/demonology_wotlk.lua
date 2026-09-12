@@ -26,6 +26,14 @@ local ACTION = {
     -- audit-pinned).
     Incinerate = define("Incinerate", { 47838, 32231, 29722 }, "Incinerate"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
+    -- 2026-09-12 guide pass (Wowhead WotLK-verified): the demo/affliction
+    -- fixtures’ long-fight curse Curse of Doom 47867, the default curse
+    -- Curse of Agony 47864, the AoE Seed of Corruption 47836 (already in the
+    -- local bridge) and Immolation Aura 50589 (Metamorphosis-form 30s CD).
+    CurseOfDoom = define("CurseOfDoom", 47867, "CurseOfDoom"),
+    CurseOfAgony = define("CurseOfAgony", { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    SeedOfCorruption = define("SeedOfCorruption", { 47836, 27243 }, "SeedOfCorruption"),
+    ImmolationAura = define("ImmolationAura", 50589, "ImmolationAura"),
 }
 
 -- WotLK max-rank ids FIRST (literal id matching — without 47811/47813 the
@@ -37,6 +45,8 @@ local METAMORPHOSIS_BUFF = { 47241 }
 -- Decimation is the single-rank 63165 (10s, sub-35% target).
 local MOLTEN_CORE_BUFF = { 71165, 47246, 47245 }
 local DECIMATION_BUFF = { 63165 }
+local CURSE_OF_DOOM_DEBUFF = { 47867 }
+local CURSE_OF_AGONY_DEBUFF = { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 
 local DEMO_SCHEMA = {
     enemy_count = 1, in_combat = false,
@@ -45,6 +55,7 @@ local DEMO_SCHEMA = {
     molten_core_up = false,
     decimation_up = false,
     hp = 100, mana_pct = 100,
+    cod_remains = 0, agony_remains = 0, target_is_boss = false,
 }
 
 local demonology_state = {}
@@ -64,6 +75,9 @@ local function build_state(context)
     state.metamorphosis_up = (me and NS.buff_up and NS.buff_up(me, METAMORPHOSIS_BUFF)) or false
     state.molten_core_up = (me and NS.buff_up and NS.buff_up(me, MOLTEN_CORE_BUFF)) or false
     state.decimation_up = (me and NS.buff_up and NS.buff_up(me, DECIMATION_BUFF)) or false
+    state.cod_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF)) or 0
+    state.agony_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF)) or 0
+    state.target_is_boss = (context and context.target_is_boss) == true
     -- Demo signature procs (Wowhead-verified buff ids): Molten Core
     -- (Corruption-tick proc empowering the next 3 Incinerate/Soul Fire casts)
     -- and Decimation (Shadow Bolt/Incinerate/Soul Fire on a sub-35% target
@@ -86,6 +100,27 @@ local DSL_DEFS = {
             end },
         },
         action = { type = "cast", spell = ACTION.Metamorphosis, target = "self", label = "[DEMONOLOGY WOTLK] Metamorphosis" },
+    },
+    -- Curses lead the real demo rotation (the fixtures cast Curse of Doom on a
+    -- long/boss fight and Curse of Agony otherwise). Both sit ABOVE Corruption
+    -- so the curse is up before the DoT cycle; the pinned sim chain
+    -- Corruption < Immolate < SoulFire < ShadowBolt is untouched.
+    {
+        name = "CurseOfDoom",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_boss", op = "truthy" },
+            { type = "state", field = "cod_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfDoom, target = "target", label = "[DEMONOLOGY WOTLK] Curse of Doom" },
+    },
+    {
+        name = "CurseOfAgony",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "agony_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target", label = "[DEMONOLOGY WOTLK] Curse of Agony" },
     },
     {
         name = "Corruption",
@@ -129,6 +164,30 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.SoulFire, target = "target", label = "[DEMONOLOGY WOTLK] Soul Fire" },
     },
+    -- Metamorphosis-form ability (50589): a 30s-CD instant the demo spec spends
+    -- while transformed. Gated on the real Metamorphosis aura, so it is silent
+    -- outside the window.
+    {
+        name = "ImmolationAura",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "metamorphosis_up", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.ImmolationAura, target = "target", label = "[DEMONOLOGY WOTLK] Immolation Aura" },
+    },
+    -- AoE DoT: Seed of Corruption into a pack (mirrors the affliction volume
+    -- gate — below 4 targets Shadow Bolt is the better filler).
+    {
+        name = "SeedOfCorruptionAoE",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return (state.enemy_count or 1) >= 4
+                    and NS.aoe_target_meets and NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SeedOfCorruption, target = "target", label = "[DEMONOLOGY WOTLK] Seed of Corruption" },
+    },
     {
         name = "ShadowBolt",
         conditions = {
@@ -157,9 +216,13 @@ local strategies = {
     { name = "Metamorphosis" },
     { name = "IncinerateProc" },
     { name = "SoulFireDecimation" },
+    { name = "CurseOfDoom" },
+    { name = "CurseOfAgony" },
     { name = "Corruption" },
     { name = "Immolate" },
+    { name = "ImmolationAura" },
     { name = "SoulFire" },
+    { name = "SeedOfCorruptionAoE" },
     { name = "ShadowBolt" },
     { name = "LifeTap" },
 }

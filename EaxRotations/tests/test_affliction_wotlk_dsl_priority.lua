@@ -97,13 +97,22 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    -- wowsims APL order: Haunt -> Corruption -> UnstableAffliction -> CoA -> DrainSoul -> ShadowBolt
-    -- (affliction.apl.json: Corruption refresh sits above UA refresh)
-    local expected = { "Haunt", "Corruption", "UnstableAffliction", "CurseOfAgony", "SeedOfCorruptionAoE", "DrainSoul", "ShadowBolt" }
-    for i, name in ipairs(expected) do
-        local s = strategies[i]
-        if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
-        if s.name ~= name then return false, "position " .. i .. ": expected " .. name .. " but got " .. (s.name or "nil") end
+    -- wowsims APL order: Haunt -> Corruption -> UnstableAffliction -> CoA ->
+    -- SeedOfCorruptionAoE -> DrainSoul -> ShadowBolt (affliction.apl.json:
+    -- Corruption refresh sits above UA refresh).
+    -- NAME-resolved, not positional: the 2026-09-12 guide pass inserted
+    -- CurseOfDoom/SummonInfernal/NightfallProc/DrainLife into this file, and a
+    -- positional assertion silently breaks on any insertion (the bear/fire
+    -- lesson). Assert the RELATIVE order of the pinned chain instead.
+    local chain = { "Haunt", "Corruption", "UnstableAffliction", "CurseOfAgony", "SeedOfCorruptionAoE", "DrainSoul", "ShadowBolt" }
+    local pos = {}
+    for i = 1, #strategies do pos[strategies[i].name] = i end
+    local last = 0
+    for _, name in ipairs(chain) do
+        local p = pos[name]
+        if not p then return false, "missing strategy " .. name end
+        if p <= last then return false, "order violated at " .. name .. " (position " .. p .. ")" end
+        last = p
     end
     return true
 end

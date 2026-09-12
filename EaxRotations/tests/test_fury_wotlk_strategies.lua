@@ -27,6 +27,11 @@ local buffs = {}             -- buff id -> true
 local target_casting = false
 local interruptible = true
 local long_cd_ok = true
+-- 2026-09-12 guide-pass knobs: pack size (Cleave), the melee-range flag
+-- (Heroic Throw) and the main-hand swing clock (Heroic Strike queue window).
+local enemy_count = 1
+local in_melee = true
+local swing_secs = 999
 
 local me = {
     get_power = function() return 0 end,
@@ -61,6 +66,7 @@ _G.EaxRotations = {
         return false
     end,
     cooldown_remains = function(action) return cds[action and action.id] or 0 end,
+    swing_time_until = function() return swing_secs end,
     is_interruptible = function() return interruptible end,
     should_use_long_cd = function() return long_cd_ok end,
     spell_ready = function() return true end,
@@ -88,9 +94,10 @@ local function scenario(label, strategy_name, mutations, expect_match, in_combat
     local save = { stance, ctx_rage, target_hp, target_casting, interruptible, long_cd_ok }
     for k in pairs(cds) do cds[k] = nil end
     for k in pairs(buffs) do buffs[k] = nil end
+    enemy_count, in_melee, swing_secs = 1, true, 999
     mutations()
     local combat = in_combat ~= false
-    local ctx = { in_combat = combat, target = mk_target(), settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining, enemy_count = 1, rage = ctx_rage }
+    local ctx = { in_combat = combat, target = mk_target(), settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining, enemy_count = enemy_count, in_melee_range = in_melee, rage = ctx_rage }
     local state = result.build_state(ctx)
     local s = find_strategy(strategy_name)
     local matched = s.matches(ctx, state)
@@ -188,4 +195,43 @@ assert_false(find_strategy("BattleShout").matches(bs_ctx, result.build_state(bs_
 -- interrupt whose lead is at or below 0.30s is refused -- the cast lands
 -- first and the cooldown is wasted. Unknown remaining stays fail-open.
 -- ============================================================================
-scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)print("PASS test_fury_wotlk_strategies")
+scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 15; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)-- ============================================================================
+-- 2026-09-12 guide-pass lanes: Recklessness (fury burst CD), Cleave and
+-- Heroic Strike (the queued rage dumps) and Heroic Throw (the out-of-melee
+-- filler). Fire + hold on both sides of every new gate.
+-- ============================================================================
+scenario("Recklessness fires in Berserker when off cooldown", "Recklessness",
+    function() long_cd_ok = true end, true)
+scenario("Recklessness blocked on cooldown", "Recklessness",
+    function() cds[1719] = 60 end, false)
+scenario("Recklessness blocked in Battle stance", "Recklessness",
+    function() stance = STANCE.BATTLE end, false)
+scenario("Recklessness suppressed when the long-CD policy declines", "Recklessness",
+    function() long_cd_ok = false end, false)
+
+scenario("Cleave fires into a 2-enemy pack with rage", "Cleave",
+    function() enemy_count = 2; ctx_rage = 35 end, true)
+scenario("Cleave blocked on a single target", "Cleave",
+    function() enemy_count = 1; ctx_rage = 100 end, false)
+scenario("Cleave blocked below 30 rage", "Cleave",
+    function() enemy_count = 2; ctx_rage = 25 end, false)
+
+scenario("HeroicStrike queues when the auto swing is imminent", "HeroicStrike",
+    function() ctx_rage = 35; swing_secs = 0.5 end, true)
+scenario("HeroicStrike blocked when the swing is far off", "HeroicStrike",
+    function() ctx_rage = 100; swing_secs = 5 end, false)
+scenario("HeroicStrike blocked below 30 rage", "HeroicStrike",
+    function() ctx_rage = 25; swing_secs = 0.5 end, false)
+scenario("HeroicStrike blocked with 2+ enemies (Cleave's job)", "HeroicStrike",
+    function() ctx_rage = 100; swing_secs = 0.5; enemy_count = 2 end, false)
+
+scenario("HeroicThrow fires out of melee range off cooldown", "HeroicThrow",
+    function() in_melee = false end, true)
+scenario("HeroicThrow blocked in melee range", "HeroicThrow",
+    function() in_melee = true end, false)
+scenario("HeroicThrow blocked on cooldown", "HeroicThrow",
+    function() in_melee = false; cds[57755] = 30 end, false)
+scenario("HeroicThrow blocked out of combat", "HeroicThrow",
+    function() in_melee = false end, false, false)
+
+print("PASS test_fury_wotlk_strategies")

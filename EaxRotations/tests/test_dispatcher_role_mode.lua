@@ -368,4 +368,64 @@ assert_true(real_registry.channel_clip_ids[true] == nil and real_registry.channe
 player.is_casting = function() return false end
 player.is_channeling = function() return false end
 
+-- ============================================================================
+-- Thin-spec guide pass (2026-09-12): a NEW lane fires through the REAL
+-- dispatcher, not just the battery harness. The real affliction_wotlk spec is
+-- loaded, its real DSL-compiled strategies registered as the active playstyle,
+-- and the REAL dispatcher builds context.target_is_boss from NS.unit_is_boss
+-- (main_sylvanas.lua:1333). With the earlier DoT lanes satisfied, the new
+-- Curse of Doom lane must claim the cast on a boss and emit it via cast_safe.
+-- ============================================================================
+player.is_casting = function() return false end
+player.is_channeling = function() return false end
+
+-- Real-read mocks keyed to the ids the real spec reads (Haunt 59164,
+-- Corruption 47813, UA 47843, CoA 47864 healthy; Curse of Doom 47867 down).
+local dot_healthy = { [59164] = true, [47813] = true, [47843] = true, [47864] = true }
+NS.debuff_remains = function(unit, ids)
+    for _, id in ipairs(ids) do
+        if dot_healthy[id] then return 30 end
+    end
+    return 0
+end
+NS.buff_up = function() return false end
+NS.cooldown_remains = function() return 0 end
+NS.aoe_target_meets = function() return false end
+NS.should_use_long_cd = function() return true end
+NS.unit_is_boss = function() return true end
+
+local affl = dofile("EaxRotations/classes/warlock/affliction_wotlk.lua")
+assert_true(type(affl) == "table" and type(affl.strategies) == "table",
+    "affliction_wotlk loads for the dispatcher proof")
+
+-- Name the lane the real dispatcher actually executed.
+local fired_lane = nil
+for i = 1, #affl.strategies do
+    local s = affl.strategies[i]
+    local orig = s.execute
+    s.execute = function(ctx, state)
+        local res = orig(ctx, state)
+        if res then fired_lane = s.name end
+        return res
+    end
+end
+
+NS.class_middleware = { warlock = {} }
+NS.rotation_registry = {
+    class_config = { class_key = "warlock", default_playstyle = "affliction" },
+    playstyles = { affliction = affl.strategies },
+    options = { affliction = { get_state = affl.build_state } },
+}
+NS.set_setting("playstyle", "affliction")
+NS.set_setting("active_playstyle", nil)
+NS.refresh_settings_cache()
+
+reset()
+fired_lane = nil
+local ok_affl, err_affl = pcall(dispatcher.on_rotation_update)
+assert_true(ok_affl, "real dispatcher tick with the real affliction spec must not error: " .. tostring(err_affl))
+assert_eq(fired_lane, "CurseOfDoom",
+    "the new Curse of Doom lane must fire through the REAL dispatcher on a boss (fired=" .. tostring(fired_lane) .. ")")
+assert_true(casts >= 1, "the new lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
+
 print("PASS test_dispatcher_role_mode")
