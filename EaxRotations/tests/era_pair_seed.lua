@@ -26,19 +26,19 @@ return {
     {
         spec = "druid/balance",
         missing_in = "sylvanas",
-        names = { "FaerieFire", "Starfall" },
+        names = { "Barkskin", "FaerieFire", "Innervate", "Starfall" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "druid/balance",
         missing_in = "vanilla",
-        names = { "Bash", "FaerieFire", "FeralCharge", "ForceOfNature", "Healthstone", "InnervateHealer", "InsectSwarmSpread", "ManaGem", "MoonfireSpread", "MoonkinForm", "MovingMoonfire", "PvP_Cyclone", "Starfall" },
+        names = { "Barkskin", "Bash", "FaerieFire", "FeralCharge", "ForceOfNature", "Healthstone", "Innervate", "InnervateHealer", "InsectSwarmSpread", "ManaGem", "MoonfireSpread", "MoonkinForm", "MovingMoonfire", "PvP_Cyclone", "Starfall" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "druid/balance",
         missing_in = "wotlk",
-        names = { "BarkskinDefense", "Bash", "FaerieFireDebuff", "FeralCharge", "ForceOfNature", "Healthstone", "Hurricane", "InnervateHealer", "InnervateSelf", "InsectSwarmDoT", "InsectSwarmSpread", "ManaGem", "ManaPotion", "ManaPotionEmergency", "MarkOfTheWild", "MoonfireDoT", "MoonfireSpread", "MovingMoonfire", "PreHurricaneBarkskin", "PvP_Cyclone", "PvP_EntanglingRoots", "PvP_NaturesGrasp", "RebirthBattleRez", "RemoveCurse", "StarfirePrimary", "ThornsBuff", "WarStomp", "WrathFiller" },
+        names = { "BarkskinDefense", "Bash", "FaerieFireDebuff", "FeralCharge", "Healthstone", "Hurricane", "InnervateHealer", "InnervateSelf", "InsectSwarmDoT", "InsectSwarmSpread", "ManaGem", "ManaPotion", "ManaPotionEmergency", "MarkOfTheWild", "MoonfireDoT", "MoonfireSpread", "MovingMoonfire", "PreHurricaneBarkskin", "PvP_Cyclone", "PvP_EntanglingRoots", "PvP_NaturesGrasp", "RebirthBattleRez", "RemoveCurse", "StarfirePrimary", "ThornsBuff", "WarStomp", "WrathFiller" },
         reason = "WotLK-era build-out: druid_balance_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -200,19 +200,19 @@ return {
     {
         spec = "mage/frost",
         missing_in = "sylvanas",
-        names = { "DeepFreeze", "FrostfireBolt", "IceLance", "SummonWaterElemental" },
+        names = { "DeepFreeze", "FrostfireBolt", "IceLance", "MirrorImage", "SummonWaterElemental" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "mage/frost",
         missing_in = "vanilla",
-        names = { "Blink", "DeepFreeze", "FrostArmor", "FrostfireBolt", "FrozenIceLance", "Healthstone", "IceLance", "IcyVeins", "MageArmor", "SummonWaterElemental", "WaterElemental" },
+        names = { "Blink", "DeepFreeze", "FrostArmor", "FrostfireBolt", "FrozenIceLance", "Healthstone", "IceLance", "IcyVeins", "MageArmor", "MirrorImage", "SummonWaterElemental", "WaterElemental" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "mage/frost",
         missing_in = "wotlk",
-        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "Evocation", "FireBlast", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBarrier", "IceBlock", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
+        names = { "ArcaneExplosion", "ArcaneIntellect", "ArcaneMissiles", "Blink", "Blizzard", "ConeOfCold", "FrostArmor", "FrostNova", "FrostWard", "FrostbiteFrostbolt", "FrozenIceLance", "Healthstone", "IceBlock", "MageArmor", "ManaGem", "ManaGemConjure", "ManaPotion", "ManaShield", "Polymorph", "PresenceOfMind", "RemoveCurse", "Scorch", "WaterElemental", "WintersChill" },
         reason = "WotLK-era build-out: mage_frost_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {

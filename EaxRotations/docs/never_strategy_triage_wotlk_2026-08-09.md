@@ -846,3 +846,34 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   name-resolved), test_paladin_leveling_wotlk_dsl_priority.lua (14->26 tests,
   positional->name-resolved conversion).
 
+## Addendum 2026-09-11 (b) - school-lockout wave: engine LoC signal + thin casters
+
+- New shared module `shared/spell_school_gate_sylvanas.lua` reads the engine's
+  interrupted-school mask (`unit:get_loss_of_control_info().lockout_school`, a
+  schools_flag bitmask) via `context.school_lockout`, published by
+  main_sylvanas.lua each frame. Grep-verified: ZERO rotations read this signal
+  before the wave. Pure + fail-open (no NS capture at require time, no
+  allocation; an absent mask means "not locked" = the old behavior).
+- mage/frost_wotlk.lua 8 -> 12: FireBlast (42873) fires ONLY under a frost lock
+  while the frost casts (Frostbolt/FrostfireBolt/IceLance/DeepFreeze) hold in
+  that window; MirrorImage (55342), Evocation (12051, < 40 mana), IceBarrier
+  (43039 r8 / 43038 r7). Real defect caught by the battery: the new
+  MirrorImage/Evocation lanes referenced ACTION entries that were never defined
+  (Evocation reported never-fires=1 until the defines landed).
+- druid/balance_wotlk.lua 8 -> 11: arcane lock (64) drops Moonfire/Starfire and
+  Wrath covers with no Eclipse; nature lock (8) drops Wrath/InsectSwarm/
+  FaerieFire/Hurricane and Starfire covers during solar Eclipse (where it
+  normally holds). Plus ForceOfNature (33831), Barkskin (22812), Innervate
+  (29166).
+- Battery: never-fires = 0 for both (WotLK era total still 0); three new shared
+  scenarios (school_locked_frost=16 / _nature=8 / _arcane=64) and
+  `school_lockout` registered as a known context key. Both behavioral suites
+  extended with fire/hold pins; both static priority suites name-resolved
+  (12/11-lane order).
+- Audit pins: allowlist 242 -> 245 (33831 ForceOfNature VALID_SHARED_ID;
+  43039/43038 Ice Barrier VALID_BRIDGE_GAP - real Wowhead WotLK ranks the local
+  bridge stops short of at 33405 r6).
+- Era-pair seed re-baselined (+2 names; stale "ForceOfNature missing in wotlk"
+  correctly cleared): siblings cover the same behavior under their own names
+  (BarkskinDefense/InnervateHealer/InnervateSelf) and Mirror Image is WotLK-only.
+
