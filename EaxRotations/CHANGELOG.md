@@ -38,6 +38,44 @@
   sibling audit self-test is wired. Only the guard's live remote check stays a
   CI master-push step, because it must reach the network.
 
+### Rotation Content — WotLK cast-timing wave (engine cast/channel end-time signal)
+
+- **New shared module `shared/cast_timing_sylvanas.lua`**: the engine exposes real
+  cast/channel end times via `unit:get_channeling_or_casting_remaining_sec()` /
+  `get_cast_remaining_sec()` / `get_channel_remaining_sec()`, and
+  `main_sylvanas.lua` now publishes `context.target_cast_remaining` each frame.
+  Grep-verified: **zero rotations read any end-time accessor** before this wave —
+  the only timing proxy in the tree was the interrupt manager's cast *percent*,
+  which is duration-relative and cannot tell "0.4s left on a 0.8s cast" (already
+  landing) from "3s left on a 6s cast" (plenty of time). Pure module (no NS
+  capture at require time — the battery's shared-virgin guard), allocates nothing
+  (closure-free `pcall(read_field, ...)` read, matching the repo's
+  no-per-frame-allocation rule), and **fails open**: an absent/zero end time keeps
+  the exact pre-signal behavior on older clients and in the mock harness.
+- **The interrupt gate is now end-time-first**:
+  `interrupt_manager.cast_has_interrupt_window` consults the engine's remaining
+  seconds before the percent heuristic and refuses an interrupt whose lead is at
+  or below `0.30s` (clamped 0.10–1.50s; overridable per spec via
+  `settings.interrupt_lead_sec`). A target cast that will land first no longer
+  claims the cooldown.
+- **17 WotLK interrupt lanes gated**: mage Counterspell (×3 + leveling), rogue
+  Kick (×4), warrior Pummel (×3 + leveling), death knight leveling, priest
+  Silence, shaman (×2) and warlock leveling — each holds against a finishing
+  cast and still fires against a normal one.
+- **No new spell ids**, so **no allowlist churn**; the spell-audit alias count is
+  untouched this wave.
+- Battery: never-fires = **0** for every affected spec (WotLK era total still 0).
+  One new shared scenario (`target_cast_finishing`: target casting with only 0.05s
+  left) and `target_cast_remaining` registered as a known context key. The
+  interrupt-manager suite gained 11 assertions on both sides of the floor (0.05s
+  holds, 0.30s sits ON the floor and holds, 0.31s fires, a raised
+  `interrupt_lead_sec` re-closes it, the channel accessor is honoured when the
+  combined one is absent, zero = fail-open); the frost and shadow behavioral
+  suites gained fire/hold lane pins driving the real `_wotlk.lua` files.
+- Perf gate: the read sits on the per-frame context-build path, so the field read
+  was made closure-free — all measured paths stay within their named
+  retained/churn bounds (tick churn 47.49 -> 47.12 KB after the fix).
+
 ### Rotation Content — WotLK school-lockout wave (engine LoC signal) + thin casters
 
 - **New shared module `shared/spell_school_gate_sylvanas.lua`**: the engine
