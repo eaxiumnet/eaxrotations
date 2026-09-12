@@ -922,3 +922,45 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   with fire/hold lane pins.
 - Perf: the read sits on the per-frame context-build path; made closure-free so
   no per-frame allocation is added (tick churn 47.49 -> 47.12 KB).
+## Addendum 2026-09-12 (c) — channel-clip wave: engine channel clock + clip opt-in
+
+- The engine end-time signal from the previous wave was never used for the
+  family its own fixtures model: channel clipping. `shadow_wotlk.apl.json`
+  declares `channelSpell 48156 Mind Flay` with
+  `interruptIf: gcdTimeToReady <= channelClipDelay`, and
+  `affliction_wotlk.apl.json` interrupts Drain Soul conditionally; both were
+  unimplemented.
+- `shared/mf_tick_compute_sylvanas.lua` now derives the Mind Flay tick clock
+  from the engine (`get_channel_elapsed_ms` / `get_channel_duration_ms` /
+  `get_channel_remaining_ms`, surfaced by `shared/cast_timing_sylvanas.lua`)
+  with `tick = duration / 3`, and returns seconds-remaining as a third value.
+  The `now - channel_start` arithmetic is retained ONLY as the fail-open
+  fallback when no engine clock is present — an unpopulated field is the exact
+  pre-wave behavior.
+- `mf_tick.should_clip_mf` gained an engine end-time rule (9th arg): a debuff
+  that would expire before this channel ends is refreshed early even outside
+  the lane's static window. 8-arg callers (TBC/vanilla shadow) are unaffected.
+- **Reachability fix:** the shadow/affliction clip lanes were dead in the live
+  dispatcher — `main_sylvanas` early-exits the strategy loop while channeling,
+  so they could never fire in-game (the battery does not run that skip). A
+  playstyle may now declare `channel_clip_ids` at register time; only those
+  channels re-enter the loop mid-channel, `registry` owns the merged set, and a
+  hard cast always keeps the blanket skip. The clipper lanes pass
+  `skip_casting` through to `evaluate_cast`.
+- Declared clip-managed: shadow Mind Flay (48156/48158/48155); affliction Drain
+  Soul (47855 + lower ranks).
+- No new spell ids, so the audit allowlist is unchanged (WotLK audit: 43 files,
+  0 invalid). Battery never-fires = 0 for all affected specs.
+- Pins: `test_mf_tick_tracking` +5 assertions (engine tick vs 1s-cadence
+  fallback, engine remaining, clip fire/hold/fail-open);
+  `test_priest_shadow_wotlk_strategies` +4 lane pins (engine-tick Mind Blast
+  fire/hold; engine end-time VT fire/hold);
+  `test_warlock_affliction_wotlk_strategies` +4 assertions (real register
+  `channel_clip_ids`, executed-lane `skip_casting`, and the non-clipper hold);
+  `test_dispatcher_role_mode` +6 assertions (declared vs undeclared channel,
+  hard cast, no-declaration registry, real core-register merge). Non-vacuity
+  proven by injection: disabling the engine tick/end-time rule fails both
+  engine pins, and removing `skip_casting`/the clip gate fails the other two.
+- Honest limit: no engine-side channel-stop primitive exists, so the only
+  supported expression of clipping is "fire the replacement lane now"; the
+  channel-remaining argument is wired in WotLK shadow only.
