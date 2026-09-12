@@ -6,6 +6,10 @@
 
 -- interrupt manager strategy matching regression test.
 
+-- Resolve shared/ modules when this suite runs standalone (the battery sets the
+-- same path; the 2026-09-12 end-time gate makes the manager require one).
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_false(v, label) if v then error(label or "assert_false failed: expected false", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
@@ -77,6 +81,61 @@ assert_true(M.cast_has_interrupt_window(mock_target_60, {interrupt_cast_percent 
 -- 30% is also below 80% threshold => should interrupt
 assert_true(M.cast_has_interrupt_window(mock_target_30, {interrupt_cast_percent = 80}),
     "should interrupt when cast at 30% with 80% threshold")
+
+-- ============================================================================
+-- Engine cast/channel END-TIME floor (2026-09-12, shared/cast_timing_sylvanas).
+-- Absolute seconds beat progress percent: a short cast at 10% has less left than
+-- a long cast at 50%. When the engine reports a remaining time the gate uses it
+-- and never falls through to the percent heuristic.
+-- ============================================================================
+local mock_target_1s = {
+    get_channeling_or_casting_remaining_sec = function() return 1.0 end,
+}
+assert_true(M.cast_has_interrupt_window(mock_target_1s, {}),
+    "should interrupt when 1.0s of the cast remains")
+
+local mock_target_005s = {
+    get_channeling_or_casting_remaining_sec = function() return 0.05 end,
+}
+assert_false(M.cast_has_interrupt_window(mock_target_005s, {}),
+    "should NOT interrupt when only 0.05s remains (the cast lands first)")
+
+-- The floor is strict: exactly at the default lead is already too late.
+local mock_target_lead = {
+    get_channeling_or_casting_remaining_sec = function() return 0.30 end,
+}
+assert_false(M.cast_has_interrupt_window(mock_target_lead, {}),
+    "0.30s remaining sits ON the default lead floor, not above it")
+
+local mock_target_040s = {
+    get_channeling_or_casting_remaining_sec = function() return 0.40 end,
+}
+assert_true(M.cast_has_interrupt_window(mock_target_040s, {}),
+    "0.40s remaining clears the default 0.30s lead")
+assert_false(M.cast_has_interrupt_window(mock_target_040s, { interrupt_lead_sec = 0.5 }),
+    "0.40s remaining is inside a configured 0.5s lead")
+
+-- The end time wins over a percent reading that would otherwise allow the cast.
+local mock_target_both = {
+    get_channeling_or_casting_remaining_sec = function() return 0.05 end,
+    get_casting_percent = function() return 10 end,
+}
+assert_false(M.cast_has_interrupt_window(mock_target_both, {}),
+    "the end-time floor overrides the permissive percent path")
+
+-- Channel remaining is honoured when only the channel accessor exists.
+local mock_target_channel_2s = {
+    get_channel_remaining_sec = function() return 2.0 end,
+}
+assert_true(M.cast_has_interrupt_window(mock_target_channel_2s, {}),
+    "channel end time is read when the combined accessor is absent")
+
+-- Fail-open: zero/absent end time keeps the pre-signal percent behavior.
+local mock_target_zero = {
+    get_channeling_or_casting_remaining_sec = function() return 0 end,
+}
+assert_true(M.cast_has_interrupt_window(mock_target_zero, {}),
+    "a 0 end time means 'nothing casting' and keeps the fail-open path")
 
 -- Test create_interrupt_strategy matching conditions
 local mock_spell = {id = 2139, _meta = {id = 2139}}  -- Counterspell

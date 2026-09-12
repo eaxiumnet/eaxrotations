@@ -28,6 +28,10 @@ local has_pet = false
 local longcd = true
 -- Engine school lockout mask (ctx.school_lockout) — 16 = frost, 4 = fire.
 local lockout = 0
+-- Engine cast END TIME (ctx.target_cast_remaining, seconds): the interrupt
+-- floor. nil = unknown = fail-open (the pre-signal behavior).
+local cast_remaining = nil
+local cast_lead = nil
 
 local function ffb(secs) debuffs[44549] = secs end
 local function root(secs) debuffs[42917] = secs end
@@ -37,6 +41,7 @@ local function reset_env()
     hp, mana, combat, casting = 100, 100, true, false
     debuffs, buffs, cds = {}, {}, {}
     has_pet, longcd, lockout = false, true, 0
+    cast_remaining, cast_lead = nil, nil
 end
 
 _G.EaxRotations = {
@@ -95,9 +100,10 @@ local function scenario(label, strategy_name, expect)
         mana_pct = mana,
         enemy_count = 1,
         school_lockout = lockout,
+        target_cast_remaining = cast_remaining,
         me = _G.EaxRotations.me,
         target = { is_casting = function() return casting end },
-        settings = {},
+        settings = { interrupt_lead_sec = cast_lead },
     }
     local state = result.build_state(ctx)
     local matched = find_strategy(strategy_name).matches(ctx, state)
@@ -119,6 +125,20 @@ end
 -- ============================================================================
 assert_lane("Counterspell fires on an enemy cast", "Counterspell", function() casting = true end, true)
 assert_lane("Counterspell blocked when nothing is casting", "Counterspell", function() end, false)
+-- Engine end-time floor (2026-09-12): a cast about to finish must not claim the
+-- interrupt cooldown. Unknown remaining (nil) keeps the pre-signal behavior.
+assert_lane("Counterspell fires with 1.0s left on the enemy cast", "Counterspell",
+    function() casting = true; cast_remaining = 1.0 end, true)
+assert_lane("Counterspell holds when only 0.05s of the cast remains", "Counterspell",
+    function() casting = true; cast_remaining = 0.05 end, false)
+assert_lane("Counterspell holds ON the 0.30s lead floor", "Counterspell",
+    function() casting = true; cast_remaining = 0.30 end, false)
+assert_lane("Counterspell fires above the 0.30s lead floor", "Counterspell",
+    function() casting = true; cast_remaining = 0.31 end, true)
+assert_lane("Counterspell honours a raised interrupt_lead_sec setting", "Counterspell",
+    function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
+assert_lane("Counterspell still holds a finishing cast only while casting", "Counterspell",
+    function() cast_remaining = 0.05 end, false)
 
 -- ============================================================================
 -- Cold Snap: panic reset below 50% hp — no combat gate.

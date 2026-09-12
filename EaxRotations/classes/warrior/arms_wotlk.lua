@@ -23,6 +23,13 @@ end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+-- Cast/channel end-time gate (2026-09-12): an interrupt that lands after the
+-- target's cast completes wastes its cooldown. Fail-open when the engine
+-- reports no end time (shared/cast_timing_sylvanas.lua).
+local _ct_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
+if not _ct_ok or type(cast_timing) ~= "table" then
+    cast_timing = { context_interrupt_open = function() return true end }
+end
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -358,6 +365,9 @@ local DSL_DEFS = {
     {
         name = "Pummel",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                return cast_timing.context_interrupt_open(context, context and context.settings)
+            end },
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_casting", op = "truthy" },
             { type = "custom", fn = function(context, state)

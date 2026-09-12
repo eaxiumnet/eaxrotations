@@ -13,6 +13,13 @@ local _core = _G.core or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local lazy_context = require("shared/lazy_context_sylvanas")
+-- Engine cast/channel end-time gate (see shared/cast_timing_sylvanas.lua). Pure
+-- module; a missing file degrades to "unknown timing" (fail-open) rather than
+-- breaking the dispatcher.
+local _cast_timing_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
+if not _cast_timing_ok or type(cast_timing) ~= "table" then
+    cast_timing = { remaining = function() return nil end }
+end
 -- CastTrace (the in-game "why" trace) is a shared subsystem module that
 -- sets NS.CastTrace at load; requiring it here keeps the recorder available
 -- in any env that boots the dispatcher.
@@ -939,6 +946,22 @@ local function build_context()
     if not _context.is_casting and not _context.is_channeling then
         _context.is_channeling = unit_bool(me, "is_channeling_or_casting")
     end
+    -- Engine cast/channel END TIME (shared/cast_timing_sylvanas.lua). The
+    -- is_casting/is_channeling booleans above say *whether* something is
+    -- running; this says *how long is left*, which is what the interrupt gate
+    -- needs: a cast that lands before the interrupt arrives must not claim the
+    -- cooldown. Fail-open: 0 = unknown/none, so every gate behaves exactly as it
+    -- did before this signal existed. (The player's own channel time is
+    -- deliberately NOT published: core_sylvanas.evaluate_cast already refuses
+    -- every cast while channeling, so a self-side hold would change nothing.)
+    _context.target_cast_remaining = 0
+    if target then
+        local target_remaining = cast_timing.remaining(target)
+        if type(target_remaining) == "number" and target_remaining > 0 then
+            _context.target_cast_remaining = target_remaining
+        end
+    end
+
     -- PvP detection: health_prediction platform module, fallback to zone-based detection
     if health_prediction and type(health_prediction.is_pvp_situation) == "function" and target then
         local ok, pvp_sit = pcall(health_prediction.is_pvp_situation, health_prediction, target)

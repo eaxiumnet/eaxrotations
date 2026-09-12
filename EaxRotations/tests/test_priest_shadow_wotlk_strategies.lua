@@ -30,6 +30,9 @@ local channel_spell = 0
 local channel_start = 0
 local thp = 100
 local enemy_count = 1
+-- Engine cast END TIME (ctx.target_cast_remaining, seconds): the interrupt
+-- floor. nil = unknown = fail-open (the pre-signal behavior).
+local cast_remaining = nil
 
 local function vt(secs) debuffs[48160] = secs end
 local function swp(secs) debuffs[48125] = secs end
@@ -40,6 +43,7 @@ local function reset_env()
     debuffs, not_ready = {}, {}
     channeling, channel_spell, channel_start = false, 0, 0
     thp, enemy_count = 100, 1
+    cast_remaining = nil
 end
 
 _G.EaxRotations = {
@@ -83,6 +87,7 @@ local function scenario(label, strategy_name, expect)
         mana_pct = mana,
         enemy_count = enemy_count,
         target_hp = thp,
+        target_cast_remaining = cast_remaining,
         target = { is_casting = function() return casting end },
         settings = {},
     }
@@ -116,6 +121,12 @@ assert_lane("Silence fires on an enemy cast", "Silence", function() casting = tr
 assert_lane("Silence blocked when nothing is casting", "Silence", function() end, false)
 assert_lane("Silence blocked out of combat", "Silence",
     function() combat = false; casting = true end, false)
+-- Engine end-time floor (2026-09-12, shared/cast_timing_sylvanas): a cast that
+-- lands before the interrupt arrives must not spend the cooldown.
+assert_lane("Silence fires with 1.0s left on the enemy cast", "Silence",
+    function() casting = true; cast_remaining = 1.0 end, true)
+assert_lane("Silence holds when only 0.05s of the cast remains", "Silence",
+    function() casting = true; cast_remaining = 0.05 end, false)
 
 -- ============================================================================
 -- VampiricTouch: can break Mind Flay + refresh below 3s.

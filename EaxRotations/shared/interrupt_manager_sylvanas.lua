@@ -9,6 +9,13 @@ local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 
+-- Cast/channel end-time gate (shared/cast_timing_sylvanas.lua). Pure module,
+-- so requiring it cannot pollute the NS namespace the battery owns.
+local _ct_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
+if not _ct_ok or type(cast_timing) ~= "table" then
+    cast_timing = { remaining = function() return nil end, lead_open = function() return true end }
+end
+
 local EMPTY = {}
 local INTERRUPT_REASON = "[INTERRUPT]"
 local DEFAULT_INTERRUPT_PERCENT = 50
@@ -375,7 +382,18 @@ function M.spell_interrupt_priority(spell_id)
 end
 
 function M.cast_has_interrupt_window(target, settings)
-    -- Try multiple API paths for cast progress percent
+    -- Engine end-time floor FIRST (2026-09-12). Progress percent is
+    -- duration-relative, so a short cast at 50% (0.4s left — landing first) and
+    -- a long cast at 50% (3s left — plenty) look identical; the engine's
+    -- remaining seconds answer the real question ("will the interrupt land
+    -- before this finishes?"). Fail-open: nothing reported ⇒ fall through to
+    -- the percent heuristic, i.e. the exact pre-signal behavior.
+    local remaining = cast_timing.remaining(target)
+    if type(remaining) == "number" and remaining > 0 then
+        return cast_timing.lead_open(remaining, settings and settings.interrupt_lead_sec)
+    end
+
+    -- Fallback: multiple API paths for cast progress percent
     local percent = safe_method(target, "get_cast_pct")
     if type(percent) ~= "number" then
         percent = safe_method(target, "get_channeling_or_casting_pct")
