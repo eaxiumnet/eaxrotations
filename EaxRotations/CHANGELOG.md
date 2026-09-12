@@ -55,13 +55,28 @@
 - **The interrupt gate is now end-time-first**:
   `interrupt_manager.cast_has_interrupt_window` consults the engine's remaining
   seconds before the percent heuristic and refuses an interrupt whose lead is at
-  or below `0.30s` (clamped 0.10–1.50s; overridable per spec via
-  `settings.interrupt_lead_sec`). A target cast that will land first no longer
-  claims the cooldown.
-- **17 WotLK interrupt lanes gated**: mage Counterspell (×3 + leveling), rogue
-  Kick (×4), warrior Pummel (×3 + leveling), death knight leveling, priest
-  Silence, shaman (×2) and warlock leveling — each holds against a finishing
-  cast and still fires against a normal one.
+  or below `0.30s` (clamped 0.10–1.50s). A target cast that will land first no
+  longer claims the cooldown. The lead is a module-level parameter
+  (`cast_timing.DEFAULT_LEAD_SEC`, or the `settings` table a caller passes); no
+  shipped spec overrides it yet — the menu schema exposes no widget for it.
+- **25 WotLK interrupt lanes gated** — the 22 DSL lanes:
+  mage Counterspell (×3 + leveling), rogue Kick (×4), warrior Pummel (×4 incl.
+  protection), death knight leveling Mind Freeze, druid cat Maim Interrupt,
+  death knight unholy Ghoul Gnaw, hunter Silencing Shot (leveling + marksmanship),
+  priest Silence, shaman Wind Shear (×2) + Earth Shock, warlock leveling Spell
+  Lock; plus the 3 manager-registered death knight Mind Freeze lanes
+  (blood/frost/unholy), which inherit the same floor through
+  `cast_has_interrupt_window`. Each holds against a finishing cast and still
+  fires against a normal one.
+- **2026-09-12 correctness close-out**: re-deriving the set against the real
+  files showed the original "17 lanes" count was both under-counted and
+  incomplete. `druid/cat_wotlk.lua` MaimInterrupt, `deathknight/unholy_wotlk.lua`
+  GhoulGnaw, `hunter/leveling_wotlk.lua` SilencingShot and
+  `shaman/elemental_wotlk.lua` Earth Shock carried no end-time gate, and
+  `hunter/marksmanship_wotlk.lua` SilencingShot had **no target-casting gate at
+  all** — it fired on cooldown against a target that was not casting, unlike its
+  leveling sibling. All five now require a casting target plus the end-time
+  floor.
 - **No new spell ids**, so **no allowlist churn**; the spell-audit alias count is
   untouched this wave.
 - Battery: never-fires = **0** for every affected spec (WotLK era total still 0).
@@ -69,9 +84,10 @@
   left) and `target_cast_remaining` registered as a known context key. The
   interrupt-manager suite gained 11 assertions on both sides of the floor (0.05s
   holds, 0.30s sits ON the floor and holds, 0.31s fires, a raised
-  `interrupt_lead_sec` re-closes it, the channel accessor is honoured when the
-  combined one is absent, zero = fail-open); the frost and shadow behavioral
-  suites gained fire/hold lane pins driving the real `_wotlk.lua` files.
+  lead re-closes it, the channel accessor is honoured when the combined one is
+  absent, zero = fail-open); every one of the 25 gated lanes now carries
+  fire/hold pins driving its own real `_wotlk.lua` file (or the real
+  manager module for the three death knight lanes).
 - Perf gate: the read sits on the per-frame context-build path, so the field read
   was made closure-free — all measured paths stay within their named
   retained/churn bounds (tick churn 47.49 -> 47.12 KB after the fix).
