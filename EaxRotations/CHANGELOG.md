@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Rotation Content — WotLK thin-spec guide pass (affliction / demonology / fury)
+
+- **The three thinnest WotLK DPS specs now implement their published playstyle
+  priority** (8 → 12 lanes each), driven by the pinned wowsims fixtures rather
+  than memory:
+  - **Affliction** — Curse of Doom (47867) claims the curse slot on a boss while
+    Curse of Agony keeps it everywhere else; Summon Infernal (1122) as the
+    10-minute guardian burst; Nightfall spends the Shadow Trance proc (17941)
+    ahead of the plain filler; Drain Life (47857) as the sub-55% sustain band.
+  - **Demonology** — the curse pair (Curse of Doom on a long boss fight, Curse of
+    Agony otherwise), Immolation Aura (50589) inside the Metamorphosis window,
+    and Seed of Corruption (47836) into a 4+ pack. The pinned sim chain
+    Corruption < Immolate < Soul Fire < Shadow Bolt is untouched.
+  - **Fury** — Recklessness (1719, Berserker-only 5-min burst), Cleave (47520)
+    and Heroic Strike (47450) as the queued rage dumps (Cleave at 2+ targets,
+    Heroic Strike only when the main-hand swing is imminent, read from the real
+    swing clock), and Heroic Throw (57755) as the out-of-melee filler.
+- All new gates are era-correct (single WotLK max ranks, no TBC ladders), fail
+  closed on an unknown read, and carry fire/hold behavioral pins on both sides.
+- **One new lane is proven through the real dispatcher, not just the harness**:
+  `test_dispatcher_role_mode.lua` loads the real affliction spec, lets the real
+  dispatcher build `context.target_is_boss` from `NS.unit_is_boss`, and asserts
+  the new Curse of Doom lane claims the cast and emits it via `cast_safe`.
+  Non-vacuity proven by injection in both directions.
+- WotLK battery never-fires stays **0**; allowlist +6 pins (47867/50589/57755
+  bridge-gap, 1719/1122/17941 era-shared).
 ### Rotation Content — WotLK channel-clip wave (Mind Flay / Drain Soul)
 
 - **The engine channel clock is now the source of truth for Mind Flay.** The

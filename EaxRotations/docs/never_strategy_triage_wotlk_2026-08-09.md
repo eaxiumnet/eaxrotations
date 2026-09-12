@@ -964,3 +964,42 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
 - Honest limit: no engine-side channel-stop primitive exists, so the only
   supported expression of clipping is "fire the replacement lane now"; the
   channel-remaining argument is wired in WotLK shadow only.
+
+## Addendum 2026-09-12 (d) — WotLK thin-spec guide pass: affliction / demonology / fury (8 → 12 lanes)
+
+- Re-read of the live scorecard put the thinnest remaining WotLK tier at
+  affliction 8, demonology 8 and fury 8. Each was expanded to 12 era-correct
+  lanes against its pinned wowsims fixture plus the published guides, with
+  every id verified against the local bridge AND Wowhead (single WotLK max
+  ranks only; no TBC ladders).
+- **Affliction**: CurseOfDoom (47867, boss-only so Curse of Agony keeps the
+  curse slot everywhere else), SummonInfernal (1122, 10-min guardian),
+  NightfallProc (spends Shadow Trance 17941 before the plain filler) and
+  DrainLife (47857, sub-55% hp sustain).
+- **Demonology**: CurseOfDoom (boss) + CurseOfAgony (default), ImmolationAura
+  (50589, gated on the real Metamorphosis aura 47241), SeedOfCorruptionAoE
+  (47836 at 4+ via the real `aoe_target_meets`). The pinned sim chain
+  Corruption < Immolate < Soul Fire < Shadow Bolt is untouched.
+- **Fury**: Recklessness (1719, Berserker-only, gated on the long-CD policy),
+  Cleave (47520, 2+ targets, rage >= 30), HeroicStrike (47450, single target,
+  rage >= 30, queued only when `NS.swing_time_until` says the auto is within
+  1.0s -> fails closed at 999 when unknown) and HeroicThrow (57755, only when
+  `context.in_melee_range` is false).
+- Pins: `test_warlock_affliction_wotlk_strategies` +16 assertions (4 lanes x
+  fire/hold/boundary/OOC), `test_warlock_demonology_wotlk_strategies` +17,
+  `test_fury_wotlk_strategies` +14; the static priority suites for affliction
+  and fury were converted to name-resolved lane lookup (insertion no longer
+  silently breaks positional assertions); `test_warrior_wotlk_live_fixes`
+  count 8 -> 12.
+- **Real-dispatch proof (the channel pass's lesson applied):**
+  `test_dispatcher_role_mode.lua` now loads the real affliction spec, registers
+  its real DSL strategies as the active playstyle, lets the REAL dispatcher
+  build `context.target_is_boss` from `NS.unit_is_boss` (main_sylvanas:1333),
+  and asserts the new Curse of Doom lane claims the cast and emits a real
+  `cast_safe`. Injection-proven: flipping the `target_is_boss` op to `falsy`
+  makes the dispatcher fire SummonInfernal instead and the pin fails.
+- Allowlist +6 (47867 Curse of Doom, 50589 Immolation Aura, 57755 Heroic Throw
+  bridge-gap; 1719 Recklessness, 1122 Summon Infernal, 17941 Shadow Trance
+  era-shared), size pin 245 -> 251 measured from the table. WotLK battery
+  never-fires = 0; scorecard regenerated (strategies 503 -> 515, decision rules
+  2595 -> 2607); era-pair seed regenerated (88 entries / 1383 names).

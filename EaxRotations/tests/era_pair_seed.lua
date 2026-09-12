@@ -440,37 +440,37 @@ return {
     {
         spec = "warlock/affliction",
         missing_in = "sylvanas",
-        names = { "Corruption", "DeathCoilSurvival", "DemonArmorBuff", "DrainSoul", "Haunt", "Healthstone", "PvP_Fear", "PvP_HowlOfTerror", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowWard" },
+        names = { "Corruption", "DeathCoilSurvival", "DemonArmorBuff", "DrainSoul", "Haunt", "Healthstone", "PvP_Fear", "PvP_HowlOfTerror", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowWard", "SummonInfernal" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warlock/affliction",
         missing_in = "vanilla",
-        names = { "CC_Fear", "CC_HowlOfTerror", "Corruption", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "FelArmorBuff", "Haunt", "ImmolateSpread", "MovingCorruption", "RainOfFire", "SeedOfCorruption", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowEmbraceMaintenance", "ShadowburnExecute", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "UnstableAffliction", "UnstableAfflictionSpread" },
+        names = { "CC_Fear", "CC_HowlOfTerror", "Corruption", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "FelArmorBuff", "Haunt", "ImmolateSpread", "MovingCorruption", "RainOfFire", "SeedOfCorruption", "SeedOfCorruptionAoE", "ShadowBolt", "ShadowEmbraceMaintenance", "ShadowburnExecute", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "SummonInfernal", "UnstableAffliction", "UnstableAfflictionSpread" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warlock/affliction",
         missing_in = "wotlk",
-        names = { "AmplifyCurse", "CC_Fear", "CC_HowlOfTerror", "CorruptionDoT", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfDoom", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DamagePotion", "DarkPact", "DeathCoilSurvival", "DemonArmorBuff", "DrainLife", "DrainSoulExecute", "FelArmorBuff", "HealthFunnelPet", "Healthstone", "ImmolateDoT", "ImmolateSpread", "ManaPotion", "MovingCorruption", "NightfallProc", "PetAggressive", "PetDefensive", "PetPassive", "PreCombatPull", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "RainOfFire", "SeedOfCorruption", "SelfSoulstone", "ShadowBoltFiller", "ShadowEmbraceMaintenance", "ShadowWard", "ShadowburnExecute", "SiphonLife", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "UnstableAfflictionSpread", "Wand" },
+        names = { "AmplifyCurse", "CC_Fear", "CC_HowlOfTerror", "CorruptionDoT", "CorruptionSpread", "CurseFirst", "CurseOfAgonySpread", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DamagePotion", "DarkPact", "DeathCoilSurvival", "DemonArmorBuff", "DrainSoulExecute", "FelArmorBuff", "HealthFunnelPet", "Healthstone", "ImmolateDoT", "ImmolateSpread", "ManaPotion", "MovingCorruption", "PetAggressive", "PetDefensive", "PetPassive", "PreCombatPull", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialArcaneTorrent", "RacialBerserking", "RacialBloodFury", "RainOfFire", "SeedOfCorruption", "SelfSoulstone", "ShadowBoltFiller", "ShadowEmbraceMaintenance", "ShadowWard", "ShadowburnExecute", "SiphonLife", "SiphonLifeSpread", "SpellLock", "SummonFelhunter", "UnstableAfflictionSpread", "Wand" },
         reason = "WotLK-era build-out: warlock_affliction_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
         spec = "warlock/demonology",
         missing_in = "sylvanas",
-        names = { "CorruptionDoT", "DeathCoilSurvival", "DemonArmorBuff", "DrainLife", "DrainSoulExecute", "HealthFunnelFallback", "Healthstone", "ImmolateDoT", "IncinerateProc", "ManaPotion", "Metamorphosis", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialBerserking", "RacialBloodFury", "SelfSoulstone", "ShadowBoltFiller", "ShadowWard", "SoulFireDecimation", "Wand" },
+        names = { "CorruptionDoT", "DeathCoilSurvival", "DemonArmorBuff", "DrainLife", "DrainSoulExecute", "HealthFunnelFallback", "Healthstone", "ImmolateDoT", "ImmolationAura", "IncinerateProc", "ManaPotion", "Metamorphosis", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialBerserking", "RacialBloodFury", "SeedOfCorruptionAoE", "SelfSoulstone", "ShadowBoltFiller", "ShadowWard", "SoulFireDecimation", "Wand" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warlock/demonology",
         missing_in = "vanilla",
-        names = { "Corruption", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "Fear", "FelArmor", "Hellfire", "HowlofTerror", "Immolate", "Incinerate", "IncinerateProc", "Metamorphosis", "RainOfFire", "Seduction", "SeedOfCorruption", "ShadowBolt", "SoulFire", "SoulFireDecimation", "SoulLink", "SpellLock", "SummonFelguard", "SummonImp" },
+        names = { "Corruption", "CurseOfRecklessness", "CurseOfWeakness", "DrainSoul", "Fear", "FelArmor", "Hellfire", "HowlofTerror", "Immolate", "ImmolationAura", "Incinerate", "IncinerateProc", "Metamorphosis", "RainOfFire", "Seduction", "SeedOfCorruption", "SeedOfCorruptionAoE", "ShadowBolt", "SoulFire", "SoulFireDecimation", "SoulLink", "SpellLock", "SummonFelguard", "SummonImp" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warlock/demonology",
         missing_in = "wotlk",
-        names = { "CorruptionDoT", "CurseOfAgony", "CurseOfDoom", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DamagePotion", "DarkPact", "DeathCoilSurvival", "DemonArmorBuff", "DrainLife", "DrainSoul", "DrainSoulExecute", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthFunnelFallback", "Healthstone", "Hellfire", "HowlofTerror", "ImmolateDoT", "Incinerate", "ManaPotion", "PetAggressive", "PetDefensive", "PetPassive", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialBerserking", "RacialBloodFury", "RainOfFire", "Seduction", "SeedOfCorruption", "SelfSoulstone", "ShadowBoltFiller", "ShadowWard", "SiphonLife", "SoulLink", "SpellLock", "SummonFelguard", "SummonImp", "Wand" },
+        names = { "CorruptionDoT", "CurseOfElements", "CurseOfRecklessness", "CurseOfWeakness", "DamagePotion", "DarkPact", "DeathCoilSurvival", "DemonArmorBuff", "DrainLife", "DrainSoul", "DrainSoulExecute", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthFunnelFallback", "Healthstone", "Hellfire", "HowlofTerror", "ImmolateDoT", "Incinerate", "ManaPotion", "PetAggressive", "PetDefensive", "PetPassive", "PvP_CurseExhaustion", "PvP_CurseTongues", "PvP_Fear", "PvP_HowlOfTerror", "RacialBerserking", "RacialBloodFury", "RainOfFire", "Seduction", "SeedOfCorruption", "SelfSoulstone", "ShadowBoltFiller", "ShadowWard", "SiphonLife", "SoulLink", "SpellLock", "SummonFelguard", "SummonImp", "Wand" },
         reason = "WotLK-era build-out: warlock_demonology_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -512,19 +512,19 @@ return {
     {
         spec = "warrior/fury",
         missing_in = "sylvanas",
-        names = { "Rend" },
+        names = { "HeroicThrow", "Rend" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "warrior/fury",
         missing_in = "vanilla",
-        names = { "BattleStance", "BerserkerStance", "Charge", "EngineeringBomb", "Healthstone", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
+        names = { "BattleStance", "BerserkerStance", "Charge", "EngineeringBomb", "Healthstone", "HeroicThrow", "Rampage", "Recklessness", "SwingDesync", "VictoryRush" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "warrior/fury",
         missing_in = "wotlk",
-        names = { "BattleStance", "BerserkerRage", "Bloodrage", "Charge", "Cleave", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "HeroicStrike", "Intercept", "Overpower", "Rampage", "Recklessness", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
+        names = { "BattleStance", "BerserkerRage", "Bloodrage", "Charge", "DamagePotion", "DemoralizingShout", "EngineeringBomb", "Hamstring", "HealthPotion", "Healthstone", "Intercept", "Overpower", "Rampage", "Rend", "SunderArmor", "SweepingStrikes", "SwingDesync", "VictoryRush" },
         reason = "WotLK-era build-out: warrior_fury_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
