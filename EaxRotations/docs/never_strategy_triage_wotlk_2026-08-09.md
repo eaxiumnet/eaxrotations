@@ -888,13 +888,32 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   or zero end time = "unknown" = the pre-signal behavior).
 - `shared/interrupt_manager_sylvanas.lua` `cast_has_interrupt_window` is now
   end-time-first: when the engine reports seconds remaining it gates on that
-  (default 0.30s lead, clamped 0.10–1.50s, spec-overridable via
-  `settings.interrupt_lead_sec`) and never falls through to the duration-relative
+  (default 0.30s lead, clamped 0.10–1.50s; a module-level parameter, not yet
+  exposed in the menu schema) and never falls through to the duration-relative
   percent heuristic. A short cast about to finish no longer claims an interrupt.
-- 17 WotLK interrupt lanes gated (mage Counterspell ×3 + leveling, rogue Kick
-  ×4, warrior Pummel ×3 + leveling, deathknight leveling, priest Silence,
-  shaman ×2, warlock leveling) — each holds on a finishing cast, fires on a
-  normal one.
+- 25 WotLK interrupt lanes gated: 22 DSL lanes (mage Counterspell ×3 +
+  leveling, rogue Kick ×4, warrior Pummel ×4, deathknight leveling Mind
+  Freeze, druid cat MaimInterrupt, deathknight unholy GhoulGnaw, hunter
+  SilencingShot ×2, priest Silence, shaman WindShear ×2 + elemental
+  EarthShock, warlock leveling SpellLock) plus the 3 manager-registered
+  deathknight MindFreeze lanes (blood/frost/unholy) — each holds on a
+  finishing cast, fires on a normal one.
+
+### Addendum 2026-09-12 (b) — interrupt-lane count reconciled
+
+- The original "17 lanes" figure was under-counted and incomplete. Measured
+  against the real files: 22 DSL interrupt lanes + 3 manager-registered = 25.
+- Gaps closed in this pass: `druid/cat_wotlk.lua` MaimInterrupt,
+  `deathknight/unholy_wotlk.lua` GhoulGnaw, `hunter/leveling_wotlk.lua`
+  SilencingShot and `shaman/elemental_wotlk.lua` EarthShock had NO end-time
+  gate; `hunter/marksmanship_wotlk.lua` SilencingShot had NO target-casting
+  gate at all (it fired on cooldown against a non-casting target — the
+  leveling sibling already gated correctly).
+- Every gated lane now has spec-level fire/hold pins: 16 behavioral suites
+  plus `test_warrior_arms_wotlk.lua` and the three deathknight suites
+  (manager path), each asserting 1.0s/0.31s fire and 0.05s/0.30s hold.
+- `settings.interrupt_lead_sec` claim dropped: the lead is a module-level
+  parameter; no schema declares it, so no shipped spec overrides it.
 - No new spell ids; the audit allowlist is unchanged this wave.
 - Battery: never-fires = 0 for all affected specs (WotLK era total still 0). One
   new shared scenario `target_cast_finishing` (target_is_casting + 0.05s
