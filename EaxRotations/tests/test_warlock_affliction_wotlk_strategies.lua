@@ -30,6 +30,10 @@ local function agony(secs) debuffs[47864] = secs end
 local function haunt(secs) debuffs[59164] = secs end
 
 local enemies, aoe_ok = 1, false
+-- Captured from the REAL spec: the register options and the opts the DSL hands
+-- to try_cast when a lane executes (channel-clip opt-in pins, 2026-09-12).
+local registered_options = nil
+local last_cast_opts = nil
 
 local function reset_env()
     combat, target_hp, hp, mana = true, 100, 100, 100
@@ -48,8 +52,9 @@ _G.EaxRotations = {
     end,
     buff_up = function() return false end,
     aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
+    try_cast = function(spell, target, label, opts) last_cast_opts = opts; return true end,
     log = function() end,
-    rotation_registry = { register = function() end },
+    rotation_registry = { register = function(self, name, strategies, options) registered_options = options end },
 }
 
 local result = dofile("EaxRotations/classes/warlock/affliction_wotlk.lua")
@@ -157,5 +162,38 @@ assert_lane("SeedOfCorruptionAoE blocked at 3 enemies", "SeedOfCorruptionAoE",
     function() enemies = 3; aoe_ok = true end, false)
 assert_lane("SeedOfCorruptionAoE fail-closed without the AoE module", "SeedOfCorruptionAoE",
     function() enemies = 5; aoe_ok = false end, false)
+
+-- ============================================================================
+-- Channel-clip opt-in (2026-09-12): Drain Soul is a declared clip-managed
+-- channel and the DoT refresh lanes carry skip_casting so evaluate_cast lets a
+-- replacement through mid-channel. Both are read off the REAL spec file: the
+-- register-call options and the opts the compiled lane hands to try_cast.
+-- ============================================================================
+assert_true(registered_options and registered_options.channel_clip_ids,
+    "affliction must declare channel_clip_ids at register time")
+local clip = registered_options.channel_clip_ids
+local has_drain = false
+for i = 1, #clip do if clip[i] == 47855 then has_drain = true end end
+assert_true(has_drain, "channel_clip_ids must include the max-rank Drain Soul id 47855")
+local has_unrelated = false
+for i = 1, #clip do if clip[i] == 48125 then has_unrelated = true end end
+assert_false(has_unrelated, "channel_clip_ids must not include unrelated channel ids")
+
+-- Executing a DoT lane must pass skip_casting through to try_cast.
+reset_env()
+local clip_ctx = { in_combat = combat, mana_pct = mana, hp = hp, target_hp = target_hp,
+    enemy_count = enemies, target = { is_casting = function() return false end }, settings = {} }
+local clip_state = result.build_state(clip_ctx)
+last_cast_opts = nil
+assert_true(find_strategy("Corruption").execute(clip_ctx, clip_state) == true,
+    "Corruption lane should execute through the mocked try_cast")
+assert_true(last_cast_opts and last_cast_opts.skip_casting == true,
+    "the Corruption clip lane must pass skip_casting to try_cast")
+
+-- The filler is NOT a clipper: it keeps the pre-signal opts (no skip_casting).
+last_cast_opts = nil
+find_strategy("ShadowBolt").execute(clip_ctx, clip_state)
+assert_true(not (last_cast_opts and last_cast_opts.skip_casting),
+    "ShadowBolt must not opt out of the casting guard")
 
 print("PASS test_warlock_affliction_wotlk_strategies")

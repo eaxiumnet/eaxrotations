@@ -28,6 +28,11 @@ local now_ms = 0
 local channeling = false
 local channel_spell = 0
 local channel_start = 0
+-- Engine channel clock (2026-09-12): milliseconds, nil = accessor absent so the
+-- helper falls back to the channel_start arithmetic (the pre-signal path).
+local chan_elapsed_ms = nil
+local chan_duration_ms = nil
+local chan_remaining_ms = nil
 local thp = 100
 local enemy_count = 1
 -- Engine cast END TIME (ctx.target_cast_remaining, seconds): the interrupt
@@ -42,6 +47,7 @@ local function reset_env()
     combat, mana, casting, now_ms = true, 100, false, 0
     debuffs, not_ready = {}, {}
     channeling, channel_spell, channel_start = false, 0, 0
+    chan_elapsed_ms, chan_duration_ms, chan_remaining_ms = nil, nil, nil
     thp, enemy_count = 100, 1
     cast_remaining = nil
 end
@@ -52,6 +58,9 @@ _G.EaxRotations = {
         is_channeling = function() return channeling end,
         get_active_channel_spell_id = function() return channel_spell end,
         get_active_channel_cast_start_time = function() return channel_start end,
+        get_channel_elapsed_ms = function() return chan_elapsed_ms end,
+        get_channel_duration_ms = function() return chan_duration_ms end,
+        get_channel_remaining_ms = function() return chan_remaining_ms end,
     },
     GetPlayer = function() return _G.EaxRotations.me end,
     debuff_remains = function(unit, ids)
@@ -114,6 +123,27 @@ local function channelling_mf(elapsed_seconds)
     now_ms = 100000 + elapsed_seconds * 1000
 end
 
+-- Engine-clock channel: the authoritative accessors, with no usable channel_start
+-- so nothing here can accidentally agree with the fallback arithmetic.
+local function channelling_mf_engine(elapsed_ms, duration_ms, remaining_ms)
+    channeling = true
+    channel_spell = 48156
+    channel_start = 0
+    now_ms = 0
+    chan_elapsed_ms = elapsed_ms
+    chan_duration_ms = duration_ms
+    chan_remaining_ms = remaining_ms
+end
+
+-- Fallback-only channel (no engine clock): elapsed derived from channel_start.
+local function channelling_mf_fallback(elapsed_ms)
+    channeling = true
+    channel_spell = 48156
+    channel_start = 100000
+    now_ms = 100000 + elapsed_ms
+    chan_elapsed_ms, chan_duration_ms, chan_remaining_ms = nil, nil, nil
+end
+
 -- ============================================================================
 -- Silence: in combat + the target is casting.
 -- ============================================================================
@@ -141,6 +171,23 @@ assert_lane("VT held while channelling MF with nothing urgent", "VampiricTouch",
 -- MF at 2 ticks + VT about to expire -> the clip gate lets the refresh through.
 assert_lane("VT clips MF at 2 ticks when expiring", "VampiricTouch",
     function() vt(1.4); not_ready[48127] = true; channelling_mf(2.5) end, true)
+-- Engine channel clock (2026-09-12): ENGINE-ONLY tick derivation. 1.2s elapsed on
+-- a haste-scaled 1.5s channel is 2 of 3 ticks (duration/3 = 500ms), where the
+-- 1s-cadence fallback sees only 1 — so Mind Blast (gated on can_break_mind_flay,
+-- i.e. >= 2 ticks) fires off the engine clock and holds off the fallback.
+assert_lane("Mind Blast clips MF at 2 engine ticks on a haste-scaled channel", "MindBlast",
+    function() channelling_mf_engine(1200, 1500, nil) end, true)
+assert_lane("Mind Blast held at 1 fallback tick for the same 1.2s elapsed", "MindBlast",
+    function() channelling_mf_fallback(1200) end, false)
+-- Engine channel END time (2026-09-12): a debuff that expires before THIS channel
+-- ends is refreshed now even outside the lane's own static window. VT at 4.0s is
+-- outside the lane's <3 gate so it cannot match on its own; with 4.5s+ of channel
+-- left (remaining 3.0 + 1.5 window) the clip gate opens and VT fires; with only
+-- 2.0s left (remaining 0.5 + 1.5) the same VT lane holds.
+assert_lane("VT clip gate opens when the debuff outlives the channel", "VampiricTouch",
+    function() vt(2.9); swp(5); not_ready[48127] = true; channelling_mf_engine(2100, 3000, 3000) end, true)
+assert_lane("VT clip gate holds when the channel ends first", "VampiricTouch",
+    function() vt(2.9); swp(5); not_ready[48127] = true; channelling_mf_engine(2100, 3000, 500) end, false)
 
 -- ============================================================================
 -- ShadowWordPain: can break Mind Flay + refresh below 3s.

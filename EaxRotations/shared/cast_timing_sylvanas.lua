@@ -54,20 +54,92 @@ local function safe_method(obj, name)
     return ok and value or nil
 end
 
---- Remaining seconds of a unit's current cast or channel (target-side gate).
--- @param unit  engine game_object (player or target) or nil
--- @return number seconds remaining, or nil when the engine reports nothing
---         (no cast/channel, or a harness without the accessors)
-function M.remaining(unit)
+--- Read the first accessor in a list that returns a number.
+-- @param unit  engine game_object or nil
+-- @param names accessor name list, best first
+-- @return number|nil
+local function first_number(unit, names)
     if not unit then return nil end
-    for i = 1, #END_TIME_ACCESSORS do
-        local fn = safe_method(unit, END_TIME_ACCESSORS[i])
+    for i = 1, #names do
+        local fn = safe_method(unit, names[i])
         if type(fn) == "function" then
             local ok, value = pcall(fn, unit)
             if ok and type(value) == "number" and value >= 0 then return value end
         end
     end
     return nil
+end
+
+-- Engine accessors that report a channel's own identity and clock. The
+-- channel-specific accessors are authoritative; the combined id accessor is the
+-- fallback for builds that only publish one of them.
+local CHANNEL_ID_ACCESSORS = {
+    "get_active_channel_spell_id",
+    "get_active_cast_or_channel_id",
+}
+
+local CHANNEL_ELAPSED_ACCESSORS = {
+    "get_channel_elapsed_ms",
+}
+
+local CHANNEL_DURATION_ACCESSORS = {
+    "get_channel_duration_ms",
+}
+
+-- Hoisted so channel_remaining_ms (called per frame by mf_tick) allocates
+-- nothing: a table literal in the body would be one new table per call.
+local CHANNEL_REMAINING_MS_ACCESSORS = { "get_channel_remaining_ms" }
+local CHANNEL_REMAINING_SEC_ACCESSORS = { "get_channel_remaining_sec" }
+
+--- Remaining seconds of a unit's current cast or channel (target-side gate).
+-- @param unit  engine game_object (player or target) or nil
+-- @return number seconds remaining, or nil when the engine reports nothing
+--         (no cast/channel, or a harness without the accessors)
+function M.remaining(unit)
+    return first_number(unit, END_TIME_ACCESSORS)
+end
+
+--- Spell id of the unit's active channel, or nil when not channeling.
+-- Used by the dispatcher's channel-clip opt-in: only a channel a spec has
+-- declared clip-managed may re-enter the decision loop mid-channel.
+-- @param unit  engine game_object or nil
+-- @return number|nil
+function M.channel_id(unit)
+    local id = first_number(unit, CHANNEL_ID_ACCESSORS)
+    if type(id) ~= "number" or id <= 0 then return nil end
+    return id
+end
+
+--- Milliseconds already elapsed in the unit's current channel, or nil.
+-- This is the authoritative elapsed clock; before it existed the repo computed
+-- `now - channel_start` by hand, which is off by the poll gap and blind to a
+-- duration the engine scaled with haste.
+-- @param unit  engine game_object or nil
+-- @return number|nil milliseconds
+function M.channel_elapsed_ms(unit)
+    return first_number(unit, CHANNEL_ELAPSED_ACCESSORS)
+end
+
+--- Milliseconds remaining in the unit's current channel, or nil.
+-- Prefers the millisecond accessor; falls back to seconds and rescales.
+-- Fail-open: nil means "unknown" and callers must keep their pre-signal path.
+-- @param unit  engine game_object or nil
+-- @return number|nil milliseconds
+function M.channel_remaining_ms(unit)
+    local ms = first_number(unit, CHANNEL_REMAINING_MS_ACCESSORS)
+    if type(ms) == "number" then return ms end
+    local sec = first_number(unit, CHANNEL_REMAINING_SEC_ACCESSORS)
+    if type(sec) == "number" then return sec * 1000 end
+    return nil
+end
+
+--- Total duration of the unit's current channel in milliseconds, or nil.
+-- Haste-scaled by the engine, which is what makes a tick-interval derivation
+-- correct where a hardcoded 1000ms tick is not.
+-- @param unit  engine game_object or nil
+-- @return number|nil milliseconds
+function M.channel_duration_ms(unit)
+    return first_number(unit, CHANNEL_DURATION_ACCESSORS)
 end
 
 --- Is there enough cast left for an interrupt to land in time?

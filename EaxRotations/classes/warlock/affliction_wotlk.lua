@@ -15,13 +15,20 @@ local dsl      = require("shared/strategy_dsl_sylvanas")
 -- shadow the WotLK max-rank ids (Corruption 47813 etc.) — see fire_wotlk.lua.
 local define = spec_kit.define_action
 
+-- Drain Soul is a clip-managed channel (2026-09-12): the wowsims affliction
+-- APL channels it in execute and interrupts it (interruptIf: const True) so a
+-- DoT that needs refreshing wins the GCD. Declared in the register call's
+-- channel_clip_ids; the DoT lanes below carry skip_casting so evaluate_cast
+-- lets the replacement through mid-channel.
+local DRAIN_SOUL_IDS = { 47855, 27217, 11675, 8289, 8288, 1120 }
+
 local ACTION = {
     UnstableAffliction = define("UnstableAffliction", { 47843, 30405, 30404, 30108 }, "UnstableAffliction"),
     Haunt = define("Haunt", { 59164, 48181 }, "Haunt"),
     Corruption = define("Corruption", { 47813, 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     CurseOfAgony = define("CurseOfAgony", { 47864, 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     SeedOfCorruption = define("SeedOfCorruption", { 47836, 27243 }, "SeedOfCorruption"),
-    DrainSoul = define("DrainSoul", { 47855, 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
+    DrainSoul = define("DrainSoul", DRAIN_SOUL_IDS, "DrainSoul"),
     ShadowBolt = define("ShadowBolt", { 47809, 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
 }
@@ -70,28 +77,28 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "haunt_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.Haunt, target = "target" },
+        action = { type = "cast", spell = ACTION.Haunt, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "Corruption",
         conditions = {
             { type = "state", field = "corruption_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.Corruption, target = "target" },
+        action = { type = "cast", spell = ACTION.Corruption, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "UnstableAffliction",
         conditions = {
             { type = "state", field = "unstable_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target" },
+        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "CurseOfAgony",
         conditions = {
             { type = "state", field = "agony_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target" },
+        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "SeedOfCorruptionAoE",
@@ -158,7 +165,13 @@ for i = 1, #strategies do
 end
 
 if NS.rotation_registry and NS.rotation_registry.register then
-    NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
+    NS.rotation_registry:register("affliction", strategies, {
+        get_state = build_state,
+        -- Drain Soul clip opt-in: the dispatcher may re-enter the decision loop
+        -- mid-channel so a DoT refresh (Haunt/Corruption/UA/CoA, each already
+        -- gated on its own remaining-time window) can clip the execute channel.
+        channel_clip_ids = DRAIN_SOUL_IDS,
+    })
 end
 if NS.log then NS.log("Warlock affliction rotation registered") end
 

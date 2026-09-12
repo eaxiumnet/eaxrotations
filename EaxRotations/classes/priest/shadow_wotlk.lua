@@ -13,6 +13,12 @@
 --         literal matching. Shadowfiend (34433, APL priority 1) fires below
 --         the mana-return threshold; Mind Flay channel clipping mirrors the
 --         TBC sibling via shared/mf_tick_compute_sylvanas.
+-- 2026-09-12 channel-clip pass: Mind Flay is declared in the register call's
+--         channel_clip_ids so main_sylvanas re-enters the decision loop while
+--         this channel runs (previously the blanket channel skip meant these
+--         clip lanes could never fire in the live dispatcher), the clip lanes
+--         carry skip_casting so evaluate_cast lets the replacement through, and
+--         the tick/remaining numbers come from the engine channel clock.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -92,7 +98,11 @@ local function build_state(context)
     state.devouring_plague_remains = (target and NS.debuff_remains and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF)) or 0
     -- Mind Flay channel state + clip signal (mirrors shadow_sylvanas.lua:476-486).
     state.mb_ready = (target and NS.spell_ready and NS.spell_ready(ACTION.MindBlast, target, { expected_cooldown = 5.5 })) or false
-    local mf_channeling, mf_ticks = mf_tick.compute_channel_state(me, (NS.game_time_ms and NS.game_time_ms()) or 0, MIND_FLAY_IDS)
+    -- Engine channel clock (2026-09-12): mf_ticks now derives from the engine's
+    -- channel elapsed/duration (haste-scaled) instead of `now - channel_start`,
+    -- and the third return is the real seconds left in the channel, which feeds
+    -- the "this DoT expires before the channel ends" clip rule.
+    local mf_channeling, mf_ticks, mf_remaining = mf_tick.compute_channel_state(me, (NS.game_time_ms and NS.game_time_ms()) or 0, MIND_FLAY_IDS)
     state.mf_channeling = mf_channeling
     state.should_clip_mf = mf_tick.should_clip_mf(
         mf_channeling,
@@ -102,7 +112,8 @@ local function build_state(context)
         false,
         state.vampiric_touch_remains,
         state.shadow_word_pain_remains,
-        spec_kit.setting_number(context, "shadow_swp_refresh_window", 1.5)
+        spec_kit.setting_number(context, "shadow_swp_refresh_window", 1.5),
+        mf_remaining
     )
     return state
 end
@@ -130,7 +141,10 @@ local DSL_DEFS = {
             end },
             { type = "state", field = "vampiric_touch_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.VampiricTouch, target = "target" },
+        -- skip_casting: this lane is a declared Mind Flay clipper (see the
+        -- register call's channel_clip_ids). Without it evaluate_cast refuses
+        -- the replacement cast for the whole channel.
+        action = { type = "cast", spell = ACTION.VampiricTouch, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "ShadowWordPain",
@@ -140,7 +154,7 @@ local DSL_DEFS = {
             end },
             { type = "state", field = "shadow_word_pain_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.ShadowWordPain, target = "target" },
+        action = { type = "cast", spell = ACTION.ShadowWordPain, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "DevouringPlague",
@@ -150,7 +164,7 @@ local DSL_DEFS = {
             end },
             { type = "state", field = "devouring_plague_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.DevouringPlague, target = "target" },
+        action = { type = "cast", spell = ACTION.DevouringPlague, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "MindBlast",
@@ -160,7 +174,7 @@ local DSL_DEFS = {
             end },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.MindBlast, target = "target" },
+        action = { type = "cast", spell = ACTION.MindBlast, target = "target", opts = { skip_casting = true } },
     },
     {
         name = "ShadowWordDeath",
@@ -226,7 +240,15 @@ for i = 1, #strategies do
 end
 
 if NS.rotation_registry and NS.rotation_registry.register then
-    NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
+    NS.rotation_registry:register("shadow", strategies, {
+        get_state = build_state,
+        -- Mind Flay is a clip-managed channel (2026-09-12): the dispatcher may
+        -- re-enter the decision loop mid-channel for these ids so a
+        -- higher-priority lane (VT/SW:P/DP/MB, each gated by
+        -- can_break_mind_flay) can clip at a tick boundary. Every other channel
+        -- keeps the blanket skip.
+        channel_clip_ids = MIND_FLAY_IDS,
+    })
 end
 if NS.log then NS.log("Priest Shadow WotLK rotation registered") end
 
