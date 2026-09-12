@@ -877,3 +877,29 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   correctly cleared): siblings cover the same behavior under their own names
   (BarkskinDefense/InnervateHealer/InnervateSelf) and Mirror Image is WotLK-only.
 
+## Addendum 2026-09-12 — cast-timing wave: engine cast/channel end times
+
+- New shared module `shared/cast_timing_sylvanas.lua` reads the engine's real
+  cast/channel end times (`get_channeling_or_casting_remaining_sec` /
+  `get_cast_remaining_sec` / `get_channel_remaining_sec`) via
+  `context.target_cast_remaining`, published by main_sylvanas.lua each frame.
+  Grep-verified: ZERO rotations read any end-time accessor before the wave. Pure
+  + fail-open (no NS capture at require time; closure-free field read; an absent
+  or zero end time = "unknown" = the pre-signal behavior).
+- `shared/interrupt_manager_sylvanas.lua` `cast_has_interrupt_window` is now
+  end-time-first: when the engine reports seconds remaining it gates on that
+  (default 0.30s lead, clamped 0.10–1.50s, spec-overridable via
+  `settings.interrupt_lead_sec`) and never falls through to the duration-relative
+  percent heuristic. A short cast about to finish no longer claims an interrupt.
+- 17 WotLK interrupt lanes gated (mage Counterspell ×3 + leveling, rogue Kick
+  ×4, warrior Pummel ×3 + leveling, deathknight leveling, priest Silence,
+  shaman ×2, warlock leveling) — each holds on a finishing cast, fires on a
+  normal one.
+- No new spell ids; the audit allowlist is unchanged this wave.
+- Battery: never-fires = 0 for all affected specs (WotLK era total still 0). One
+  new shared scenario `target_cast_finishing` (target_is_casting + 0.05s
+  remaining) and `target_cast_remaining` registered as a known context key.
+  test_interrupt_manager +11 assertions; frost/shadow behavioral suites extended
+  with fire/hold lane pins.
+- Perf: the read sits on the per-frame context-build path; made closure-free so
+  no per-frame allocation is added (tick churn 47.49 -> 47.12 KB).
