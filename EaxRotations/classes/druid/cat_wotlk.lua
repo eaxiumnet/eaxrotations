@@ -21,6 +21,13 @@ if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+-- Cast/channel end-time gate (2026-09-12): an interrupt that lands after the
+-- target's cast completes wastes its cooldown. Fail-open when the engine
+-- reports no end time (shared/cast_timing_sylvanas.lua).
+local _ct_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
+if not _ct_ok or type(cast_timing) ~= "table" then
+    cast_timing = { context_interrupt_open = function() return true end }
+end
 
 -- Plain define_action: file-local WotLK rank lists must win over the
 -- TBC-capped DruidSpells class table (precedent: mage/fire_wotlk.lua:20).
@@ -131,6 +138,9 @@ local DSL_DEFS = {
     {
         name = "MaimInterrupt",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                return cast_timing.context_interrupt_open(context, context and context.settings)
+            end },
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_is_casting", op = "truthy" },
             { type = "state", field = "combo_points", op = ">=", value = 1 },

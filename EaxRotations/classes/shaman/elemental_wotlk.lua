@@ -107,6 +107,9 @@ local DSL_DEFS = {
     {
         name = "EarthShock",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                return cast_timing.context_interrupt_open(context, context and context.settings)
+            end },
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_is_casting", op = "truthy" },
         },

@@ -99,6 +99,8 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+local cast_remaining = nil
+local cast_lead = nil
 local function scenario(label, strategy_name, mutations, expect_match, in_combat)
     local save = { stance, ctx_rage, target_hp, distance, target_casting, interruptible,
                    dodge, aoe_self, aoe_target, rend_remains }
@@ -107,7 +109,7 @@ local function scenario(label, strategy_name, mutations, expect_match, in_combat
     mutations()
     local combat = in_combat ~= false
     local ctx = {
-        in_combat = combat, target = mk_target(), settings = {},
+        in_combat = combat, target = mk_target(), settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining,
         enemy_count = 1, rage = ctx_rage, target_distance = distance,
     }
     local state = result.build_state(ctx)
@@ -205,4 +207,9 @@ scenario("Pummel fires on a cast at 10+ rage", "Pummel",
 scenario("Pummel blocked when the target is not casting", "Pummel",
     function() ctx_rage = 15; target_casting = false end, false)
 
-print("PASS test_warrior_leveling_wotlk_strategies")
+-- ============================================================================
+-- Pummel end-time gate (2026-09-12, shared/cast_timing_sylvanas). An
+-- interrupt whose lead is at or below 0.30s is refused -- the cast lands
+-- first and the cooldown is wasted. Unknown remaining stays fail-open.
+-- ============================================================================
+scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 15; target_casting = true; interruptible = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 15; target_casting = true; interruptible = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; target_casting = true; interruptible = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 15; target_casting = true; interruptible = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 15; target_casting = true; interruptible = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)print("PASS test_warrior_leveling_wotlk_strategies")

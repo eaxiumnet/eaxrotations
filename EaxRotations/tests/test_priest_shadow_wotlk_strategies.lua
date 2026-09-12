@@ -124,9 +124,9 @@ assert_lane("Silence blocked out of combat", "Silence",
 -- Engine end-time floor (2026-09-12, shared/cast_timing_sylvanas): a cast that
 -- lands before the interrupt arrives must not spend the cooldown.
 assert_lane("Silence fires with 1.0s left on the enemy cast", "Silence",
-    function() casting = true; cast_remaining = 1.0 end, true)
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil end, true)
 assert_lane("Silence holds when only 0.05s of the cast remains", "Silence",
-    function() casting = true; cast_remaining = 0.05 end, false)
+    function() casting = true; cast_remaining = 0.05; cast_lead = nil end, false)
 
 -- ============================================================================
 -- VampiricTouch: can break Mind Flay + refresh below 3s.

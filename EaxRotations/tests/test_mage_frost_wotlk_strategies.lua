@@ -128,13 +128,13 @@ assert_lane("Counterspell blocked when nothing is casting", "Counterspell", func
 -- Engine end-time floor (2026-09-12): a cast about to finish must not claim the
 -- interrupt cooldown. Unknown remaining (nil) keeps the pre-signal behavior.
 assert_lane("Counterspell fires with 1.0s left on the enemy cast", "Counterspell",
-    function() casting = true; cast_remaining = 1.0 end, true)
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil end, true)
 assert_lane("Counterspell holds when only 0.05s of the cast remains", "Counterspell",
-    function() casting = true; cast_remaining = 0.05 end, false)
+    function() casting = true; cast_remaining = 0.05; cast_lead = nil end, false)
 assert_lane("Counterspell holds ON the 0.30s lead floor", "Counterspell",
-    function() casting = true; cast_remaining = 0.30 end, false)
+    function() casting = true; cast_remaining = 0.30; cast_lead = nil end, false)
 assert_lane("Counterspell fires above the 0.30s lead floor", "Counterspell",
-    function() casting = true; cast_remaining = 0.31 end, true)
+    function() casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
 assert_lane("Counterspell honours a raised interrupt_lead_sec setting", "Counterspell",
     function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
 assert_lane("Counterspell still holds a finishing cast only while casting", "Counterspell",

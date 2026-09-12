@@ -27,6 +27,9 @@ local enemy_count = 1
 local combat = true
 local debuffs = {}
 local buffs = {}
+-- Engine cast END TIME (ctx.target_cast_remaining, seconds): the interrupt
+-- floor. nil = unknown = fail-open (the pre-signal behavior).
+local casting = false
 
 local function serpent(secs) debuffs[49001] = secs end
 local function mark(secs) debuffs[14325] = secs end
@@ -36,6 +39,7 @@ local function set_buff(id, up) buffs[id] = up or nil end
 local function reset_env()
     mana, thp, enemy_count, combat = 100, 100, 1, true
     debuffs, buffs = {}, {}
+    casting = false
 end
 
 _G.EaxRotations = {
@@ -69,13 +73,17 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+local cast_remaining = nil
+local cast_lead = nil
 local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         mana_pct = mana,
         enemy_count = enemy_count,
-        target = { get_health_percentage = function() return thp end },
-        settings = {},
+        target_casting = casting,
+        target = { get_health_percentage = function() return thp end,
+                   is_casting = function() return casting end },
+        settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining,
     }
     local state = result.build_state(ctx)
     local matched = find_strategy(strategy_name).matches(ctx, state)
@@ -109,12 +117,28 @@ assert_lane("AspectOfTheDragonhawk blocked while Dragonhawk is up", "AspectOfThe
     function() mana = 100; set_buff(61847, true) end, false)
 
 -- ============================================================================
--- Silencing Shot: in-combat interrupt-style use lane (no cast gate in the
--- spec beyond combat).
+-- Silencing Shot: interrupt lane. 2026-09-12 correctness pass — the lane
+-- previously had NO target-casting gate at all (only in_combat), so it fired
+-- Silencing Shot on cooldown against a target that was not casting. It now
+-- requires a casting target plus a real interrupt window, matching its
+-- leveling sibling and the shared engine cast-timing gate.
 -- ============================================================================
-assert_lane("SilencingShot fires in combat", "SilencingShot", function() end, true)
+assert_lane("SilencingShot fires on a casting target in combat", "SilencingShot",
+    function() casting = true end, true)
 assert_lane("SilencingShot blocked out of combat", "SilencingShot",
-    function() combat = false end, false)
+    function() combat = false; casting = true end, false)
+assert_lane("SilencingShot blocked when the target is not casting", "SilencingShot",
+    function() end, false)
+assert_lane("SilencingShot fires with 1.0s left on the enemy cast", "SilencingShot",
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil end, true)
+assert_lane("SilencingShot holds when only 0.05s of the cast remains", "SilencingShot",
+    function() casting = true; cast_remaining = 0.05; cast_lead = nil end, false)
+assert_lane("SilencingShot holds ON the 0.30s lead floor", "SilencingShot",
+    function() casting = true; cast_remaining = 0.30; cast_lead = nil end, false)
+assert_lane("SilencingShot fires above the 0.30s lead floor", "SilencingShot",
+    function() casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
+assert_lane("SilencingShot honours a raised interrupt_lead_sec setting", "SilencingShot",
+    function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
 
 -- ============================================================================
 -- Hunters Mark upkeep.

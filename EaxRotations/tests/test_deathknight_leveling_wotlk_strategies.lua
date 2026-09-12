@@ -120,6 +120,8 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+local cast_remaining = nil
+local cast_lead = nil
 local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
@@ -127,7 +129,7 @@ local function scenario(label, strategy_name, expect)
             get_health_percentage = function() return 100 end,
             is_casting = function() return casting end,
         },
-        settings = {},
+        settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining,
         _aoe_hit_count = aoe_hits,
     }
     local state = result.build_state(ctx)
@@ -245,5 +247,23 @@ assert_lane("EmpowerRuneWeapon blocked when long-CD gate refuses", "EmpowerRuneW
     function() longcd = false end, false)
 assert_lane("EmpowerRuneWeapon blocked out of combat", "EmpowerRuneWeapon",
     function() combat = false end, false)
+
+
+-- ============================================================================
+-- Engine cast/channel end-time gate (2026-09-12, shared/cast_timing_sylvanas).
+-- MindFreeze must HOLD when the target's cast is about to land (the interrupt
+-- would arrive too late and burn its cooldown) and FIRE on a normal cast.
+-- Unknown remaining (nil) keeps the pre-signal fail-open behavior.
+-- ============================================================================
+assert_lane("MindFreeze fires with 1.0s left on the enemy cast", "MindFreeze",
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil end, true)
+assert_lane("MindFreeze holds when only 0.05s of the cast remains", "MindFreeze",
+    function() casting = true; cast_remaining = 0.05; cast_lead = nil end, false)
+assert_lane("MindFreeze holds ON the 0.30s lead floor", "MindFreeze",
+    function() casting = true; cast_remaining = 0.30; cast_lead = nil end, false)
+assert_lane("MindFreeze fires above the 0.30s lead floor", "MindFreeze",
+    function() casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
+assert_lane("MindFreeze honours a raised interrupt_lead_sec setting", "MindFreeze",
+    function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
 
 print("PASS test_deathknight_leveling_wotlk_strategies")

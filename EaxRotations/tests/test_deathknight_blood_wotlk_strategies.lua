@@ -220,4 +220,51 @@ assert_lane("HeartStrike fires as the unconditional filler", "HeartStrike",
 assert_lane("DeathCoil fires at 40+ RP", "DeathCoil", function() rp = 40 end, true)
 assert_lane("DeathCoil blocked below 40 RP", "DeathCoil", function() rp = 39 end, false)
 
+-- ============================================================================
+-- Manager-backed interrupt lane (2026-09-12 cast-timing pass). This file
+-- registers Mind Freeze through interrupt_manager.register_interrupt_spell, so
+-- its gate is the shared cast_has_interrupt_window: an interrupt whose lead is
+-- at or below 0.30s is refused (the cast lands first and the cooldown is
+-- wasted). Driven through the REAL spec file with the engine end-time accessor
+-- on the mock target; an absent end time stays fail-open.
+-- ============================================================================
+_G.EaxRotations.try_interrupt = function() return true end
+_G.EaxRotations.spell_ready = function() return true end
+_G.EaxRotations.gcd_remains = function() return 0 end
+_G.EaxRotations.try_cast = function() return true end
+_G.EaxRotations.time_now = function() return 0 end
+_G.EaxRotations.is_interruptible = function() return true end
+
+-- The manager-registered strategy keeps its generic default name ("Interrupt")
+-- in this file (frost_wotlk.lua renames it to "MindFreeze"), and blood's
+-- not-loaded fallback is "MindFreezeSkip", so resolve by any of the three.
+local function find_interrupt_lane()
+    for i = 1, #result.strategies do
+        local s = result.strategies[i]
+        if s.name == "MindFreeze" or s.name == "Interrupt" or s.name == "MindFreezeSkip" then
+            return s
+        end
+    end
+    error("interrupt strategy not found")
+end
+
+local function interrupt_probe(remaining)
+    local tgt = {
+        is_casting = function() return true end,
+        get_channeling_or_casting_remaining_sec = function() return remaining end,
+    }
+    local ctx = {
+        in_combat = true, me = me, target = tgt,
+        settings = { use_interrupt = true, interrupt_humanize_enabled = false },
+        target_cast_remaining = remaining,
+    }
+    return find_interrupt_lane().matches(ctx, result.build_state(ctx))
+end
+
+assert_true(interrupt_probe(1.0), "MindFreeze fires with 1.0s left on the target cast")
+assert_true(interrupt_probe(0.31), "MindFreeze fires above the 0.30s lead floor")
+assert_false(interrupt_probe(0.30), "MindFreeze holds ON the 0.30s lead floor")
+assert_false(interrupt_probe(0.20), "MindFreeze holds with 0.20s left on the cast")
+assert_false(interrupt_probe(0.05), "MindFreeze holds when the cast lands first")
+
 print("PASS test_deathknight_blood_wotlk_strategies")

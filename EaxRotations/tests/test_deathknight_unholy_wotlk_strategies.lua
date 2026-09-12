@@ -158,11 +158,13 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+local cast_remaining = nil
+local cast_lead = nil
 local function scenario(label, strategy_name, expect)
     local ctx = {
         in_combat = combat,
         target = { get_health_percentage = function() return 100 end },
-        settings = {},
+        settings = { interrupt_lead_sec = cast_lead }, target_cast_remaining = cast_remaining,
         _aoe_hit_count = aoe_hits,
         target_is_boss = boss,
         target_casting = casting,
@@ -296,5 +298,70 @@ assert_lane("Presence fires toward Unholy from Blood Presence", "Presence",
     function() set_buff(48266, true) end, true)
 assert_lane("Presence blocked while Unholy Presence is up", "Presence",
     function() set_buff(48265, true) end, false)
+
+
+-- ============================================================================
+-- Engine cast/channel end-time gate (2026-09-12, shared/cast_timing_sylvanas).
+-- GhoulGnaw must HOLD when the target's cast is about to land (the interrupt
+-- would arrive too late and burn its cooldown) and FIRE on a normal cast.
+-- Unknown remaining (nil) keeps the pre-signal fail-open behavior.
+-- ============================================================================
+assert_lane("GhoulGnaw fires with 1.0s left on the enemy cast", "GhoulGnaw",
+    function() pet = true; casting = true; cast_remaining = 1.0; cast_lead = nil end, true)
+assert_lane("GhoulGnaw holds when only 0.05s of the cast remains", "GhoulGnaw",
+    function() pet = true; casting = true; cast_remaining = 0.05; cast_lead = nil end, false)
+assert_lane("GhoulGnaw holds ON the 0.30s lead floor", "GhoulGnaw",
+    function() pet = true; casting = true; cast_remaining = 0.30; cast_lead = nil end, false)
+assert_lane("GhoulGnaw fires above the 0.30s lead floor", "GhoulGnaw",
+    function() pet = true; casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
+assert_lane("GhoulGnaw honours a raised interrupt_lead_sec setting", "GhoulGnaw",
+    function() pet = true; casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
+
+-- ============================================================================
+-- Manager-backed interrupt lane (2026-09-12 cast-timing pass). This file
+-- registers Mind Freeze through interrupt_manager.register_interrupt_spell, so
+-- its gate is the shared cast_has_interrupt_window: an interrupt whose lead is
+-- at or below 0.30s is refused (the cast lands first and the cooldown is
+-- wasted). Driven through the REAL spec file with the engine end-time accessor
+-- on the mock target; an absent end time stays fail-open.
+-- ============================================================================
+_G.EaxRotations.try_interrupt = function() return true end
+_G.EaxRotations.spell_ready = function() return true end
+_G.EaxRotations.gcd_remains = function() return 0 end
+_G.EaxRotations.try_cast = function() return true end
+_G.EaxRotations.time_now = function() return 0 end
+_G.EaxRotations.is_interruptible = function() return true end
+
+-- The manager-registered strategy keeps its generic default name ("Interrupt")
+-- in this file (frost_wotlk.lua renames it to "MindFreeze"), and blood's
+-- not-loaded fallback is "MindFreezeSkip", so resolve by any of the three.
+local function find_interrupt_lane()
+    for i = 1, #result.strategies do
+        local s = result.strategies[i]
+        if s.name == "MindFreeze" or s.name == "Interrupt" or s.name == "MindFreezeSkip" then
+            return s
+        end
+    end
+    error("interrupt strategy not found")
+end
+
+local function interrupt_probe(remaining)
+    local tgt = {
+        is_casting = function() return true end,
+        get_channeling_or_casting_remaining_sec = function() return remaining end,
+    }
+    local ctx = {
+        in_combat = true, me = me, target = tgt,
+        settings = { use_interrupt = true, interrupt_humanize_enabled = false },
+        target_cast_remaining = remaining,
+    }
+    return find_interrupt_lane().matches(ctx, result.build_state(ctx))
+end
+
+assert_true(interrupt_probe(1.0), "MindFreeze fires with 1.0s left on the target cast")
+assert_true(interrupt_probe(0.31), "MindFreeze fires above the 0.30s lead floor")
+assert_false(interrupt_probe(0.30), "MindFreeze holds ON the 0.30s lead floor")
+assert_false(interrupt_probe(0.20), "MindFreeze holds with 0.20s left on the cast")
+assert_false(interrupt_probe(0.05), "MindFreeze holds when the cast lands first")
 
 print("PASS test_deathknight_unholy_wotlk_strategies")
