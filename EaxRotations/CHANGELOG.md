@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Fix - live-client cast spam: the engine's own refusal now holds the ability
+
+- The rotation had no way to learn that the client refused a cast. A lane that
+  matched but could not be cast - invalid target, wrong weapon, missing reagent,
+  immune target - re-matched on the very next frame and re-queued the same spell
+  forever. That is the reported "invalid target" spam (Feint / Slice and Dice),
+  and the same shape as the earlier Backstab and Mortal Strike reports.
+- `shared/cast_reject_guard_sylvanas.lua` subscribes to the engine's own
+  `UNIT_SPELLCAST_FAILED` / `UNIT_SPELLCAST_FAILED_QUIET` events for the local
+  player and holds that spell id for 0.6s. The central cast guard
+  (`NS.evaluate_cast`) consults it, so the dispatcher falls through to the next
+  lane instead of re-offering a cast the client is rejecting.
+- **Fail-open by construction**: no installed namespace, no clock, or a client
+  that never fires the events leaves `is_held()` false, so the cast path is
+  byte-for-byte the pre-existing behavior. Only a *player*-unit refusal holds our
+  spells - another unit's failed cast never does.
+- Opt-out per call via `opts.skip_reject_hold`. Allocation happens only on a
+  rejection (rare), never per frame: the hot-path read is one table index plus a
+  comparison, and the table is pruned on write.
+- Pinned in `test_dispatcher_role_mode.lua` through the REAL dispatcher and the
+  REAL `try_cast`: a refused lane loses the GCD to the next lane, wins it back
+  when the hold expires, and wins the same GCD when no refusal was injected - so
+  the hold (not lane order, the 0.3s anti-flicker or the 2.5s cast-history
+  throttle) is what changed the outcome. Non-vacuity also proven by injection:
+  neutering `is_held()` or the `evaluate_cast` hook fails the suite.
+
+
 ### Fix - rogue daggers: Backstab and Ambush are now gated on a real main-hand dagger check
 
 - Both specs cast dagger-only abilities with **no weapon check at all** -
