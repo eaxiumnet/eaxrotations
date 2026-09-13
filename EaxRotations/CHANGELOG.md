@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Fix - live-client crash: `inventory_helper.has_item` is not an engine member
+
+- **A live client logged `attempt to call field 'has_item' (a nil value)` from
+  `classes/rogue/subtlety_sylvanas.lua:63` every ~2 seconds in combat.** Root
+  cause: ten class files read item presence from `inventory_helper.has_item(id)`,
+  a member the engine's `.api` module does not have - `inventory_helper` declares
+  `get_all_slots` / `get_character_bag_slots` / `get_current_consumables_list` /
+  `get_total_free_slots` / `get_bag_info`, and no `has_item` at all. Affected:
+  rogue/subtlety, priest/smite, shaman/elemental, shaman/enhancement,
+  shaman/restoration, warrior/kebab and warrior/protection (all threw on the nil
+  call) plus hunter/beast_mastery, hunter/marksmanship and hunter/survival
+  (guarded by a type check, so they silently never found a healthstone).
+- All ten now read the real, installed `NS.has_item` (owned by `core/items.lua`;
+  already used by the mage/paladin/rogue/warlock middleware and
+  `shared/consumable_manager_sylvanas.lua`), guarded by a type check and a pcall
+  so a client without the reader fails open instead of throwing. The now-unused
+  `common/utility/inventory_helper` requires were dropped from those files.
+- **Why every suite stayed green:** `behavioral_audit.lua` seeded
+  `package.loaded["common/utility/inventory_helper"]` with an invented
+  `has_item`, so the battery was exercising an API the engine does not have. The
+  battery now seeds `ns.has_item` instead (every id present except the soulstone
+  family, which affliction/demonology consult to decide whether a pre-combat
+  self-soulstone is still needed), and the five suites that leaned on the fake
+  stub mock the real reader.
+- **New guard:** `test_api_lint.lua` gained a `.api` member-contract lint. For
+  every file that binds a `require()` to a local, each `<alias>.<member>(` call
+  must name a member the corresponding `.api` module declares via
+  `---@class` / `---@field`. It scans 46 declared `.api` modules, is
+  deterministic and offline, is non-vacuously proven (an injected
+  `inventory_helper.has_item` call fails it), and is clean on the tree today.
+  This is the check that would have caught this crash before it shipped.
+- Verified: rotation battery 563/563, leveling 39/39, WotLK 82/82, WotLK
+  battery never-fires 0, and the TBC 11 / vanilla 9 / SoD 0 / WotLK 0
+  never-fire pins unchanged; state-field, read-side, dead-matcher, NS-member,
+  cache-hit, era-pair and unused-require audits clean; perf gate green;
+  `verify_all` exit 0.
+
 ### Architecture — one landing place for engine signals, one owner for safe reads
 
 - **New `shared/engine_signals_sylvanas.lua` is now THE landing place for
