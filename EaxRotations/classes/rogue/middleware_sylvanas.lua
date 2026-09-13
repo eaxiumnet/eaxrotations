@@ -186,7 +186,10 @@ local strategies = {
             return true
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Feint, context.me, "[ROGUE] Feint", { skip_range = true })
+            -- 2026-09-13: Feint is cast ON the enemy (5 yd Combat range) - a
+            -- self-target is rejected by the client and spam-loops the queue.
+            if not context.target or context.has_valid_enemy_target == false then return false end
+            return NS.try_cast(SPELLS.Feint, context.target, "[ROGUE] Feint", { skip_range = true })
         end,
     },
 

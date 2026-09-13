@@ -274,6 +274,9 @@ end
 local slice_and_dice_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
+    -- 2026-09-13: finisher ON THE TARGET - nil falls back to self in try_cast
+    -- and the client rejects the self-cast (spell-queue spam loop).
+    if not (context and context.target) or context.has_valid_enemy_target == false then return false end
     if not state.slice_and_dice_ready then return false end
     -- Refresh when about to drop (< 3s remains) even if active (wave 1.3:
     -- previously a hard `if state.has_slice_and_dice then return false end` —
@@ -448,7 +451,7 @@ local strategies = {
 
     { name = "SliceAndDice",
       matches = slice_and_dice_matches,
-      execute = function(context) return try_cast(SPELLS.SliceAndDice, nil, "[LEVELING] Slice and Dice") end },
+      execute = function(context) return try_cast(SPELLS.SliceAndDice, context and context.target, "[LEVELING] Slice and Dice") end },
 
     { name = "Rupture",
       matches = rupture_matches,

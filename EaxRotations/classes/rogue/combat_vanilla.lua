@@ -207,7 +207,9 @@ local function build_state(context)
     combat_state.stealth_ready = me and NS.spell_ready(SPELLS.Stealth, me, { skip_range = true }) or false
     combat_state.adrenaline_rush_ready = me and NS.spell_ready(SPELLS.AdrenalineRush, me, { skip_range = true, expected_cooldown = 300 }) or false
     combat_state.blade_flurry_ready = me and NS.spell_ready(SPELLS.BladeFlurry, me, { skip_range = true, expected_cooldown = 120 }) or false
-    combat_state.slice_and_dice_ready = me and NS.spell_ready(SPELLS.SliceAndDice, me, { skip_range = true }) or false
+    -- 2026-09-13: Slice and Dice/Feint require the enemy unit (a self-read
+    -- fired an "invalid target" cast that spam-looped the spell queue).
+    combat_state.slice_and_dice_ready = target and NS.spell_ready(SPELLS.SliceAndDice, target, { skip_range = true }) or false
     combat_state.rupture_ready = target and NS.spell_ready(SPELLS.Rupture, target) or false
     combat_state.eviscerate_ready = target and NS.spell_ready(SPELLS.Eviscerate, target) or false
     combat_state.sinister_strike_ready = target and NS.spell_ready(SPELLS.SinisterStrike, target) or false
@@ -215,7 +217,7 @@ local function build_state(context)
     combat_state.gouge_ready = target and NS.spell_ready(SPELLS.Gouge, target, { expected_cooldown = 10 }) or false
     combat_state.sprint_ready = me and NS.spell_ready(SPELLS.Sprint, me, { skip_range = true, expected_cooldown = 180 }) or false
     combat_state.vanish_ready = me and NS.spell_ready(SPELLS.Vanish, me, { skip_range = true, expected_cooldown = 300 }) or false
-    combat_state.feint_ready = me and NS.spell_ready(SPELLS.Feint, me, { skip_range = true, expected_cooldown = 10 }) or false
+    combat_state.feint_ready = target and NS.spell_ready(SPELLS.Feint, target, { skip_range = true, expected_cooldown = 10 }) or false
     combat_state.hemorrhage_ready = target and NS.spell_ready(SPELLS.Hemorrhage, target) or false
     combat_state.backstab_ready = target and NS.spell_ready(SPELLS.Backstab, target) or false
     combat_state.ghostly_strike_ready = target and NS.spell_ready(SPELLS.GhostlyStrike, target, { expected_cooldown = 20 }) or false
@@ -282,6 +284,7 @@ local function blade_flurry_wrapper(context, s)
 end
 
 local function slice_and_dice_wrapper(context, s)
+    if not context.target or context.has_valid_enemy_target == false then return false end
     if not s.slice_and_dice_ready then return false end
     -- Research: maintain 100% uptime; refresh when <3s remains
     if s.has_snd and not s.snd_needs_refresh then return false end
@@ -366,6 +369,7 @@ end
 
 local function feint_matches(context, s)
     if not s.in_combat then return false end
+    if not context.target or context.has_valid_enemy_target == false then return false end
     if not s.feint_ready then return false end
     -- Research: Feint is a threat drop ? only fire when threat is known and high
     local feint_threat = (context.settings and context.settings.combat_feint_threat) or 90
@@ -452,14 +456,14 @@ local strategies = {
     { name = "Stealth", matches = stealth_matches, execute = function(context) return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[COMBAT] Stealth", { skip_range = true }) end },
     { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(SPELLS.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },
     { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(SPELLS.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },
-    { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
+    { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, context.target, "[COMBAT] SliceAndDice", { skip_range = true }) end },
     { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(SPELLS.Rupture, context.target, "[COMBAT] Rupture") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(SPELLS.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
     { name = "Kick", matches = kick_matches, execute = function(context) return NS.try_cast(SPELLS.Kick, context.target, "[COMBAT] Kick") end },
     { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(SPELLS.Gouge, context.target, "[COMBAT] Gouge") end },
     { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },
-    { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(SPELLS.Feint, NS.PLAYER_UNIT, "[COMBAT] Feint", { skip_range = true }) end },
+    { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(SPELLS.Feint, context.target, "[COMBAT] Feint", { skip_range = true }) end },
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return NS.try_cast(SPELLS.Hemorrhage, context.target, "[COMBAT] Hemorrhage") end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return NS.try_cast(SPELLS.GhostlyStrike, context.target, "[COMBAT] GhostlyStrike") end },
     { name = "Backstab", matches = backstab_matches, execute = function(context) return NS.try_cast(SPELLS.Backstab, context.target, "[COMBAT] Backstab") end },

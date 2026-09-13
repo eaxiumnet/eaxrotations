@@ -149,12 +149,24 @@ assert_false(snd.matches({}, { slice_and_dice_ready = false, has_snd = false, sn
     "SliceAndDice does not match when not ready")
 assert_false(snd.matches({}, { slice_and_dice_ready = true, has_snd = false, snd_needs_refresh = false, combo_points = 1 }),
     "SliceAndDice does not match below 2 combo points")
-assert_true(snd.matches({}, { slice_and_dice_ready = true, has_snd = false, snd_needs_refresh = false, combo_points = 3 }),
+-- 2026-09-13 live-report fix: Slice and Dice is a finisher ON THE TARGET.
+-- A self-targeted cast is rejected by the client ("Invalid target") and the
+-- lane rematched every frame -> spell-queue spam loop.
+local enemy = { name = "enemy" }
+assert_true(snd.matches({ target = enemy }, { slice_and_dice_ready = true, has_snd = false, snd_needs_refresh = false, combo_points = 3 }),
     "SliceAndDice matches when missing with 2+ CP")
-assert_true(snd.matches({}, { slice_and_dice_ready = true, has_snd = true, snd_needs_refresh = true, combo_points = 3 }),
+assert_true(snd.matches({ target = enemy }, { slice_and_dice_ready = true, has_snd = true, snd_needs_refresh = true, combo_points = 3 }),
     "SliceAndDice matches when refresh needed")
+assert_false(snd.matches({}, { slice_and_dice_ready = true, has_snd = false, snd_needs_refresh = false, combo_points = 3 }),
+    "SliceAndDice must hold without an enemy target")
 assert_false(snd.matches({}, { slice_and_dice_ready = true, has_snd = true, snd_needs_refresh = false, combo_points = 3 }),
     "SliceAndDice does not match when SnD fresh")
+
+local captured_snd = nil
+_G.EaxRotations.try_cast = function(spell, target) captured_snd = target return true end
+assert_true(snd.execute({ target = enemy }, { slice_and_dice_ready = true, has_snd = false, snd_needs_refresh = false, combo_points = 3 }),
+    "SliceAndDice execute returns true")
+assert_eq(captured_snd, enemy, "SliceAndDice must cast on the enemy target, never on self")
 
 -- Eviscerate: ready + not pooling + energy >= 35 + CP threshold + no Envenom deferral
 local evisc = find_strategy("Eviscerate")

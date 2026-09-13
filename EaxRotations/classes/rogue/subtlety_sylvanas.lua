@@ -514,11 +514,17 @@ local function hemo_debuff_matches(context, state)
 end
 
 local function slice_matches(context, state)
+    -- 2026-09-13 live-report fix: Slice and Dice is a finisher ON THE CURRENT
+    -- TARGET (Wowhead TBC 6774: "Requires combo points on target"). Casting it
+    -- at the player is rejected by the client ("Invalid target"), the lane
+    -- rematched every frame and the spell queue spam-looped. A missing target
+    -- must skip the lane: try_cast(nil) falls back to self.
+    if not context.target or context.has_valid_enemy_target == false then return false end
     if (state.combo or 0) < 2 then return false end
     if (state.slice_remains or 0) > SND_REFRESH then return false end
     if state.energy_pool_finisher then return false end
     if not should_spend_energy(context, ENERGY_FINISHER) then return false end
-    return NS.spell_ready(ACTION.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(ACTION.SliceAndDice, context.target, { skip_range = true })
 end
 
 local function rupture_matches(context, state)
@@ -566,10 +572,14 @@ end
 
 local function feint_matches(context, state)
     if not context.in_combat then return false end
+    -- 2026-09-13 live-report fix: TBC Feint has a 5 yd (Combat) range and a 10s
+    -- cooldown - it is cast ON the enemy, not on self. Self-targeted Feint was
+    -- rejected by the client and spam-looped (live log: Feint | Target <self>).
+    if not context.target or context.has_valid_enemy_target == false then return false end
     local feint_threat = setting(context, "subtlety_feint_threat", FEINT_THREAT_DEFAULT)
     if (state.threat_pct or 0) <= 0 or (state.threat_pct or 0) < feint_threat then return false end
     if not enough_energy(state, ENERGY_FEINT) then return false end
-    return NS.spell_ready(ACTION.Feint, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(ACTION.Feint, context.target, { skip_range = true })
 end
 
 local function hemorrhage_matches(context, state)
@@ -696,13 +706,13 @@ local strategies = {
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return cast(ACTION.KidneyShot, context.target, "[SUBTLETY] Kidney Shot stun chain") end },
     { name = "ShadowstepHemorrhage", matches = shadowstep_hemo_matches, execute = function(context) return cast(ACTION.Hemorrhage, context.target, "[SUBTLETY] Shadowstep Hemorrhage") end },
     { name = "HemorrhageDebuff", matches = hemo_debuff_matches, execute = function(context) return cast(ACTION.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage debuff") end },
-    { name = "SliceAndDice", matches = slice_matches, execute = function() return cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
+    { name = "SliceAndDice", matches = slice_matches, execute = function(context) return cast(ACTION.SliceAndDice, context.target, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return cast(ACTION.ExposeArmor, context.target, "[SUBTLETY] Expose Armor") end },
     { name = "Rupture", matches = rupture_matches, execute = function(context) return cast(ACTION.Rupture, context.target, "[SUBTLETY] Rupture") end },
     { name = "DeadlyThrow", matches = deadly_throw_matches, execute = function(context) return cast(ACTION.DeadlyThrow, context.target, "[SUBTLETY] Deadly Throw") end },
     { name = "EviscerateKill", matches = eviscerate_kill_matches, execute = function(context) return cast(ACTION.Eviscerate, context.target, "[SUBTLETY] Eviscerate kill") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return cast(ACTION.Eviscerate, context.target, "[SUBTLETY] Eviscerate") end },
-    { name = "Feint", matches = feint_matches, execute = function() return cast(ACTION.Feint, NS.PLAYER_UNIT, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
+    { name = "Feint", matches = feint_matches, execute = function(context) return cast(ACTION.Feint, context.target, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
     { name = "Backstab", matches = backstab_matches, execute = function(context) return cast(ACTION.Backstab, context.target, "[SUBTLETY] Backstab positional") end },
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return cast(ACTION.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage") end },
     { name = "SinisterStrikeFallback", matches = fallback_builder_matches, execute = function(context) return cast(ACTION.SinisterStrike, context.target, "[SUBTLETY] Sinister Strike fallback") end },

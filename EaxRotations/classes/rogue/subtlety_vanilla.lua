@@ -336,10 +336,13 @@ local function hemo_debuff_matches(context, state)
 end
 
 local function slice_matches(context, state)
+    -- 2026-09-13: finisher ON THE TARGET - a self-cast is rejected by the
+    -- client and spam-loops the spell queue (see docs live report).
+    if not context.target or context.has_valid_enemy_target == false then return false end
     if (state.combo or 0) < 2 then return false end
     if (state.slice_remains or 0) > SND_REFRESH then return false end
     if state.energy_pool_finisher then return false end
-    return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(SPELLS.SliceAndDice, context.target, { skip_range = true })
 end
 
 local function rupture_matches(context, state)
@@ -382,10 +385,13 @@ end
 
 local function feint_matches(context, state)
     if not context.in_combat then return false end
+    -- 2026-09-13: Feint is a melee-range ability cast ON the enemy; self-target
+    -- is rejected by the client and spam-loops the spell queue.
+    if not context.target or context.has_valid_enemy_target == false then return false end
     local feint_threat = setting(context, "subtlety_feint_threat", FEINT_THREAT_DEFAULT)
     if (state.threat_pct or 0) <= 0 or (state.threat_pct or 0) < feint_threat then return false end
     if not enough_energy(state, ENERGY_FEINT) then return false end
-    return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready(SPELLS.Feint, context.target, { skip_range = true })
 end
 
 local function hemorrhage_matches(context, state)
@@ -450,12 +456,12 @@ local strategies = {
     { name = "Sprint", matches = sprint_gap_matches, execute = function() return cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[SUBTLETY] Sprint gap close", { skip_range = true }) end },
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return cast(SPELLS.KidneyShot, context.target, "[SUBTLETY] Kidney Shot stun chain") end },
     { name = "HemorrhageDebuff", matches = hemo_debuff_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage debuff") end },
-    { name = "SliceAndDice", matches = slice_matches, execute = function() return cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
+    { name = "SliceAndDice", matches = slice_matches, execute = function(context) return cast(SPELLS.SliceAndDice, context.target, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return cast(SPELLS.ExposeArmor, context.target, "[SUBTLETY] Expose Armor") end },
     { name = "Rupture", matches = rupture_matches, execute = function(context) return cast(SPELLS.Rupture, context.target, "[SUBTLETY] Rupture") end },
     { name = "EviscerateKill", matches = eviscerate_kill_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate kill") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate") end },
-    { name = "Feint", matches = feint_matches, execute = function() return cast(SPELLS.Feint, NS.PLAYER_UNIT, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
+    { name = "Feint", matches = feint_matches, execute = function(context) return cast(SPELLS.Feint, context.target, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
     { name = "Backstab", matches = backstab_matches, execute = function(context) return cast(SPELLS.Backstab, context.target, "[SUBTLETY] Backstab positional") end },
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage") end },
     { name = "SinisterStrikeFallback", matches = fallback_builder_matches, execute = function(context) return cast(SPELLS.SinisterStrike, context.target, "[SUBTLETY] Sinister Strike fallback") end },

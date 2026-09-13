@@ -247,15 +247,18 @@ local strategies = {
         name = "SliceAndDice",
         matches = function(context, state)
             -- Refresh when about to drop (< 3s) even if active
+            -- 2026-09-13: finisher ON THE TARGET - a self-cast is rejected by
+            -- the client and spam-loops the queue (see docs live report).
+            if not context.target or context.has_valid_enemy_target == false then return false end
             if state.slice_dice_active and not state.snd_needs_refresh then return false end
             if (state.combo or 0) < 2 then return false end
-            return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(SPELLS.SliceAndDice, context.target, { skip_range = true })
         end,
         execute = function(context, state)
             local tag = state.slice_dice_active
                 and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
                 or "[ASSASS] Slice and Dice"
-            return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, tag)
+            return NS.try_cast(SPELLS.SliceAndDice, context.target, tag)
         end,
     },
 
@@ -441,17 +444,20 @@ local strategies = {
     {
         name = "FeintAoE",
         matches = function(context, state)
+            -- 2026-09-13: Feint is a melee-range ability cast ON the enemy;
+            -- self-targeted Feint is rejected and spam-loops the queue.
+            if not context.target or context.has_valid_enemy_target == false then return false end
             -- Threat drop: cast when threat is high regardless of HP/AoE
             if context.threat_pct and context.threat_pct > 90 then
-                return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+                return NS.spell_ready(SPELLS.Feint, context.target, { skip_range = true })
             end
             -- AoE damage reduction: cast when taking AoE damage and HP low
             if (state.hp_pct or 100) > 60 then return false end
             if not context.aoe_damage_incoming then return false end
-            return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(SPELLS.Feint, context.target, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(SPELLS.Feint, NS.PLAYER_UNIT, "[ASSASS] Feint")
+        execute = function(context)
+            return NS.try_cast(SPELLS.Feint, context.target, "[ASSASS] Feint")
         end,
     },
 }
