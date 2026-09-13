@@ -10,6 +10,8 @@ if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local BASE_SPELLS = NS.RogueSpells or {}
+local _dagger_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
+if not _dagger_ok then dagger_set = nil end
 
 local function spell(ids, label)
     return NS.spell_action(ids, label)
@@ -81,12 +83,14 @@ local SUB_VANILLA_SCHEMA = {
     combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
     hp = 100,  target_hp = 100,  target_distance = 40,  target_count = 1,
     is_behind = false,  is_caster_target = false,
+    mh_dagger_ok = true,
     control_active = false,  threat_pct = 0,
     vanish_cd = 0,  sprint_cd = 0,  evasion_cd = 0,
 }
 
 local subtlety_state = {
     stealth_up = false,
+    mh_dagger_ok = true,
     slice_remains = 0,
     rupture_remains = 0,
     hemo_remains = 0,
@@ -159,6 +163,17 @@ local function build_state(context)
     subtlety_state.vanish_cd = cd_remaining and cd_remaining(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = cd_remaining and cd_remaining(SPELLS.Sprint) or 0
     subtlety_state.evasion_cd = cd_remaining and cd_remaining(SPELLS.Evasion) or 0
+    -- Dagger eligibility (2026-09-13). The engine exposes no weapon-subclass
+    -- accessor, so the main-hand item id is classified against the generated
+    -- item data in shared/dagger_set_sylvanas. Backstab and Ambush both need a
+    -- DAGGER in the main hand; an item the data does not describe fails OPEN,
+    -- so an uncatalogued dagger can never silently disable the spec's burst.
+    local mh_id
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        mh_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
+    end
+    subtlety_state.mh_dagger_ok = (not dagger_set) or dagger_set.allows_dagger_ability(mh_id)
+
     return spec_kit.safe_state(subtlety_state, SUB_VANILLA_SCHEMA)
 end
 
@@ -231,6 +246,7 @@ end
 
 local function ambush_opener_matches(context, state)
     if not state.stealth_up then return false end
+    if state.mh_dagger_ok == false then return false end  -- Ambush needs a main-hand dagger
     -- Behind gate: state.is_behind is computed in build_state but was never
     -- consumed — from stealth in front the cast fails and stealth is wasted
     -- (requires_behind metadata is ignored by the dispatcher, wave 1.3).
@@ -402,6 +418,7 @@ end
 
 local function backstab_matches(context, state)
     if not state.is_behind then return false end
+    if state.mh_dagger_ok == false then return false end  -- Backstab needs a main-hand dagger
     if state.energy_low then return false end
     if not enough_energy(state, ENERGY_BACKSTAB) then return false end
     if state.stealth_up then return false end  -- use Ambush instead

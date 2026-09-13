@@ -590,6 +590,36 @@ local function test_rogue()
     local pvg = find_strategy("PvPCCGate")
     test_pcall_nil(pvg, { in_combat = true, settings = {} }, "is_spell_learned", "PvPCCGate: is_spell_learned nil")
 
+    -- AutoPoison (2026-09-13): out-of-combat poison upkeep. The lane delegates to
+    -- shared/weapon_poison_sylvanas (module-pinned in test_rogue_live_fixes); what
+    -- is pinned HERE is the lane contract - out of combat only, and it wants a
+    -- poison only when a bare weapon is paired with an owned poison item.
+    local auto_poison = find_strategy("AutoPoison")
+    test_count = test_count + 1
+    assert_false(auto_poison.matches({ in_combat = true, settings = {} }),
+        "AutoPoison must never fire in combat")
+    test_count = test_count + 1
+    assert_false(auto_poison.matches({ in_combat = false, settings = {} }),
+        "AutoPoison must hold when there is nothing to apply")
+    local orig_player = _G.EaxRotations.GetPlayer
+    local orig_has_item = _G.EaxRotations.has_item
+    local orig_use_item = _G.EaxRotations.use_item_by_id
+    _G.EaxRotations.GetPlayer = function()
+        return { get_item_at_inventory_slot = function(_, slot)
+            if slot == 16 then return { object = { get_item_id = function() return 2819 end } } end
+            return nil
+        end }
+    end
+    _G.EaxRotations.has_item = function(id) return id == 8928 end
+    test_count = test_count + 1
+    assert_true(auto_poison.matches({ in_combat = false, settings = {} }),
+        "AutoPoison must fire out of combat with a bare weapon and an owned poison")
+    test_count = test_count + 1
+    assert_true(pcall(auto_poison.execute, { in_combat = false, settings = {}, me = {} }),
+        "AutoPoison execute must not crash")
+    _G.EaxRotations.GetPlayer = orig_player
+    _G.EaxRotations.has_item = orig_has_item
+    _G.EaxRotations.use_item_by_id = orig_use_item
     return test_count
 end
 

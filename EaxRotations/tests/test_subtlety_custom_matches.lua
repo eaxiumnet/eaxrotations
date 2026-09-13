@@ -86,6 +86,28 @@ local bs = fs("Backstab")
 af(bs.matches({settings={},target={}},cs({is_behind=false})),"Backstab not behind")
 at(bs.matches({settings={},target={}},cs({is_behind=true,stealth_up=false,energy=80})),"Backstab match")
 
+-- Dagger gate (2026-09-13): Backstab and Ambush are main-hand DAGGER abilities.
+-- state.mh_dagger_ok comes from shared/dagger_set_sylvanas.classify() on the
+-- equipped main-hand item id and fails OPEN - only a positive "provably not a
+-- dagger" answer holds the lane, so an uncatalogued dagger cannot disable burst.
+af(bs.matches({settings={},target={}},cs({is_behind=true,stealth_up=false,energy=80,mh_dagger_ok=false})),"Backstab must hold without a main-hand dagger")
+at(bs.matches({settings={},target={}},cs({is_behind=true,stealth_up=false,energy=80,mh_dagger_ok=true})),"Backstab fires with a main-hand dagger")
+at(bs.matches({settings={},target={}},cs({is_behind=true,stealth_up=false,energy=80})),"Backstab must fail OPEN when the field is absent")
+
+-- Ambush shares the same gate (stealth opener).
+local amb = fs("Ambush")
+at(amb.matches({settings={},target={}},cs({stealth_up=true,is_behind=true,energy=80,mh_dagger_ok=true})),"Ambush fires with a main-hand dagger")
+af(amb.matches({settings={},target={}},cs({stealth_up=true,is_behind=true,energy=80,mh_dagger_ok=false})),"Ambush must hold without a main-hand dagger")
+
+-- Classifier contract behind that gate: dagger / provable non-dagger / unknown.
+local dagger_data = dofile("EaxRotations/shared/dagger_set_sylvanas.lua")
+at(dagger_data.classify(2819) == "dagger","Cross Dagger must classify as a dagger")
+at(dagger_data.classify(25) == "other","Worn Shortsword must classify as a provable non-dagger")
+at(dagger_data.classify(999999) == "unknown","an uncatalogued id must classify as unknown")
+af(dagger_data.allows_dagger_ability(25),"a provable non-dagger must not allow a dagger ability")
+at(dagger_data.allows_dagger_ability(999999),"an uncatalogued id must fail open")
+
+
 -- Hemorrhage: energy not low.
 local hem = fs("Hemorrhage")
 af(hem.matches({settings={},target={}},cs({energy_low=true})),"Hemo energy low")
