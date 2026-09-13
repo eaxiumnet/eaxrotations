@@ -113,11 +113,13 @@ local function make_warrior_ns()
             out.has_breakable_cc_nearby or function() return false end,
             out.can_attack_target or function() return true end
     end
+    -- Real item-presence read (core/items.lua); the suite used to fake
+    -- inventory_helper.has_item, a member the .api module does not expose.
+    ns.has_item = function(id) return true end
     return ns
 end
 
 package.loaded["common/enums"] = { class_id = { WARRIOR = 1 } }
-package.loaded["common/utility/inventory_helper"] = { has_item = function(id) return true end }
 
 local function find_strategy(strategies, name)
     for i = 1, #strategies do

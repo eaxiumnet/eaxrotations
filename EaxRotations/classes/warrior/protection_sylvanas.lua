@@ -35,8 +35,6 @@ local merge_state = spec_kit.merge_state or function(build_state, context, state
 end
 local dsl = require("shared/strategy_dsl_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
-local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
-if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -75,9 +73,15 @@ local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
-    if not inventory_helper then return nil end
+    -- NS.has_item is the repo-wide presence read (installed by core/items.lua;
+    -- used by mage/paladin/rogue/warlock/consumable_manager). The previous
+    -- `inventory_helper.has_item` call was a nil call: the .api
+    -- inventory_helper module exposes NO has_item member, so it threw
+    -- "attempt to call field 'has_item' (a nil value)" every combat tick.
+    if type(NS.has_item) ~= "function" then return nil end
     for _, id in ipairs(ids) do
-        if inventory_helper.has_item(id) then
+        local ok, has = pcall(NS.has_item, id)
+        if ok and has == true then
             -- Cooldown-aware (mirrors arms_sylvanas.lua:374): presence alone
             -- made the Healthstone lane match every tick while the stone was
             -- on CD, monopolizing the rotation at hp <= 28 (fix 2026-08-14).

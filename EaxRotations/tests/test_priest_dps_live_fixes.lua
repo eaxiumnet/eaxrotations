@@ -22,8 +22,7 @@ local function assert_eq(got, want, label)
 end
 
 package.loaded["common/enums"] = { class_id = { PRIEST = 5 } }
--- Mock inventory helper so smite's first_ready_item() finds a healthstone.
-package.loaded["common/utility/inventory_helper"] = { has_item = function() return true end }
+-- Item presence: the real NS.has_item (set below once the mock NS exists).
 
 -- ============================================================================
 -- Part 1: should_clip_mf — optional 8th swp_clip_threshold param (real module)
@@ -94,6 +93,9 @@ local SWP_FIRST_ID, VT_FIRST_ID = 25368, 34917
 
 local NS = {}
 _G.EaxRotations = NS
+-- Mock HAS_ITEM so smite's first_ready_item() finds a healthstone (the real
+-- read is NS.has_item, installed by core/items.lua).
+NS.has_item = function() return true end
 
 NS.CLASS_ID = { PRIEST = 5 }
 NS.PLAYER_UNIT = me_unit
