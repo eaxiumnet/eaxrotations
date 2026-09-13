@@ -2,6 +2,62 @@
 
 ## Unreleased
 
+### QA - every WotLK spec now proven reachable through the real dispatcher, not just the battery harness
+
+- The channel pass exposed lanes that matched statelessly in the battery while being
+  dead in the live decision loop, and the dispatcher proof covered only the handful of
+  specs picked by hand. `test_dispatcher_role_mode.lua` now sweeps **all 41 WotLK
+  spec files**: each loads its real spec, runs its real `build_state`, its real DSL
+  strategies and the real dispatcher (context build + role/playstyle filter + matches +
+  execute), with only the engine surface mocked, and must have at least one lane claim
+  the cast.
+- The sweep runs six engine surfaces per spec (upkeep / damage / cooldowns spent /
+  low hp / execute / aoe) for **246 passes**, and records which distinct lanes claimed a
+  GCD so the proof names behaviour rather than just "something fired": **41/41 specs
+  proven, 63 distinct lanes**. The assertion fails the suite if any spec never claims a
+  cast, so a spec that silently stops dispatching can no longer ship.
+- Honest limit: this proves decision-loop reachability under mocks. It is not a live
+  client, and the mocked cooldown/buff/form values are the harness's, not the engine's.
+
+### Fix - Destruction priority race: Conflagrate's real cooldown now gates the lane, so the curse lanes can win the GCD
+
+- **The WotLK `Conflagrate` lane matched on `immolate_remains > 0` alone while
+  sitting at the top of the priority list.** WotLK Conflagrate carries a real 10s
+  cooldown that the `wl_destro_wotlk` fixture's sim gates on implicitly; the lane had
+  no such gate, so on every frame it was cooling down it still claimed the race, and
+  the curse lanes below it (`CurseOfDoom` entry 3, `CurseOfAgony` entry 8) only got a
+  GCD when the central cast guard happened to reject the recast.
+- `state.conflagrate_cd` is now read from `NS.cooldown_remains(ACTION.Conflagrate)`
+  (the `shadowburn_cd` idiom) and the lane is gated `conflagrate_cd <= 0`. The read
+  fails open to 0 = ready, so an absent engine accessor keeps the pre-existing
+  behaviour instead of darkening the lane.
+- **Immolate's refresh window is now the fixture's expression verbatim**
+  (`dotRemainingTime(47811) < spellCastTime(47811)`) instead of a constant: the
+  window comes from `core.spell_book.get_spell_cast_time` (the `fire_wotlk.lua:23`
+  Scorch precedent), so it tracks the real talented/hasted cast time, with the WotLK
+  base 2.0s as the fail-open fallback. The previous `ACTION.Immolate._meta.cast_time`
+  read could never resolve - `define_action` builds array-style actions whose `_meta`
+  carries no `cast_time` - so the window was silently hardcoded and the suite that
+  pinned it was pinning a dead path.
+- The window is evaluated at match time against the live read, and the DSL now honours
+  a `watch = { "field" }` list on `custom` conditions so the cast trace keeps rendering
+  the remainder behind the firing rule.
+- Proof: fire/hold pins on both sides of both gates in
+  `test_warlock_destruction_wotlk_strategies.lua` (Conflagrate ready vs 4s cooling,
+  including a 9.9s hold with a sliver of Immolate; Immolate under the 2.0s fallback, a
+  1.5s engine window, and zero/absurd engine reads) plus a four-tick **real
+  dispatcher** proof in `test_dispatcher_role_mode.lua` - Conflagrate ready wins the
+  race, Conflagrate cooling hands the GCD to `CurseOfAgony`, Immolate down hands it to
+  the entry-4 Immolate refresh, and on a boss with Conflagrate cooling `CurseOfDoom`
+  wins. Non-vacuity: stripping the cooldown gate makes the dispatcher tick fire
+  Conflagrate where the pin requires the curse lane.
+- Verified: WotLK runner 82/82, rotation battery 563/563, WotLK never-fires 0, era pins
+  unchanged (TBC 11, vanilla 9, SoD 0), all audits 0 invalid, scorecard/ACCURACY and
+  the era-pair seed content-identical after regeneration (no lane added, removed or
+  renamed), `verify_all` exit 0, all 19 pre-commit checks pass.
+- Honest limit: mock-proven against the real spec file through the real dispatcher; the
+  cooldown *value* is modelled by the harness (the engine supplies it live), and no
+  live client was observed for this change.
 ### Fix - live-client spell-queue spam: rogue Feint and Slice and Dice targeted the player
 
 - **A live TBC rogue logged the spell queue spam-looping `Feint` (27448) and
