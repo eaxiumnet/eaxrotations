@@ -236,19 +236,19 @@ return {
     {
         spec = "paladin/protection",
         missing_in = "sylvanas",
-        names = { "AvengersShield", "DivinePlea", "HammerOfTheRighteous", "ShieldOfRighteousness" },
+        names = { "AvengersShield", "DivinePlea", "HammerOfTheRighteous", "SacredShield", "ShieldOfRighteousness" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "paladin/protection",
         missing_in = "vanilla",
-        names = { "AvengerShield", "AvengersShield", "AvengingWrath", "BlessingOfKingsParty", "DivinePlea", "DivineProtection", "HammerOfTheRighteous", "Healthstone", "Repentance", "RighteousDefense", "SealOfCommandAoE", "ShieldOfRighteousness", "TurnEvil" },
+        names = { "AvengerShield", "AvengersShield", "AvengingWrath", "BlessingOfKingsParty", "DivinePlea", "DivineProtection", "HammerOfTheRighteous", "Healthstone", "Repentance", "RighteousDefense", "SacredShield", "SealOfCommandAoE", "ShieldOfRighteousness", "TurnEvil" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
         spec = "paladin/protection",
         missing_in = "wotlk",
-        names = { "AvengerShield", "AvengingWrath", "BlessingOfKingsParty", "BlessingOfProtectionAlly", "BlessingOfSanctuary", "Cleanse", "DevotionAura", "DivineProtection", "DivineShield", "Exorcism", "FlashOfLight", "HammerOfJustice", "HammerOfWrath", "Healthstone", "HolyLight", "HolyShock", "LayOnHands", "ManaPotion", "Repentance", "RighteousDefense", "SealOfCommandAoE", "SealOfWisdom", "SealRighteousness", "TurnEvil" },
+        names = { "AvengerShield", "AvengingWrath", "BlessingOfKingsParty", "BlessingOfProtectionAlly", "BlessingOfSanctuary", "Cleanse", "DevotionAura", "DivineShield", "Exorcism", "FlashOfLight", "HammerOfJustice", "Healthstone", "HolyLight", "HolyShock", "LayOnHands", "ManaPotion", "Repentance", "RighteousDefense", "SealOfCommandAoE", "SealOfWisdom", "SealRighteousness", "TurnEvil" },
         reason = "WotLK-era build-out: paladin_protection_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -422,13 +422,13 @@ return {
     {
         spec = "shaman/restoration",
         missing_in = "sylvanas",
-        names = { "EarthShield", "HealingWave", "LesserHealingWave", "NaturesSwiftnessHealingWave", "Riptide", "TidalWavesHealingWave", "UnavailableClassicShamanBurst" },
+        names = { "CleanseSpirit", "EarthShield", "EarthlivingWeapon", "HealingWave", "LesserHealingWave", "NaturesSwiftnessHealingWave", "Riptide", "TidalWavesHealingWave", "UnavailableClassicShamanBurst" },
         reason = "TBC covers this via the class middleware or a different strategy name; vanilla/wotlk-only strategy",
     },
     {
         spec = "shaman/restoration",
         missing_in = "vanilla",
-        names = { "Bloodlust", "EarthShield", "EarthShieldTank", "FSRPause", "HealingWave", "Healthstone", "LesserHealingWave", "LesserHealingWaveEmergency", "NaturesSwiftnessHealingWave", "PreemptiveChainHeal", "Riptide", "TidalWavesHealingWave", "WaterShield" },
+        names = { "Bloodlust", "CleanseSpirit", "EarthShield", "EarthShieldTank", "EarthlivingWeapon", "FSRPause", "HealingWave", "Healthstone", "LesserHealingWave", "LesserHealingWaveEmergency", "NaturesSwiftnessHealingWave", "PreemptiveChainHeal", "Riptide", "TidalWavesHealingWave", "WaterShield" },
         reason = "vanilla mirror implements the core rotation only; the TBC-era utility suite (consumables, PvP, hit-cap, spreads) is not mirrored",
     },
     {
@@ -488,7 +488,7 @@ return {
     {
         spec = "warlock/destruction",
         missing_in = "wotlk",
-        names = { "BacklashShadowBolt", "Corruption", "CreateHealthstone", "CurseOfAgony", "CurseOfDoom", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DeathCoil", "DemonArmor", "DemonicSacrifice", "DrainLife", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthPotion", "Hellfire", "LifeTapMoving", "ManaGem", "RainOfFire", "SearingPain", "SeedOfCorruption", "ShadowBolt", "ShadowWard", "Shadowfury", "SpellLock", "SummonFelguard", "SummonFelhunter", "SummonImp", "SummonSuccubus", "SummonVoidwalker", "Trinket" },
+        names = { "BacklashShadowBolt", "Corruption", "CreateHealthstone", "CurseOfRecklessness", "CurseOfWeakness", "DarkPact", "DeathCoil", "DemonArmor", "DemonicSacrifice", "DrainLife", "Fear", "FelArmor", "FelDomination", "HealthFunnel", "HealthPotion", "Hellfire", "LifeTapMoving", "ManaGem", "RainOfFire", "SearingPain", "SeedOfCorruption", "ShadowBolt", "ShadowWard", "Shadowfury", "SpellLock", "SummonFelguard", "SummonFelhunter", "SummonImp", "SummonSuccubus", "SummonVoidwalker", "Trinket" },
         reason = "WotLK-era build-out: warlock_destruction_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
     {
@@ -548,7 +548,7 @@ return {
     {
         spec = "warrior/protection",
         missing_in = "wotlk",
-        names = { "BattleShout", "BerserkerRage", "Bloodrage", "ChallengingShout", "Cleave", "CommandingShout", "ConcussionBlow", "DamagePotion", "DemoralizingShout", "Disarm", "Execute", "Hamstring", "HealthPotion", "Healthstone", "Intercept", "Intervene", "IntimidatingShout", "MockingBlow", "RageDumpSafetyNet", "Rend", "ShieldBash", "ShieldSlamPurge", "ShieldWall", "SpellReflection", "StanceSwitch", "SunderArmor", "Taunt", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
+        names = { "BattleShout", "BerserkerRage", "Bloodrage", "ChallengingShout", "Cleave", "ConcussionBlow", "DamagePotion", "Disarm", "Execute", "Hamstring", "HealthPotion", "Healthstone", "Intercept", "Intervene", "IntimidatingShout", "MockingBlow", "RageDumpSafetyNet", "Rend", "ShieldBash", "ShieldSlamPurge", "ShieldWall", "SpellReflection", "StanceSwitch", "SunderArmor", "Taunt", "TauntSecondary", "VictoryRush", "WhirlwindMulti" },
         reason = "WotLK-era build-out: warrior_protection_wotlk.lua is a minimal APL-mirror rotation; utility/PvP/consumable/defensive strategies are TBC/vanilla-era (see docs/scorecard.md WotLK rows)",
     },
 }
