@@ -53,10 +53,13 @@ local ev = fs("Evasion")
 af(ev.matches({settings={}},cs({hp=80})),"Evasion high hp")
 at(ev.matches({settings={}},cs({hp=20})),"Evasion low hp")
 
--- SliceAndDice: combo >= 2, slice not fresh.
+-- SliceAndDice: combo >= 2, slice not fresh, and an enemy target (2026-09-13
+-- live-report fix: the finisher is cast ON the target - a self-target is
+-- rejected by the client and spam-loops the queue).
 local snd = fs("SliceAndDice")
 af(snd.matches({settings={}},cs({combo=1})),"SND low combo")
-at(snd.matches({settings={}},cs({combo=3,slice_remains=0})),"SND match")
+af(snd.matches({settings={}},cs({combo=3,slice_remains=0})),"SND must hold without an enemy target")
+at(snd.matches({settings={},target={}},cs({combo=3,slice_remains=0})),"SND match")
 
 -- Rupture: combo >= 4, target alive, rupture not fresh.
 local rup = fs("Rupture")

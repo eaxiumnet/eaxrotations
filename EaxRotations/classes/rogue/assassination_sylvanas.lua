@@ -376,15 +376,18 @@ local strategies = {
         name = "SliceAndDice",
         matches = function(context, state)
             -- Refresh when about to drop (< 3s) even if active
+            -- 2026-09-13: finisher ON THE TARGET - self-cast is rejected by the
+            -- client and spam-loops the queue (see docs live report).
+            if not context.target or context.has_valid_enemy_target == false then return false end
             if state.slice_dice_active and not state.snd_needs_refresh then return false end
             if (state.combo or 0) < 2 then return false end
-            return NS.spell_ready(ACTION.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.SliceAndDice, context.target, { skip_range = true })
         end,
         execute = function(context, state)
             local tag = state.slice_dice_active
                 and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
                 or "[ASSASS] Slice and Dice"
-            return NS.try_cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, tag, { skip_range = true })
+            return NS.try_cast(ACTION.SliceAndDice, context.target, tag, { skip_range = true })
         end,
     },
 
@@ -722,17 +725,20 @@ local strategies = {
     {
         name = "FeintAoE",
         matches = function(context, state)
+            -- 2026-09-13: TBC Feint is a 5 yd Combat-range ability cast ON the
+            -- enemy; self-targeted Feint is rejected and spam-loops the queue.
+            if not context.target or context.has_valid_enemy_target == false then return false end
             -- Threat drop: cast when threat is high regardless of HP/AoE
             if (context.threat_pct or 0) > 90 then
-                return NS.spell_ready(ACTION.Feint, NS.PLAYER_UNIT, { skip_range = true })
+                return NS.spell_ready(ACTION.Feint, context.target, { skip_range = true })
             end
             -- AoE damage reduction: cast when taking AoE damage and HP low
             if (state.hp_pct or 100) > 60 then return false end
             if not context.aoe_damage_incoming then return false end
-            return NS.spell_ready(ACTION.Feint, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Feint, context.target, { skip_range = true })
         end,
-        execute = function()
-            return NS.try_cast(ACTION.Feint, NS.PLAYER_UNIT, "[ASSASS] Feint", { skip_range = true })
+        execute = function(context)
+            return NS.try_cast(ACTION.Feint, context.target, "[ASSASS] Feint", { skip_range = true })
         end,
     },
 }

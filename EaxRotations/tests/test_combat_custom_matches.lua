@@ -98,8 +98,11 @@ assert_false(snd.matches({
 }), "SliceAndDice should not match when buff active and not near expiry")
 
 -- SND active but near expiry -> should match
+-- 2026-09-13 live-report fix: the finisher is cast ON the enemy; a self-target
+-- is rejected by the client ("Invalid target") and spam-loops the spell queue.
 spell_ready_calls = {}
 assert_true(snd.matches({
+    target = "enemy",
     combo_points = 4,
     enemy_count = 1,
 }, {
@@ -110,12 +113,23 @@ assert_true(snd.matches({
 -- SND not active, combo >= 2 -> should match
 spell_ready_calls = {}
 assert_true(snd.matches({
+    target = "enemy",
     combo_points = 3,
     enemy_count = 1,
 }, {
     has_snd = false, snd_needs_refresh = false,
     slice_and_dice_ready = true, combo_points = 3, energy = 80,
 }), "SliceAndDice should match when buff is missing with sufficient CP")
+
+-- No enemy target -> must HOLD (a nil target falls back to self in try_cast)
+spell_ready_calls = {}
+assert_false(snd.matches({
+    combo_points = 3,
+    enemy_count = 1,
+}, {
+    has_snd = false, snd_needs_refresh = false,
+    slice_and_dice_ready = true, combo_points = 3, energy = 80,
+}), "SliceAndDice must hold without an enemy target")
 
 -- Combo < 2 -> should NOT match
 spell_ready_calls = {}

@@ -294,7 +294,9 @@ local function build_state(context)
     combat_state.target_casting_interruptible = combat_state.target_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
     combat_state.adrenaline_rush_ready = me and NS.spell_ready(ACTION.AdrenalineRush, me, { skip_range = true, expected_cooldown = 300 }) or false
     combat_state.blade_flurry_ready = me and NS.spell_ready(ACTION.BladeFlurry, me, { skip_range = true, expected_cooldown = 120 }) or false
-    combat_state.slice_and_dice_ready = me and NS.spell_ready(ACTION.SliceAndDice, me, { skip_range = true }) or false
+    -- 2026-09-13: Slice and Dice/Feint require the enemy unit (a self-read
+    -- fired an "invalid target" cast that spam-looped the spell queue).
+    combat_state.slice_and_dice_ready = target and NS.spell_ready(ACTION.SliceAndDice, target, { skip_range = true }) or false
     combat_state.rupture_ready = target and NS.spell_ready(ACTION.Rupture, target) or false
     combat_state.eviscerate_ready = target and NS.spell_ready(ACTION.Eviscerate, target) or false
     combat_state.envenom_ready = target and NS.spell_ready(ACTION.Envenom, target) or false
@@ -304,7 +306,7 @@ local function build_state(context)
     combat_state.gouge_ready = target and NS.spell_ready(ACTION.Gouge, target, { expected_cooldown = 10 }) or false
     combat_state.sprint_ready = me and NS.spell_ready(ACTION.Sprint, me, { skip_range = true, expected_cooldown = 180 }) or false
     combat_state.vanish_ready = me and NS.spell_ready(ACTION.Vanish, me, { skip_range = true, expected_cooldown = 300 }) or false
-    combat_state.feint_ready = me and NS.spell_ready(ACTION.Feint, me, { skip_range = true, expected_cooldown = 10 }) or false
+    combat_state.feint_ready = target and NS.spell_ready(ACTION.Feint, target, { skip_range = true, expected_cooldown = 10 }) or false
     combat_state.hemorrhage_ready = target and NS.spell_ready(ACTION.Hemorrhage, target) or false
     combat_state.backstab_ready = target and NS.spell_ready(ACTION.Backstab, target) or false
     combat_state.ghostly_strike_ready = target and NS.spell_ready(ACTION.GhostlyStrike, target, { expected_cooldown = 20 }) or false
@@ -466,6 +468,7 @@ end
 
 local function feint_matches(context, s)
     if not s.in_combat then return false end
+    if not context.target or context.has_valid_enemy_target == false then return false end
     if not s.feint_ready then return false end
     -- Research: Feint is a threat drop — only fire when threat is known and high
     local feint_threat = spec_kit.setting_number(context, "combat_feint_threat", 90)
@@ -577,13 +580,14 @@ local DSL_DEFS = {
             { type = "state", field = "slice_and_dice_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
                 -- maintain 100% uptime; refresh when <3s remains, skip if fresh
+                if not context.target or context.has_valid_enemy_target == false then return false end
                 if state.has_snd and not state.snd_needs_refresh then return false end
                 return true
             end },
             { type = "state", field = "combo_points", op = ">=", value = 2 },
         },
         action = { type = "custom", fn = function(context, state)
-            return NS.try_cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true })
+            return NS.try_cast(ACTION.SliceAndDice, context.target, "[COMBAT] SliceAndDice", { skip_range = true })
         end },
     },
     {
@@ -732,7 +736,7 @@ local strategies = {
     { name = "Gouge" },  -- DSL-substituted at runtime
     { name = "Sprint" },  -- DSL-substituted at runtime
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(ACTION.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },
-    { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(ACTION.Feint, NS.PLAYER_UNIT, "[COMBAT] Feint", { skip_range = true }) end },
+    { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(ACTION.Feint, context.target, "[COMBAT] Feint", { skip_range = true }) end },
     -- Blind is intentionally positioned near the end of the priority list. It is a
     -- defensive/utility CC that only fires when the rogue is low HP and in a
     -- group or PvP context. Keeping it after core DPS/cooldowns and before filler

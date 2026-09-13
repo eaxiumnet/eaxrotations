@@ -71,8 +71,18 @@ assert_false(snd.matches({ settings = {} }, { slice_dice_active = true, snd_need
     "SliceAndDice must not match when active and not needing refresh")
 assert_false(snd.matches({ settings = {} }, { slice_dice_active = false, combo = 1 }),
     "SliceAndDice must not match below 2 combo")
-assert_true(snd.matches({ settings = {} }, { slice_dice_active = false, combo = 3 }),
+-- 2026-09-13 live-report fix: the finisher is cast ON the enemy; a self-target
+-- is rejected by the client and spam-loops the queue.
+local enemy = { name = "enemy" }
+local captured_snd = nil
+_G.EaxRotations.try_cast = function(spell, target) captured_snd = target return true end
+assert_true(snd.matches({ settings = {}, target = enemy }, { slice_dice_active = false, combo = 3 }),
     "SliceAndDice matches with 2+ combo when down")
+assert_false(snd.matches({ settings = {} }, { slice_dice_active = false, combo = 3 }),
+    "SliceAndDice must hold without an enemy target")
+assert_true(snd.execute({ settings = {}, target = enemy }, { slice_dice_active = false, combo = 3, snd_remains = 0 }),
+    "SliceAndDice execute returns true")
+assert_true(captured_snd == enemy, "SliceAndDice must cast on the enemy target, never on self")
 
 assert_false(rupture.matches({ target = {}, settings = {} }, { combo = 3, rupture_remains = 0, energy_pool_finisher = false }),
     "Rupture must not match below 4 combo")

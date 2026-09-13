@@ -118,7 +118,7 @@ local DSL_DEFS = {
             { type = "state", field = "snd_remains", op = "<", value = 3 },
             { type = "state", field = "combo_points", op = ">=", value = 1 },
         },
-        action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },
+        action = { type = "cast", spell = ACTION.SliceAndDice, target = "target" },
     },
     -- Physical AoE when surrounded (>=3 targets) with enough energy.
     {

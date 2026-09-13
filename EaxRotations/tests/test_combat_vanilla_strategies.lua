@@ -72,8 +72,18 @@ assert_false(snd.matches({ settings = {} }, { slice_and_dice_ready = true, has_s
     "SliceAndDice must not match when up and not refreshing")
 assert_false(snd.matches({ settings = {} }, { slice_and_dice_ready = true, has_snd = false, combo_points = 1 }),
     "SliceAndDice must not match below 2 CP")
-assert_true(snd.matches({ settings = {} }, { slice_and_dice_ready = true, has_snd = false, combo_points = 3 }),
+-- 2026-09-13 live-report fix: the finisher is cast ON the enemy; a self-target
+-- is rejected by the client and spam-loops the queue.
+local enemy = { name = "enemy" }
+local captured_snd = nil
+_G.EaxRotations.try_cast = function(spell, target) captured_snd = target return true end
+assert_true(snd.matches({ settings = {}, target = enemy }, { slice_and_dice_ready = true, has_snd = false, combo_points = 3 }),
     "SliceAndDice matches with 2+ CP when down")
+assert_false(snd.matches({ settings = {} }, { slice_and_dice_ready = true, has_snd = false, combo_points = 3 }),
+    "SliceAndDice must hold without an enemy target")
+assert_true(snd.execute({ settings = {}, target = enemy }, { slice_and_dice_ready = true, has_snd = false, combo_points = 3 }),
+    "SliceAndDice execute returns true")
+assert_true(captured_snd == enemy, "SliceAndDice must cast on the enemy target, never on self")
 
 assert_false(kick.matches({}, { target_casting = false, kick_ready = true }),
     "Kick must not match when target not casting")

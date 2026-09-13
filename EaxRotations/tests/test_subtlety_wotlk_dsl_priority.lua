@@ -226,6 +226,24 @@ test("Backstab: does not match without daggers", function()
     assert_false(sub.strategies[9].matches(ctx, state), "Backstab should not match without daggers (dagger gate)")
 end)
 
+-- 2026-09-13 live-report fix: Slice and Dice is a finisher ON THE TARGET.
+-- The WotLK lane declared `target = "self"`, so the client rejected the cast
+-- ("Invalid target") and the spell queue spam-looped. The compiled DSL action
+-- must resolve `target` (the enemy unit), never `self`.
+test("SliceAndDice: DSL action casts on the enemy target, never on self", function()
+    local enemy = { name = "enemy" }
+    local me = _G.EaxRotations.me
+    local captured = nil
+    _G.EaxRotations.try_cast = function(spell, target) captured = target return true end
+    local state = sub.build_state({ in_combat = true, target = enemy, settings = {} })
+    state.snd_remains = 1
+    state.combo_points = 2
+    assert_true(sub.strategies[6].execute({ in_combat = true, target = enemy, settings = {} }, state),
+        "SliceAndDice execute should return true")
+    assert_true(captured == enemy, "SliceAndDice must cast on the enemy target")
+    assert_true(captured ~= me, "SliceAndDice must never cast on the player (self)")
+end)
+
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))
 if #failures > 0 then
     print("FAILURES:")

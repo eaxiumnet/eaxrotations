@@ -240,4 +240,53 @@ assert_true(clos.matches(ctx, st), "CloakOfShadows matches at low HP")
 st.hp = 80
 assert_false(clos.matches(ctx, st), "CloakOfShadows skips at high HP")
 
+-- ============================================================================
+-- Slice and Dice / Feint target contract (2026-09-13 live-report fix)
+-- ============================================================================
+-- Live TBC report: the spell queue spam-looped "Feint" and "Slice and Dice"
+-- with "Invalid target". Both abilities are target-requiring - TBC Feint is a
+-- 5 yd (Combat) range, 10s cooldown ability and Slice and Dice "requires combo
+-- points on target" (Wowhead TBC 6774/27448). The lanes cast them at
+-- NS.PLAYER_UNIT, so the client rejected every attempt and the lane rematched
+-- each frame. Firing needs the enemy unit; no target must hold the lane.
+local enemy = { name = "enemy" }
+local snd_lane = find_strategy("SliceAndDice")
+local feint_lane = find_strategy("Feint")
+local snd_state = { combo = 5, slice_remains = 0, energy_pool_finisher = false, energy = 100, threat_pct = 0 }
+local feint_state = { combo = 5, slice_remains = 0, energy_pool_finisher = false, energy = 100, threat_pct = 95 }
+
+-- HOLD: no enemy target => no match (nil would fall back to self in try_cast).
+assert_false(snd_lane.matches({ in_combat = true, settings = {} }, snd_state),
+    "SliceAndDice must hold without an enemy target")
+assert_false(feint_lane.matches({ in_combat = true, settings = {} }, feint_state),
+    "Feint must hold without an enemy target")
+
+-- HOLD: a target the engine reports as not a valid enemy (friendly player
+-- selected, etc.) must hold - casting at it is the same "Invalid target" spam.
+assert_false(snd_lane.matches({ in_combat = true, target = enemy, has_valid_enemy_target = false, settings = {} }, snd_state),
+    "SliceAndDice must hold on a non-enemy target")
+assert_false(feint_lane.matches({ in_combat = true, target = enemy, has_valid_enemy_target = false, settings = {} }, feint_state),
+    "Feint must hold on a non-enemy target")
+
+-- FIRE: with the enemy target the lane matches.
+assert_true(snd_lane.matches({ in_combat = true, target = enemy, settings = {} }, snd_state),
+    "SliceAndDice matches with an enemy target")
+assert_true(feint_lane.matches({ in_combat = true, target = enemy, settings = {} }, feint_state),
+    "Feint matches with an enemy target")
+
+-- FIRE: the cast itself is emitted on the enemy, never on the player.
+local captured = {}
+NS.try_cast = function(spell, target, label, opts)
+    captured[#captured + 1] = { spell = spell, target = target }
+    return true
+end
+assert_true(snd_lane.execute({ in_combat = true, target = enemy, settings = {} }, snd_state),
+    "SliceAndDice execute returns true")
+assert_eq(captured[#captured].target, enemy,
+    "SliceAndDice must cast on the enemy target, never on self")
+assert_true(feint_lane.execute({ in_combat = true, target = enemy, settings = {} }, feint_state),
+    "Feint execute returns true")
+assert_eq(captured[#captured].target, enemy,
+    "Feint must cast on the enemy target, never on self")
+
 print("PASS test_subtlety_dsl_priority")
