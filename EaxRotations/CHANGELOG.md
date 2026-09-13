@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+### Fix - live-client spell-queue spam: rogue Feint and Slice and Dice targeted the player
+
+- **A live TBC rogue logged the spell queue spam-looping `Feint` (27448) and
+  `Slice and Dice` (6774) at the player with "Invalid target".** Both abilities
+  are target-requiring: Wowhead TBC lists Feint at 5 yd (Combat) range with a
+  10s cooldown, and Slice and Dice "Requires combo points on target". Every rogue
+  lane cast them at `NS.PLAYER_UNIT` / `context.me` - the WotLK declarative lanes
+  used `target = "self"` and the leveling lanes passed `nil`, which `try_cast`
+  resolves to the player - so the client rejected each attempt, the lane
+  rematched on the next frame and the queue re-queued the same spell. That is the
+  documented self-target failure mode the bear `Swipe` fix already covered
+  ("self-cast is rejected by the client and spam-loops via the spell queue").
+- All 13 rogue files now cast these two abilities on the **enemy** unit and hold
+  the lane unless the engine reports a valid enemy target - both a missing target
+  (a nil unit would fall back to self in `try_cast`) and a selected non-enemy
+  target (the friendly-player case that produced the live "Invalid target")
+  hold:
+  `subtlety_sylvanas`, `assassination_sylvanas`, `combat_sylvanas`,
+  `subtlety_vanilla`, `assassination_vanilla`, `combat_vanilla`,
+  `leveling_sylvanas`, `leveling_vanilla`, `middleware_sylvanas` (threat drop),
+  plus the WotLK `SliceAndDice` DSL rows in `assassination_wotlk`,
+  `combat_wotlk`, `subtlety_wotlk` and `leveling_wotlk` (`target = "self"` ->
+  `"target"`). The combat state readers (`slice_and_dice_ready` / `feint_ready`)
+  read the enemy as well. `combat_sod` already targeted the enemy, which is why
+  SoD never showed the symptom.
+- Pinned on the real spec files, both sides: `test_subtlety_dsl_priority` (the
+  reported TBC spec), `test_combat_dsl_priority`, `test_combat_vanilla_strategies`,
+  `test_assassination_vanilla_strategies`, `test_combat_custom_matches`,
+  `test_subtlety_custom_matches` and `test_subtlety_wotlk_dsl_priority` now
+  assert that the cast lands on the enemy unit and that the lane **holds** with
+  no enemy target. Non-vacuity proven by injection: restoring the self-target
+  cast fails the cast-target assertion, and restoring the original lane fails the
+  hold assertion.
+- Sweep: the 548 remaining `try_cast(<spell>, self)` sites across 76 files were
+  enumerated by spell name - the rest are self-buffs, self-centred AoE, totems,
+  pets and personal utilities (Barkskin, Aspects, Feign Death, Fade, Innervate,
+  stances/forms, ...), so no other class carries this defect. Bear/cat `Swipe`
+  and the leveling `Swipe`/`Mark of the Wild` family were already correct or
+  fixed earlier.
+- Verified: rotation battery **563/563**, every rogue/combat/assassination/
+  subtlety suite green, WotLK runner **82/82**, era never-fire pins unchanged
+  (TBC 11, vanilla 9, SoD 0, WotLK 0), scorecard/ACCURACY regenerated in sync,
+  `verify_all` exit 0.
+- Honest limit: mock-proven against the real spec files (the WotLK DSL rows are
+  driven through the compiled DSL action), not yet observed on a live client. A
+  dispatcher-level rogue fixture was attempted and dropped: the shared dispatcher
+  harness does not reach the strategy loop for a rogue playstyle (the same
+  harness that proves the affliction and protection lanes), so lane reachability
+  rests on the live log that reported the bug.
+
 ### Fix - live-client crash: `inventory_helper.has_item` is not an engine member
 
 - **A live client logged `attempt to call field 'has_item' (a nil value)` from
