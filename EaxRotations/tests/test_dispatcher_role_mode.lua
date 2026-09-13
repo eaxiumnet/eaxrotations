@@ -428,4 +428,73 @@ assert_eq(fired_lane, "CurseOfDoom",
     "the new Curse of Doom lane must fire through the REAL dispatcher on a boss (fired=" .. tostring(fired_lane) .. ")")
 assert_true(casts >= 1, "the new lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
 
+-- ============================================================================
+-- Thin-spec guide pass (2026-09-12), part 2: the REAL warrior protection spec
+-- through the REAL dispatcher. With the earlier lanes held (hp 100, nothing to
+-- interrupt, rage 15 = enough for a shout but under Shield Slam/Heroic Strike/
+-- Shield Block), the new CommandingShout upkeep lane must claim the cast and
+-- emit it via cast_safe -- the same proof shape as the affliction lane above.
+-- ============================================================================
+player.get_health_percentage = function() return 100 end
+player.is_casting = function() return false end
+player.is_channeling = function() return false end
+
+-- rage 15: enough for a shout (10) but under Shield Slam (20) / Heroic Strike
+-- (30) / Shield Block (60); Revenge is held on cooldown so the shout is next.
+player.get_power = function() return 15 end
+NS.POWER_RAGE = 1
+NS.swing_time_until = function() return 999 end
+NS.is_interruptible = function() return false end
+NS.buff_remains = function() return 0 end     -- Commanding Shout down
+NS.debuff_remains = function() return 0 end
+NS.cooldown_remains = function(action)
+    local id = action
+    if type(action) == "table" and type(action.id) == "function" then id = action:id() end
+    if id == 57823 or id == 30357 then return 5 end   -- Revenge on cooldown
+    return 0
+end
+NS.unit_is_boss = function() return false end
+
+local prot = dofile("EaxRotations/classes/warrior/protection_wotlk.lua")
+assert_true(type(prot) == "table" and type(prot.strategies) == "table",
+    "protection_wotlk loads for the dispatcher proof")
+
+local fired_prot = nil
+for i = 1, #prot.strategies do
+    local s = prot.strategies[i]
+    local orig = s.execute
+    s.execute = function(ctx, state)
+        local res = orig(ctx, state)
+        if res then fired_prot = s.name end
+        return res
+    end
+end
+
+NS.class_middleware = { warrior = {} }
+NS.rotation_registry = {
+    class_config = { class_key = "warrior", default_playstyle = "protection" },
+    playstyles = { protection = prot.strategies },
+    options = { protection = { get_state = prot.build_state } },
+}
+NS.set_setting("playstyle", "protection")
+NS.set_setting("active_playstyle", nil)
+NS.refresh_settings_cache()
+
+reset()
+fired_prot = nil
+local ok_prot, err_prot = pcall(dispatcher.on_rotation_update)
+assert_true(ok_prot, "real dispatcher tick with the real warrior protection spec must not error: " .. tostring(err_prot))
+assert_eq(fired_prot, "CommandingShout",
+    "the new CommandingShout lane must fire through the REAL dispatcher (fired=" .. tostring(fired_prot) .. ")")
+assert_true(casts >= 1, "the new shout lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
+
+-- Non-vacuity: with the 2-min shout already up the same tick must not fire it.
+NS.buff_remains = function() return 120 end
+reset()
+fired_prot = nil
+local ok_prot2, err_prot2 = pcall(dispatcher.on_rotation_update)
+assert_true(ok_prot2, "second dispatcher tick must not error: " .. tostring(err_prot2))
+assert_true(fired_prot ~= "CommandingShout",
+    "with the shout up the lane must hold (fired=" .. tostring(fired_prot) .. ")")
+
 print("PASS test_dispatcher_role_mode")

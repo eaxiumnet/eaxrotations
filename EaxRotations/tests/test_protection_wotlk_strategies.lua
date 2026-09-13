@@ -28,6 +28,8 @@ local interruptible = true
 local tclap_remains = 0
 local swing = 999
 local shk_cd = 0
+local shout_remains = 0
+local demo_remains = 0
 
 local me = {
     get_power = function() return 0 end,
@@ -61,6 +63,13 @@ _G.EaxRotations = {
     debuff_remains = function(_, ids)
         for _, i in ipairs(ids) do
             if i == 47502 then return tclap_remains end
+            if i == 47437 then return demo_remains end
+        end
+        return 0
+    end,
+    buff_remains = function(_, ids)
+        for _, i in ipairs(ids) do
+            if i == 47440 then return shout_remains end
         end
         return 0
     end,
@@ -91,7 +100,7 @@ end
 local cast_remaining = nil
 local cast_lead = nil
 local function scenario(label, strategy_name, mutations, expect_match)
-    local save = { stance, hp, ctx_rage, enemy_count, target_casting, interruptible, tclap_remains, swing }
+    local save = { stance, hp, ctx_rage, enemy_count, target_casting, interruptible, tclap_remains, swing, shout_remains, demo_remains }
     for k in pairs(cds) do cds[k] = nil end
     shk_cd = 0
     mutations()
@@ -106,8 +115,8 @@ local function scenario(label, strategy_name, mutations, expect_match)
     else
         assert_false(matched, label .. " should NOT match")
     end
-    stance, hp, ctx_rage, enemy_count, target_casting, interruptible, tclap_remains, swing =
-        save[1], save[2], save[3], save[4], save[5], save[6], save[7], save[8]
+    stance, hp, ctx_rage, enemy_count, target_casting, interruptible, tclap_remains, swing, shout_remains, demo_remains =
+        save[1], save[2], save[3], save[4], save[5], save[6], save[7], save[8], save[9], save[10]
 end
 
 -- ============================================================================
@@ -201,4 +210,19 @@ scenario("Shockwave blocked while on cooldown", "Shockwave",
 -- interrupt whose lead is at or below 0.30s is refused -- the cast lands
 -- first and the cooldown is wasted. Unknown remaining stays fail-open.
 -- ============================================================================
-scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)print("PASS test_protection_wotlk_strategies")
+scenario("Pummel fires with 1.0s left on the enemy cast", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 1.0; cast_lead = nil end, true)scenario("Pummel holds when only 0.05s of the cast remains", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.05; cast_lead = nil end, false)scenario("Pummel holds ON the 0.30s lead floor", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.30; cast_lead = nil end, false)scenario("Pummel fires above the 0.30s lead floor", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.31; cast_lead = nil end, true)scenario("Pummel honours a raised interrupt_lead_sec setting", "Pummel",    function() ctx_rage = 20; stance = STANCE.BERSERKER; target_casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)scenario("Commanding Shout refreshes below the 60s window", "CommandingShout",
+    function() shout_remains = 0; ctx_rage = 30 end, true)
+scenario("Commanding Shout refreshes at 59s remaining", "CommandingShout",
+    function() shout_remains = 59; ctx_rage = 30 end, true)
+scenario("Commanding Shout held at the 60s boundary", "CommandingShout",
+    function() shout_remains = 60; ctx_rage = 30 end, false)
+scenario("Commanding Shout held below 10 rage", "CommandingShout",
+    function() shout_remains = 0; ctx_rage = 9 end, false)
+scenario("Demoralizing Shout refreshes when the debuff is fading", "DemoralizingShout",
+    function() demo_remains = 1; ctx_rage = 30 end, true)
+scenario("Demoralizing Shout held while the debuff is fresh", "DemoralizingShout",
+    function() demo_remains = 6; ctx_rage = 30 end, false)
+scenario("Demoralizing Shout held below 10 rage", "DemoralizingShout",
+    function() demo_remains = 0; ctx_rage = 9 end, false)
+
+print("PASS test_protection_wotlk_strategies")

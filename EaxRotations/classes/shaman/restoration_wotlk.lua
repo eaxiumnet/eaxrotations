@@ -27,6 +27,11 @@ local ACTION = {
     -- Guide emergency enabler (Icy-Veins WotLK resto priority #1; id
     -- Wowhead-verified 16188, 2 min CD, shares CD with Elemental Mastery).
     NaturesSwiftness = define("NaturesSwiftness", 16188, "NaturesSwiftness"),
+    -- Guide-pass additions (2026-09-12): Cleanse Spirit 51886 (WotLK dispel
+    -- — 1 poison / 1 disease / 1 curse, instant, 40y, Wowhead-verified) and
+    -- Earthliving Weapon 51730 (the 30-min self imbue, 6% mana).
+    CleanseSpirit = define("CleanseSpirit", 51886, "CleanseSpirit"),
+    EarthlivingWeapon = define("EarthlivingWeapon", 51730, "EarthlivingWeapon"),
 }
 
 local RIPTIDE_BUFF = { 61301, 61300, 61299, 61295 }
@@ -39,6 +44,8 @@ local TIDAL_WAVES_BUFF = { 53390 }
 -- Nature's Swiftness self-buff (aura id = spell id 16188, Wowhead). NS+HW
 -- emergency pair mirrors the resto druid/paladin sibling idiom.
 local NATURES_SWIFTNESS_BUFF = { 16188 }
+-- Earthliving Weapon imbue aura (spell id = aura id, Wowhead).
+local EARTHLIVING_BUFF = { 51730 }
 local NATURES_SWIFTNESS_EXPECTED_CD = 120  -- 2 min (Wowhead)
 local NS_OPTS = { skip_range = true, expected_cooldown = NATURES_SWIFTNESS_EXPECTED_CD }
 
@@ -57,6 +64,8 @@ local restoration_state = {
     water_shield_ready = false,
     tidal_waves_stacks = 0,
     has_natures_swiftness = false,
+    friendly_has_dispellable = false,
+    earthliving_up = false,
 }
 
 local function build_state(context)
@@ -95,10 +104,31 @@ local function build_state(context)
     state.tidal_waves_stacks = (me and NS.buff_stacks and NS.buff_stacks(me, TIDAL_WAVES_BUFF)) or 0
     -- Nature's Swiftness self-buff (emergency pair enable state).
     state.has_natures_swiftness = (me and NS.buff_up and NS.buff_up(me, NATURES_SWIFTNESS_BUFF)) or false
+    -- Dispel + imbue upkeep reads (real engine surfaces). The dispel scan
+    -- covers the three types Cleanse Spirit removes; each check returns
+    -- false when the engine has no dispel API (fail-open to no dispel).
+    state.friendly_has_dispellable = false
+    if friendly and type(NS.has_dispel_type_debuff) == "function" then
+        state.friendly_has_dispellable = NS.has_dispel_type_debuff(friendly, "Poison")
+            or NS.has_dispel_type_debuff(friendly, "Disease")
+            or NS.has_dispel_type_debuff(friendly, "Curse")
+    end
+    state.earthliving_up = (me and NS.buff_up and NS.buff_up(me, EARTHLIVING_BUFF)) or false
     return state
 end
 
 local DSL_DEFS = {
+    -- Guide priority (Icy-Veins WotLK resto): dispels outrank throughput
+    -- heals — Cleanse Spirit the moment an ally carries a removable type.
+    {
+        name = "CleanseSpirit",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "friendly_has_dispellable", op = "truthy" },
+            { type = "spell_ready", spell = ACTION.CleanseSpirit, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.CleanseSpirit, target = "friendly" },
+    },
     {
         name = "ManaTideTotem",
         conditions = {
@@ -180,6 +210,17 @@ local DSL_DEFS = {
     },
     -- Guide emergency lanes (Icy-Veins WotLK resto priority #1; NS+HW pair
     -- mirrors the resto druid/paladin sibling idiom).
+    -- Out-of-combat imbue upkeep: a resto shaman re-arms Earthliving Weapon
+    -- whenever it is missing (30-min buff), never during combat heals.
+    {
+        name = "EarthlivingWeapon",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "earthliving_up", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.EarthlivingWeapon, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.EarthlivingWeapon, target = "self" },
+    },
     {
         name = "NaturesSwiftness",
         conditions = {
@@ -210,6 +251,7 @@ local strategies = {
     -- slow HW base lane.
     { name = "NaturesSwiftness" },
     { name = "NaturesSwiftnessHealingWave" },
+    { name = "CleanseSpirit" },
     { name = "ManaTideTotem" },
     { name = "EarthShield" },
     { name = "Riptide" },
@@ -218,6 +260,7 @@ local strategies = {
     { name = "HealingWave" },
     { name = "LesserHealingWave" },
     { name = "WaterShield" },
+    { name = "EarthlivingWeapon" },
 }
 
 for i = 1, #strategies do

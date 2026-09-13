@@ -17,7 +17,16 @@ local define = spec_kit.define_action
 
 local ACTION = {
     Immolate = define("Immolate", { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
-    ChaosBolt = define("ChaosBolt", 50796, "ChaosBolt"),
+    -- 59172 = WotLK max rank (level 80; 2.5s cast / 12s CD, Wowhead-verified).
+    -- 50796 is the level-60 rank 1 the file shipped with — kept as the
+    -- low-level fallback so the ladder resolves to the best known rank.
+    ChaosBolt = define("ChaosBolt", { 59172, 50796 }, "ChaosBolt"),
+    -- Guide-pass additions (wl_destro wowsims APL entries 3 and 8):
+    -- Curse of Doom 47867 (1-min CD / 1-min duration, the long-fight boss
+    -- curse) and Curse of Agony 47864 (the fallback curse when Doom is not
+    -- up). Only one curse per warlock, so the two lanes are exclusive.
+    CurseOfDoom = define("CurseOfDoom", 47867, "CurseOfDoom"),
+    CurseOfAgony = define("CurseOfAgony", 47864, "CurseOfAgony"),
     Incinerate = define("Incinerate", { 47838, 32231, 29722 }, "Incinerate"),
     Conflagrate = define("Conflagrate", { 30912, 27266, 18932, 18931, 18930, 17962 }, "Conflagrate"),
     -- Guide-priority additions (wl_destro wowsims APL + Icy-Veins/Chardev
@@ -54,12 +63,18 @@ local BACKDRAFT_BUFF = { 54274, 54276, 54277 }
 -- a TBC ladder here would read 0 at max rank and re-cast every GCD —
 -- systemic injection #3 pattern).
 local ELEMENTS_DEBUFF = { 47865 }
+-- Curse of Doom / Curse of Agony debuff ids (single WotLK ranks).
+local DOOM_DEBUFF = { 47867 }
+local AGONY_DEBUFF = { 47864 }
 
 local DESTRUCTION_SCHEMA = {
     enemy_count = 1, in_combat = false,
     immolate_remains = 0,
     has_backdraft = false,
     elements_remains = 0,
+    doom_remains = 0,
+    agony_remains = 0,
+    target_is_boss = false,
     target_hp = 100,
     shadowburn_cd = 99,
     hp = 100, mana_pct = 100,
@@ -82,6 +97,11 @@ local function build_state(context)
     -- CoE amp read (fails closed like immolate_remains above: no target/API
     -- → 0 → the upkeep lane re-casts).
     state.elements_remains = (target and NS.debuff_remains and NS.debuff_remains(target, ELEMENTS_DEBUFF)) or 0
+    -- Curse-slot reads (fails closed to 0 like the CoE read above).
+    state.doom_remains = (target and NS.debuff_remains and NS.debuff_remains(target, DOOM_DEBUFF)) or 0
+    state.agony_remains = (target and NS.debuff_remains and NS.debuff_remains(target, AGONY_DEBUFF)) or 0
+    -- Dispatcher-produced boss flag (main_sylvanas target_is_boss).
+    state.target_is_boss = (context and context.target_is_boss == true) or false
     -- Execute band HP (dispatcher-produced context field; HammerOfWrath idiom)
     -- and the Shadowburn cooldown read (fails closed via 99).
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or (context and context.target_hp) or 100
@@ -90,7 +110,7 @@ local function build_state(context)
 end
 
 -- ============================================================================
--- Declarative Strategy DSL definitions (7 strategies, 100% declarative)
+-- Declarative Strategy DSL definitions (12 strategies, 100% declarative)
 -- ============================================================================
 local DSL_DEFS = {
     -- APL entry 2: the 13% magic-damage amp goes up before the damage cycle
@@ -116,6 +136,18 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Conflagrate, target = "target", label = "[DESTRUCTION WOTLK] Conflagrate" },
     },
+    -- APL entry 3: the long-fight curse (1-min CD / 1-min duration) on a
+    -- boss; the cooldown itself keeps it from re-casting while the DoT runs,
+    -- and doom_remains == 0 covers the first application.
+    {
+        name = "CurseOfDoom",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_boss", op = "truthy" },
+            { type = "state", field = "doom_remains", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfDoom, target = "target", label = "[DESTRUCTION WOTLK] Curse of Doom" },
+    },
     -- Execute band: Shadowburn ≤ 35% target HP (shard generation for
     -- Empowered Imp makes it the guide's execute finisher).
     {
@@ -132,6 +164,17 @@ local DSL_DEFS = {
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
         action = { type = "cast", spell = ACTION.ChaosBolt, target = "target", label = "[DESTRUCTION WOTLK] Chaos Bolt" },
+    },
+    -- APL entry 8: fallback curse when Doom is not applicable (non-boss
+    -- fight) — refresh below the 3s window, exactly one curse per warlock.
+    {
+        name = "CurseOfAgony",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_boss", op = "falsy" },
+            { type = "state", field = "agony_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target", label = "[DESTRUCTION WOTLK] Curse of Agony" },
     },
     {
         name = "Incinerate",
@@ -198,10 +241,12 @@ local DSL_DEFS = {
 local strategies = {
     { name = "CurseOfElements" },
     { name = "Conflagrate" },
+    { name = "CurseOfDoom" },
     { name = "Shadowburn" },
     { name = "Immolate" },
     { name = "ChaosBolt" },
     { name = "SoulFireBackdraft" },
+    { name = "CurseOfAgony" },
     { name = "Incinerate" },
     { name = "SoulFire" },
     { name = "HellfireAoE" },

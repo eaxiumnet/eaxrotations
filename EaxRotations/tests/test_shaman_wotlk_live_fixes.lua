@@ -332,7 +332,7 @@ end
 do
     local ns = make_ns()
     local resto = load_strategies("EaxRotations/classes/shaman/restoration_wotlk.lua", ns)
-    assert_eq(#resto.strategies, 10, "restoration has 10 strategies (healer wave: NS pair + TidalWavesHealingWave added)")
+    assert_eq(#resto.strategies, 12, "restoration has 12 strategies (guide wave: CleanseSpirit + EarthlivingWeapon added)")
 
     -- 3a. Mana Tide readiness via NS.spell_ready with the 5-min expected CD
     --     (mirrors TBC healing_sylvanas.lua:394).
@@ -387,7 +387,11 @@ do
 
     -- 3e. Water Shield lane appended; Tidal Waves stacks tracked.
     local ws_i, ws = find(resto.strategies, "WaterShield")
-    assert_eq(ws_i, #resto.strategies, "WaterShield appended at the end")
+    -- 2026-09-12 guide wave: EarthlivingWeapon is the new tail lane (OOC imbue
+    -- upkeep), so WaterShield sits one before it.
+    assert_eq(ws_i, #resto.strategies - 1, "WaterShield before the EarthlivingWeapon tail lane")
+    local el_i = find(resto.strategies, "EarthlivingWeapon")
+    assert_eq(el_i, #resto.strategies, "EarthlivingWeapon appended at the end")
     assert_true(ws.matches(ctx({ in_combat = true, mana_pct = 30 }), {}),
         "WaterShield fires at low mana")
     ns.set_buff_stacks({ [53390] = 2 })

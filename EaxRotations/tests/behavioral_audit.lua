@@ -3173,12 +3173,12 @@ M.SCENARIOS = {
     -- reverse direction (SoC up + 1 enemy) is battery-shadowed by
     -- seal_command_active (2 enemies); both share the same cancel code path.
     { name = "ret_seal_switch", overrides = { in_combat = true, enemy_count = 3, enemies_count = 3, buff_remains_map = { [31801] = 5 }, setting_overrides = { ret_seal_switch = true } } },
-    -- protection Holy Shield charge-refresh path: the shield is UP (48927 in
+    -- protection Holy Shield charge-refresh path: the shield is UP (48952 in
     -- the map) while the battery's buff_points returns nil (charges read 0 <=
     -- floor 2) — the lane must fire WITH the buff up, proving the charge floor
     -- drives the refresh and not just the absent-buff branch (which already
-    -- fires in standard). 48927 is paladin-scoped; no other spec reads it.
-    { name = "prot_hs_charges", overrides = { in_combat = true, buff_remains_map = { [48927] = 30 } } },
+    -- fires in standard). 48952 is paladin-scoped; no other spec reads it.
+    { name = "prot_hs_charges", overrides = { in_combat = true, buff_remains_map = { [48952] = 30 } } },
     -- Execute-capture (2026-09-06): druid/cat RakeSnapshot + RipSnapshot read
     -- the module-local snapshot_state (cat_sylvanas.lua:200-207), populated
     -- ONLY by record_bleed_snapshot inside the Rip/Rake cast execute
