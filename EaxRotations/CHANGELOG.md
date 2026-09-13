@@ -2,6 +2,79 @@
 
 ## Unreleased
 
+### Architecture — one landing place for engine signals, one owner for safe reads
+
+- **New `shared/engine_signals_sylvanas.lua` is now THE landing place for
+  engine-derived context signals.** It owns a small registry (`key`, fail-open
+  `fallback`, `read(env)`) plus one `publish(context, me, target, is_channeling)`
+  call per tick. The three producers that were inlined in `main_sylvanas`
+  `build_context` — `target_cast_remaining`, `channel_spell_id` and
+  `school_lockout` — moved there unchanged, each keeping its documented
+  fail-open default (0 = none/unknown), so a client without the engine field
+  behaves exactly as before. `build_context` lost ~40 lines of bespoke pcall
+  boilerplate and now makes a single call; **adding the next engine signal is one
+  registry entry and touches no dispatcher code.**
+- **`shared/safe_helpers_sylvanas.lua` is now the single owner of safe reads.**
+  Five competing private copies are gone: the `safe`/`safe_field` fallbacks in
+  `core_sylvanas` and in the ooc / racial / trinket managers, the `safe_method`
+  fallback in the interrupt manager, and the `safe_method`/`safe_method_arg`
+  pairs in all four druid class files (`bear`/`cat`, `_sylvanas`/`_vanilla`).
+  `sticky_spell`-era callers keep their exact contract because the module exposes
+  `safe`, `safe_field`, `safe_method`, `safe_method_or` and
+  `safe_method_arg_or`. `safe_field` is **closure-free** (`pcall` over a hoisted
+  raw reader), so centralising it does not put a per-call closure on the hot read
+  path — it removes one, which the old copies allocated.
+- Four harnesses had to learn the module to keep their mocks honest: three
+  suites that `dofile` the core/managers without a `package.path` preamble now
+  set the standard one (the same line 499 sibling suites already carry), and the
+  SoD production-boot fixture now passes `shared/safe_helpers_sylvanas` through
+  its `shared/* -> {}` require stub instead of stubbing it to an empty table.
+- No rotation behaviour changed. Verified: rotation battery **563/563**, WotLK
+  runner **82/82**, leveling **39/39**, WotLK battery never-fires **0**, state
+  field / read-side / dead-matcher / NS-member / cache-hit / era-pair audits
+  clean, `check_unused_requires` 0, perf cost gate green (tick retained 0.19 KB,
+  churn 16.62 KB, all within named thresholds), `verify_all` exit 0.
+
+### Rotation Content — WotLK thin-spec guide pass, round 2 (destruction / warrior prot / paladin prot / resto shaman)
+
+- **The next thinnest WotLK specs now implement their published priority**
+  (destruction 10 → 12, warrior protection 10 → 12, paladin protection 9 → 12,
+  restoration 10 → 12 lanes), driven by the pinned wowsims fixtures
+  (`wl_destro_wotlk.apl.json`, `war_prot_wotlk.apl.json`,
+  `pal_prot_wotlk.apl.json`) and the published playstyle priority:
+  - **Destruction** — Curse of Doom (47867) claims the curse slot on a boss
+    while Curse of Agony (47864) is the fallback curse elsewhere (APL entries 3
+    and 8). Chaos Bolt now leads with the level-80 max rank **59172**; the file
+    shipped rank 1 (50796), so a level-80 warlock cast a level-60 nuke.
+  - **Protection warrior** — the two shout upkeep lanes the fixture carries but
+    the file lacked: Commanding Shout (47440, 2-min raid health buff, refresh
+    under 60s at 10+ rage) and Demoralizing Shout (47437, AP debuff refresh).
+  - **Protection paladin** — Hammer of Wrath (48806, the APL's priority-4
+    sub-20% execute), Sacred Shield (53601, 30s self barrier) and Divine
+    Protection (498, −50% damage panic button under 35% hp).
+  - **Restoration shaman** — Cleanse Spirit (51886; dispels outrank throughput
+    heals, reading the real `NS.has_dispel_type_debuff` for poison/disease/curse)
+    and Earthliving Weapon (51730) as out-of-combat imbue upkeep.
+- **Fixed a dead spell id in paladin protection**: the Holy Shield ladder head
+  was pinned as 48927, which wowhead WotLK Classic 404s — the shield lane cast a
+  spell that does not exist and read an impossible buff. The real 3.3.5 max rank
+  is **48952** (8 charges / 10s / 8s CD), the id the wowsims fixture casts. The
+  disproven alias moved to `WOTLK_REJECTED_IDS`, 48952 took its allowlist slot,
+  and the charge-refresh / cooldown / buff-up pin sites were re-pointed.
+- Every new gate is era-correct (single WotLK max ranks), fails closed on an
+  unknown read, and carries fire/hold pins on both sides. Three positional
+  priority suites (warrior protection, paladin protection, resto shaman) were
+  converted to name-resolved lane lookup so the next insertion cannot silently
+  drift them.
+- **One new lane is proven through the real dispatcher**:
+  `test_dispatcher_role_mode.lua` runs the real protection warrior spec under
+  the real dispatcher with rage 15 and Revenge on cooldown, asserts the new
+  CommandingShout lane claims the cast and emits it via `cast_safe`, then
+  asserts it holds once the 2-minute shout is up.
+- WotLK battery never-fires stays **0** (43/43 files clean); allowlist +6
+  bridge-gap pins (59172/47440/48952/51886/51730/498) minus the disproven
+  48927; scorecard WotLK strategies 515 → 524; era-pair seed regenerated.
+
 ### Rotation Content — WotLK thin-spec guide pass (affliction / demonology / fury)
 
 - **The three thinnest WotLK DPS specs now implement their published playstyle
