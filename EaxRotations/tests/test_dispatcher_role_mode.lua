@@ -11,6 +11,7 @@ local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq"
 
 local casts = 0
 local strategies_fired = {}
+local enemy_hp = 80   -- target hp the mock enemy reports (sweep passes drive it)
 
 local player = {
     is_alive = function() return true end,
@@ -24,7 +25,7 @@ local player = {
             is_alive = function() return true end,
             is_valid = function() return true end,
             is_enemy_with = function() return true end,
-            get_health_percentage = function() return 80 end,
+            get_health_percentage = function() return enemy_hp end,
             get_distance = function() return 15 end,
         }
     end,
@@ -497,4 +498,326 @@ assert_true(ok_prot2, "second dispatcher tick must not error: " .. tostring(err_
 assert_true(fired_prot ~= "CommandingShout",
     "with the shout up the lane must hold (fired=" .. tostring(fired_prot) .. ")")
 
+-- ============================================================================
+-- Destruction priority-race pass (2026-09-13): the curse lanes must be able
+-- to WIN THE GCD through the REAL dispatcher. WotLK Conflagrate has a real
+-- 10s cooldown and, once Immolate is up, its lane sits at the top of the
+-- race; without a cooldown gate it claimed the slot on every frame it was
+-- cooling down, so the Curse of Agony lane below it (wl_destro_wotlk.apl.json
+-- entry 8) only got a turn when the central guard happened to reject the
+-- recast. State: Immolate healthy (12s) so Conflagrate's Immolate gate is
+-- open, CoE healthy, non-boss (so Curse of Doom holds and Agony owns the
+-- curse slot), Agony down, mana 19 (ChaosBolt/Incinerate out of the race),
+-- no Backdraft, target hp 80 (Shadowburn holds).
+-- ============================================================================
+player.get_mana_percentage = function() return 19 end
+player.is_casting = function() return false end
+player.is_channeling = function() return false end
+
+local DESTRO_IMMOLATE, DESTRO_COE = 47811, 47865
+NS.debuff_remains = function(unit, ids)
+    for _, id in ipairs(ids) do
+        if id == DESTRO_IMMOLATE then return 12 end
+        if id == DESTRO_COE then return 60 end
+    end
+    return 0
+end
+NS.buff_up = function() return false end
+NS.buff_remains = function() return 0 end
+NS.aoe_target_meets = function() return false end
+NS.unit_is_boss = function() return false end
+
+-- Conflagrate 30912 ready / cooling; everything else ready.
+local conflag_cd = 0
+NS.cooldown_remains = function(action)
+    local id = action
+    if type(action) == "table" then
+        if type(action.id) == "function" then id = action:id() end
+        if type(id) ~= "number" then id = action._meta and action._meta.ids and action._meta.ids[1] end
+    end
+    if id == 30912 then return conflag_cd end
+    return 0
+end
+
+local dest = dofile("EaxRotations/classes/warlock/destruction_wotlk.lua")
+assert_true(type(dest) == "table" and type(dest.strategies) == "table",
+    "destruction_wotlk loads for the dispatcher priority-race proof")
+
+local fired_dest = nil
+for i = 1, #dest.strategies do
+    local st = dest.strategies[i]
+    local orig = st.execute
+    st.execute = function(ctx, state)
+        local res = orig(ctx, state)
+        if res then fired_dest = st.name end
+        return res
+    end
+end
+
+NS.class_middleware = { warlock = {} }
+NS.rotation_registry = {
+    class_config = { class_key = "warlock", default_playstyle = "destruction" },
+    playstyles = { destruction = dest.strategies },
+    options = { destruction = { get_state = dest.build_state } },
+}
+NS.set_setting("playstyle", "destruction")
+NS.set_setting("active_playstyle", nil)
+NS.refresh_settings_cache()
+
+-- Tick A: Conflagrate available -> the top-of-race lane wins.
+conflag_cd = 0
+reset()
+fired_dest = nil
+local ok_d1, err_d1 = pcall(dispatcher.on_rotation_update)
+assert_true(ok_d1, "destruction dispatcher tick must not error: " .. tostring(err_d1))
+assert_eq(fired_dest, "Conflagrate",
+    "with Conflagrate available it must still win the race (fired=" .. tostring(fired_dest) .. ")")
+
+-- Tick B: same state, Conflagrate cooling -> the CURSE lane wins the GCD.
+conflag_cd = 4
+reset()
+fired_dest = nil
+local ok_d2, err_d2 = pcall(dispatcher.on_rotation_update)
+assert_true(ok_d2, "second destruction tick must not error: " .. tostring(err_d2))
+assert_eq(fired_dest, "CurseOfAgony",
+    "with Conflagrate on cooldown the Curse of Agony lane must claim the GCD (fired=" .. tostring(fired_dest) .. ")")
+assert_true(casts >= 1, "the curse lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
+
+-- Tick C: Conflagrate available but Immolate DOWN -> its own gate still holds,
+-- and the APL order takes over: Immolate (entry 4) is re-applied before the
+-- curse (entry 8), so the curse lane only owns the GCD once Immolate is up.
+conflag_cd = 0
+NS.debuff_remains = function(unit, ids)
+    for _, id in ipairs(ids) do
+        if id == DESTRO_COE then return 60 end
+    end
+    return 0
+end
+reset()
+fired_dest = nil
+local ok_d3, err_d3 = pcall(dispatcher.on_rotation_update)
+assert_true(ok_d3, "third destruction tick must not error: " .. tostring(err_d3))
+assert_true(fired_dest ~= "Conflagrate",
+    "without Immolate the Conflagrate lane must hold (fired=" .. tostring(fired_dest) .. ")")
+assert_eq(fired_dest, "Immolate",
+    "with Immolate down the entry-4 refresh lane outranks the entry-8 curse (fired=" .. tostring(fired_dest) .. ")")
+
+-- Tick D: the other named lane — on a boss with Conflagrate cooling, Curse
+-- of Doom (entry 3) owns the curse slot and wins the GCD.
+NS.unit_is_boss = function() return true end
+NS.debuff_remains = function(unit, ids)
+    for _, id in ipairs(ids) do
+        if id == DESTRO_IMMOLATE then return 12 end
+        if id == DESTRO_COE then return 60 end
+    end
+    return 0
+end
+conflag_cd = 4
+reset()
+fired_dest = nil
+local ok_d4, err_d4 = pcall(dispatcher.on_rotation_update)
+assert_true(ok_d4, "boss destruction tick must not error: " .. tostring(err_d4))
+assert_eq(fired_dest, "CurseOfDoom",
+    "with Conflagrate cooling, Curse of Doom must claim the GCD on a boss (fired=" .. tostring(fired_dest) .. ")")
+assert_true(casts >= 1, "the boss curse lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
+
+-- ============================================================================
+-- Full WotLK dispatcher coverage (2026-09-13): EVERY WotLK spec (41 files)
+-- must not just match under the battery harness - it must load and drive the
+-- REAL decision loop and have at least one lane claim the cast. The channel
+-- pass exposed lanes that matched statelessly in the battery while being dead
+-- in the live dispatcher, so per-spec reachability is proven here for the whole
+-- era instead of for the handful of specs picked by hand.
+--
+-- Each spec runs with the SAME friendly baseline: real spec file, real
+-- build_state, real DSL strategies, real dispatcher (context build + role/
+-- playstyle filter + matches + execute). Only the engine surface is mocked -
+-- cooldowns ready, target valid and in range, no movement/cast/channel - and
+-- per-spec preparation only sets the shapeshift form a spec needs (the same
+-- thing the battery models with its form scenario bank). No spec state is
+-- fabricated: the state under test is whatever the spec's own build_state
+-- derives from that engine surface.
+-- ============================================================================
+local WOTLK_SPECS = {
+    { "deathknight", "blood" }, { "deathknight", "frost" }, { "deathknight", "leveling" }, { "deathknight", "unholy" },
+    { "druid", "balance" }, { "druid", "bear" }, { "druid", "cat" }, { "druid", "leveling" }, { "druid", "resto" },
+    { "hunter", "beast_mastery" }, { "hunter", "leveling" }, { "hunter", "marksmanship" }, { "hunter", "survival" },
+    { "mage", "arcane" }, { "mage", "fire" }, { "mage", "frost" }, { "mage", "leveling" },
+    { "paladin", "holy" }, { "paladin", "leveling" }, { "paladin", "protection" }, { "paladin", "retribution" },
+    { "priest", "discipline" }, { "priest", "holy" }, { "priest", "leveling" }, { "priest", "shadow" },
+    { "rogue", "assassination" }, { "rogue", "combat" }, { "rogue", "leveling" }, { "rogue", "subtlety" },
+    { "shaman", "elemental" }, { "shaman", "enhancement" }, { "shaman", "leveling" }, { "shaman", "restoration" },
+    { "warlock", "affliction" }, { "warlock", "demonology" }, { "warlock", "destruction" }, { "warlock", "leveling" },
+    { "warrior", "arms" }, { "warrior", "fury" }, { "warrior", "leveling" }, { "warrior", "protection" },
+}
+local wotlk_form = nil          -- shapeshift form the running spec expects
+local wotlk_buffs_up = false    -- are my own buffs already up?
+local wotlk_cd_ready = true     -- are my cooldowns ready?
+local healer_hp = 100           -- friendly hp the running spec sees
+
+-- One friendly engine surface per pass. Pass 1 is "usable now" (cooldowns
+-- ready, debuffs down so refresh lanes want to apply, my own buffs down so
+-- upkeep lanes want to apply); later passes flip buffs/cooldowns so those
+-- lanes hold and the damage/heal arc is the one that claims the GCD.
+local function install_dispatcher_baseline(pass)
+    wotlk_form = nil
+    wotlk_buffs_up = pass.buffs_up
+    wotlk_cd_ready = pass.cooldown_ready
+    healer_hp = pass.hp
+
+    enemy_hp = pass.target_hp or 80
+    player.get_health_percentage = function() return healer_hp end
+    player.get_mana_percentage = function() return 100 end
+    player.get_power = function() return 1000 end
+    player.gcd_remains = function() return 0 end
+    player.is_moving = function() return false end
+    player.is_casting = function() return false end
+    player.is_channeling = function() return false end
+    player.is_in_combat = function() return true end
+    player.get_stance = function() return 1 end   -- Battle stance (warrior files read me:get_stance())
+    player.is_behind = function() return true end
+    -- Forms are buff-driven in the engine (NS.has_form -> has_player_buff), so
+    -- the shape is mocked here the way the battery's form scenario bank does it.
+    NS.has_form = function(name)
+        if type(name) ~= "string" then return false end
+        return wotlk_form ~= nil and name == wotlk_form
+    end
+    NS.spell_ready = function() return wotlk_cd_ready end
+    NS.cooldown_remains = function() return wotlk_cd_ready and 0 or 30 end
+    NS.get_spell_cooldown = function() return wotlk_cd_ready and 0 or 30 end
+    NS.buff_up = function() return wotlk_buffs_up end
+    NS.buff_remains = function() return wotlk_buffs_up and 30 or 0 end
+    NS.buff_stacks = function() return 0 end
+    NS.buff_points = function() return 0 end
+    NS.debuff_up = function() return false end
+    NS.debuff_remains = function() return 0 end
+    NS.get_debuff_stacks = function() return 0 end
+    NS.aoe_target_meets = function() return pass.aoe == true end
+    NS.aoe_self_meets = function() return pass.aoe == true end
+    NS.aoe_cone_meets = function() return pass.aoe == true end
+    NS.should_use_long_cd = function() return wotlk_cd_ready end
+    NS.unit_mana_pct = function() return 100 end
+    NS.time_now = function() return 100 end
+    NS.game_time_ms = function() return 100000 end
+    NS.swing_time_until = function() return 0 end
+    NS.is_interruptible = function() return true end
+    NS.is_behind_target = function() return true end
+    NS.has_dispel_type_debuff = function() return false end
+    NS.has_pet = function() return true end
+    NS.pet_exists = function() return true end
+    NS.find_dead_party_ally = function() return nil end
+    NS.get_totem_info = function() return nil end
+    NS.gate_overheal = function() return true end
+    NS.gate_cooldown_boss_only = function() return true end
+    NS.threat_status = function() return 0 end
+    NS.unit_is_boss = function() return false end
+    NS.is_in_party = function() return false end
+    NS.is_in_raid = function() return false end
+    NS._TRACE_CASTS = nil
+    -- try_cast is the decision loop's commit point: count it and accept - the
+    -- same shape the CastTrace proof above uses.
+    NS.try_cast = function(spell, target, label, opts)
+        casts = casts + 1
+        return true
+    end
+    NS.try_cast_position = function(spell, position, range_target, label, opts)
+        casts = casts + 1
+        return true
+    end
+end
+local WOTLK_PREPARE = {
+    ["druid/cat"] = function() wotlk_form = "cat" end,
+    ["druid/bear"] = function() wotlk_form = "bear" end,
+    ["druid/balance"] = function() wotlk_form = "moonkin" end,
+}
+
+-- Engine surfaces per sweep pass. Pass 1 proves the upkeep/cooldown lane the
+-- spec opens with; the later passes put those lanes on hold (my buffs up,
+-- cooldowns spent, then a hurt friendly) so the lane that then claims the GCD
+-- is the spec's damage/heal arc rather than the first upkeep lane in the list.
+local WOTLK_PASSES = {
+    { key = "upkeep",   buffs_up = false, cooldown_ready = true,  hp = 100 },
+    { key = "damage",   buffs_up = true,  cooldown_ready = true,  hp = 100 },
+    { key = "spent",    buffs_up = true,  cooldown_ready = false, hp = 100 },
+    { key = "low_hp",   buffs_up = true,  cooldown_ready = true,  hp = 40 },
+
+    { key = "execute",  buffs_up = true,  cooldown_ready = false, hp = 100, target_hp = 20 },
+    { key = "aoe",      buffs_up = true,  cooldown_ready = false, hp = 100, aoe = true },
+}
+
+local wotlk_failures = {}
+local wotlk_proven = {}
+local wotlk_lanes_seen = {}
+local wotlk_proven_specs, wotlk_proven_lanes, wotlk_passes_run = 0, 0, 0
+for wi = 1, #WOTLK_SPECS do
+    local entry = WOTLK_SPECS[wi]
+    local class_key, spec_key = entry[1], entry[2]
+    local key = class_key .. "/" .. spec_key
+    local rel = "classes/" .. class_key .. "/" .. spec_key .. "_wotlk"
+    local path = "EaxRotations/" .. rel .. ".lua"
+    package.loaded[rel] = nil
+    local loaded, mod = pcall(dofile, path)
+    if not loaded or type(mod) ~= "table" or type(mod.strategies) ~= "table" then
+        wotlk_failures[#wotlk_failures + 1] = key .. " (load: " .. tostring(mod) .. ")"
+    else
+        local lanes = {}
+        for i = 1, #mod.strategies do
+            local strat = mod.strategies[i]
+            local orig_exec = strat.execute
+            strat.execute = function(ctx, state)
+                local res = orig_exec(ctx, state)
+                if res then lanes[strat.name] = true end
+                return res
+            end
+        end
+        local last_tick_error = nil
+        for pi = 1, #WOTLK_PASSES do
+            local pass = WOTLK_PASSES[pi]
+            install_dispatcher_baseline(pass)
+            local prepare = WOTLK_PREPARE[key]
+            if prepare then prepare() end
+            NS.class_middleware = { [class_key] = {} }
+            NS.rotation_registry = {
+                class_config = { class_key = class_key, default_playstyle = spec_key },
+                playstyles = { [spec_key] = mod.strategies },
+                options = { [spec_key] = { get_state = mod.build_state } },
+            }
+            NS.set_setting("playstyle", spec_key)
+            NS.set_setting("active_playstyle", nil)
+            NS.refresh_settings_cache()
+            reset()
+            local ticked, err = pcall(dispatcher.on_rotation_update)
+            wotlk_passes_run = wotlk_passes_run + 1
+            if not ticked and not last_tick_error then last_tick_error = tostring(err) end
+        end
+        local lane_names = {}
+        for name in pairs(lanes) do lane_names[#lane_names + 1] = name end
+        table.sort(lane_names)
+        if last_tick_error and #lane_names == 0 then
+            wotlk_failures[#wotlk_failures + 1] = key .. " (tick error: " .. last_tick_error .. ")"
+        elseif #lane_names == 0 then
+            wotlk_failures[#wotlk_failures + 1] = key .. " (no lane claimed a cast in any sweep pass)"
+        else
+            wotlk_proven_specs = wotlk_proven_specs + 1
+            for i = 1, #lane_names do
+                if not wotlk_lanes_seen[lane_names[i]] then
+                    wotlk_lanes_seen[lane_names[i]] = true
+                    wotlk_proven_lanes = wotlk_proven_lanes + 1
+                end
+            end
+            wotlk_proven[#wotlk_proven + 1] = key .. " (" .. #lane_names .. ") -> " .. table.concat(lane_names, ", ")
+        end
+    end
+end
+
+-- Evidence on demand: WOTLK_DISPATCH_VERBOSE=1 prints the lanes each spec proved.
+if os.getenv and os.getenv("WOTLK_DISPATCH_VERBOSE") then
+    for i = 1, #wotlk_proven do io.write("  [ WOTLK LANES ] " .. wotlk_proven[i] .. "\n") end
+end
+io.write(string.format("[wotlk-dispatcher] specs proven: %d/%d across %d passes | distinct lanes proven: %d\n",
+    wotlk_proven_specs, #WOTLK_SPECS, wotlk_passes_run, wotlk_proven_lanes))
+for i = 1, #wotlk_failures do io.write("  [ UNREACHED ] " .. wotlk_failures[i] .. "\n") end
+assert_true(#wotlk_failures == 0,
+    "every WotLK spec must claim a cast through the real dispatcher; unreached: " .. table.concat(wotlk_failures, " | "))
+assert_true(wotlk_proven_specs == #WOTLK_SPECS, "the sweep must cover every WotLK spec (" .. wotlk_proven_specs .. "/" .. #WOTLK_SPECS .. ")")
 print("PASS test_dispatcher_role_mode")

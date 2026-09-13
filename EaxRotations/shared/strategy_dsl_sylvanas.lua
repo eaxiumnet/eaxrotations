@@ -320,9 +320,11 @@ local function default_execute(action)
 end
 
 -- Collect the state/context fields a condition tree reads (max 4, depth-
--- first through AND/OR/NOT groups). Attached to compiled strategies as
--- _dsl_watch so the cast trace can render the live values behind a firing
--- rule ("Rip: rip_remains=0.4 combo_points=5") without scanning closures.
+-- first through AND/OR/NOT groups). Custom conditions compute their own
+-- verdict, so they declare what they read with a `watch = { "field" }`
+-- list on the node. Attached to compiled strategies as _dsl_watch so the
+-- cast trace can render the live values behind a firing rule
+-- ("Rip: rip_remains=0.4 combo_points=5") without scanning closures.
 local WATCH_CAP = 4
 local function collect_watch_fields(conditions, out)
     if type(conditions) ~= "table" then return end
@@ -337,6 +339,22 @@ local function collect_watch_fields(conditions, out)
                     if out[j].src == t and out[j].field == node.field then seen = true break end
                 end
                 if not seen then out[#out + 1] = { src = t, field = node.field } end
+            elseif t == "custom" and type(node.watch) == "table" then
+                -- A custom condition computes its own verdict (a live
+                -- engine window, an AoE scan), so the state it reads is
+                -- declared explicitly via node.watch — without it the cast
+                -- trace would render the lane with no state behind it.
+                for k = 1, #node.watch do
+                    if #out >= WATCH_CAP then break end
+                    local field = node.watch[k]
+                    if type(field) == "string" then
+                        local seen = false
+                        for j = 1, #out do
+                            if out[j].src == "state" and out[j].field == field then seen = true break end
+                        end
+                        if not seen then out[#out + 1] = { src = "state", field = field } end
+                    end
+                end
             elseif t == "AND" or t == "OR" then
                 collect_watch_fields(node.conditions, out)
             elseif t == "NOT" and type(node.condition) == "table" then

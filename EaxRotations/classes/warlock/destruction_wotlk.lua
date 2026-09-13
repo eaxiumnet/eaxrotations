@@ -42,15 +42,37 @@ local ACTION = {
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
 }
 
-local IMMOLATE_CAST_TIME = type(ACTION.Immolate) == "table"
-    and ACTION.Immolate._meta and ACTION.Immolate._meta.cast_time
-local IMMOLATE_REFRESH_SECONDS = type(IMMOLATE_CAST_TIME) == "number"
-    and IMMOLATE_CAST_TIME or 2.0
-
 -- WotLK max-rank id FIRST (literal id matching — without 47811 the Immolate
 -- remains read is always 0 and Conflagrate's "Immolate active" gate never
 -- passes, a production never-lane).
 local IMMOLATE_DEBUFF = { 47811, 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
+
+-- Immolate's refresh window is the wowsims fixture's expression verbatim
+-- (wl_destro_wotlk.apl.json entry 4:
+--   dotRemainingTime(47811) < spellCastTime(47811)).
+-- The cast time comes from the engine spell book
+-- (core.spell_book.get_spell_cast_time — fire_wotlk.lua:23 Scorch precedent),
+-- so the window tracks the real talented/hasted cast time instead of a
+-- constant. The WotLK base 2.0s is the fallback whenever the engine reports
+-- nothing (mock harnesses / older clients), i.e. exactly the pre-existing
+-- window. NOTE: the previous read of ACTION.Immolate._meta.cast_time could
+-- never resolve at all — define_action builds array-style actions whose
+-- _meta carries no cast_time — so the window was silently hardcoded.
+local IMMOLATE_REFRESH_FALLBACK = 2.0
+local _core = NS.core or _G.core or {}
+local _get_spell_cast_time = _core.spell_book and _core.spell_book.get_spell_cast_time
+
+-- Only sane engine cast times are accepted: a nil/zero/garbage read must not
+-- close the window, or Immolate would never refresh again (fail-open).
+local function resolve_immolate_refresh()
+    if type(_get_spell_cast_time) == "function" then
+        local ok, cast_time = pcall(_get_spell_cast_time, IMMOLATE_DEBUFF[1])
+        if ok and type(cast_time) == "number" and cast_time > 0 and cast_time <= 6 then
+            return cast_time
+        end
+    end
+    return IMMOLATE_REFRESH_FALLBACK
+end
 
 -- Backdraft: the haste aura Conflagrate grants the caster (reduces the cast
 -- time and GCD of the next three Destruction spells). Per-talent-rank auras
@@ -77,6 +99,7 @@ local DESTRUCTION_SCHEMA = {
     target_is_boss = false,
     target_hp = 100,
     shadowburn_cd = 99,
+    conflagrate_cd = 0,
     hp = 100, mana_pct = 100,
 }
 
@@ -106,6 +129,10 @@ local function build_state(context)
     -- and the Shadowburn cooldown read (fails closed via 99).
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or (context and context.target_hp) or 100
     state.shadowburn_cd = (ACTION.Shadowburn and NS.cooldown_remains and NS.cooldown_remains(ACTION.Shadowburn)) or 99
+    -- Conflagrate carries a real 10s WotLK cooldown; the fixture's sim gates
+    -- on it implicitly. Fail-open to 0 = ready when the engine read is
+    -- unavailable, so the lane can never go permanently dark.
+    state.conflagrate_cd = (ACTION.Conflagrate and NS.cooldown_remains and NS.cooldown_remains(ACTION.Conflagrate)) or 0
     return state
 end
 
@@ -122,17 +149,31 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.CurseOfElements, target = "target", label = "[DESTRUCTION WOTLK] Curse of the Elements" },
     },
+    -- APL entry 4: refresh only once the remainder is inside the cast-time
+    -- window (dotRemainingTime(47811) < spellCastTime(47811)). The window is a
+    -- live engine value, not a constant, so it is evaluated at match time
+    -- against the same read the trace reports (watch list below).
     {
         name = "Immolate",
         conditions = {
-            { type = "state", field = "immolate_remains", op = "<", value = IMMOLATE_REFRESH_SECONDS },
+            { type = "custom", watch = { "immolate_remains" },
+              fn = function(context, state)
+                  return (state.immolate_remains or 0) < resolve_immolate_refresh()
+              end },
         },
         action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DESTRUCTION WOTLK] Immolate" },
     },
+    -- APL entry 2: the top of the race, but only while the spell is actually
+    -- available — WotLK Conflagrate has a real 10s cooldown that the fixture's
+    -- sim gates on implicitly. Without the cooldown read the lane claimed the
+    -- GCD on every frame it was on cooldown and the curse lanes below it
+    -- (entries 3 and 8) only got a turn when the central guard happened to
+    -- reject the recast.
     {
         name = "Conflagrate",
         conditions = {
             { type = "state", field = "immolate_remains", op = ">", value = 0 },
+            { type = "state", field = "conflagrate_cd", op = "<=", value = 0 },
         },
         action = { type = "cast", spell = ACTION.Conflagrate, target = "target", label = "[DESTRUCTION WOTLK] Conflagrate" },
     },

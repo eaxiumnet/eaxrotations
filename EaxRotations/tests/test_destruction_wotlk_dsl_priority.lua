@@ -11,7 +11,10 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local engine_immolate_cast = nil  -- core.spell_book.get_spell_cast_time verdict
+
 _G.EaxRotations = {
+    core = { spell_book = { get_spell_cast_time = function() return engine_immolate_cast end } },
     WarlockSpells = {},
     spell_action = function(ids, label)
         local action_ids = type(ids) == "table" and ids or { ids }
@@ -20,7 +23,6 @@ _G.EaxRotations = {
                 id = action_ids[1],
                 ids = action_ids,
                 label = label,
-                cast_time = label == "Immolate" and 2.5 or 0,
             },
         }
     end,
@@ -120,13 +122,38 @@ tests.test_Immolate_matches_when_expiring = function()
     assert_true(ok, "Immolate should match when immolate_remains < 2.5")
 end
 
--- Immolate: reads the cast time from the action's production metadata shape.
-tests.test_Immolate_uses_action_metadata_cast_time = function()
+-- Immolate: the refresh window is the engine's real cast time
+-- (core.spell_book.get_spell_cast_time — wl_destro_wotlk fixture entry 4:
+-- dotRemainingTime(47811) < spellCastTime(47811)), with the WotLK base 2.0s
+-- fallback when the read is absent. The old _meta.cast_time read is gone:
+-- define_action builds array-style actions, so it could never resolve.
+tests.test_Immolate_uses_engine_cast_time = function()
     local ctx = make_context({})
+    engine_immolate_cast = 2.5
     local state = build_state(ctx)
     state.immolate_remains = 2.25
     assert_true(strategy_matches("Immolate", ctx, state),
-        "Immolate should use _meta.cast_time instead of the fallback threshold")
+        "Immolate should refresh inside the engine's 2.5s cast window")
+    engine_immolate_cast = nil
+    assert_false(strategy_matches("Immolate", ctx, state),
+        "Immolate should fall back to the 2.0s base window without an engine read")
+    state.immolate_remains = 1.9
+    assert_true(strategy_matches("Immolate", ctx, state),
+        "Immolate should refresh inside the 2.0s fallback window")
+end
+
+-- Immolate: the custom window condition must still carry its live state into
+-- the cast trace (node.watch -> strategy._dsl_watch).
+tests.test_Immolate_watch_fields_survive_custom_condition = function()
+    local watched = {}
+    for _, s in ipairs(strategies) do
+        if s.name == "Immolate" then watched = s._dsl_watch or {} break end
+    end
+    local found = false
+    for i = 1, #watched do
+        if watched[i].field == "immolate_remains" and watched[i].src == "state" then found = true end
+    end
+    assert_true(found, "Immolate lane should watch immolate_remains in the cast trace")
 end
 
 -- Immolate: does not match when debuff is fresh
