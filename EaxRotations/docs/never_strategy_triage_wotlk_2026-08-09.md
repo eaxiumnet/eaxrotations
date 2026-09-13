@@ -1101,3 +1101,81 @@ re-queued on the next 20Hz tick.
   `try_cast` over virgin spell ids (the suite's 2.5s cast-history throttle is
   longer than the 0.6s hold, so only never-cast ids isolate it).
 
+## Addendum (h) - 2026-09-13: cast-confirmation state machine (core cast path, no lane deltas)
+
+Addendum (g) taught the addon about a cast the client *refuses*. The other way a
+queued cast dies is *silence* - the offer is swallowed and no engine event ever
+arrives - and that cannot be detected by a failure event. Both verdicts now live
+in one owner.
+
+| Piece | Where | Contract |
+|---|---|---|
+| Cast-confirmation state machine | `shared/cast_confirm_sylvanas.lua` | records every issued cast; engine events resolve it; a spell id is held for 0.6s on a refusal (`_FAILED` / `_FAILED_QUIET`) **or** when the confirmation window (1.6s) elapses with no acknowledgement at all |
+| Acknowledgement set | same | `_SENT` (spell id at args[4]), `_START`, `_SUCCEEDED`, `_INTERRUPTED`, `_CHANNEL_START`; `_STOP` deliberately excluded (completion, self-cancel and kick alike) |
+| Producer | `core_sylvanas.lua` `mark_spell_cast` | the single commit point every queue path reaches -> `M.note_queued(id)` |
+| Consumer | `core_sylvanas.lua` `NS.evaluate_cast` step 2b | returns false while held, so `run_list` falls through to the next lane |
+| Installer | `main_sylvanas.lua` (next to the CastTrace require) | `M.install(NS)`; absent module = no-op |
+
+- **Fail-open**, twice: no module / no clock / no events => the pre-existing cast
+  path; and the never-acknowledged hold is **disarmed** until the engine has
+  reported a player cast at all (`M.armed()`), so the battery harness can never
+  see a timeout hold.
+- **No lane counts changed** in any era, so the scorecard, ACCURACY, era-pair
+  seed and the never-firing pins are content-identical after regeneration
+  (verified). WotLK never-firing stays 0; TBC 11 / vanilla 9 / SoD 0 unchanged.
+- Proof: `test_dispatcher_role_mode.lua` pins the subscription set (and the
+  absence of `_STOP`), the arming rule, acknowledgement / refusal / silence on
+  both sides, and then the **real affliction warlock lanes through the real
+  dispatcher with the real `try_cast`**: the Curse of Doom lane claims the GCD,
+  the engine stays silent for the window, the lane is held and the dispatcher
+  falls through; with the hold cleared at the same clock the same lane wins
+  again (so the hold, not the guard's own 2.5s cast-history throttle, is what
+  changed the outcome). Load-bearing proven by injection - neutering the verdict,
+  the `evaluate_cast` hook, or the verdict for that spell id each fail the suite.
+
+## Addendum (i) - smart multi-DoT cycling (enemy + friendly) and the ordered boss opener (2026-09-13)
+
+Two shared subsystems. Neither adds a strategy lane and neither changes a lane
+count, so the scorecard / ACCURACY / era-pair seed are content-identical after
+regeneration and the never-firing pins are untouched.
+
+`shared/periodic_cycler_sylvanas.lua` owns "which unit gets the next periodic
+effect", on both the hostile and the friendly side:
+
+| Piece | Where | Contract |
+|---|---|---|
+| Cycle cursor | `shared/periodic_cycler_sylvanas.lua` | `cursor(key)` / `advance(key, unit)`; one bucket per effect set (key = the first effect id), so Moonfire and Insect Swarm cycle independently |
+| Enemy client | `classes/druid/balance_sylvanas.lua` | the spread picker prefers a candidate other than the cursor while another equally valid one exists, still returns the cursor mob when it is the only candidate, and advances only on a landed cast. Discovery and every gate stay with the spec; the scan stays one allocation-free pass |
+| Friendly client | `classes/druid/resto_wotlk.lua` | Rejuvenation follows the cycled ally (`state.hot_unit` / `state.hot_remains`) instead of the single lowest, so a second injured ally is covered when the lowest already carries a fresh HoT |
+| Friendly picker | same module | `friendly(context, buff_ids, opts, key)` - the party scan is uniform, so the module owns it end to end |
+
+`shared/boss_opener_sylvanas.lua` owns the ORDER of a raid opener:
+
+| Piece | Where | Contract |
+|---|---|---|
+| Order | `classes/shaman/elemental_wotlk.lua` via `define()` | Fire Elemental -> Bloodlust -> Elemental Mastery |
+| Arming | `armed(state)` | in combat **and** `context.target_is_boss`; off a boss the sequencer is inert, so every lane keeps its own cooldown gate |
+| Turn | `turn(key, active, head, name)` | only the head may claim the GCD; fail-open whenever the opener is inert, undeclared, or finished |
+| Advance | the lane's own `execute()` calling `advance(key, name)` | a refused cast (execute false) holds the turn -- the order cannot be skipped |
+
+- **Fail-open everywhere**: absent module, absent candidate, absent party API or a
+  broken player accessor all leave the previous behavior byte-for-byte intact.
+  `NS.GetPlayer` is read through ONE guard that tolerates both `NS.me` and the
+  `function(self)` stub idiom -- the first draft called it bare and turned
+  `test_wotlk_specs_load.lua` red, which is how the two-idiom read got written.
+- **Two inversions caught and fixed while wiring** (both would have shipped a
+  silent no-op): the friendly preference test was inverted (the cursor unit won
+  instead of losing), and the enemy path's original design delegated to
+  `multidot_engagement_filter.find_multidot_target` whose `opts.avoid_unit` it
+  never read -- the enemy side was re-homed onto the shared cursor so the
+  documented contract is real.
+- **No starvation**: a cycle must never withhold an effect from the only unit that
+  needs it, so both sides return the cursor unit when it is the sole candidate.
+- Proof: rotation / bucket-isolation / no-candidate hold / no-starvation on the
+  REAL balance picker (`test_multidot_lane_regression.lua`, candidate list swapped
+  in the battery state bank); cover-second-ally / all-covered hold / round-robin /
+  lone-candidate / no-party-API fail-open on the REAL resto lane
+  (`test_druid_resto_wotlk_strategies.lua`); fire-hold-advance-complete-reset on
+  the REAL elemental opener (`test_shaman_elemental_wotlk_strategies.lua`).
+  Load-bearing proven by injection on both sides. 563/563 battery, never-fires
+  TBC 11 / vanilla 9 / SoD 0 / WotLK 0, audits 0 invalid, `verify_all` exit 0.

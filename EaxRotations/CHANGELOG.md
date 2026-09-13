@@ -2,6 +2,97 @@
 
 ## Unreleased
 
+### Feature - smart multi-DoT cycling (enemy + friendly) and an ordered boss opener
+
+- **`shared/periodic_cycler_sylvanas.lua`** (new) owns "which unit gets the
+  next periodic effect". It genuinely cycles both ways: the **enemy** side (a
+  DoT on an engaged hostile) and the **friendly** side (a HoT on an injured
+  ally). Enemy candidate discovery stays with each spec -- its own
+  engagement/CC/snapshot gates decide who is *eligible* -- and reads the shared
+  `cursor()` / `advance()`; the friendly side owns its uniform party scan end to
+  end through `friendly()`.
+- `druid/balance_sylvanas.lua` (TBC): the Moonfire / Insect Swarm spread pickers
+  now rotate across equally valid undotted mobs instead of always taking the
+  first one, and still return the cursor mob when it is the ONLY candidate -- a
+  cycle may never starve the one mob that needs the DoT. Buckets are per effect,
+  so the Moonfire cursor never moves Insect Swarm; the cursor advances only on a
+  landed cast, so a refused cast keeps its turn. The scan stays a single
+  allocation-free pass with a fallback.
+- `druid/resto_wotlk.lua`: Rejuvenation follows the **cycled** ally
+  (`state.hot_unit` / `state.hot_remains`) rather than the single lowest, so when
+  the lowest ally already carries a fresh HoT a second injured ally is covered --
+  the known "two people at 60% and only one gets a HoT" deficit. Without the
+  module, or without a party list, the lane falls back to the lowest ally, so a
+  solo fight is unchanged.
+- **`shared/boss_opener_sylvanas.lua`** (new) owns the ORDER of a raid opener.
+  `shaman/elemental_wotlk.lua` declares **Fire Elemental -> Bloodlust ->
+  Elemental Mastery**: while the opener is armed (in combat **and** on a raid
+  boss) only the head of the declared order may claim the GCD, and the lane's own
+  landed cast advances the head. Off a boss -- or once the sequence completes --
+  the sequencer is inert and every lane falls back to its own cooldown gate, so
+  trash/leveling behavior is unchanged and the 5-minute Heroism is free again
+  inside the same fight.
+- Safety: both modules are fail-open. An absent module, an absent candidate, or a
+  missing party/engine accessor leaves the previous behavior exactly as it was.
+  `NS.GetPlayer` is read through one guard that tolerates both the published
+  `NS.me` field and either `function()` / `function(self)` stub idiom, so the
+  pure-mock spec-load suites cannot be broken by the new read. No per-frame
+  allocation: the only writes are the per-key cursor record.
+- Proof: `tests/test_multidot_lane_regression.lua` drives the REAL balance
+  picker with two undotted peers (the candidate list is swapped in the battery's
+  own state bank) and pins the rotation, the per-effect bucket isolation, the
+  no-candidate hold, and the no-starvation fallback; the friendly side is pinned
+  in `tests/test_druid_resto_wotlk_strategies.lua` (cover the second ally / hold
+  when everyone is already HoTted / round-robin / lone-candidate /
+  no-party-API fail-open); the ordered opener is pinned in
+  `tests/test_shaman_elemental_wotlk_strategies.lua` (step 1 fires while steps 2-3
+  hold, landing each step hands the turn on, completion frees every lane, and a
+  disarmed opener resets to step 1). Load-bearing proven by injection: neutering
+  the balance cursor read fails the rotation pin, and restoring the inverted
+  friendly-preference comparison fails the friendly rotation pin (both restored
+  byte-identical afterwards).
+- Evidence: 563/563 battery, WotLK runner 82/82, all audits 0 invalid (WotLK 43 /
+  TBC 81 / vanilla 40, 0 tainted), `verify_all` exit 0, battery never-fires at
+  pins (TBC 11 / vanilla 9 / SoD 0 / WotLK 0), perf cost gate pass, and the
+  scorecard / ACCURACY / era-pair seed content-identical after regeneration (no
+  lane counts changed). Mock-proven, not yet observed on a live client.
+
+### Fix - engine-confirmed cast state machine (refused and never-acknowledged casts)
+
+- **`shared/cast_confirm_sylvanas.lua`** (replaces
+  `shared/cast_reject_guard_sylvanas.lua`) is now the single owner of "what the
+  engine said about the casts we issued". Every cast the addon queues is recorded
+  at the one commit point every queue path reaches (`core_sylvanas.lua`
+  `mark_spell_cast`) and resolved against the engine's own cast events.
+- One hold, three verdicts: an **acknowledgement** (`UNIT_SPELLCAST_SENT`,
+  `_START`, `_SUCCEEDED`, `_INTERRUPTED`, `_CHANNEL_START`; player token only)
+  clears the offer; a **refusal** (`UNIT_SPELLCAST_FAILED` / `_FAILED_QUIET`)
+  holds the offered spell id at once; and an offer the engine **never
+  acknowledges at all** is held once the confirmation window (1.6s - one GCD
+  plus queue slack) elapses. Held ids are skipped by `NS.evaluate_cast` step 2b,
+  so the dispatcher falls through to the next lane instead of re-queuing the
+  same cast on every 20Hz tick.
+- Fail-open twice over: no module, no clock, or a client that emits none of the
+  events leaves the cast path byte-for-byte unchanged, and the
+  never-acknowledged hold stays **disarmed** until the engine has reported a
+  player cast at all - so the battery harness and an older client can never see a
+  timeout hold.
+- `UNIT_SPELLCAST_STOP` is deliberately **not** subscribed: it fires on
+  completion, self-cancel and kick alike, so it cannot resolve an offer.
+- Proof: `test_dispatcher_role_mode.lua` pins the subscription set, the arming
+  rule, and acknowledgement vs refusal vs silence on both sides, then drives the
+  **real affliction warlock lanes through the real dispatcher with the real
+  `try_cast`** - the Curse of Doom lane claims the GCD, the engine stays silent,
+  the lane is held and the dispatcher falls through, and with the hold cleared at
+  the same clock the same lane wins again. Load-bearing proven by injection:
+  neutering the verdict, the `evaluate_cast` hook, and the verdict for that spell
+  id each fail the suite.
+- Evidence: 19/19 pre-commit checks, `verify_all` exit 0, battery never-fires at
+  pins (TBC 11 / vanilla 9 / SoD 0 / WotLK 0), all audits 0 invalid, perf cost
+  gate pass (the new work is per-cast, not per-frame, and the gate's disabled
+  paths stay at 0.00 KB retained). Mock-proven through the real dispatch path,
+  not yet observed on a live client.
+
 ### Fix - wrong-family spell ids in the TBC / SoD / WotLK ladders
 
 - The 2026-09-13 spell-id sweep found ladders headed by an id that resolves to a
