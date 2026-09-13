@@ -1009,7 +1009,7 @@ aadd('## How to check this yourself')
 aadd('')
 aadd('- Full engineering detail (every rule, every reason): `docs/scorecard.md`.')
 aadd('- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` '
-      .. '(563 rotation suites + leveling + four era batteries + this page’s drift check).')
+      .. '(' .. #all_test_names .. ' rotation suites + leveling + four era batteries + this page’s drift check).')
 aadd('- Regenerate this page and the scorecard: `lua tools/spec_scorecard.lua`.')
 
 local accuracy_md = table.concat(A, '\n') .. '\n'
