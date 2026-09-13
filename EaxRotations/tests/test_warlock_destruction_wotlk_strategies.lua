@@ -25,6 +25,8 @@ local mana = 100
 local thp = 100        -- target HP (Shadowburn execute band)
 local enemies = 1      -- AoE volume (Hellfire wave)
 local sb_cd = 0        -- Shadowburn cooldown
+local conf_cd = 0      -- Conflagrate cooldown (10s in WotLK)
+local immo_cast = nil  -- core.spell_book.get_spell_cast_time verdict
 local aoe_ok = false   -- NS.aoe_target_meets verdict
 local spell_ok = true  -- NS.spell_ready verdict (Hellfire channel)
 local debuffs = {}
@@ -40,6 +42,7 @@ local boss = false  -- context.target_is_boss (dispatcher-produced)
 local function reset_env()
     combat, hp, mana, thp, enemies = true, 100, 100, 100, 1
     sb_cd, aoe_ok, spell_ok = 0, false, true
+    conf_cd, immo_cast = 0, nil
     boss = false
     debuffs, buffs = {}, {}
 end
@@ -63,8 +66,12 @@ _G.EaxRotations = {
     -- convention): Shadowburn arrives as 47827.
     cooldown_remains = function(action)
         if action == 47827 then return sb_cd end
+        if action == 30912 then return conf_cd end  -- Conflagrate ladder head
         return 0
     end,
+    -- Engine spell-book cast time (core.spell_book.get_spell_cast_time): the
+    -- real refresh-window source, mirroring test_fire_wotlk_dsl_priority.
+    core = { spell_book = { get_spell_cast_time = function() return immo_cast end } },
     spell_ready = function(action, unit) return spell_ok end,
     aoe_target_meets = function(n, radius, target, ctx) return aoe_ok end,
     AOE_RADIUS = { SELF_10 = 10 },
@@ -112,21 +119,43 @@ local function assert_lane(label, strategy_name, setup, expect)
 end
 
 -- ============================================================================
--- Conflagrate: only while Immolate is live (remains > 0).
+-- Conflagrate: only while Immolate is live (remains > 0) AND the real 10s
+-- cooldown is ready (state.conflagrate_cd via NS.cooldown_remains) — the
+-- wowsims fixture gates entry 2 on availability implicitly; without the
+-- cooldown read the lane held the top of the race every GCD it was down.
 -- ============================================================================
 assert_lane("Conflagrate fires while Immolate is live", "Conflagrate",
     function() immo(12) end, true)
 assert_lane("Conflagrate fires with a sliver of Immolate left", "Conflagrate",
     function() immo(0.1) end, true)
 assert_lane("Conflagrate blocked when Immolate is down", "Conflagrate", function() end, false)
+assert_lane("Conflagrate held while the 10s cooldown is running", "Conflagrate",
+    function() immo(12); conf_cd = 4 end, false)
+assert_lane("Conflagrate fires at the cooldown-ready boundary", "Conflagrate",
+    function() immo(12); conf_cd = 0 end, true)
+assert_lane("Conflagrate held on cooldown even with a sliver of Immolate", "Conflagrate",
+    function() immo(0.1); conf_cd = 9.9 end, false)
 
 -- ============================================================================
--- Immolate: refresh below the cast-time window (2.0s default here).
+-- Immolate: refresh inside the cast-time window — the fixture's entry 4
+-- expression dotRemainingTime(47811) < spellCastTime(47811). The window is
+-- the engine's real cast time when available, and the WotLK base 2.0s when
+-- the read is absent or nonsense (fail-open: never a zero-width window).
 -- ============================================================================
 assert_lane("Immolate refreshes when the debuff is down", "Immolate", function() end, true)
-assert_lane("Immolate refreshes at 1.9s remaining", "Immolate", function() immo(1.9) end, true)
-assert_lane("Immolate blocked at the 2.0s refresh boundary", "Immolate", function() immo(2.0) end, false)
+assert_lane("Immolate refreshes at 1.9s remaining (2.0s fallback window)", "Immolate",
+    function() immo(1.9) end, true)
+assert_lane("Immolate blocked at the 2.0s fallback boundary", "Immolate",
+    function() immo(2.0) end, false)
 assert_lane("Immolate blocked while the debuff is healthy", "Immolate", function() immo(12) end, false)
+assert_lane("Immolate window follows the engine cast time (1.5s hasted)", "Immolate",
+    function() immo_cast = 1.5; immo(1.4) end, true)
+assert_lane("Immolate held at 1.9s once the engine window is 1.5s", "Immolate",
+    function() immo_cast = 1.5; immo(1.9) end, false)
+assert_lane("Immolate keeps the fallback window on a zero engine read", "Immolate",
+    function() immo_cast = 0; immo(1.9) end, true)
+assert_lane("Immolate keeps the fallback window on an absurd engine read", "Immolate",
+    function() immo_cast = 99; immo(1.9) end, true)
 
 -- ============================================================================
 -- ChaosBolt: >= 20% mana.
