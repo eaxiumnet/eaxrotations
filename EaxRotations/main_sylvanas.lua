@@ -28,6 +28,18 @@ end
 pcall(require, "shared/cast_trace_sylvanas")
 local cast_trace = NS.CastTrace
 
+-- Rejected-cast hold (shared/cast_reject_guard_sylvanas.lua): the engine's own
+-- UNIT_SPELLCAST_FAILED events hold an ability the client just refused, so the
+-- cast guard stops re-offering it every frame (the invalid-target / wrong-weapon
+-- offer loop). Pure module installed with the namespace here; fail-open when it
+-- is missing -- no guard means exactly the pre-existing cast path.
+local _crg_ok, cast_reject_guard = pcall(require, "shared/cast_reject_guard_sylvanas")
+if not _crg_ok or type(cast_reject_guard) ~= "table" or type(cast_reject_guard.install) ~= "function" then
+    cast_reject_guard = nil
+else
+    pcall(cast_reject_guard.install, NS)
+end
+
 local M = {}
 local _context = lazy_context.create()
 -- (build_context() below re-creates _context every tick and seeds
