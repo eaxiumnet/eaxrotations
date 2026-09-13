@@ -10,8 +10,18 @@ local function assert_true(v, label) if not v then error(label or "assert_true f
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 
 local casts = 0
+local cast_ids = {}          -- spell ids that reached the cast backend
 local strategies_fired = {}
 local enemy_hp = 80   -- target hp the mock enemy reports (sweep passes drive it)
+
+-- Mutable clock: NS.time_now() reads core.time, so the rejected-cast-hold
+
+-- section can advance time and separate the 0.3s anti-flicker window from the
+
+-- longer reject hold. Default 100 preserves every earlier assertion.
+
+local _test_clock = 100
+
 
 local player = {
     is_alive = function() return true end,
@@ -37,7 +47,7 @@ local player = {
 }
 
 _G.core = {
-    time = function() return 100 end,
+    time = function() return _test_clock end,
     game_time = function() return 100000 end,
     log = function(...) end,
     log_warning = function(...) end,
@@ -66,6 +76,42 @@ local NS = require("core_sylvanas")
 -- registries replace NS.rotation_registry; section (e) proves the real merge.
 local real_register = NS.rotation_registry.register
 
+-- The REAL central cast path, captured before the CastTrace section swaps in a
+
+-- counting stub: the rejected-cast-hold section must exercise the one path that
+
+-- consults NS.evaluate_cast.
+
+local real_try_cast = NS.try_cast
+
+
+-- Capture every game-event handler a module registers while the dispatcher
+
+-- loads, so the rejected-cast-hold section can inject the engine's own
+
+-- UNIT_SPELLCAST_FAILED payload into the real handler.
+
+local _game_event_handlers = {}
+
+local _real_register_on_game_event = NS.register_on_game_event
+
+NS.register_on_game_event = function(event_name, callback)
+
+    if type(event_name) == "string" and type(callback) == "function" then
+
+        local list = _game_event_handlers[event_name]
+
+        if not list then list = {}; _game_event_handlers[event_name] = list end
+
+        list[#list + 1] = callback
+
+    end
+
+    return _real_register_on_game_event(event_name, callback)
+
+end
+
+
 NS.izi = {
     spell = function(spell_id)
         return {
@@ -74,6 +120,7 @@ NS.izi = {
             end,
             cast_safe = function(_, unit, reason)
                 casts = casts + 1
+                cast_ids[#cast_ids + 1] = spell_id
                 return true
             end,
         }
@@ -166,10 +213,11 @@ local arcane_strat = dsl3.compile_strategy({
     action = { type = "cast", spell = 30451, target = "target" },
 })
 
-NS.try_cast = function(spell, target, label, opts)
+local stub_try_cast = function(spell, target, label, opts)
     casts = casts + 1
     return true
 end
+NS.try_cast = stub_try_cast
 NS.rotation_registry = {
     class_config = { class_key = "mage", default_playstyle = "arcane" },
     playstyles = { arcane = { arcane_strat } },
@@ -368,6 +416,114 @@ assert_true(real_registry.channel_clip_ids[true] == nil and real_registry.channe
 
 player.is_casting = function() return false end
 player.is_channeling = function() return false end
+
+-- ============================================================================
+-- Rejected-cast hold (2026-09-13): the engine's own UNIT_SPELLCAST_FAILED
+-- events hold an ability the client just refused, so the central cast guard
+-- stops re-offering it every frame and the dispatcher falls through to the
+-- next lane. Proven through the REAL dispatcher and the REAL try_cast; the
+-- same tick is also shown winning with no guard installed, so the hold -- not
+-- the 0.3s anti-flicker -- is what changes the outcome.
+-- ============================================================================
+local crg = NS.CastRejectGuard
+assert_true(type(crg) == "table" and type(crg.is_held) == "function",
+    "rejected-cast guard is installed with the dispatcher")
+
+NS.try_cast = real_try_cast
+
+local fail_handlers = _game_event_handlers["UNIT_SPELLCAST_FAILED"]
+assert_true(type(fail_handlers) == "table" and #fail_handlers >= 1,
+    "the guard must subscribe to UNIT_SPELLCAST_FAILED through the real dispatcher")
+local fail_quiet_handlers = _game_event_handlers["UNIT_SPELLCAST_FAILED_QUIET"]
+assert_true(type(fail_quiet_handlers) == "table" and #fail_quiet_handlers >= 1,
+    "the guard must also subscribe to UNIT_SPELLCAST_FAILED_QUIET")
+
+local function inject_reject(spell_id, unit_token)
+    for i = 1, #fail_handlers do
+        fail_handlers[i]("UNIT_SPELLCAST_FAILED", { unit_token or "player", "cast-guid", spell_id })
+    end
+end
+
+-- (a) Event contract: the player's refusal holds that spell, and neither a
+--     different spell id nor another unit's refusal may hold ours.
+_test_clock = 500
+crg.reset()
+inject_reject(30451)
+assert_true(crg.is_held(30451) == true, "the player's UNIT_SPELLCAST_FAILED holds the offered spell")
+assert_true(crg.is_held(30455) == false, "a refusal must not hold a different spell")
+inject_reject(30455, "target")
+assert_true(crg.is_held(30455) == false, "another unit's refusal must not hold our spell")
+assert_true(crg.remaining(30451) > 0, "the hold reports its remaining window")
+_test_clock = 500 + crg.HOLD_SEC + 0.01
+assert_true(crg.is_held(30451) == false, "the hold expires after HOLD_SEC")
+
+-- (b) Real dispatcher. Each assertion uses a spell id that has NEVER been cast
+--     successfully, because NS.spell_ready keeps its own 2.5s cast-history
+--     throttle that is longer than the 0.6s hold -- a virgin id makes the hold
+--     the only thing that can take the GCD away.
+local function probe_pair(a_id, b_id)
+    local a = dsl3.compile_strategy({
+        name = "ProbeLaneA_" .. tostring(a_id),
+        conditions = { { type = "state", field = "in_combat", op = "truthy" } },
+        action = { type = "cast", spell = a_id, target = "target" },
+    })
+    local b = dsl3.compile_strategy({
+        name = "ProbeLaneB_" .. tostring(b_id),
+        conditions = { { type = "state", field = "in_combat", op = "truthy" } },
+        action = { type = "cast", spell = b_id, target = "target" },
+    })
+    return { a, b }
+end
+
+NS.class_middleware = { mage = {} }
+NS.rotation_registry = {
+    class_config = { class_key = "mage", default_playstyle = "reject_probe" },
+    playstyles = { reject_probe = probe_pair(30460, 30465) },
+    options = { reject_probe = { get_state = function() return { in_combat = true } end } },
+}
+NS.set_setting("playstyle", "reject_probe")
+NS.set_setting("active_playstyle", nil)
+NS.refresh_settings_cache()
+crg.reset()
+cast_ids = {}
+_test_clock = 600
+inject_reject(30460)
+dispatcher.on_rotation_update()
+assert_true(cast_ids[#cast_ids] == 30465,
+    "a refused lane must lose the GCD to the next lane (got " .. tostring(cast_ids[#cast_ids]) .. ")")
+
+-- Same (still virgin) lane A, no refusal: it wins, so the hold -- not lane order
+-- or a throttle -- is what changed the outcome above. The clock must clear
+-- the 0.15s manual global-GCD window the mock's zero global cooldown leaves
+-- behind; lane B is still inside its own 0.3s anti-flicker at this tick, so
+-- lane A is the only candidate that can claim it.
+crg.reset()
+cast_ids = {}
+_test_clock = 600.2
+dispatcher.on_rotation_update()
+assert_true(cast_ids[#cast_ids] == 30460,
+    "non-vacuity: with no refusal lane A wins the same GCD (got " .. tostring(cast_ids[#cast_ids]) .. ")")
+
+-- Fresh virgin pair: the hold still holds, and it releases on its own clock.
+NS.rotation_registry.playstyles.reject_probe = probe_pair(30470, 30475)
+crg.reset()
+cast_ids = {}
+_test_clock = 601
+inject_reject(30470)
+dispatcher.on_rotation_update()
+assert_true(cast_ids[#cast_ids] == 30475,
+    "fresh pair: the refused lane still falls through (got " .. tostring(cast_ids[#cast_ids]) .. ")")
+_test_clock = 601 + crg.HOLD_SEC + 0.05
+cast_ids = {}
+dispatcher.on_rotation_update()
+assert_true(cast_ids[#cast_ids] == 30470,
+    "the held lane wins the GCD back once the hold expires (got " .. tostring(cast_ids[#cast_ids]) .. ")")
+crg.reset()
+-- Hand the harness back exactly as this section found it: the later sections
+-- drive mocked casts and must not inherit this section's real cast path, clock
+-- or manual global-GCD state.
+NS.try_cast = stub_try_cast
+_test_clock = 100
 
 -- ============================================================================
 -- Thin-spec guide pass (2026-09-12): a NEW lane fires through the REAL

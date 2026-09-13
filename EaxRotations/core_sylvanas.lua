@@ -2005,6 +2005,22 @@ function NS.evaluate_cast(spell, unit, reason, opts)
         end
     end
 
+
+    -- 2b. Rejected-cast hold: the engine itself refused this ability within the
+    --     last HOLD_SEC (invalid target, wrong weapon, missing reagent, immune
+    --     target, ...), so offering it again would re-trigger the same refusal
+    --     on every frame and spam the queue. Hold it and let the dispatcher
+    --     fall through to the next lane instead. Only the engine knows the cast
+    --     was refused, so the hold is driven by its own failure event.
+    --     Fail-open: no guard module / no failure event => exactly the previous
+    --     behavior. See shared/cast_reject_guard_sylvanas.lua.
+    if not opts.skip_reject_hold then
+        local reject_guard = NS.CastRejectGuard
+        if reject_guard and type(reject_guard.is_held) == "function"
+            and reject_guard.is_held(id) then
+            return false
+        end
+    end
     -- 3. Min interval check
     local min_interval = opts.min_interval
     if type(min_interval) == "number" and min_interval > 0 then
