@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+### Fix - spell-id sweep, any-slot pass: four wrong-spell ids the head check could not see
+
+- **`WRONG-RANK` only inspected ladder heads; the resolver does not.** `NS.get_spell_id`
+  is first-known-wins over the *whole* list, so every body slot is reachable. Re-reading
+  `REDIRECTED` (already a per-slot scan) with positions attached produced 119 rows across
+  28 distinct shapes; three shapes were provably a different spell.
+- **`Repentance` dropped 5164**, which the bridge and a Wowhead TBC tooltip both call
+  **Knockdown** (melee instant, 10 sec cooldown, "Knocks an enemy down", level 1, no
+  class) -- an NPC knockback, not a Repentance rank. `NS.PaladinSpells.Repentance` is the
+  shared table every paladin spec resolves through, so this one was live; the inline
+  `retribution_sylvanas.lua` copy is fixed with it. Repentance is single-rank in TBC
+  (`20066`). Reachability is still bounded by the spellbook -- Knockdown is an NPC ability
+  -- so this is latent in practice rather than observed firing.
+- **`CreateSoulstone` (warlock leveling) replaced 20770 / 20759 / 20758 with the real
+  20756 / 20755 / 20752.** 20770 is **Resurrection** (priest, 60% of base mana, level 58)
+  and 20759/20758 are **Use Soulstone**. This lane binds `spec_kit.define_action`, not
+  `..._for_class`, precisely so `NS.WarlockSpells` cannot shadow it (its own comment says
+  so) -- it is the live ladder. The replacements are the rank 50/40/30 ids the sibling
+  warlock lanes already carry; 47884 / 27238 / 693 are untouched. Because the local
+  WotLK bridge stops at 27238 r70 / 47884 r76, those three are registered as
+  `VALID_SHARED_ID` era-shared aliases in the WotLK audit (each verified on Wowhead
+  WotLK Classic: 68% of base mana, 3 sec cast, 1.5s GCD, self range), and its
+  allowlist-size pin moves 257 -> 260 deliberately.
+- **`HolyLight` (paladin healing) replaced 10324 with 3472.** 10324 is **Redemption**
+  (64% of base mana, 10 sec cast, "Brings a dead player back to life", level 36), not a
+  Holy Light rank; 3472 is Holy Light rank 6 (level 38). **Liveness correction:** this
+  inline ladder is *shadowed* in production -- `define_action_for_class` prefers
+  `NS.PaladinSpells.HolyLight`, which `class_sylvanas.lua` assigns before it loads its
+  specs, and that shared ladder never carried 10324. The earlier claim that the
+  emergency-heal lane was firing a resurrection described dead code; the id is fixed as
+  the standalone fallback, not because it was firing.
+- **Adjudicated benign and listed, not changed**: the mage `FrostArmor` and
+  `ConjureManaEmerald` ladders (their ids agree with each other; only the label is loose),
+  the abbreviated seal/aspect/curse labels, `SealCommandRank1`, `SodDevastate` (documented
+  Sunder Armor fallback) and the vanilla `X` downrank helper table.
+- **Gate.** The sweep corroborated the cross-spell nature independently: clearing these
+  removed two `DUPLICATE-CONFLICT` rows too (10324 pinned under both Redemption and
+  HolyLight, 20770 under both warlock Create Soulstone and priest Resurrection). Baseline
+  re-frozen deliberately to **384 findings / 377 unique keys** (was 392 / 385); four new
+  exact-ladder pins in `tests/test_spell_id_table_regressions.lua`, each proven
+  load-bearing by re-adding the bad id in place with a byte-exact restore. Deliberately
+  not done in this pass, by request: extending WRONG-RANK to non-head slots, which would
+  cover 5,495 of 7,374 pinned ids (75%) that are currently never rank-checked at all.
 ### Fix - spell-id sweep: the WRONG-RANK ladder heads raised, RANK-ORDER adjudicated benign
 
 - **The ladder resolver takes the FIRST id the unit knows, so a ladder headed by a

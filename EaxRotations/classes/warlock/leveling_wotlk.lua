@@ -47,7 +47,14 @@ local ACTION = {
     DemonArmor = define("DemonArmor", { 27260, 11735, 11734, 11733, 1086, 706 }, "DemonArmor"),
     LifeTap = define("LifeTap", { 57946, 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
     CreateHealthstone = define("CreateHealthstone", { 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
-    CreateSoulstone = define("CreateSoulstone", { 47884, 27238, 20770, 20759, 20758, 693 }, "CreateSoulstone"),
+    -- 2026-09-13 sweep (any-slot name agreement): 20770 is Resurrection (priest,
+    -- 60% of base mana, level 58) and 20759/20758 are "Use Soulstone" -- none is a
+    -- Create Soulstone rank, and the resolver is first-known-wins over the whole
+    -- list, so a warlock that knew them resolved this action to a resurrection or
+    -- the self-res effect.  Replaced by the real rank 30/40/50 ids the sibling lanes
+    -- (warlock/class_sylvanas.lua, affliction_sylvanas.lua, middleware_sylvanas.lua)
+    -- already carry; 47884/27238/693 stay untouched.
+    CreateSoulstone = define("CreateSoulstone", { 47884, 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
     SummonFelhunter = define("SummonFelhunter", 691, "SummonFelhunter"),
     SummonVoidwalker = define("SummonVoidwalker", 697, "SummonVoidwalker"),
     SummonImp = define("SummonImp", 688, "SummonImp"),

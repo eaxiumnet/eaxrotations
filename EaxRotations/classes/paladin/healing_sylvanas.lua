@@ -28,7 +28,15 @@ local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
     FlashOfLight      = define("FlashOfLight",      { 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
-    HolyLight         = define("HolyLight",         { 27136, 25292, 10329, 10328, 10324, 1042, 647, 639, 635 }, "HolyLight"),
+    -- 2026-09-13 sweep (any-slot name agreement): 10324 is Redemption (64% of
+    -- base mana, 10 sec cast, "Brings a dead player back to life", level 36), NOT a
+    -- Holy Light rank.  It sat at slot 5, which the resolver reaches (it is
+    -- first-known-wins over the whole list), so this fallback ladder would hand a
+    -- paladin who knew Redemption but not yet 10328 (level 46) a resurrection.
+    -- NOT live in production: define_action_for_class prefers NS.PaladinSpells, and
+    -- that shared ladder never carried 10324 -- this is the standalone path.
+    -- Replaced in place by 3472 (Holy Light, level 38), the rank for this slot.
+    HolyLight         = define("HolyLight",         { 27136, 25292, 10329, 10328, 3472, 1042, 647, 639, 635 }, "HolyLight"),
     HolyShock         = define("HolyShock",         { 33072, 27174, 20930, 20929, 20473 }, "HolyShock"),
     Cleanse           = define("Cleanse",           { 4987 }, "Cleanse"),
     Purify            = define("Purify",            { 1152 }, "Purify"),

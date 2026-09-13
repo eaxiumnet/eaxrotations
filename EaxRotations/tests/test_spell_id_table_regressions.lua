@@ -136,6 +136,27 @@ assert_define_ids("EaxRotations/classes/rogue/combat_sylvanas.lua", "Gouge", { 3
 assert_define_ids("EaxRotations/classes/rogue/subtlety_sylvanas.lua", "Gouge", { 38764, 1776 })
 assert_define_ids("EaxRotations/classes/warlock/demonology_sylvanas.lua", "DeathCoil", { 30500, 27223, 17926, 17925, 6789 })
 assert_define_ids("EaxRotations/classes/warlock/destruction_sylvanas.lua", "DeathCoil", { 30500, 27223, 17926, 17925, 6789 })
+-- 2026-09-13 sweep, ANY-SLOT name agreement (the WRONG-RANK check above only
+-- inspects ladder HEADS; NS.get_spell_id is first-known-wins over the WHOLE
+-- list, so a body slot is reachable too). Each id below was provably a
+-- different spell, proven three ways -- the sweep index + the classic bridge
+-- name it, and Wowhead TBC shows a real other spell: 10324 Redemption (64%
+-- base mana, 10 sec cast, "Brings a dead player back to life", level 36),
+-- 5164 Knockdown (melee instant, 10 sec cooldown, "Knocks an enemy down",
+-- level 1, no class), 20770 Resurrection (priest, 60% base mana, level 58),
+-- 20759/20758 Use Soulstone (the self-res effect). The removed ids survive in
+-- these files ONLY as prose comments, which is why the pins are positive
+-- (exact ladder) rather than substring negatives.
+-- Consequence of the HolyLight row: 10324 sat at slot 5, so this fallback ladder
+-- would give a paladin who knew Redemption but not yet 10328 (level 46) a
+-- resurrection. It is NOT live in production -- define_action_for_class prefers
+-- NS.PaladinSpells.HolyLight, which never carried 10324 -- so this pin guards the
+-- standalone/fallback path only. Replacement 3472 is Holy Light rank 6 (level 38).
+assert_define_ids("EaxRotations/classes/paladin/healing_sylvanas.lua", "HolyLight", { 27136, 25292, 10329, 10328, 3472, 1042, 647, 639, 635 })
+assert_spell_ids("EaxRotations/classes/paladin/class_sylvanas.lua", "Repentance", { 20066 })
+assert_define_ids("EaxRotations/classes/paladin/retribution_sylvanas.lua", "Repentance", { 20066 })
+assert_define_ids("EaxRotations/classes/warlock/leveling_wotlk.lua", "CreateSoulstone", { 47884, 27238, 20756, 20755, 20752, 693 })
+
 
 local function assert_not_numbers(path, bad_ids, label)
     local data = read_file(path)
