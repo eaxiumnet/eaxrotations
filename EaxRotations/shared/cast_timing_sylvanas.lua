@@ -39,20 +39,14 @@ local END_TIME_ACCESSORS = {
     "get_channel_remaining_sec",
 }
 
--- Raw field read hoisted so the pcall below needs no per-call closure (the
--- repo's no-per-frame-allocation rule). pcall(read_field, obj, name) is the
--- established closure-free form; the interrupt_manager idiom reads the field
--- directly, but keeping the pcall here guards a throwing __index metamethod
--- without allocating.
-local function read_field(obj, name)
-    return obj[name]
-end
-
-local function safe_method(obj, name)
-    if not obj then return nil end
-    local ok, value = pcall(read_field, obj, name)
-    return ok and value or nil
-end
+-- Single-owner safe reads (2026-09-12): shared/safe_helpers_sylvanas owns
+-- safe()/safe_field()/safe_method() for the whole tree. Its safe_field is now
+-- closure-free (pcall over a hoisted raw reader), which is the property that
+-- previously forced this module to keep a private copy -- so the private
+-- read_field/safe_method pair is gone and the hot path keeps its
+-- zero-allocation guarantee.
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe_method = safe_helpers.safe_field
 
 --- Read the first accessor in a list that returns a number.
 -- @param unit  engine game_object or nil

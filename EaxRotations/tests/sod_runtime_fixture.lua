@@ -222,6 +222,10 @@ function M.production_boot(version, settings, current_settings)
             if path == expected then return { runtime = path:match("combat_(.+)") } end
             error("unexpected rotation path: " .. path, 0)
         end
+        -- Real safe-helper module: core_sylvanas installs NS.safe / NS.safe_field /
+        -- NS.safe_method from it, so the blanket {} stub below would leave those
+        -- nil and every safe() read in core would fail.
+        if path == "shared/safe_helpers_sylvanas" then return original_require(path) end
         if path:match("^shared/") or path:match("^common/") then return {} end
         return original_require(path)
     end

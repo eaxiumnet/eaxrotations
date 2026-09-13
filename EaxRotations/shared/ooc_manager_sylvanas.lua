@@ -194,24 +194,13 @@ local HEALING_PLAYSTYLES = {
 -- shared/safe_helpers_sylvanas). Local fallbacks for tests whose NS
 -- mock does not supply the helpers. Use pcall to handle NS=nil at load
 -- (some tests dofile this shared/ before setting _G.EaxRotations).
-local safe
-pcall(function() safe = NS and NS.safe end)
-if type(safe) ~= "function" then
-    safe = function(fn, ...)
-        if type(fn) ~= "function" then return nil end
-        local ok, a, b = pcall(fn, ...)
-        return ok and a or nil, ok and b or nil
-    end
-end
-local safe_field
-pcall(function() safe_field = NS and NS.safe_field end)
-if type(safe_field) ~= "function" then
-    safe_field = function(obj, key)
-        if obj == nil then return nil end
-        local ok, value = pcall(function() return obj[key] end)
-        return ok and value or nil
-    end
-end
+-- Single owner (2026-09-12): shared/safe_helpers_sylvanas owns safe()/safe_field()
+-- for the whole tree. core_sylvanas.lua installs NS.safe/NS.safe_field; the module
+-- is the fallback for test envs whose NS mock supplies neither, so this file no
+-- longer carries a private copy (nor the per-call closure that copy allocated).
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe = NS and NS.safe or safe_helpers.safe
+local safe_field = NS and NS.safe_field or safe_helpers.safe_field
 
 local function get_setting(settings, key, default)
     if settings and settings[key] ~= nil then return settings[key] end

@@ -134,23 +134,10 @@ end
 
 
 
-local function safe_method(unit, method, fallback)
-    if not unit then return fallback end
-    local fn = NS.safe_field and NS.safe_field(unit, method) or unit[method]
-    if type(fn) ~= "function" then return fallback end
-    local ok, result = pcall(fn, unit)
-    if not ok or result == nil then return fallback end
-    return result
-end
-
-local function safe_method_arg(unit, method, arg, fallback)
-    if not unit then return fallback end
-    local fn = NS.safe_field and NS.safe_field(unit, method) or unit[method]
-    if type(fn) ~= "function" then return fallback end
-    local ok, result = pcall(fn, unit, arg)
-    if not ok or result == nil then return fallback end
-    return result
-end
+-- Single owner (2026-09-12): shared/safe_helpers_sylvanas.
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe_method = safe_helpers.safe_method_or
+local safe_method_arg = safe_helpers.safe_method_arg_or
 
 local function same_unit(left, right)
     if not left or not right then return false end

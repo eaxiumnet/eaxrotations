@@ -490,25 +490,13 @@ local MELEE_SIGNAL_BUFFS = {
 
 }
 
--- Use installed safe_helpers if available (for dedup and canonical), else fallback local impl.
--- This preserves test envs where install may not have run yet.
-local safe = NS.safe
-local safe_field = NS.safe_field
-if not safe then
-    safe = function(fn, ...)
-        if type(fn) ~= "function" then return nil end
-        local ok, a, b, c = pcall(fn, ...)
-        if ok then return a, b, c end
-        return nil
-    end
-end
-if not safe_field then
-    safe_field = function(obj, key)
-        if not obj then return nil end
-        local ok, value = pcall(function() return obj[key] end)
-        return ok and value or nil
-    end
-end
+-- Single owner (2026-09-12): shared/safe_helpers_sylvanas owns safe()/safe_field()
+-- for the whole tree. install() above normally sets NS.safe/NS.safe_field; this is
+-- the fallback for envs where install has not run, and it is now that module rather
+-- than a private copy (the copy used a per-call closure on the hot read path).
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe = NS.safe or safe_helpers.safe
+local safe_field = NS.safe_field or safe_helpers.safe_field
 
 function NS.same_unit(a, b)
 
