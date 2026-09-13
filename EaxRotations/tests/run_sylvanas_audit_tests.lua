@@ -467,13 +467,20 @@ end
 -- Pack) -- every one bridge-valid, so membership alone accepted lanes that cast
 -- a different spell.  SoD labels carry a "Sod" prefix by convention; it is
 -- stripped before comparison so the prefix is never the reason a check passes.
-local function scan_name_agreement(content, sod)
+local function scan_name_agreement(content, sod, stats)
     if type(content) ~= "string" then return {} end
     return name_agreement.check_ladders(content, {
         index = spell_index,
         strip = sod and "Sod" or nil,
+        stats = stats,
     })
 end
+
+-- Coverage accumulators (see spell_name_agreement.lua: a PASS that compared
+-- nothing is not evidence).  The two tiers are counted separately so a shape
+-- change that silently empties one of them is visible instead of averaging out.
+local tbc_coverage = { ladders = 0, ids = 0, named = 0 }
+local sod_coverage = { ladders = 0, ids = 0, named = 0 }
 
 local function scan_file(filepath, sod)
     if not file_exists(filepath) then
@@ -486,13 +493,15 @@ local function scan_file(filepath, sod)
     -- Cross-era flag is scoped to the shared talent_inference module only.
     local cross_era = CROSS_ERA_FILES[filepath:gsub("^" .. root .. "/", "")] == true
     local result = scan_content(content, cross_era, sod)
-    -- Scope: the ladder-label check runs on the SoD tier only (20 loaders), which
-    -- is where this audit's "TBC-bridge-valid" contract is defined.  The TBC class
-    -- tier carries deliberate cross-spell fallback ladders (mage FrostArmor covers
-    -- the Ice Armor ranks) and a handful of client-name qualifiers ("Remove Lesser
-    -- Curse", "Summon Water Elemental"), so enabling it there is its own pass with
-    -- its own Wowhead decisions -- see the triage addendum.
-    result.name_hits = sod and scan_name_agreement(content, true) or {}
+    -- Scope (widened 2026-09-13): the ladder-label check now runs on the TBC class
+    -- tier as well as the SoD tier.  It was deferred because the TBC tier carries
+    -- deliberate cross-spell ladders and abbreviated labels; that triage is done,
+    -- and it came to 11 hits in four shapes, each written down rather than waved
+    -- through: FrostArmor's Ice-Armor-first ladder and the HealingWave ladder that
+    -- mixes in the Lesser Healing Wave ranks (both FALLBACK_LADDERS, naming the
+    -- exact client string), plus RemoveCurse ("Remove Lesser Curse") and
+    -- WaterElemental ("Summon Water Elemental").  Anything else now fails.
+    result.name_hits = scan_name_agreement(content, sod, sod and sod_coverage or tbc_coverage)
     return result
 end
 
@@ -640,7 +649,9 @@ local function run_self_tests()
     expect(agrees("HuntersMark", "Hunter's Mark"), true, "plural label, possessive client name")
     expect(agrees("SurvivalInstincts", "Survival Instinct"), true, "plural label, singular client name")
     expect(agrees("AvengerShield", "Avenger's Shield"), true, "possessive client name")
-    expect(agrees("HealingWave", "Lesser Healing Wave"), false, "client qualifier is not a free pass")
+    expect(agrees("HealingWave", "Lesser Healing Wave"), false, "a spell-family qualifier is not a free pass")
+    expect(agrees("RemoveCurse", "Remove Lesser Curse"), false, "nor is it one for the same-spell title")
+    expect(agrees("WaterElemental", "Summon Water Elemental"), true, "a client verb on the same spell is forgiven")
     expect(agrees("HuntersMark", "Totem of Wrath"), false, "wrong spell (SodHuntersMark/30706 shape)")
     expect(agrees("AspectHawk", "Aspect of the Pack"), false, "same prefix, different spell")
     expect(agrees("Volley", "Arcane Shot"), false, "wrong spell (SodVolley/27019 shape)")
@@ -673,17 +684,67 @@ local function run_self_tests()
         "fallback allowance needs an agreeing head")
     local fallback_count = 0
     for _ in pairs(name_agreement.FALLBACK_LADDERS) do fallback_count = fallback_count + 1 end
-    expect(fallback_count, 1, "documented cross-spell fallback ladder count")
+    expect(fallback_count, 4, "documented label/client-name exception count")
+
+    -- Each allowance is checked as both halves: it excuses the exact client string
+    -- written down and NOTHING else, and it never becomes a label-wide free pass.
+    -- FrostArmor and RemoveCurse carry allow_disagreeing_head (their HEAD is the
+    -- excused string); HealingWave keeps the normal head-agreement condition, so a
+    -- ladder that leads with the other spell is still a mismatch.
+    expect(#scan_name_agreement(
+        'FrostArmor = define("FrostArmor", { 27124, 7301, 168 }, {}, "FrostArmor")', nil), 0,
+        "Ice-Armor-first FrostArmor ladder accepted")
+    expect(#scan_name_agreement(
+        'FrostArmor = define("FrostArmor", { 27124, 30706 }, {}, "FrostArmor")', nil), 1,
+        "FrostArmor allowance does not cover other ids")
+    expect(#scan_name_agreement(
+        'RemoveCurse = define("RemoveCurse", { 475 }, {}, "RemoveCurse")', nil), 0,
+        "Remove Lesser Curse accepted under the RemoveCurse label")
+    expect(#scan_name_agreement(
+        'RemoveCurse = define("RemoveCurse", { 527 }, {}, "RemoveCurse")', nil), 1,
+        "RemoveCurse allowance does not cover a different spell")
+    expect(#scan_name_agreement(
+        'HealingWave = define("HealingWave", { 25396, 10468 }, {}, "HealingWave")', nil), 0,
+        "Lesser Healing Wave ranks in a HealingWave ladder accepted")
+    expect(#scan_name_agreement(
+        'HealingWave = define("HealingWave", { 10468 }, {}, "HealingWave")', nil), 1,
+        "HealingWave allowance still needs an agreeing head")
+    -- "Summon Water Elemental" is the same spell under its client title, so it is a
+    -- token (whole-word, verb only), not a ladder allowance.
+    expect(#scan_name_agreement(
+        'WaterElemental = define("WaterElemental", { 31687 }, {}, "WaterElemental")', nil), 0,
+        "Summon Water Elemental accepted under the WaterElemental label")
+    expect(#scan_name_agreement(
+        'WaterElemental = define("WaterElemental", { 31687, 11426 }, {}, "WaterElemental")', nil), 1,
+        "the Summon qualifier does not cover an unrelated id")
+
+    -- Live TBC class inventory must be name-clean at the tier this check was just
+    -- extended to.  The 11 hits that motivated the deferral are the four shapes now
+    -- excused above; anything new fails right here.
+    local live_tbc_names = 0
+    local tbc_cov = {}
+    for _, file in ipairs(SYLVANAS_FILES) do
+        local body = read_file(root .. "/" .. file)
+        if body then live_tbc_names = live_tbc_names + #scan_name_agreement(body, nil, tbc_cov) end
+    end
+    expect(live_tbc_names, 0, "no live TBC class ladder label disagreements")
+    expect(tbc_cov.ladders or 0, 717, "TBC name-agreement coverage: labelled ladders compared")
+    expect(tbc_cov.ids or 0, 2974, "TBC name-agreement coverage: ids compared")
+    expect(tbc_cov.named or 0, 2974, "TBC name-agreement coverage: ids the bridge names")
 
     -- Live SoD inventory must be name-clean (the audit's own HARD-bucket zero).
     local live_sod_names = 0
+    local sod_cov = {}
     for _, file in ipairs(SOD_FILES) do
         local body = read_file(root .. "/" .. file)
-        if body then live_sod_names = live_sod_names + #scan_name_agreement(body, true) end
+        if body then live_sod_names = live_sod_names + #scan_name_agreement(body, true, sod_cov) end
     end
     expect(live_sod_names, 0, "no live SoD ladder label disagreements")
+    expect(sod_cov.ladders or 0, 199, "SoD name-agreement coverage: labelled ladders compared")
+    expect(sod_cov.ids or 0, 385, "SoD name-agreement coverage: ids compared")
+    expect(sod_cov.named or 0, 308, "SoD name-agreement coverage: ids the bridge names")
 
-    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (9 rule cases + SoD ladder probe + fallback gate + live SoD inventory), masking-gap helper resolves")
+    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (12 rule cases + SoD ladder probe + four exception gates + live SoD AND live TBC class inventories, coverage pinned 717/2974 TBC and 199/385 SoD), masking-gap helper resolves")
 end
 
 local function run_name_probe()
@@ -783,6 +844,9 @@ print("=========================================================================
 print("  SYLVANAS SPELL AUDIT RESULTS")
 print("=============================================================================")
 print(string.format("  Total:     %3d sylvanas files (incl. %d SoD loaders)", total, #SOD_FILES))
+print(string.format("  Ladder-label check: TBC %d ladder(s) / %d id(s) (%d named) | SoD %d / %d (%d named)",
+    tbc_coverage.ladders or 0, tbc_coverage.ids or 0, tbc_coverage.named or 0,
+    sod_coverage.ladders or 0, sod_coverage.ids or 0, sod_coverage.named or 0))
 print(string.format("  Skipped:   %3d (file not present)", skipped))
 print(string.format("  Clean:     %3d", passed))
 print(string.format("  Invalid:   %3d", failed))

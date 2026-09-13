@@ -2,6 +2,111 @@
 
 ## Unreleased
 
+### Fix - a shifted druid never leaves form for an out-of-combat lane
+
+- **Live report (2026-09-13): a TBC feral/cat druid dropped out of Cat Form right
+  after combat ended**, when the OOC lanes re-evaluated. Two independent causes:
+  the middleware's only form gate was `can_cast_in_current_form`, which returns
+  `true` on every live client (`NS.can_cast_in_form` does not exist in production),
+  so Mark of the Wild / Thorns / the party dispel fired while shifted and the
+  client unshifted the druid to cast them; and the OOC manager's druid guard sat
+  only inside `try_self_buffs`, so buff rank upgrades and food/flask stayed
+  reachable while shifted.
+- **One shapeshift detector, `shared/druid_form_sylvanas.lua`**, answers "which form
+  is the druid in?" from both live sources at once: the shapeshift bar index
+  (`NS.get_player_stance`, the `.api`-preferred cross-version read) and the aura
+  table (`NS.has_form` / `NS.has_player_buff`). Either source alone is enough to say
+  "shifted", because a single lying aura read used to send the Cat Form / Prowl
+  lanes down the re-shift branch -- and casting Cat Form while already in it toggles
+  the form OFF.
+- **The gates now use it, scoped to the forms that actually refuse the cast.** The
+  middleware blocks Mark of the Wild and Thorns on `is_shifted` (both are caster-only
+  in *every* form) but refuses the party dispel / Cower only in the **feral** forms
+  (`is_feral`) -- TBC allows Remove Curse in Moonkin Form and poison removal in Tree
+  of Life, so a blanket "shifted" gate would have blacked those lanes out. Cower is
+  refused only on positive evidence of a non-feral form (fail-open, the lane's
+  existing convention). The OOC manager hoists the druid gate to `M.on_update`,
+  covering every OOC path. The leveling spec derives `is_bear` / `is_cat` /
+  `in_caster` from it and holds its twelve caster lanes in cat/bear only -- **Moonkin
+  Form keeps the Balance kit** (TBC: a moonkin casts Balance + Remove Curse while
+  shapeshifted), which an "any form" gate blacked out entirely; Tree of Life keeps
+  the HoT and poison lanes. The feral cat spec's `build_state` and
+  `required_form == "cat"` guard read it instead of a bare `NS.has_form("cat")`.
+- **Documented boundary:** Travel Form is invisible to both sources (the engine
+  stance stops at bar 3 and core's `FORMS` table has no travel/aquatic entry), so a
+  travel-form druid reads as caster here exactly as it did before this module existed.
+  That is stated in the module's SCOPE and pinned by the suite so a future fix has to
+  change it deliberately.
+- **Pinned (never=0):** `tests/test_druid_form_stay_cat.lua` (13 cases, every
+  assertion paired with its unshifted control) and eight `stay_in_cat` cases in
+  `tests/test_leveling_druid.lua`; the rotation registry moves to **564 suites**.
+
+### Fix - every slot rank-checked, both audit tiers wired, and the two allowlists made non-self-certifying
+
+- **`WRONG-RANK` now runs at every slot, not just the head.** The rule is the head rule
+  asked of every position: *the highest rank a ladder lists for a spell must be the
+  highest rank that era can learn*. A descending ladder answers that only at its head, so
+  ordinary ladders are unchanged; what the widening catches is a ladder that stops short
+  of the era max anywhere (the gap that let 10324 hide at slot 5, below the head check's
+  view) and a ladder that lists a *second* spell whose own chain is incomplete. 1,879
+  ladders / **7,374 ids are now evaluated** where 1,879 heads were; the 5,495 body ids
+  (75%) are no longer unrank-checked. Baseline moves 384 -> **386 findings / 379 keys**
+  (+2 net: 4 new / 2 cleared, HARD still 0). The 4 new rows are the mage Ice-Armor-first
+  ladder topping its Frost Armor chain at level 20 while the era lists a level-70 rank
+  (a benign review lead -- the lane leads with the better spell, and 31256's obtainability
+  cannot be confirmed offline, so nothing is changed on it), and the documented vanilla
+  Lightning Bolt downrank lane; the 2 cleared rows are that same lane, where the finding
+  moved off the head (10392) onto 15207, the rank the lane actually tops out at.
+- **The sweep's own pin parser was order-fragile.** `load_pins` matched
+  `kind = ... , family = ...` positionally, so inserting `max_rank = false` between them
+  silently dropped the pin and reclassified 43038 as `UNSOURCED`. It now reads both
+  fields out of the entry body, so field order cannot change a classification.
+- **Non-vacuity is pinned end to end.** The sweep's `--self-test` builds the Ice-Armor
+  shape in a throwaway tree and asserts the body slot flags `WRONG-RANK` with
+  `position = "body"`, that the era-max head and the lower ranks of the same chain stay
+  silent, and that every injected finding classifies NEW against the committed baseline
+  (10/10 checks).
+- **The WotLK audit's pin-family check is no longer 99% silent.** It compared **2 of 260**
+  pins -- the local WotLK bridge describes almost none of them -- and printed a bare PASS
+  while doing it. Names now resolve across all three era bridges (**328 compared**: 94
+  WotLK + 229 cross-era + 5 excused + 143 unnamed), the counts are printed and pinned in
+  the self-test, and a bridge refresh that quietly stops naming these ids fails instead of
+  silently re-vacuuming the check. The wider net found 5 pins whose two sources title the
+  same spell differently; each allowance now names **both** the pin label and the exact
+  excused bridge string, so a different wrong label for an excused id still fails (the
+  self-test proves that case).
+- **Mid-rank pins are no longer legal ladder heads.** `max_rank = false` (Ice Barrier
+  43038 r7, Create Soulstone 20752/20755/20756 r30/40/50) keeps them pinnable without
+  letting a ladder LEAD with a mid rank and clear `STALE_TOP`.
+- **`VANILLA_ID_IN_WOTLK` was dead code.** The vanilla bridge returns its id map directly
+  while the TBC bridge nests it under `spell_index_tbc`; reading only the named key left
+  `vanilla_index` empty, so a vanilla-only id in a WotLK file could never be reported.
+- **The TBC class tier and the vanilla tier are now name-agreement-wired**, closing the
+  deferral the sweep doc recorded. The TBC triage is four shapes, each written down rather
+  than waived: the FrostArmor Ice-Armor-first ladder and the HealingWave ladder carrying
+  the Lesser Healing Wave ranks (label-scoped `FALLBACK_LADDERS` entries naming the exact
+  client string), plus the client titles `Remove Lesser Curse` -> `RemoveCurse` and
+  `Summon Water Elemental` -> `WaterElemental`. `lesser` is deliberately **not** a token
+  allowlist entry -- it reads as a qualifier on one spell but also names a genuinely
+  different one -- and the 12 rule cases that pin that stay strict.
+- **A DSL strategy's declared cooldown is no longer dropped on the floor.**
+  `strategy_dsl_sylvanas.lua` forwarded only `action.opts` to `try_cast`, so a
+  long-cooldown DSL cast had nothing but the 1.5s default throttle behind it; `cooldown`
+  is now translated to `opts.expected_cooldown` the way every imperative row declares it.
+  No declaration sets one today, so this closes a latent gap rather than changing
+  behaviour.
+- **The shadowed `healing_sylvanas` HolyLight fallback ladder is complete**: 27135
+  (level 62) and 1026 (level 22) restored, so a standalone load resolves the same rank the
+  live `NS.PaladinSpells` table does.
+- **Docs:** the `r70` / `r76` wording (read as *rank*) is now `required level 70/76`, and
+  the `leveling_wotlk` citation points at :57, the `define` the change actually moved.
+
+- **Name-agreement coverage is reported and pinned per tier.** Each audit that claims its
+  live inventory is name-clean now prints how much it compared and fails if that number
+  moves: TBC class 717 ladders / 2,974 ids, SoD 199 / 385, WotLK 523 / 2,207, vanilla
+  11 / 68. The helper scans `define()` ladders only; the residual `name =` + `ids = {}`
+  shape is named and sized in the sweep doc (6 vanilla / 4 WotLK / ~94 TBC sweep rows,
+  mostly already-adjudicated label conventions) instead of being left implicit.
 ### Fix - spell-id sweep, any-slot pass: four wrong-spell ids the head check could not see
 
 - **`WRONG-RANK` only inspected ladder heads; the resolver does not.** `NS.get_spell_id`
@@ -21,7 +126,8 @@
   `..._for_class`, precisely so `NS.WarlockSpells` cannot shadow it (its own comment says
   so) -- it is the live ladder. The replacements are the rank 50/40/30 ids the sibling
   warlock lanes already carry; 47884 / 27238 / 693 are untouched. Because the local
-  WotLK bridge stops at 27238 r70 / 47884 r76, those three are registered as
+  WotLK bridge stops at 27238 (required level 70) / 47884 (required level 76), those
+  three are registered as
   `VALID_SHARED_ID` era-shared aliases in the WotLK audit (each verified on Wowhead
   WotLK Classic: 68% of base mana, 3 sec cast, 1.5s GCD, self range), and its
   allowlist-size pin moves 257 -> 260 deliberately.

@@ -20,7 +20,7 @@
   },
   "WRONG-RANK": {
    "hard": 0,
-   "review": 103
+   "review": 105
   },
   "REDIRECTED": {
    "hard": 0,
@@ -37,8 +37,8 @@
  },
  "totals": {
   "hard": 0,
-  "review": 384,
-  "findings": 384
+  "review": 386,
+  "findings": 386
  },
  "findings": {
   "DUPLICATE-CONFLICT|10053|EaxRotations/classes/mage/arcane_wotlk.lua": 1,
@@ -320,7 +320,6 @@
   "WRONG-RANK|10181|EaxRotations/classes/mage/dps_mage_sod.lua": 1,
   "WRONG-RANK|10216|EaxRotations/classes/mage/class_sylvanas.lua": 1,
   "WRONG-RANK|10216|EaxRotations/classes/mage/fire_sylvanas.lua": 1,
-  "WRONG-RANK|10392|EaxRotations/classes/shaman/elemental_vanilla.lua": 2,
   "WRONG-RANK|10955|EaxRotations/classes/priest/class_sylvanas.lua": 1,
   "WRONG-RANK|10955|EaxRotations/classes/priest/discipline_sylvanas.lua": 1,
   "WRONG-RANK|10955|EaxRotations/classes/priest/holy_sylvanas.lua": 1,
@@ -346,6 +345,7 @@
   "WRONG-RANK|14311|EaxRotations/classes/hunter/class_sylvanas.lua": 1,
   "WRONG-RANK|14311|EaxRotations/classes/hunter/marksmanship_sylvanas.lua": 1,
   "WRONG-RANK|14311|EaxRotations/classes/hunter/survival_sylvanas.lua": 1,
+  "WRONG-RANK|15207|EaxRotations/classes/shaman/elemental_vanilla.lua": 2,
   "WRONG-RANK|1833|EaxRotations/classes/rogue/assassination_sylvanas.lua": 1,
   "WRONG-RANK|1833|EaxRotations/classes/rogue/class_sylvanas.lua": 1,
   "WRONG-RANK|1833|EaxRotations/classes/rogue/combat_sylvanas.lua": 1,
@@ -412,6 +412,8 @@
   "WRONG-RANK|38699|EaxRotations/classes/mage/frost_sylvanas.lua": 1,
   "WRONG-RANK|633|EaxRotations/classes/paladin/retribution_sod.lua": 1,
   "WRONG-RANK|642|EaxRotations/classes/paladin/retribution_sod.lua": 1,
+  "WRONG-RANK|7301|EaxRotations/classes/mage/class_sylvanas.lua": 1,
+  "WRONG-RANK|7301|EaxRotations/classes/mage/frost_sylvanas.lua": 1,
   "WRONG-RANK|7641|EaxRotations/classes/warlock/dps_sod.lua": 1,
   "WRONG-RANK|7658|EaxRotations/classes/warlock/dps_sod.lua": 1,
   "WRONG-RANK|871|EaxRotations/classes/warrior/arms_sylvanas.lua": 1,

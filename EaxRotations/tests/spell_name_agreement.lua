@@ -29,25 +29,55 @@ local MODIFIER_TOKENS = {
     ["citrine"] = true, ["ruby"] = true, ["star"] = true,
     -- Soulstone shape: Create <-> Use / Resurrection
     ["use"] = true, ["resurrection"] = true,
+    -- "Summon" is a client VERB on a self-summon spell whose rotation label drops it
+    -- ("Summon Water Elemental" -> WaterElemental, the same abbreviation the WotLK
+    -- lanes spell out in full).  Whole-word, so it cannot forgive by prefix.
+    -- Deliberately NOT added: "lesser".  It reads like a qualifier on one spell
+    -- ("Remove Lesser Curse") but it also names a genuinely DIFFERENT spell of the
+    -- same family ("Lesser Healing Wave", "Lesser Heal"), so forgiving it token-wide
+    -- would let a real wrong-spell pin through.  The two ladders that need it carry
+    -- an explicit FALLBACK_LADDERS entry naming the exact client string instead --
+    -- and name_agrees() stays strict about it, which the audits' self-tests pin.
+    ["summon"] = true,
     -- Druid form naming (DireBearForm -> "Bear Form")
     ["dire"] = true,
 }
 
--- Deliberate cross-spell FALLBACK ladders.  Some lanes are not rank ladders at
--- all: they are a cast-priority list whose later entries are a different spell
--- that fills the same role, so the tail id's client name legitimately differs
--- from the label.  Each entry is keyed by the LABEL and names the exact bridge
--- name it is allowed to resolve to, with the reason.  This is deliberately NOT
--- an id-level allowlist: an exception must name both the label and the client
--- name being excused, so a mislabelled id cannot be smuggled in without also
--- writing down what spell it actually is.  The self-test pins the entry count so
--- growth is visible in review.
+-- Deliberate label/client-name exceptions.  Two shapes live here, and both are
+-- keyed by the LABEL and name the EXACT client string being excused:
+--   * cross-spell fallback ladders -- a cast-priority list whose later entries are
+--     a different spell that fills the same role (SoD Devastate -> Sunder Armor);
+--   * client titles for the SAME spell that the label abbreviates (mage
+--     "Remove Lesser Curse" -> RemoveCurse, shaman Healing Wave ladder carrying the
+--     Lesser Healing Wave ranks).
+-- This is deliberately NOT an id-level allowlist: an exception must name both the
+-- label and the client name being excused, so a mislabelled id cannot be smuggled
+-- in without also writing down what spell it actually is.  An allowance is
+-- conditional on the ladder HEAD agreeing unless `allow_disagreeing_head` says so
+-- explicitly.  The self-test pins the entry count so growth is visible in review.
 local FALLBACK_LADDERS = {
     -- SoD Devastate: the rune (403195) is not a TBC-audited spell, so the ladder
     -- leads with the real Devastate (20243) and keeps Sunder Armor (11597) as the
     -- era-clean substitute for a warrior who has not slotted the rune.
     -- See classes/warrior/tank_warrior_sod.lua.
     Devastate = { ["Sunder Armor"] = true },
+    -- Mage FrostArmor is a deliberate Ice-Armor-preferred buff ladder: every Ice
+    -- Armor rank LEADS and the real Frost Armor ranks (7301/7300/168) follow, so
+    -- the head legitimately names a different spell than the label.
+    -- classes/mage/frost_sylvanas.lua:35.
+    FrostArmor = { ["Ice Armor"] = true, allow_disagreeing_head = true },
+    -- Mage RemoveCurse is one id (475) whose CLIENT title is "Remove Lesser Curse";
+    -- the rotation label is that name with the rank qualifier dropped, so the head
+    -- itself is the excused string -- hence allow_disagreeing_head.
+    -- classes/mage/fire_sylvanas.lua:40, classes/mage/frost_sylvanas.lua:47.
+    RemoveCurse = { ["Remove Lesser Curse"] = true, allow_disagreeing_head = true },
+    -- Shaman HealingWave is a real cross-spell fallback ladder: the three Lesser
+    -- Healing Wave ranks (10468/10467/10466) sit between Healing Wave ranks, which
+    -- is what SHAMAN_SPELLS.HealingWave resolves through for a shaman who has not
+    -- trained the slow heal yet.  The head is a Healing Wave rank (25396), so the
+    -- normal head-agreement condition still applies -- the tail ranks are excused,
+    -- nothing else.  classes/shaman/healing_sylvanas.lua:283.
+    HealingWave = { ["Lesser Healing Wave"] = true },
 }
 
 -- Words dropped before comparison: glue words that carry no family meaning.
@@ -175,11 +205,22 @@ end
 -- opts.index     = { [id] = { name = "..." } }  (required)
 -- opts.modifiers = override the token allowlist  (optional)
 -- opts.strip     = label prefix to ignore, e.g. "Sod" (optional)
+-- opts.stats     = a caller-owned table this fills with COVERAGE  (optional)
 -- Returns { { line, id, label, bridge, extra = {...} }, ... }.
+--
+-- Coverage is part of the result, not an assumption: a PASS that compared zero
+-- ladders is not evidence of anything.  The WotLK pin-family check shipped
+-- comparing 2 of 260 entries precisely because nothing reported how much it had
+-- actually looked at, so every caller that asserts "the live inventory is
+-- name-clean" should pass a `stats` table and pin the numbers it fills:
+--   ladders -- labelled define() ladders found
+--   ids     -- ids compared against the bridge
+--   named   -- ids whose bridge name resolved (the rest fail open)
 function M.check_ladders(content, opts)
     local index = (opts and opts.index) or {}
     local mods = (opts and opts.modifiers) or MODIFIER_TOKENS
     local strip = opts and opts.strip
+    local stats = opts and opts.stats
     local out = {}
     if type(content) ~= "string" then return out end
 
@@ -208,9 +249,17 @@ function M.check_ladders(content, opts)
                     if head_name then
                         head_agrees = (M.name_agrees(probe, head_name, mods))
                     end
-                    local fallbacks = head_agrees and FALLBACK_LADDERS[probe] or nil
+                    local fallbacks = FALLBACK_LADDERS[probe]
+                    if fallbacks and fallbacks.allow_disagreeing_head ~= true and not head_agrees then
+                        fallbacks = nil
+                    end
+                    if stats then stats.ladders = (stats.ladders or 0) + 1 end
                     for _, id in ipairs(call.ids) do
                         local bname = M.entry_name(index[id])
+                        if stats then
+                            stats.ids = (stats.ids or 0) + 1
+                            if bname then stats.named = (stats.named or 0) + 1 end
+                        end
                         if bname and not (fallbacks and fallbacks[bname]) then
                             local ok, extra = M.name_agrees(probe, bname, mods)
                             if not ok then

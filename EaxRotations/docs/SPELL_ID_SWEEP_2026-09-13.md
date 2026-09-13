@@ -219,7 +219,7 @@ ambiguous.
 | `paladin/healing_sylvanas.lua:31` | HolyLight (slot 5) | 10324 | **Redemption** -- 64% of base mana, 10 sec cast, "Brings a dead player back to life", Requires Paladin, level 36 | **3472** (Holy Light r6, level 38) |
 | `paladin/class_sylvanas.lua:372` | Repentance | 5164 | **Knockdown** -- melee range, instant, 10 sec cooldown, "Knocks an enemy down", level 1, no class | dropped (Repentance is single-rank in TBC) |
 | `paladin/retribution_sylvanas.lua:59` | Repentance | 5164 | same id, same proof | dropped |
-| `warlock/leveling_wotlk.lua:50` | CreateSoulstone | 20770, 20759, 20758 | **Resurrection** (priest, 60% base mana, level 58) and **Use Soulstone** x2 | **20756 / 20755 / 20752** -- the real Create Soulstone ranks 50/40/30 the sibling warlock lanes already carry |
+| `warlock/leveling_wotlk.lua:57` | CreateSoulstone | 20770, 20759, 20758 | **Resurrection** (priest, 60% base mana, level 58) and **Use Soulstone** x2 | **20756 / 20755 / 20752** -- the real Create Soulstone ranks 50/40/30 the sibling warlock lanes already carry |
 
 Proof per id is three-way and independent: the sweep's own index, the classic bridge, and
 a Wowhead TBC tooltip. The three right-hand replacements are themselves bridge-verified
@@ -227,7 +227,8 @@ a Wowhead TBC tooltip. The three right-hand replacements are themselves bridge-v
 Repentance level 20, cooldown 60).
 
 The Create Soulstone replacements need one extra step: the local WotLK bridge stops at
-27238 (r70) / 47884 (r76), so the classifier read 20756/20755/20752 as TBC-only ids in a
+27238 (required level 70) / 47884 (required level 76), so the classifier read
+20756/20755/20752 as TBC-only ids in a
 `_wotlk` file. They are real WotLK Classic spells (each 68% of base mana, 3 sec cast,
 1.5s GCD, self range; "Creates a Lesser / a / a Greater Soulstone"), so they are
 registered as `VALID_SHARED_ID` era-shared aliases in the WotLK audit and its
@@ -284,19 +285,44 @@ only the label is loose:
   (`{20243, 11597}` -- the real Devastate, then the documented Sunder Armor era-clean
   fallback), and the vanilla `elemental_vanilla.lua` `X` downrank helper table.
 
-### What extending the check to non-head slots would cover
+### Slot coverage: the rank check now runs at every position (2026-09-13, done)
 
-Deliberately not done in this pass. A body-slot variant of WRONG-RANK would re-run the
-existing head rule at every position. Scale: the sweep extracts **1,879 ladders / 7,374
-pinned ids / 1,879 heads**, so **5,495 body ids (75%)** are currently never rank-checked.
+Deferred in the any-slot pass, landed in the follow-up. The rule is the head rule asked of
+every slot: **for each spell a ladder can cast, the highest rank it LISTS must be the
+highest rank that era can learn.** A descending ladder answers that only at its head, so
+ordinary ladders report exactly what they used to; what the widening adds is a ladder that
+stops short of the era max in the middle (a gap the head cannot see -- the reason 10324
+could hide at slot 5) and a ladder that lists a *second* spell whose own chain is
+incomplete.
 
-It would **not** have caught 10324/5164/20770 -- those are *name* disagreements, which
-`REDIRECTED` already scans at every slot. What it *would* catch is a below-cap rank
-sitting mid-ladder ahead of a higher rank, i.e. the RANK-ORDER defect one slot deeper.
-Expect real hits: the shadowed `healing_sylvanas` HolyLight ladder is still missing 27135
-(level 62) and 1026 (level 22) relative to the live shared ladder. That is a completeness
-gap, not a wrong spell, so it is reported here rather than patched -- consistent with how
-the head pass separated order defects from completeness gaps.
+Scale: 1,879 ladders / **7,374 ids are now evaluated** where 1,879 heads were before, so
+the 5,495 body ids (75%) are no longer unrank-checked. Net effect on the pinned baseline
+**+2 findings (4 new / 2 cleared), HARD still 0**; 384 -> 386 findings / 379 keys.
+
+| file:line | id | finding | adjudication |
+|---|---|---|---|
+| `classes/mage/frost_sylvanas.lua:35`, `classes/mage/class_sylvanas.lua:184` | 7301 | the Ice-Armor-first ladder tops its **Frost Armor** chain at level 20, but the era lists 31256 (Frost Armor, level 70) | benign review lead, not patched: the lane leads with Ice Armor (27124, level 69) on purpose, so a max-level mage resolves the better spell. The gap only matters to a mage who has 31256 and no Ice Armor rank, and 31256's obtainability cannot be confirmed offline -- no live client, so nothing is changed on this evidence. |
+| `classes/shaman/elemental_vanilla.lua:48`, `:54` | 15207 | the documented downrank lane tops out at level 50 while the era has 15208 (level 56) | the lane already prefers a *lower* rank by design (its own comment says so), so the era max is deliberately its last fallback. Same verdict the head pass reached for this site. |
+
+The 2 cleared rows are the same shaman lane: the finding moved from the head (10392,
+level 46) to 15207, the rank that lane actually tops out at. That is the widening working
+-- the old head-only form named a rank the ladder does not lead with.
+
+**Not caught by the widening, and worth saying plainly:** it would not have caught
+10324/5164/20770. Those are *name* disagreements, which `REDIRECTED` already scans at
+every slot, and they were found by reading that bucket with positions attached. What slot
+coverage buys is the *rank* class: a below-cap rank sitting anywhere in a ladder, and a
+second spell's chain that stops short.
+
+**Non-vacuity:** the sweep's `--self-test` now builds the mage FrostArmor shape in a
+throwaway tree and asserts the body slot flags `WRONG-RANK` with `position = "body"`,
+that the era-max head stays silent, that lower ranks of the same chain stay silent, and
+that every injected finding classifies NEW against the committed baseline (10/10 checks).
+
+**Also fixed while here:** `load_pins` matched `kind`-then-`family` positionally, so
+inserting `max_rank = false` between them (the WotLK mid-rank pin below) silently dropped the
+Ice Barrier pin and reclassified 43038 as UNSOURCED. The parser now reads both fields out
+of the entry body, so field order cannot change a classification.
 
 ## Honest limits
 
@@ -326,10 +352,47 @@ sylvanas audit (20 loaders, 308 ids) now fail on a label/bridge-name disagreemen
 the shared helper `tests/spell_name_agreement.lua`. The check immediately found one live
 defect this sweep had missed - `holy_wotlk.lua` HolyShock carried 33071/33070, the
 dummy auras "Shadow Prison" / "Cloud of Corruption" - and both were removed. The TBC
-class tier is deliberately not wired yet; a dry run there surfaced two further
-live-path leads (`Repentance` carrying 5164 Knockdown, `HolyLight` carrying 10324
-Redemption) recorded in addendum (k). **Wiring this sweep itself into `verify_all` is DONE** (see *Gate* above):
+class tier (245 candidate files) and the vanilla tier (40 files) are **now wired too**
+(follow-up, 2026-09-13): the two leads the dry run surfaced -- `Repentance` carrying 5164
+Knockdown and `HolyLight` carrying 10324 Redemption -- were fixed in PR #40, and the tier
+runs the same check. Its triage came to four shapes, each written down rather than waived:
+the FrostArmor Ice-Armor-first ladder and the HealingWave ladder that mixes in the Lesser
+Healing Wave ranks (both label-scoped `FALLBACK_LADDERS` entries naming the exact client
+string), plus the two client titles `Remove Lesser Curse` -> `RemoveCurse` and
+`Summon Water Elemental` -> `WaterElemental`. `lesser` is deliberately **not** a token
+allowlist entry: it reads like a qualifier on one spell but also names a genuinely
+different one (`Lesser Healing Wave`, `Lesser Heal`), so forgiving it token-wide would let
+a real wrong-spell pin through. The audits' self-tests pin that it stays strict (12 rule
+cases), and the live TBC and vanilla inventories are asserted name-clean.
+**Wiring this sweep itself into `verify_all` is DONE** (see *Gate* above):
 `tools/spell_id_sweep.py --check` now runs as a `verify_all` component against the
 committed classified-once baseline, so a new wrong-family id fails the build instead
 of waiting for someone to run the report. Adding it to the local `tools/pre-commit`
 list (a separately numbered 19-check subset) is not part of this change.
+
+## Coverage: how much each tier actually compared (2026-09-13)
+
+Every tier that asserts "the live inventory is name-clean" now reports how much it
+compared and **fails if that number moves**, because a PASS over nothing is not evidence
+-- the WotLK pin-family check had shipped comparing 2 of 260 entries with nothing saying
+so. The helper fills a caller-owned `stats` table (`ladders` / `ids` / `named`), each
+audit prints it, and each self-test pins it:
+
+| tier | files | labelled ladders | ids compared | ids the bridge names |
+|---|---:|---:|---:|---:|
+| TBC class (`run_sylvanas_audit_tests`) | 245 candidates, 81 present | 717 | 2,974 | 2,974 |
+| SoD (`run_sylvanas_audit_tests`, `Sod` strip) | 20 loaders | 199 | 385 | 308 |
+| WotLK (`run_wotlk_audit_tests`) | 44 | 523 | 2,207 | 1,753 |
+| Vanilla (`run_vanilla_audit_tests`) | 40 | 11 | 68 | 68 |
+
+**The residual blind spot, named and sized rather than implied.** The helper scans
+`define("Label", {ids})` ladders. The vanilla and TBC tiers carry most of their action ids
+in `name = "X"` + `ids = {}` tables (the `NS.spell_action` / `NS.spell_action_for_class`
+shape), which the helper does not attribute to a label -- so those ids are **not** covered
+by this check, and the small vanilla ladder count above is that shape gap, not a claim
+that the tier is small. What closing it would surface is bounded and already measured: the
+sweep's own per-slot `REDIRECTED` bucket *does* attribute that shape, and it holds 6
+vanilla rows, 4 WotLK rows and ~94 TBC rows, most of them the abbreviated-label
+conventions already adjudicated (SealRighteousness, AvengerShield, the combined
+MageArmor/Consecration-style ladders). Wiring it is therefore a triage of that set, not a
+one-line scanner flip -- left as the next pass, with the number attached.

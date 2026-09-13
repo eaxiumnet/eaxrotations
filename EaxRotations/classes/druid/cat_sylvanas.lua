@@ -21,6 +21,7 @@ if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local _ok_cp_reader, _read_combo_points = pcall(require, "shared/combo_points_reader_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+local druid_form = require("shared/druid_form_sylvanas")
 
 -- Wrapper so low-level helper failures don't crash finisher matches.
 local function is_low_level(level)
@@ -571,7 +572,11 @@ local function base_matches(context, action)
         if not is_behind_target(context.target, context) then return false end
     end
     if action.required_form == "cat" then
-        if not ((NS.has_form and NS.has_form("cat")) or context.stance == STANCE_CAT or context.is_cat == true) then
+        -- One detector (bar index + aura) rather than a bare has_form read: a
+        -- lying aura must not make a cat action look unavailable, and a real
+        -- cat form must never be traded for a re-shift (casting Cat Form while
+        -- already in it toggles the form OFF).
+        if not (druid_form.is_cat(context) or context.stance == STANCE_CAT or context.is_cat == true) then
             return false
         end
     end
@@ -677,7 +682,10 @@ build_state = function(context)
     state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
     state.faerie_fire_remains = NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
-    state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
+    -- One detector (bar index + aura): a lying aura read must not make the
+    -- spec think it is standing in caster form, because the CatForm lane would
+    -- then cast Cat Form while already in it -- which TOGGLES THE FORM OFF.
+    state.is_cat = druid_form.is_cat(context) or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context)
     state.level = context.level or context.player_level or 70
     state.target_is_boss = context.target_is_boss == true or safe_method(target, "is_boss", false) == true

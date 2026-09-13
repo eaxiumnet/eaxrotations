@@ -3643,11 +3643,220 @@ do
     test("has_form_throws: build_state handles NS.has_form throwing", function()
         local saved = NS.has_form
         NS.has_form = function() error("crash") end
+        -- Contract change (2026-09-13): the form detector now pcalls every aura
+        -- source and falls back to the shapeshift bar index, so a broken aura API
+        -- degrades to "no form source answered" instead of crashing the rotation
+        -- mid-fight. The sibling has_form_nil test above already pins the graceful
+        -- contract; this one now agrees with it instead of recording the crash.
         local ok, state = pcall(get_state, make_context())
-        assert_false(ok, "build_state should throw when has_form throws (no pcall)")
+        assert_true(ok, "build_state must not throw when has_form throws")
+        assert_eq(state.in_caster, true, "no form source answered -> treated as caster")
         NS.has_form = saved
     end)
 end
+
+-- ============================================================================
+-- STAY IN CAT FORM (2026-09-13 live report: a TBC feral/cat druid left Cat Form
+-- right after combat ended). Two shapes are pinned:
+--   1. form detection survives an aura API that reports nothing (bar index);
+--   2. no form-restricted lane -- and no Cat Form re-shift -- runs in a feral
+--      form, while the same lanes keep firing in Moonkin Form (TBC allows the
+--      Balance kit there: a blanket "any form" gate blacked the rotation out).
+-- ============================================================================
+
+test("stay_in_cat: build_state reads the shapeshift bar index when the aura lies", function()
+    local saved = NS.has_form
+    NS.has_form = function() return false end  -- aura API reports no form at all
+    local ctx = make_context({ stance = 3 })
+    local state = get_state(ctx)
+    assert_true(state.is_cat, "stance 3 -> is_cat")
+    assert_false(state.in_caster, "stance 3 -> not caster")
+    ctx.stance = 1
+    local bear = get_state(ctx)
+    assert_true(bear.is_bear, "stance 1 -> is_bear")
+    assert_false(bear.in_caster, "stance 1 -> not caster")
+    ctx.stance = 0
+    local caster = get_state(ctx)
+    assert_true(caster.in_caster, "stance 0 -> caster")
+    NS.has_form = saved
+end)
+
+test("stay_in_cat: aura-only cat form is still detected", function()
+    local saved = NS.has_form
+    NS.has_form = function(form) return form == "cat" end
+    local state = get_state(make_context({ stance = 0 }))  -- bar index says caster, aura says cat
+    assert_true(state.is_cat, "aura cat wins over a stale bar index")
+    assert_false(state.in_caster, "aura cat is not caster")
+    NS.has_form = saved
+end)
+
+-- Feral-blocked lanes: each must fire outside the feral forms and hold in cat
+-- and bear with every other field identical, so the GATE -- not the fixture --
+-- is what changed.
+local FERAL_BLOCKED_CASES = {
+    { name = "NaturesGrasp",   strategy = S_NATURESGRASP, ready = "natures_grasp_ready",   fields = { hp = 10 } },
+    { name = "Barkskin",       strategy = S_BARKSKIN,     ready = "barkskin_ready",         fields = { hp = 10 } },
+    { name = "HealingTouch",   strategy = S_HEALINGTOUCH, ready = "healing_touch_ready",    fields = { hp = 20, heal_hp = 40 } },
+    { name = "Rejuvenation",   strategy = S_REJUV,        ready = "rejuvenation_ready",     fields = { hp = 30, heal_hp = 40 } },
+    { name = "EntanglingRoots", strategy = S_ROOTS,       ready = "entangling_roots_ready", fields = { hp = 20, enemies = 3 } },
+    { name = "Moonfire",       strategy = S_MOONFIRE,     ready = "moonfire_ready",         fields = {} },
+    { name = "InsectSwarm",    strategy = S_IS,           ready = "insect_swarm_ready",     fields = {} },
+    { name = "FaerieFire",     strategy = S_FF,           ready = "faerie_fire_ready",      fields = {} },
+    { name = "Hurricane",      strategy = S_HURRICANE,    ready = "hurricane_ready",        fields = { enemies = 3 } },
+    { name = "Starfire",       strategy = S_STARFIRE,     ready = "starfire_ready",         fields = {} },
+    { name = "Wrath",          strategy = S_WRATH,        ready = "wrath_ready",            fields = {} },
+    { name = "Wand",           strategy = S_WAND,         ready = "wand_learned",           fields = { mana_pct = 10 } },
+}
+
+test("stay_in_cat: every form-restricted lane holds in cat/bear and fires otherwise", function()
+    local ctx = make_context()
+    for i = 1, #FERAL_BLOCKED_CASES do
+        local case = FERAL_BLOCKED_CASES[i]
+        assert_not_nil(case.strategy, case.name .. " strategy should exist")
+        local state = get_state(ctx)
+        state.in_combat = true
+        state.target = ctx.target
+        state.is_moving = false
+        state[case.ready] = true
+        for k, v in pairs(case.fields) do state[k] = v end
+
+        state.is_cat = false
+        state.is_bear = false
+        assert_true(case.strategy.matches(ctx, state), case.name .. ": caster/moonkin -> fires")
+        state.is_cat = true
+        assert_false(case.strategy.matches(ctx, state), case.name .. ": cat -> holds")
+        state.is_cat = false
+        state.is_bear = true
+        assert_false(case.strategy.matches(ctx, state), case.name .. ": bear -> holds")
+    end
+end)
+
+test("stay_in_cat: Moonkin Form keeps the Balance kit (the feral gate must not black it out)", function()
+    -- TBC: "The Moonkin can only cast Balance and Remove Curse spells while
+    -- shapeshifted." Gating the caster lanes on "in any form" suppressed the
+    -- whole rotation for a moonkin druid; the gate must be feral-only.
+    local saved_has_form = NS.has_form
+    NS.has_form = function(form) return form == "moonkin" end
+    local ctx = make_context({ stance = 0 })   -- engine stance reports no form
+    local state = get_state(ctx)
+    assert_true(state.in_caster == false, "moonkin is a form, not caster (MotW still holds)")
+    assert_false(state.is_cat, "moonkin is not cat")
+    assert_false(state.is_bear, "moonkin is not bear")
+    state.in_combat = true
+    state.target = ctx.target
+    state.is_moving = false
+    state.wrath_ready = true
+    state.moonfire_ready = true
+    assert_true(S_WRATH.matches(ctx, state), "Moonkin Form -> Wrath fires")
+    assert_true(S_MOONFIRE.matches(ctx, state), "Moonkin Form -> Moonfire fires")
+    NS.has_form = saved_has_form
+end)
+
+test("stay_in_cat: the gated lane list still matches the live strategies table", function()
+    for i = 1, #FERAL_BLOCKED_CASES do
+        local name = FERAL_BLOCKED_CASES[i].name
+        assert_not_nil(find_strategy(name), "gated lane exists in the rotation: " .. name)
+    end
+end)
+
+test("stay_in_cat: OOC Mark of the Wild / Thorns hold in cat form", function()
+    local ctx = make_context({ in_combat = false })
+    local state = get_state(ctx)
+    state.in_combat = false
+    state.use_self_buffs = true
+    state.has_mark_of_wild = false
+    state.mark_of_the_wild_ready = true
+    state.has_thorns = false
+    state.thorns_ready = true
+    state.in_caster = true
+    assert_true(S_MOTW.matches(ctx, state), "unshifted -> MotW fires")
+    assert_true(S_THORNS.matches(ctx, state), "unshifted -> Thorns fires")
+    state.in_caster = false
+    assert_false(S_MOTW.matches(ctx, state), "shifted -> MotW holds")
+    assert_false(S_THORNS.matches(ctx, state), "shifted -> Thorns holds")
+end)
+
+test("stay_in_cat: ProwlOpener never re-casts Cat Form while already in cat form", function()
+    -- Casting Cat Form while ALREADY in Cat Form toggles the form off. The live
+    -- shape was an aura API reporting no cat form, which sent this lane down the
+    -- re-shift branch right after combat ended.
+    local saved_has_form = NS.has_form
+    NS.has_form = function() return false end
+    local ctx = make_context({ in_combat = false, stance = 3 })
+    local state = get_state(ctx)
+    assert_true(state.is_cat, "shape: in cat form per the bar index")
+    state.in_combat = false
+    state.use_feral = true
+    state.prowl_ready = true
+    state.cat_form_ready = true
+    state.is_stealthed = false
+    state.target = ctx.target
+    state.target_range = 15
+    ctx._leveling_state = state
+
+    local casts = {}
+    local saved_try_cast = NS.try_cast
+    NS.try_cast = function(spell, target, label)
+        casts[#casts + 1] = { spell = spell, label = label }
+        return true
+    end
+    local matched = S_ProwlOpener.matches(ctx, state)
+    local executed = S_ProwlOpener.execute(ctx)
+    NS.try_cast = saved_try_cast
+    NS.has_form = saved_has_form
+
+    assert_true(matched, "lane still matches OOC with a nearby target")
+    assert_true(executed, "execute succeeded")
+    assert_eq(#casts, 1, "exactly one cast issued")
+    assert_true(tostring(casts[1].label):find("Prowl") ~= nil,
+        "cast was Prowl (label: " .. tostring(casts[1].label) .. ")")
+    assert_nil(tostring(casts[1].label):find("Cat Form"), "no Cat Form cast while in cat form")
+end)
+
+test("stay_in_cat: after combat ends the cat druid stays shifted and drops no form", function()
+    -- The exact live frame: the mob dies (in_combat flips false) and the OOC
+    -- lanes re-evaluate in the same tick. Before the fix a caster-only lane
+    -- (or a Cat Form re-shift) claimed that frame and the druid left cat form.
+    local saved_has_form = NS.has_form
+    NS.has_form = function() return false end   -- aura API reports nothing
+    local ctx = make_context({ in_combat = false, stance = 3 })
+    local state = get_state(ctx)
+    assert_true(state.is_cat, "still in cat form after combat ends")
+    assert_false(state.in_caster, "not treated as caster after combat ends")
+
+    local FORM_DROPS = {
+        MarkOfTheWild = true, Thorns = true, NaturesGrasp = true, Wand = true,
+        HealingTouch = true, Rejuvenation = true, Barkskin = true, EntanglingRoots = true,
+        Moonfire = true, InsectSwarm = true, FaerieFire = true, Hurricane = true,
+        Starfire = true, Wrath = true,
+    }
+    local gated = 0
+    for k = 1, #strategies do
+        local s = strategies[k]
+        if FORM_DROPS[s.name] then
+            gated = gated + 1
+            assert_false(s.matches(ctx, state),
+                s.name .. " must not run in cat form after combat ends")
+        end
+    end
+    assert_true(gated >= 10,
+        "the form-drop list still names live lanes (found " .. gated .. ")")
+
+    -- Control: the same out-of-combat frame with the druid standing in caster
+    -- form still performs the maintenance the OOC path exists for.
+    local caster_ctx = make_context({ in_combat = false, stance = 0 })
+    local caster = get_state(caster_ctx)
+    assert_true(caster.in_caster, "unshifted -> caster")
+    caster.in_combat = false
+    caster.use_self_buffs = true
+    caster.has_mark_of_wild = false
+    caster.mark_of_the_wild_ready = true
+    caster.has_thorns = false
+    caster.thorns_ready = true
+    assert_true(S_MOTW.matches(caster_ctx, caster), "unshifted OOC -> Mark of the Wild still fires")
+    assert_true(S_THORNS.matches(caster_ctx, caster), "unshifted OOC -> Thorns still fires")
+    NS.has_form = saved_has_form
+end)
 
 print(string.format("\n=== Druid Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then

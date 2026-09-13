@@ -199,6 +199,7 @@ local HEALING_PLAYSTYLES = {
 -- is the fallback for test envs whose NS mock supplies neither, so this file no
 -- longer carries a private copy (nor the per-call closure that copy allocated).
 local safe_helpers = require("shared/safe_helpers_sylvanas")
+local druid_form = require("shared/druid_form_sylvanas")
 local safe = NS and NS.safe or safe_helpers.safe
 local safe_field = NS and NS.safe_field or safe_helpers.safe_field
 
@@ -332,17 +333,8 @@ end
 local function try_self_buffs(context, settings, me, class_id)
     if below_healer_mana_floor(context, settings) then return false end
 
-    -- Druid form guard: MotW/Thorns require caster form — never break Cat/Bear/
-    -- Moonkin/Travel form to rebuff. Wait until player is in humanoid form.
-    if class_id == CLASS.DRUID then
-        local in_form = (NS.has_form and (NS.has_form("cat") or NS.has_form("bear") or NS.has_form("moonkin") or NS.has_form("travel")))
-        if in_form then return false end
-        -- Fallback: stance-based detection (0 = caster, anything else = shifted)
-        if not NS.has_form and NS.get_player_stance then
-            local stance = NS.get_player_stance()
-            if type(stance) == "number" and stance ~= 0 then return false end
-        end
-    end
+    -- Druid form gate: hoisted to M.on_update so rank upgrades and food/flask
+    -- are covered too (see the comment there). MotW/Thorns stay caster-only.
 
     local entries = DEFAULT_BUFFS_BY_CLASS[class_id]
     if type(entries) ~= "table" then return false end
@@ -439,6 +431,14 @@ function M.on_update(context)
     if not me then return false end
     local class_id = get_class_id(me)
     if not class_id then return false end
+
+    -- Druid form gate (live 2026-09-13: a TBC feral/cat druid left Cat Form
+    -- right after combat ended, when the OOC lanes re-evaluated). Every path
+    -- below casts a caster-form spell or a consumable item -- self buffs,
+    -- rank upgrades and food/flask alike -- so a shifted druid must skip all
+    -- of it rather than trade the form for a refresh. This used to live inside
+    -- try_self_buffs, which left try_buff_upgrades unguarded.
+    if class_id == CLASS.DRUID and druid_form.is_shifted(context) then return false end
 
     if try_pet_summon(settings, me, class_id) then return true end
     if try_self_buffs(context, settings, me, class_id) then return true end

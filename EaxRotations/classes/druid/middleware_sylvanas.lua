@@ -17,6 +17,7 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local scan_cache = require("shared/middleware_scan_cache_sylvanas")
+local druid_form = require("shared/druid_form_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
 if not _rbf_ok then RBF = nil end
@@ -42,26 +43,14 @@ local STANCE_CAT = 3
 local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 
--- Form IDs for native form-restriction checks
-local FORM_ID_BEAR = 1
-local FORM_ID_CAT = 2
-
--- Form buff IDs for form detection (used by can_cast_in_form checks)
-local FORM_BUFF_BEAR = { 9634, 5487 }
-local FORM_BUFF_CAT = { 768 }
+-- Form questions (shifted? cat? bear?) go through shared/druid_form_sylvanas
+-- (bar index + aura). The FORM_BUFFS table below is the CC-break/snare-shift
+-- helper's own id list.
 
 -- Consumables are caster-form-only (see FORM-SAFE CONSUMABLES above): a shifted
 -- druid never drinks, so the old stance-allow table and can_use_items() /
 -- can_afford_reshift() helpers were removed — there is nothing to allow or reshift.
 
--- Check if a spell can be cast in the druid's current form.
--- Moonkin/Tree/Humanoid always return true (rotation logic handles spell selection).
--- NOTE (2026-08-12): NS.can_cast_in_form has NO production replacement (it is
--- defined only in the battery mock, and the engine census found no real API —
--- no core_sylvanas member, no shared module export). The guard below is the
--- optional-member pattern: live play always takes the `return true` path, so
--- this is a benign unreached probe; keep the guard until a real form-cast API
--- lands.
 --- True when someone else shares our group (the target of a threat drop).
 --- FAIL-OPEN: with no group API at all we cannot tell, so the old behavior is
 --- kept; an API that answers "nobody" is what suppresses the lane.
@@ -81,18 +70,6 @@ local function has_group_members()
     return false
 end
 
-local function can_cast_in_current_form(spell_id)
-    if not spell_id then return true end
-    if not NS.can_cast_in_form then return true end  -- Module not loaded
-    if NS.has_player_buff and NS.has_player_buff(FORM_BUFF_BEAR) then
-        return NS.can_cast_in_form(spell_id, FORM_ID_BEAR)
-    end
-    if NS.has_player_buff and NS.has_player_buff(FORM_BUFF_CAT) then
-        return NS.can_cast_in_form(spell_id, FORM_ID_CAT)
-    end
-    -- Moonkin, Tree, Humanoid: rotation logic handles spell selection
-    return true
-end
 
 -- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
 local DRUID_AOE_IDS = { 779, 17401 }  -- Swipe (Bear), Hurricane
@@ -319,8 +296,15 @@ local strategies = {
                 return base_matches(context, state)
             end,
             execute = function(context)
-                local can_curse = SPELLS.RemoveCurse and can_cast_in_current_form(SPELLS.RemoveCurse)
-                local can_poison = SPELLS.AbolishPoison and can_cast_in_current_form(SPELLS.AbolishPoison)
+                -- Remove Curse / Abolish Poison are refused by the client in the
+                -- feral forms (cat/bear), so attempting them there costs a GCD
+                -- for nothing. TBC DOES allow Remove Curse in Moonkin Form and
+                -- poison removal in Tree of Life, so only the feral forms are
+                -- gated here -- a blanket "shifted" gate would suppress legal
+                -- party dispels for balance and resto druids.
+                if druid_form.is_feral(context) then return false end
+                local can_curse = SPELLS.RemoveCurse ~= nil
+                local can_poison = SPELLS.AbolishPoison ~= nil
                 if not can_curse and not can_poison then return false end
                 return base_execute(context)
             end,
@@ -338,7 +322,12 @@ local strategies = {
             -- that can cast it and an actually-ready spell (the previous gate
             -- was "in combat" alone, so the spell's own cost/cooldown was never
             -- consulted).
-            if not (SPELLS.Cower and can_cast_in_current_form(SPELLS.Cower)) then return false end
+            -- Cower is cat/bear-only. Block only on positive evidence of a
+            -- non-feral form (nil = no form source answered -> keep the previous
+            -- behavior, per the FAIL-OPEN convention this lane already uses).
+            local cower_form = druid_form.current(context)
+            if cower_form and cower_form ~= "cat" and cower_form ~= "bear" then return false end
+            if not SPELLS.Cower then return false end
             if not has_group_members() then return false end
             if NS.spell_ready and not NS.spell_ready(SPELLS.Cower, context.me) then return false end
             return true
@@ -355,8 +344,9 @@ local strategies = {
         name = "MarkOfTheWild",
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
-            -- Form-aware: MotW is caster-only, skip if in Bear/Cat form
-            if not can_cast_in_current_form(26990) then return false end
+            -- MotW is caster-only: attempting it while shifted either fails or
+            -- toggles the druid out of Cat/Bear form (live 2026-09-13 report).
+            if druid_form.is_shifted(context) then return false end
             local motw_cast = (RBF and RBF.cast("mark_of_the_wild")) or { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
             local spell = { id = motw_cast, name = "MarkOfTheWild" }
             -- Aura APIs often report MotW missing after cast → GCD spam.
@@ -380,8 +370,8 @@ local strategies = {
         name = "Thorns",
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
-            -- Form-aware: Thorns is caster-only, skip if in Bear/Cat form
-            if not can_cast_in_current_form(26992) then return false end
+            -- Thorns is caster-only for the same reason as MotW above.
+            if druid_form.is_shifted(context) then return false end
             local thorns_cast = (RBF and RBF.cast("thorns")) or { 26992, 9910, 9756, 8914, 1075, 782, 467 }
             local spell = { id = thorns_cast, name = "Thorns" }
             -- Same aura-API failure mode as MotW (live log: Thorns 782 loop).

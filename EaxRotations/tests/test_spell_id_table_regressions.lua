@@ -152,7 +152,7 @@ assert_define_ids("EaxRotations/classes/warlock/destruction_sylvanas.lua", "Deat
 -- resurrection. It is NOT live in production -- define_action_for_class prefers
 -- NS.PaladinSpells.HolyLight, which never carried 10324 -- so this pin guards the
 -- standalone/fallback path only. Replacement 3472 is Holy Light rank 6 (level 38).
-assert_define_ids("EaxRotations/classes/paladin/healing_sylvanas.lua", "HolyLight", { 27136, 25292, 10329, 10328, 3472, 1042, 647, 639, 635 })
+assert_define_ids("EaxRotations/classes/paladin/healing_sylvanas.lua", "HolyLight", { 27136, 27135, 25292, 10329, 10328, 3472, 1042, 1026, 647, 639, 635 })
 assert_spell_ids("EaxRotations/classes/paladin/class_sylvanas.lua", "Repentance", { 20066 })
 assert_define_ids("EaxRotations/classes/paladin/retribution_sylvanas.lua", "Repentance", { 20066 })
 assert_define_ids("EaxRotations/classes/warlock/leveling_wotlk.lua", "CreateSoulstone", { 47884, 27238, 20756, 20755, 20752, 693 })

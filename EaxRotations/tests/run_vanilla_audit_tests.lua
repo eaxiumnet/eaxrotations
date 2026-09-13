@@ -9,6 +9,11 @@
 --   --self-test      asserts the 99 pinned TBC IDs fire + threshold/allowlist/inventory
 --   --probe-stale-top proves a TBC-era ladder top in a vanilla table is rejected (exit 1)
 
+-- The WotLK and sylvanas audits already put EaxRotations on package.path; this
+-- one did not, which is why the shared name-agreement helper could not be reached
+-- from here before 2026-09-13.
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;" .. package.path
+
 local TBC_IDS = {
     [469] = "Commanding Shout (TBC)",
     [974] = "Earth Shield (TBC talent)",
@@ -434,12 +439,37 @@ local function scan_content(content)
     return { found = #hits > 0, hits = hits }
 end
 
+-- Ladder-label agreement (2026-09-13).  The vanilla tier was the last one
+-- without it: a label naming one spell while its ladder pinned another passed
+-- silently as long as every id was a valid vanilla id.  Names are resolved
+-- through the vanilla bridge, which is keyed by id directly.
+local name_ok, name_agreement = pcall(require, "tests/spell_name_agreement")
+if not name_ok or not name_agreement then
+    print("[ERROR] Could not load tests/spell_name_agreement")
+    os.exit(2)
+end
+local vanilla_bridge_ok, vanilla_bridge = pcall(require, "shared/wowhead_data_bridge_spell_index_vanilla_sylvanas")
+local vanilla_name_index = (vanilla_bridge_ok and vanilla_bridge) or {}
+
+-- Coverage accumulator for the live inventory.  A PASS that compared nothing is
+-- not evidence, so how much was compared is reported and pinned in --self-test.
+local name_coverage = { ladders = 0, ids = 0, named = 0 }
+
+local function scan_name_agreement(content, stats)
+    if type(content) ~= "string" then return {} end
+    return name_agreement.check_ladders(content, { index = vanilla_name_index, stats = stats })
+end
+
 local function scan_file(filepath)
     local content = read_file(filepath)
     if not content then
-        return { found = false, hits = {}, error = "could not read file" }
+        return { found = false, hits = {}, name_hits = {}, error = "could not read file" }
     end
-    return scan_content(content)
+    local result = scan_content(content)
+    -- The live accumulator is passed here (and only here), so the counts are the
+    -- 40-file inventory's and not the synthetic self-test ladders'.
+    result.name_hits = scan_name_agreement(content, name_coverage)
+    return result
 end
 
 -- ---------------------------------------------------------------------------
@@ -455,6 +485,34 @@ local function run_self_tests()
     -- Malformed / missing input is controlled, not fatal.
     expect(scan_content(nil).error, "content must be a string", "malformed content")
     expect(scan_file("__missing_vanilla_audit_fixture__.lua").error, "could not read file", "missing fixture")
+
+    -- Ladder-label agreement.  Non-vacuity first: 116 is Frostbolt, so pinning it
+    -- under a Fireball label must be caught even though BOTH ids are valid vanilla
+    -- ids -- which is the whole point of the check.
+    expect(#scan_name_agreement(
+        'Fireball = define("Fireball", { 116, 133 }, "Fireball")'), 1,
+        "a valid-but-wrong-spell id under a label is flagged")
+    expect(#scan_name_agreement(
+        'Fireball = define("Fireball", { 133 }, "Fireball")'), 0,
+        "a correct ladder is clean")
+    expect(#scan_name_agreement(nil), 0, "malformed content is contained")
+
+    -- Live 40-file vanilla inventory must be name-clean, and the comparison must
+    -- have actually happened: the tiers are mostly `ids = {}` action tables whose
+    -- label lives in a sibling `name =` field, which this helper (define() only)
+    -- does not attribute, so the ladder count is small on purpose and PINNED --
+    -- if a refactor stops finding labelled ladders entirely, this fails instead
+    -- of reporting a green check over nothing.
+    local live_vanilla_names = 0
+    local cov = {}
+    for _, f in ipairs(VANILLA_SPECS) do
+        local body = read_file(root .. "/" .. f)
+        if body then live_vanilla_names = live_vanilla_names + #scan_name_agreement(body, cov) end
+    end
+    expect(live_vanilla_names, 0, "no live vanilla ladder label disagreements")
+    expect(cov.ladders or 0, 11, "name-agreement coverage: labelled ladders compared")
+    expect(cov.ids or 0, 68, "name-agreement coverage: ids compared")
+    expect(cov.named or 0, 68, "name-agreement coverage: ids the bridge names")
 
     local function map_count(map)
         local n = 0
@@ -517,7 +575,7 @@ local function run_self_tests()
         expect(r.found, false, "allowlist ID must be silent: " .. tostring(id))
     end
 
-    print("[PASS] Vanilla audit self-tests: malformed input, 99 pinned TBC IDs fire (26 sweep + 73 sub-27000), threshold path, allowlist silence, 40-file inventory")
+    print("[PASS] Vanilla audit self-tests: malformed input, 99 pinned TBC IDs fire (26 sweep + 73 sub-27000), threshold path, allowlist silence, 40-file inventory, name agreement (wrong-spell id flagged + live 40-file inventory clean, coverage 11 ladders / 68 ids pinned)")
 end
 
 local function run_stale_top_probe()
@@ -551,16 +609,22 @@ for _, file in ipairs(VANILLA_SPECS) do
     total = total + 1
 
     local result = scan_file(path)
+    local name_hits = result.name_hits or {}
     if result.error then
         failed = failed + 1
         failures[#failures + 1] = { file = file, error = result.error, hits = {} }
         print(string.format("  [ ERROR ] %-45s %s", file, result.error))
-    elseif result.found then
+    elseif result.found or #name_hits > 0 then
         failed = failed + 1
-        failures[#failures + 1] = { file = file, hits = result.hits }
-        print(string.format("  [ FAIL ]  %-45s %d TBC ID(s)", file, #result.hits))
+        failures[#failures + 1] = { file = file, hits = result.hits, name_hits = name_hits }
+        print(string.format("  [ FAIL ]  %-45s %d TBC ID(s), %d name mismatch(es)",
+            file, #result.hits, #name_hits))
         for _, hit in ipairs(result.hits) do
             print(string.format("            line %4d: id %d - %s", hit.line, hit.id, hit.desc))
+        end
+        for _, hit in ipairs(name_hits) do
+            print(string.format("            line %4d: id %d [NAME_MISMATCH] label %q vs bridge %q",
+                hit.line, hit.id, hit.label, tostring(hit.bridge)))
         end
     else
         passed = passed + 1
@@ -573,6 +637,8 @@ print("=========================================================================
 print("  VANILLA SPELL AUDIT RESULTS")
 print("=============================================================================")
 print(string.format("  Total:   %3d vanilla spec + leveling files", total))
+print(string.format("  Ladder-label check: %d labelled ladder(s), %d id(s) compared, %d named by the bridge",
+    name_coverage.ladders or 0, name_coverage.ids or 0, name_coverage.named or 0))
 print(string.format("  Clean:   %3d", passed))
 print(string.format("  Tainted: %3d", failed))
 
@@ -586,6 +652,10 @@ if failed > 0 then
         else
             for _, hit in ipairs(f.hits) do
                 print(string.format("      line %d: id %d - %s", hit.line, hit.id, hit.desc))
+            end
+            for _, hit in ipairs(f.name_hits or {}) do
+                print(string.format("      line %d: id %d [NAME_MISMATCH] label %q vs bridge %q",
+                    hit.line, hit.id, hit.label, tostring(hit.bridge)))
             end
         end
     end

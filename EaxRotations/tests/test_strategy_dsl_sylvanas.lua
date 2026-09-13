@@ -182,6 +182,52 @@ assert_eq(cast_calls[1].target, cast_target, "try_cast received target")
 assert_eq(cast_calls[1].label, "TestCast", "try_cast received label")
 assert_eq(cast_calls[1].opts.fast, true, "try_cast received opts")
 
+-- 1b. a declared cooldown must reach try_cast as expected_cooldown.  The DSL used
+-- to forward action.opts verbatim, dropping it: NS.action_ready reads
+-- action.cooldown, but a DSL strategy calls try_cast directly, so a declared
+-- cooldown never gated the cast site.  An explicit opts.expected_cooldown wins,
+-- and opts is only copied when a translation is actually needed.
+local cd_strategy = dsl.compile_strategy({
+    name = "CooldownCastTest",
+    conditions = {},
+    action = { type = "cast", spell = 11111, target = "target", cooldown = 30 },
+})
+assert_true(cd_strategy.execute({ target = cast_target }, {}), "cooldown cast executes")
+assert_eq(cast_calls[#cast_calls].opts.expected_cooldown, 30,
+    "declared cooldown reaches try_cast as expected_cooldown")
+
+local cd_opt_strategy = dsl.compile_strategy({
+    name = "CooldownOptCastTest",
+    conditions = {},
+    action = { type = "cast", spell = 22222, target = "target", opts = { expected_cooldown = 12 } },
+})
+cd_opt_strategy.execute({ target = cast_target }, {})
+assert_eq(cast_calls[#cast_calls].opts.expected_cooldown, 12,
+    "an explicit opts.expected_cooldown is not overwritten")
+
+-- The declaration table itself must not be mutated by the translation.
+local shared_opts = { skip_range = true }
+local cd_shared_strategy = dsl.compile_strategy({
+    name = "CooldownSharedOptsTest",
+    conditions = {},
+    action = { type = "cast", spell = 33333, target = "target", cooldown = 8, opts = shared_opts },
+})
+cd_shared_strategy.execute({ target = cast_target }, {})
+assert_eq(cast_calls[#cast_calls].opts.expected_cooldown, 8,
+    "shared opts translate to expected_cooldown")
+assert_eq(cast_calls[#cast_calls].opts.skip_range, true, "shared opts keep their other keys")
+assert_eq(shared_opts.expected_cooldown, nil, "the declaration table is not mutated")
+
+-- With no cooldown declared, the very same opts table is passed through (no copy).
+local plain_opts = { skip_range = true }
+local cd_plain_strategy = dsl.compile_strategy({
+    name = "NoCooldownCastTest",
+    conditions = {},
+    action = { type = "cast", spell = 44444, target = "target", opts = plain_opts },
+})
+cd_plain_strategy.execute({ target = cast_target }, {})
+assert_eq(cast_calls[#cast_calls].opts, plain_opts, "no cooldown declared passes opts through unchanged")
+
 -- 2. item action handler mocks NS.use_item_by_id.
 local item_calls = {}
 _G.EaxRotations.use_item_by_id = function(item_id, target)

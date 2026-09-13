@@ -253,7 +253,15 @@ function M.setup(opts)
         get_friendly_target = function() return nil end,
         get_friendly_target_entry = function() return nil end,
         get_friendly_target_priority = function() return nil end,
-        has_form = function(form) return form == "cat" or form == "bear" or form == true end,
+        -- Form fiction: by default the harness reports the druid as shifted so
+        -- the feral lanes are exercised. A ladder case whose filler list is
+        -- caster-form-only must pass `has_form = false`, because the rotation
+        -- deliberately holds caster spells while shifted (see
+        -- test_druid_form_stay_cat.lua) -- claiming cat form AND expecting
+        -- Wrath at level 1 is a contradiction the fixture used to paper over.
+        has_form = opts.has_form == false and function() return false end
+            or (type(opts.has_form) == "function" and opts.has_form)
+            or function(form) return form == "cat" or form == "bear" or form == true end,
         get_heal_targets = function() return {} end,
         build_healing_entries = function() return {}, 0 end,
         healing_get_lowest_hp = function()
