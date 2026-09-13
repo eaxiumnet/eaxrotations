@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+### Fix - rogue daggers: Backstab and Ambush are now gated on a real main-hand dagger check
+
+- Both specs cast dagger-only abilities with **no weapon check at all** -
+  `subtlety_sylvanas.lua`'s own header claimed "Backstab gated to dagger+behind",
+  but no code ever looked at the weapon. Without a dagger the cast is rejected,
+  the lane re-matches on the next frame and spams the queue (the same failure
+  mode as the Feint/Slice-and-Dice live report).
+- The engine exposes **no weapon-subclass accessor** - a game_object gives
+  `get_item_id()` and the enchant fields, nothing that says "dagger" - so
+  classification is data-driven from the item id, in `shared/dagger_set_sylvanas.lua`
+  (regenerated from the cMaNGOS item_template and the local DBC item table by the
+  new `EaxRotations/tools/generate_weapon_data.py`, with `--check`/`--self-test`).
+  It answers three ways: **dagger** (610 ids), **provably not a dagger** (5169
+  known weapon ids), or **unknown**.
+- The gate fails **OPEN** on unknown: only a positive "this weapon is not a
+  dagger" holds the lane, so an uncatalogued dagger can never silently disable a
+  spec's burst. `classify()` / `allows_dagger_ability()` are the contract.
+- Applied to `subtlety_sylvanas.lua` and `subtlety_vanilla.lua`
+  (`state.mh_dagger_ok`, computed in `build_state` from the equipped main hand).
+- Proof: fire/hold pins on both sides plus the fail-open case and the classifier
+  contract in `test_subtlety_custom_matches.lua`; the state-field audit's
+  dead-field rule was satisfied by removing the computed-but-unread field.
+
+### Fix - rogue poisons: the upkeep lane now actually applies them
+
+- The old `PoisonCheck` middleware lane **only warned** that a weapon had no
+  poison - nothing in the addon ever applied one, so a rogue's weapons stayed
+  bare and the spec lost both poison damage and the poison-stack gates
+  (Mutilate, Envenom).
+- New `shared/weapon_poison_sylvanas.lua` owns detection + application. Apply
+  surface: `NS.use_item_by_id(poison_item_id, weapon_object)` -
+  `core.input.use_item_target` with the equipped weapon as the target, the same
+  item-on-item call the archived original EAX rogue poison manager used in game
+  (the engine has no "apply enchant" entry point). Detection: `GetWeaponEnchantInfo()`
+  first, then the weapon item's own `item_has_enchant` / `item_enchant_id` /
+  `item_enchant_expiration`; a slot the engine cannot confirm after a successful
+  apply is held as *assumed* for the poison's real duration so the rotation does
+  not re-apply every tick. Throttled to one attempt per 5s, out of combat only.
+- The rank comes from the bags, not a guess: the ladder is iterated highest rank
+  first and the first one owned wins (Instant Poison on the main hand, Deadly on
+  the off hand). Eras whose item data is not sourced report **no poison item**
+  instead of applying the wrong rank.
+- Middleware: `AutoPoison` (out of combat, applies) plus `PoisonCheck`, which now
+  warns only for a bare weapon and says explicitly when nothing in the bags can
+  fix it. New setting `rogue_auto_apply_poisons` (default on).
+- Proof: module pins in `test_rogue_live_fixes.lua` (live / ready / assumed /
+  weapon-swap / no-item / throttle / highest-rank / item-enchant-fallback, and
+  that the poison is used **on the weapon object**), plus lane pins in
+  `test_other_classes_middleware_nil_guard.lua` (never in combat, holds when
+  there is nothing to apply).
+- Honest limit: mock-proven against the real module and the real middleware;
+  not yet observed on a live client, and the WotLK/SoD poison item ladders are
+  not in the sourced item data, so those eras detect and warn but do not apply.
+
 ### QA - every WotLK spec now proven reachable through the real dispatcher, not just the battery harness
 
 - The channel pass exposed lanes that matched statelessly in the battery while being
