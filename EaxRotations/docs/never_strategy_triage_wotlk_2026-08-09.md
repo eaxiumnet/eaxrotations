@@ -1053,3 +1053,28 @@ wowsims fixtures and the published playstyle priority. All four now report
   minus the disproven 48927, size pin 251 -> 256 read from the table. WotLK
   audit 43/43 files clean; battery 563/563; scorecard regenerated (strategies
   515 -> 524); era-pair seed regenerated; `verify_all` exit 0.
+
+## Addendum (f) - 2026-09-13: destruction priority race (Conflagrate cooldown + engine refresh window)
+
+The round-2 destruction pass added Curse of Doom (entry 3) and Curse of Agony
+(entry 8) but left the top of the race ungated: `Conflagrate` matched on
+`immolate_remains > 0` with no cooldown read, so the curse lanes could rarely win
+a GCD. Both gates are now real:
+
+| Lane | Gate now | Source |
+|---|---|---|
+| Conflagrate (entry 2) | `immolate_remains > 0` AND `conflagrate_cd <= 0` (real 10s CD) | `NS.cooldown_remains(ACTION.Conflagrate)`, fail-open 0 = ready |
+| Immolate (entry 4) | `dotRemainingTime(47811) < spellCastTime(47811)` | `core.spell_book.get_spell_cast_time`, fail-open 2.0s |
+
+- `_meta.cast_time` is gone: array-style actions never carry it, so the previously
+  pinned window was a dead path (the suite that pinned it was pinning the dead read).
+- Lane count is unchanged at 12, so the era-pair seed and scorecard are
+  content-identical after regeneration (verified: `git diff --numstat` empty - only
+  the autocrlf materialisation shows).
+- Proof discipline: fire/hold both sides in
+  `test_warlock_destruction_wotlk_strategies.lua` (6 new pins) and a four-tick
+  real-dispatcher proof in `test_dispatcher_role_mode.lua`; non-vacuity proven by
+  stripping the cooldown gate (the dispatcher tick fires Conflagrate where the pin
+  requires the curse lane).
+- DSL note: `custom` conditions may now declare `watch = { "field" }`, so a rule whose
+  window is a live engine value still renders its state in the cast trace.
