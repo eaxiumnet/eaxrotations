@@ -48,7 +48,7 @@ _G.EaxRotations = {
         RevivePet = make_action(982, "RevivePet"),
         MendPet = make_action(3111, "MendPet"),
         MultiShot = make_action(2643, "MultiShot"),
-        Volley = make_action(1543, "Volley"),
+        Volley = make_action(27022, "Volley"),
     },
     GetPlayer = function() return {
         get_health_percentage = function() return 100 end,

@@ -37,7 +37,7 @@ local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local define = spec_kit.define_action
 
 local ACTION = {
-    BattleShout = define("BattleShout", { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleShout = define("BattleShout", { 47436, 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     Charge = define("Charge", { 11578, 6178, 100 }, "Charge"),
     Rend = define("Rend", { 47465, 25208, 11574, 11573, 6548, 6547, 772 }, "Rend"),
     HeroicStrike = define("HeroicStrike", { 47450, 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),

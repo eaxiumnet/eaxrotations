@@ -1101,3 +1101,224 @@ re-queued on the next 20Hz tick.
   `try_cast` over virgin spell ids (the suite's 2.5s cast-history throttle is
   longer than the 0.6s hold, so only never-cast ids isolate it).
 
+## Addendum (h) - 2026-09-13: cast-confirmation state machine (core cast path, no lane deltas)
+
+Addendum (g) taught the addon about a cast the client *refuses*. The other way a
+queued cast dies is *silence* - the offer is swallowed and no engine event ever
+arrives - and that cannot be detected by a failure event. Both verdicts now live
+in one owner.
+
+| Piece | Where | Contract |
+|---|---|---|
+| Cast-confirmation state machine | `shared/cast_confirm_sylvanas.lua` | records every issued cast; engine events resolve it; a spell id is held for 0.6s on a refusal (`_FAILED` / `_FAILED_QUIET`) **or** when the confirmation window (1.6s) elapses with no acknowledgement at all |
+| Acknowledgement set | same | `_SENT` (spell id at args[4]), `_START`, `_SUCCEEDED`, `_INTERRUPTED`, `_CHANNEL_START`; `_STOP` deliberately excluded (completion, self-cancel and kick alike) |
+| Producer | `core_sylvanas.lua` `mark_spell_cast` | the single commit point every queue path reaches -> `M.note_queued(id)` |
+| Consumer | `core_sylvanas.lua` `NS.evaluate_cast` step 2b | returns false while held, so `run_list` falls through to the next lane |
+| Installer | `main_sylvanas.lua` (next to the CastTrace require) | `M.install(NS)`; absent module = no-op |
+
+- **Fail-open**, twice: no module / no clock / no events => the pre-existing cast
+  path; and the never-acknowledged hold is **disarmed** until the engine has
+  reported a player cast at all (`M.armed()`), so the battery harness can never
+  see a timeout hold.
+- **No lane counts changed** in any era, so the scorecard, ACCURACY, era-pair
+  seed and the never-firing pins are content-identical after regeneration
+  (verified). WotLK never-firing stays 0; TBC 11 / vanilla 9 / SoD 0 unchanged.
+- Proof: `test_dispatcher_role_mode.lua` pins the subscription set (and the
+  absence of `_STOP`), the arming rule, acknowledgement / refusal / silence on
+  both sides, and then the **real affliction warlock lanes through the real
+  dispatcher with the real `try_cast`**: the Curse of Doom lane claims the GCD,
+  the engine stays silent for the window, the lane is held and the dispatcher
+  falls through; with the hold cleared at the same clock the same lane wins
+  again (so the hold, not the guard's own 2.5s cast-history throttle, is what
+  changed the outcome). Load-bearing proven by injection - neutering the verdict,
+  the `evaluate_cast` hook, or the verdict for that spell id each fail the suite.
+
+## Addendum (i) - smart multi-DoT cycling (enemy + friendly) and the ordered boss opener (2026-09-13)
+
+Two shared subsystems. Neither adds a strategy lane and neither changes a lane
+count, so the scorecard / ACCURACY / era-pair seed are content-identical after
+regeneration and the never-firing pins are untouched.
+
+`shared/periodic_cycler_sylvanas.lua` owns "which unit gets the next periodic
+effect", on both the hostile and the friendly side:
+
+| Piece | Where | Contract |
+|---|---|---|
+| Cycle cursor | `shared/periodic_cycler_sylvanas.lua` | `cursor(key)` / `advance(key, unit)`; one bucket per effect set (key = the first effect id), so Moonfire and Insect Swarm cycle independently |
+| Enemy client | `classes/druid/balance_sylvanas.lua` | the spread picker prefers a candidate other than the cursor while another equally valid one exists, still returns the cursor mob when it is the only candidate, and advances only on a landed cast. Discovery and every gate stay with the spec; the scan stays one allocation-free pass |
+| Friendly client | `classes/druid/resto_wotlk.lua` | Rejuvenation follows the cycled ally (`state.hot_unit` / `state.hot_remains`) instead of the single lowest, so a second injured ally is covered when the lowest already carries a fresh HoT |
+| Friendly picker | same module | `friendly(context, buff_ids, opts, key)` - the party scan is uniform, so the module owns it end to end |
+
+`shared/boss_opener_sylvanas.lua` owns the ORDER of a raid opener:
+
+| Piece | Where | Contract |
+|---|---|---|
+| Order | `classes/shaman/elemental_wotlk.lua` via `define()` | Fire Elemental -> Bloodlust -> Elemental Mastery |
+| Arming | `armed(state)` | in combat **and** `context.target_is_boss`; off a boss the sequencer is inert, so every lane keeps its own cooldown gate |
+| Turn | `turn(key, active, head, name)` | only the head may claim the GCD; fail-open whenever the opener is inert, undeclared, or finished |
+| Advance | the lane's own `execute()` calling `advance(key, name)` | a refused cast (execute false) holds the turn -- the order cannot be skipped |
+
+- **Fail-open everywhere**: absent module, absent candidate, absent party API or a
+  broken player accessor all leave the previous behavior byte-for-byte intact.
+  `NS.GetPlayer` is read through ONE guard that tolerates both `NS.me` and the
+  `function(self)` stub idiom -- the first draft called it bare and turned
+  `test_wotlk_specs_load.lua` red, which is how the two-idiom read got written.
+- **Two inversions caught and fixed while wiring** (both would have shipped a
+  silent no-op): the friendly preference test was inverted (the cursor unit won
+  instead of losing), and the enemy path's original design delegated to
+  `multidot_engagement_filter.find_multidot_target` whose `opts.avoid_unit` it
+  never read -- the enemy side was re-homed onto the shared cursor so the
+  documented contract is real.
+- **No starvation**: a cycle must never withhold an effect from the only unit that
+  needs it, so both sides return the cursor unit when it is the sole candidate.
+- Proof: rotation / bucket-isolation / no-candidate hold / no-starvation on the
+  REAL balance picker (`test_multidot_lane_regression.lua`, candidate list swapped
+  in the battery state bank); cover-second-ally / all-covered hold / round-robin /
+  lone-candidate / no-party-API fail-open on the REAL resto lane
+  (`test_druid_resto_wotlk_strategies.lua`); fire-hold-advance-complete-reset on
+  the REAL elemental opener (`test_shaman_elemental_wotlk_strategies.lua`).
+  Load-bearing proven by injection on both sides. 563/563 battery, never-fires
+  TBC 11 / vanilla 9 / SoD 0 / WotLK 0, audits 0 invalid, `verify_all` exit 0.
+
+## Addendum (j) - 2026-09-13: warlock cooldown audit (the Conflagrate-race shape, swept)
+
+Addendum (f) fixed the WotLK destruction Conflagrate lane: it matched on
+`immolate_remains > 0` with no cooldown read, so every tick it was cooling it
+still won the race. This pass asked the same question of **every** TBC and WotLK
+warlock lane: *can this lane match for the whole span of a real cooldown with no
+readiness read of its own?* Nine lanes could.
+
+The discriminator is not "does the lane call spell_ready" - with the engine
+`_spell_helper` present, `spell_ready` does check the cooldown. The defect the
+addendum-(f) fix closed is structural: the **match** stays true while the cast
+will be refused, so the lane holds the top of the race and the lanes below it
+only run when the central guard says no. A lane is only really gated when its own
+match reads availability.
+
+| File | Lane | Real cooldown | Gate added |
+|---|---|---|---|
+| `destruction_wotlk.lua` | ChaosBolt | 12s (59172 / 50796) | `chaos_bolt_cd <= 0` |
+| `affliction_wotlk.lua` | Haunt (entry 1) | 8s (59164), 12s aura | `haunt_cd <= 0` |
+| `demonology_wotlk.lua` | Metamorphosis (entry 1) | 180s (47241), 30s form | `metamorphosis_cd <= 0` |
+| `demonology_wotlk.lua` | ImmolationAura | 30s (50589), 15s aura | `immolation_aura_cd <= 0` |
+| `leveling_wotlk.lua` | SpellLock | 24s (19647) | `spell_lock_cd <= 0` |
+| `leveling_wotlk.lua` | Conflagrate | 10s (17962 / 30912) | `conflagrate_cd <= 0` |
+| `leveling_wotlk.lua` | ChaosBolt | 12s (50796) | `chaos_bolt_cd <= 0` |
+| `destruction_sylvanas.lua` | Conflagrate | 10s (17962) | `conflagrate_cd <= 0` |
+| `destruction_sylvanas.lua` | Shadowburn | 15s (30546) | `shadowburn_cd <= 0` |
+
+All reads fail open to 0 = ready, so an absent engine accessor keeps the
+pre-existing behaviour and no lane can go permanently dark.
+
+- **The worst case was Metamorphosis**, and it is the purest illustration that a
+  buff read is not an availability read: 30s form, 180s cooldown, entry 1 of the
+  list. For ~150s after the form dropped the lane matched on
+  `metamorphosis_up == false` alone. Immolation Aura is the mirror: a 30s window
+  against a 30s cooldown, so the form gate let it claim every GCD of the window
+  after its one real cast.
+- **Root cause of the TBC half:** the ACTIONS entry carried `cooldown = N`, which
+  reached `spell_ready` as `expected_cooldown`, but the DSL substitution replaces
+  the strategy and the DSL `cast` handler forwards only `action.opts` to
+  `try_cast` - the `cooldown` metadata is dropped. The durable fix would be to
+  teach the DSL compiler to lift a strategy's `cooldown` into its action opts;
+  this pass instead uses the explicit state read that addendum (f) established,
+  because it is per-lane verifiable and cannot silently change any other spec.
+- **Deliberately NOT changed:** lanes that already read availability end-to-end
+  (TBC `affliction_sylvanas` ShadowburnExecute and the destruct Shadowfury /
+  DeathCoil / Fear lanes all terminate in `spell_ready`), the Curse of Doom lanes
+  (60s cooldown == 60s duration, so the debuff read *is* the availability read),
+  and every Soul Fire lane - Wowhead 3.3.5 lists 47825 as a 6s cast with **no**
+  cooldown, which also corrects a stale "15s-CD / 4s-cast" comment in
+  `destruction_wotlk.lua`. The residual risk on the `spell_ready`-only lanes is
+  the fallback throttle (the `expected_cooldown` gap above), not the lane gates.
+- Proof: fire/hold both sides in the owning suites
+  (`test_warlock_destruction_wotlk_strategies.lua`,
+  `test_warlock_affliction_wotlk_strategies.lua`,
+  `test_warlock_demonology_wotlk_strategies.lua`,
+  `test_warlock_leveling_wotlk_strategies.lua`,
+  `test_destruction_dsl_priority.lua`) - the TBC pair driven both through the
+  explicit state gate and end-to-end through `NS.cooldown_remains -> build_state`;
+  all nine gates proven load-bearing by injection (deleting the gate line fails
+  its own held assertion), restored byte-identical. Lane counts unchanged, so the
+  era-pair seed and scorecard stay content-identical; never-fires unchanged at
+  TBC 11 / vanilla 9 / SoD 0 / WotLK 0; `verify_all` exit 0; pre-commit 19/19.
+
+## Addendum (k) - 2026-09-13: name-agreement assertion ("bridge-valid" must mean "same spell")
+
+The spell-id sweep (`docs/SPELL_ID_SWEEP_2026-09-13.md`) closed its findings with a
+recommendation: *make "bridge-valid" mean "same spell"*. The audits accepted any
+bridge-known id under any label, which is exactly how `SodCleave` shipped pinned to
+25286 (Heroic Strike) and `Volley` to 1543 (Flare). This addendum implements the
+check in the WotLK and SoD audits.
+
+**The rule** lives in the new shared helper `tests/spell_name_agreement.lua`: every
+significant token of the *client* name must appear in the label (or be a documented
+modifier token). Only the client's tokens are required to be accounted for - the
+client name is the authority on what a spell IS, the label is the rotation's chosen
+key, so `MagmaTotem` covering "Magma Totem Passive" is agreement. The allowlist is
+**token-level, never id-level**: it can forgive a modifier word, never a wrong
+spell. Adding "strike" would not let `SodCleave`/25286 pass, because "heroic" is
+still unmatched.
+
+Normalization that is not an allowance:
+- plural folding (`SurvivalInstincts` vs "Survival Instinct", `HuntersMark` vs
+  "Hunter's Mark");
+- possessive stripping (`AvengerShield` vs "Avenger's Shield");
+- camelCase glue-word splicing (`PrayerofMending` vs "Prayer of Mending");
+- **shape-aware bridge access**: the WotLK index is keyed (`{name=...}`) and the
+  TBC/vanilla indexes are positional (`{"Volley", nil, 40, ...}`). Reading only
+  `.name` made the check silently vacuous on every TBC id - it was caught by
+  cross-checking the same rule against the TBC bridge and getting 0 flags where
+  the sweep knew there were findings.
+
+**Where it runs.** Ladder-label agreement on all 41 WotLK files (1,758
+bridge-compared ids) and on the 20 SoD loaders (308 ids, `Sod` prefix stripped),
+plus pin-name agreement over the WotLK pin tables as DATA - the self-certifying
+pin shape the sweep named (2944 was pinned "Shadow Word: Death" while the client
+calls it Devouring Plague).
+
+**What it found in the live tree:** one site. `paladin/holy_wotlk.lua` `HolyShock`
+carried 33071 and 33070, bridge-valid but wowhead WotLK Classic's "Shadow Prison"
+and "Cloud of Corruption" - server-side dummy auras. Both removed. The SoD tier was
+already clean, which is a useful independent confirmation that the sweep's earlier
+fixes (16857 / 13159 / 30706 / 27019) actually took.
+
+**Documented cross-spell fallback ladders.** Some lanes are not rank ladders at all:
+a later entry is a *different* spell filling the same role, so its client name
+legitimately differs. `FALLBACK_LADDERS` holds exactly one entry today
+(`Devastate` -> "Sunder Armor", for `SodDevastate = {20243 Devastate, 11597 Sunder
+Armor}`), keyed by LABEL, naming the exact client name excused, and applied **only
+when the ladder head already agrees**. The self-test pins the entry count so growth
+is visible in review, and asserts the allowance does not cover other ids.
+
+**Proof.** Restoring 33071 to the HolyShock ladder fails the WotLK audit with
+`NAME_MISMATCH`; relabelling the 49802 pin "Maim" -> "Mangle" fails it with
+`PIN_NAME_MISMATCH`; heading `SodHuntersMark` with 30706 (Totem of Wrath) fails the
+SoD audit with `NAME_MISMATCH`. Every injected id is bridge-valid, so the
+pre-existing id scan is silent on all three - each injection was restored
+byte-identical.
+
+**Scope and the leads left open.** The ladder-label check runs on the WotLK files
+and the SoD tier only. A dry run over the TBC class tier flags 13 (label, id) pairs
+in 7 files. Most are not defects:
+
+| Site | Pair | Verdict |
+|---|---|---|
+| `mage/{fire,frost}_sylvanas` | `RemoveCurse` / "Remove Lesser Curse" | client-name qualifier |
+| `mage/frost_sylvanas` | `WaterElemental` / "Summon Water Elemental" | client-name prefix |
+| `mage/frost_sylvanas` | `FrostArmor` / "Ice Armor" | deliberate cross-spell fallback (Ice Armor ranks 7302-27124 sit beside Frost Armor 7300/7301/168) |
+| `shaman/healing_sylvanas` | `HealingWave` / "Lesser Healing Wave" | same shape, needs a read of the heal selector |
+| `paladin/retribution_sylvanas:59` | `Repentance` / **"Knockdown"** (5164) | **LEAD** - wowhead TBC 5164 is Knockdown, an NPC stun; also present in `class_sylvanas.lua:373` |
+| `paladin/healing_sylvanas:31` | `HolyLight` / **"Redemption"** (10324) | **LEAD** - wowhead TBC 10324 is Redemption, the paladin rez, sitting mid-ladder between Holy Light ranks |
+
+Both leads are the same defect class this whole campaign has been chasing, and both
+ids are bridge-valid - so nothing offline flagged them until this check existed.
+They are deliberately NOT fixed here: the TBC tier needs its own pass (the four
+qualifier/fallback shapes above need decisions, not just entries), and fixing the
+two ids without wiring the assertion for the tier would leave them unguarded.
+
+**Gate.** `luac` clean; 563/563 rotation, 39/39 leveling, 82/82 WotLK; every audit
+0 invalid; both new `--probe-name` modes exit 1 (negative probes); self-tests
+green; battery never-fires unchanged (TBC 11 / vanilla 9 / SoD 0 / WotLK 0);
+scorecard and era-pair seed content-identical; clean-checkout probe pass (the new
+helper is tracked); `verify_all` exit 0; pre-commit 19/19.

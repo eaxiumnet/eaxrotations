@@ -55,6 +55,9 @@ _G.EaxRotations = {
         return true
     end,
     get_totem_info = function(slot) return totem_slots[slot] end,
+    -- Cast backend the opener progress wrapper reports through. Only the
+    -- execute path uses it; the match-gate pins above never call it.
+    try_cast = function() return true end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -218,5 +221,85 @@ assert_lane("EarthShock fires above the 0.30s lead floor", "EarthShock",
     function() casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
 assert_lane("EarthShock honours a raised interrupt_lead_sec setting", "EarthShock",
     function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
+
+-- ============================================================================
+-- Ordered boss opener (2026-09-13, shared/boss_opener_sylvanas).
+-- Off a boss the sequencer is INERT (every lane above fires independently).
+-- On a raid boss only the HEAD of the declared order may leave:
+--   FireElemental -> Bloodlust -> ElementalMastery,
+-- and once the sequence completes every lane falls back to its own CD gate, so
+-- the 5-minute Heroism can come back inside the same fight. Loading a lane
+-- through its real execute() is what advances the head, so a refused cast
+-- (execute returns false) would hold it.
+-- ============================================================================
+local function scenario_boss(label, strategy_name, expect)
+    local ctx = {
+        in_combat = combat,
+        mana_pct = mana,
+        enemy_count = enemy_count,
+        target = { is_casting = function() return casting end },
+        settings = { interrupt_lead_sec = cast_lead },
+        target_cast_remaining = cast_remaining,
+        target_is_boss = true,
+    }
+    local state = result.build_state(ctx)
+    local matched = find_strategy(strategy_name).matches(ctx, state)
+    if expect then
+        assert_true(matched, label .. " should match")
+    else
+        assert_false(matched, label .. " should NOT match")
+    end
+end
+
+local function assert_boss_lane(label, strategy_name, expect)
+    reset_env()
+    scenario_boss(label, strategy_name, expect)
+end
+
+-- Load a lane through its real execute(), which is what advances the opener.
+local function land_lane(strategy_name)
+    local ctx = {
+        in_combat = true,
+        mana_pct = 100,
+        enemy_count = 1,
+        target = { is_casting = function() return false end },
+        settings = {},
+        target_is_boss = true,
+    }
+    local state = result.build_state(ctx)
+    return find_strategy(strategy_name).execute(ctx, state)
+end
+
+-- Inert off a boss: FireElemental wins on its own CD gate. This is also what
+-- returns the head to step 1 (the opener resets whenever it disarms).
+reset_env()
+scenario("opener inert on trash (resets the head)", "FireElemental", true)
+
+-- Boss, all three CDs ready: only step 1 may leave.
+assert_boss_lane("boss opener step 1: FireElemental fires", "FireElemental", true)
+assert_boss_lane("boss opener step 2: Bloodlust holds behind the elemental", "Bloodlust", false)
+assert_boss_lane("boss opener step 3: ElementalMastery holds last", "ElementalMastery", false)
+
+-- Step 1 lands -> step 2 owns the turn.
+assert_true(land_lane("FireElemental"), "FireElemental execute must land")
+assert_boss_lane("after step 1: FireElemental holds", "FireElemental", false)
+assert_boss_lane("after step 1: Bloodlust fires", "Bloodlust", true)
+assert_boss_lane("after step 1: ElementalMastery still holds", "ElementalMastery", false)
+
+-- Step 2 lands -> step 3 owns the turn.
+assert_true(land_lane("Bloodlust"), "Bloodlust execute must land")
+assert_boss_lane("after step 2: Bloodlust holds", "Bloodlust", false)
+assert_boss_lane("after step 2: ElementalMastery fires", "ElementalMastery", true)
+
+-- Step 3 lands -> the sequence is complete and every lane is free again.
+assert_true(land_lane("ElementalMastery"), "ElementalMastery execute must land")
+assert_boss_lane("after step 3: the opener is satisfied, Bloodlust is free", "Bloodlust", true)
+assert_boss_lane("after step 3: FireElemental is free on its own cooldown", "FireElemental", true)
+
+-- A boss pull that ends resets the order for the next one.
+reset_env()
+scenario("off a boss the next pull starts the order over", "FireElemental", true)
+assert_boss_lane("new boss pull: step 1 again", "FireElemental", true)
+assert_boss_lane("new boss pull: step 2 still waits", "Bloodlust", false)
 
 print("PASS test_shaman_elemental_wotlk_strategies")

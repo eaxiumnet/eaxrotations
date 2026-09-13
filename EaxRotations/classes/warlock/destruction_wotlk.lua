@@ -100,6 +100,7 @@ local DESTRUCTION_SCHEMA = {
     target_hp = 100,
     shadowburn_cd = 99,
     conflagrate_cd = 0,
+    chaos_bolt_cd = 0,
     hp = 100, mana_pct = 100,
 }
 
@@ -133,6 +134,10 @@ local function build_state(context)
     -- on it implicitly. Fail-open to 0 = ready when the engine read is
     -- unavailable, so the lane can never go permanently dark.
     state.conflagrate_cd = (ACTION.Conflagrate and NS.cooldown_remains and NS.cooldown_remains(ACTION.Conflagrate)) or 0
+    -- Chaos Bolt carries a real 12s WotLK cooldown (Wowhead 3.3.5: 59172 /
+    -- 50796, "Cooldown 12 seconds"); fail-open to 0 = ready when the engine
+    -- read is unavailable, so the lane can never go permanently dark.
+    state.chaos_bolt_cd = (ACTION.ChaosBolt and NS.cooldown_remains and NS.cooldown_remains(ACTION.ChaosBolt)) or 0
     return state
 end
 
@@ -199,10 +204,14 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Shadowburn, target = "target", label = "[DESTRUCTION WOTLK] Shadowburn (execute)" },
     },
+    -- Chaos Bolt: mana AND the real 12s cooldown ready. Without the cooldown
+    -- read the lane matched on mana alone while its cooldown ran, claiming the
+    -- race above the fallback curse and every filler below it.
     {
         name = "ChaosBolt",
         conditions = {
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
+            { type = "state", field = "chaos_bolt_cd", op = "<=", value = 0 },
         },
         action = { type = "cast", spell = ACTION.ChaosBolt, target = "target", label = "[DESTRUCTION WOTLK] Chaos Bolt" },
     },
@@ -224,10 +233,12 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Incinerate, target = "target", label = "[DESTRUCTION WOTLK] Incinerate" },
     },
-    -- Soul Fire is a 15s-CD / 4s-cast nuke; its long cast is only competitive
-    -- inside a haste window, so the proc lane consumes the Backdraft aura
-    -- (mirrors the repo's proc-consumer convention, e.g. BacklashShadowBolt).
-    -- The plain SoulFire lane below Incinerate stays for non-Backdraft builds.
+    -- Soul Fire is a 6s-cast / no-cooldown nuke (Wowhead 3.3.5: 47825 has no
+    -- cooldown field), so no cooldown gate belongs on this lane; its long cast
+    -- is only competitive inside a haste window, so the proc lane consumes the
+    -- Backdraft aura (mirrors the repo's proc-consumer convention, e.g.
+    -- BacklashShadowBolt). The plain SoulFire lane stays for non-Backdraft
+    -- builds.
     {
         name = "SoulFireBackdraft",
         conditions = {

@@ -140,6 +140,8 @@ return {
                     { key = "destro_mana_gem_threshold", type = "slider", label = "Mana Gem at %", min = 0, max = 100, default = 35 },
                     { key = "destro_life_tap_mana", type = "slider", label = "Life Tap Mana %", min = 0, max = 50, default = 20, tooltip = "Life Tap when mana drops below this percentage." },
                     { key = "destro_life_tap_min_hp", type = "slider", label = "Life Tap Min HP %", min = 20, max = 80, default = 50, tooltip = "Never Life Tap if HP is below this. Safety gate to prevent killing yourself." },
+                    { key = "destro_immolate_refresh", type = "slider", label = "Immolate Refresh Window (s)", min = 0.5, max = 3.0, default = 1.5, tooltip = "Re-apply Immolate once its remaining time drops below this many seconds. TBC has no pandemic, so a larger window refreshes earlier (clipping the tail DoT) and a smaller window keeps more of each application." },
+                    { key = "destro_life_tap_batch", type = "slider", label = "Life Tap Batch Buffer %", min = 0, max = 60, default = 20, tooltip = "Once mana drops below the Life Tap threshold, keep tapping on consecutive GCDs until mana reaches threshold + this buffer (no filler cast between taps). 0 disables batching (one tap, then cast)." },
                     { key = "destro_pet_preference", type = "dropdown", label = "Pet / Sac Preference", default = "auto", options = {
                         { text = "Auto (Succubus shadow, Imp fire)", value = "auto" },
                         { text = "Succubus (Shadow build)", value = "succubus" },

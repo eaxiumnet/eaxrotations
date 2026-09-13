@@ -2,7 +2,15 @@
 -- WHAT:  runs rotation + leveling + WotLK tests, the 4 spell-ID audits
 --        (sylvanas/vanilla-contamination/vanilla-existence/wotlk), the three
 --        audits' --self-test pinned-rank enforcement modes (vanilla TBC_IDS,
---        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the
+--        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the spell-id
+--        sweep gate + its non-vacuity self-test
+--        (tests/run_spell_id_sweep_check.lua -> tools/spell_id_sweep.py
+--        --check: every pinned id re-derived from the TBC DBC set, both
+--        Wowhead index dumps, the wowsims fixtures and the audit pin tables,
+--        then compared to the committed classified-once baseline — the
+--        `gate` buckets must stay empty and the `pinned` buckets are frozen,
+--        so a NEW wrong-family id hard-fails, exactly like a never-fire
+--        baseline breach), the
 --        behavioral battery (all three eras: TBC sylvanas, wotlk, and the
 --        vanilla era wired 2026-08-11 with its 79-lane classified baseline), the
 --        era-pair coverage audit (era-mirror strategy
@@ -239,6 +247,48 @@ local components = {
         cmd = "lua " .. R .. "/run_wotlk_audit_tests.lua --self-test",
         check = function(c)
             return { { "self-test [PASS] marker present (allowlist + rank-top pins fire)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    -- Spell-id sweep gate (2026-09-13): re-derives every pinned id from the
+    -- local sources and compares the result to the committed, classified-once
+    -- baseline (EaxRotations/tools/spell_id_sweep_baseline.json). Each of the
+    -- sweep's buckets carries a disposition frozen in the tool's
+    -- CHECK_DISPOSITION: `gate` buckets (DEAD, REJECTED-ID-IN-USE,
+    -- ERA-TBC-IN-VANILLA, ERA-WOTLK-IN-TBC) are proofs of wrongness and must
+    -- stay empty (--write-baseline refuses to pin one), while `pinned` buckets
+    -- (REDIRECTED, WRONG-RANK, RANK-ORDER, PIN-FAMILY-MISMATCH,
+    -- DUPLICATE-CONFLICT, UNSOURCED) freeze the adjudicated finding set entry by
+    -- entry (check|id|file, so line/label drift is not id drift). A NEW finding
+    -- — a wrong-family id the baseline has never seen, the 48927 fabricated-id
+    -- / SodCleave-25286-Heroic-Strike shape — fails the build; so does CLEARING
+    -- one, until the pin is moved on purpose. Its self-test injects a
+    -- mislabelled pin + an unknown id and proves both fire AND classify NEW.
+    {
+        label = "spell-id sweep",
+        cmd = "lua " .. R .. "/run_spell_id_sweep_check.lua",
+        check = function(c)
+            local new = num(c, "NEW:%s*(%d+)")
+            local cleared = num(c, "CLEARED:%s*(%d+)")
+            local hard = num(c, "HARD:%s*(%d+)")
+            return {
+                { "no new findings vs the pinned baseline (NEW: " .. tostring(new) .. ")",
+                  new == 0 },
+                { "no cleared pins (CLEARED: " .. tostring(cleared)
+                    .. " — re-baseline deliberately if intended)", cleared == 0 },
+                { "hard findings " .. tostring(hard)
+                    .. " (gate buckets: DEAD / REJECTED-ID-IN-USE / era leaks)", hard == 0 },
+                { "in-sync marker present (buckets match the classified-once baseline)",
+                  c:find("verdict: in sync", 1, true) ~= nil },
+            }
+        end,
+    },
+    {
+        label = "spell-id sweep self-test",
+        cmd = "lua " .. R .. "/run_spell_id_sweep_check.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (wrong-family pin + unknown id fire, "
+                        .. "correct pin stays silent, both classify NEW)",
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },

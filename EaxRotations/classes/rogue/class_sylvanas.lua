@@ -179,8 +179,8 @@ local SPELLS = {
     }),
     Gouge = NS.spell_action({
         name = "Gouge",
-        ids = {11286, 11285, 8629, 1777, 1776},
-        levels = {60, 46, 32, 18, 6},
+        ids = {38764, 11286, 11285, 8629, 1777, 1776},
+        levels = {67, 60, 46, 32, 18, 6},
         cast_time = 0,
         cooldown = 10,
         power_cost = 45,

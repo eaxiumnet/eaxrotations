@@ -78,6 +78,9 @@ local warlock_state = {
     curse_remains = 0,
     unstable_remains = 0,
     haunt_remains = 0,
+    spell_lock_cd = 0,
+    conflagrate_cd = 0,
+    chaos_bolt_cd = 0,
     fel_armor_up = false,
     demon_armor_up = false,
     target_casting = false,
@@ -107,6 +110,14 @@ local function build_state(context)
     local pet = pet_manager.get_pet(me)
     state.has_pet = pet ~= nil
     state.pet_alive = pet_manager.pet_alive(pet)
+    -- Real cooldowns (Wowhead WotLK 3.3.5) for the three lanes that had no
+    -- readiness read at all beyond the central guard's 1.5s catch-all:
+    -- Spell Lock 19647 is 24s, Conflagrate 17962/30912 is 10s and Chaos Bolt
+    -- 50796/59172 is 12s. Fail-open to 0 = ready when the engine read is
+    -- unavailable, so no lane can go permanently dark.
+    state.spell_lock_cd = (ACTION.SpellLock and NS.cooldown_remains and NS.cooldown_remains(ACTION.SpellLock)) or 0
+    state.conflagrate_cd = (ACTION.Conflagrate and NS.cooldown_remains and NS.cooldown_remains(ACTION.Conflagrate)) or 0
+    state.chaos_bolt_cd = (ACTION.ChaosBolt and NS.cooldown_remains and NS.cooldown_remains(ACTION.ChaosBolt)) or 0
     return state
 end
 
@@ -120,6 +131,9 @@ local DSL_DEFS = {
             end },
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "target_casting", op = "truthy" },
+            -- Real 24s cooldown: an interrupt lane that keeps matching while
+            -- cooling claims the tick on every enemy cast it cannot answer.
+            { type = "state", field = "spell_lock_cd", op = "<=", value = 0 },
             { type = "state", field = "mana_pct", op = ">=", value = 5 },
         },
         action = { type = "cast", spell = ACTION.SpellLock, target = "target" },
@@ -243,6 +257,10 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "immolate_remains", op = ">", value = 3 },
+            -- Real 10s cooldown (the same defect the WotLK destruction
+            -- Conflagrate lane shipped with); this lane sits above every
+            -- filler, so an ungated match starves them all while it is down.
+            { type = "state", field = "conflagrate_cd", op = "<=", value = 0 },
             { type = "state", field = "mana_pct", op = ">=", value = 15 },
         },
         action = { type = "cast", spell = ACTION.Conflagrate, target = "target" },
@@ -277,6 +295,9 @@ local DSL_DEFS = {
         name = "ChaosBolt",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
+            -- Real 12s cooldown; the lane gated on mana alone and sat above
+            -- Incinerate / Shadow Bolt / Soul Fire.
+            { type = "state", field = "chaos_bolt_cd", op = "<=", value = 0 },
             { type = "state", field = "mana_pct", op = ">=", value = 15 },
         },
         action = { type = "cast", spell = ACTION.ChaosBolt, target = "target" },

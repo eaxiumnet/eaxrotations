@@ -26,6 +26,7 @@ local thp = 100        -- target HP (Shadowburn execute band)
 local enemies = 1      -- AoE volume (Hellfire wave)
 local sb_cd = 0        -- Shadowburn cooldown
 local conf_cd = 0      -- Conflagrate cooldown (10s in WotLK)
+local cb_cd = 0        -- Chaos Bolt cooldown (12s in WotLK)
 local immo_cast = nil  -- core.spell_book.get_spell_cast_time verdict
 local aoe_ok = false   -- NS.aoe_target_meets verdict
 local spell_ok = true  -- NS.spell_ready verdict (Hellfire channel)
@@ -42,6 +43,7 @@ local boss = false  -- context.target_is_boss (dispatcher-produced)
 local function reset_env()
     combat, hp, mana, thp, enemies = true, 100, 100, 100, 1
     sb_cd, aoe_ok, spell_ok = 0, false, true
+    cb_cd = 0
     conf_cd, immo_cast = 0, nil
     boss = false
     debuffs, buffs = {}, {}
@@ -67,6 +69,7 @@ _G.EaxRotations = {
     cooldown_remains = function(action)
         if action == 47827 then return sb_cd end
         if action == 30912 then return conf_cd end  -- Conflagrate ladder head
+        if action == 59172 then return cb_cd end    -- Chaos Bolt ladder head
         return 0
     end,
     -- Engine spell-book cast time (core.spell_book.get_spell_cast_time): the
@@ -158,10 +161,19 @@ assert_lane("Immolate keeps the fallback window on an absurd engine read", "Immo
     function() immo_cast = 99; immo(1.9) end, true)
 
 -- ============================================================================
--- ChaosBolt: >= 20% mana.
+-- ChaosBolt: >= 20% mana AND the real 12s cooldown ready (state.chaos_bolt_cd
+-- via NS.cooldown_remains on 59172, Wowhead 3.3.5 "Cooldown 12 seconds").
+-- Without the cooldown read the lane matched on mana alone while its cooldown
+-- ran, and it sits above the fallback curse and every filler.
 -- ============================================================================
 assert_lane("ChaosBolt fires at 20% mana", "ChaosBolt", function() mana = 20 end, true)
 assert_lane("ChaosBolt blocked below 20% mana", "ChaosBolt", function() mana = 19 end, false)
+assert_lane("ChaosBolt held while the 12s cooldown is running", "ChaosBolt",
+    function() mana = 100; cb_cd = 11.9 end, false)
+assert_lane("ChaosBolt fires at the cooldown-ready boundary", "ChaosBolt",
+    function() mana = 100; cb_cd = 0 end, true)
+assert_lane("ChaosBolt held on cooldown even with full mana", "ChaosBolt",
+    function() mana = 100; cb_cd = 0.1 end, false)
 
 -- ============================================================================
 -- SoulFireBackdraft (Backdraft implementation): in combat + aura up + >= 30%

@@ -1930,6 +1930,15 @@ local function mark_spell_cast(id)
     _last_spell_cast_cleanup_time = cleanup_old_entries(_last_spell_cast, _last_spell_cast_cleanup_time, _SPELL_CAST_CLEANUP_INTERVAL, _SPELL_CAST_MAX_AGE)
     _last_spell_cast[id] = NS.time_now()
     _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
+    -- This is the one commit point every queue path reaches, so it is also the
+    -- single place a cast is handed to the confirmation state machine: the
+    -- engine's next word about the cast -- or its silence -- is what decides
+    -- whether the offering lane is held instead of re-queued. Fail-open: no
+    -- module installed => no-op. See shared/cast_confirm_sylvanas.lua.
+    local cast_confirm = NS.CastConfirm
+    if cast_confirm and type(cast_confirm.note_queued) == "function" then
+        cast_confirm.note_queued(id, _last_spell_cast[id])
+    end
     -- Wire FSR tracking on every successful cast
     if NS.FsrManager and type(NS.FsrManager.on_cast) == "function" then
         local mana_cost = 0
@@ -2006,18 +2015,20 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     end
 
 
-    -- 2b. Rejected-cast hold: the engine itself refused this ability within the
-    --     last HOLD_SEC (invalid target, wrong weapon, missing reagent, immune
-    --     target, ...), so offering it again would re-trigger the same refusal
-    --     on every frame and spam the queue. Hold it and let the dispatcher
-    --     fall through to the next lane instead. Only the engine knows the cast
-    --     was refused, so the hold is driven by its own failure event.
-    --     Fail-open: no guard module / no failure event => exactly the previous
-    --     behavior. See shared/cast_reject_guard_sylvanas.lua.
+    -- 2b. Engine verdict hold: the cast-confirmation state machine holds this
+    --     ability while the engine's verdict on it is fresh -- the client
+    --     refused it (invalid target, wrong weapon, missing reagent, immune
+    --     target, ...), or the addon queued it and the engine never
+    --     acknowledged it at all. Either way, offering it again on every frame
+    --     only spams the queue, so hold it and let the dispatcher fall through
+    --     to the next lane instead. Only the engine knows what happened to the
+    --     cast, so the verdict comes from its own cast events. Fail-open: no
+    --     module / no event => exactly the previous behavior. See
+    --     shared/cast_confirm_sylvanas.lua.
     if not opts.skip_reject_hold then
-        local reject_guard = NS.CastRejectGuard
-        if reject_guard and type(reject_guard.is_held) == "function"
-            and reject_guard.is_held(id) then
+        local cast_confirm = NS.CastConfirm
+        if cast_confirm and type(cast_confirm.is_held) == "function"
+            and cast_confirm.is_held(id) then
             return false
         end
     end
@@ -3673,15 +3684,28 @@ function NS.is_behind_target(target)
 end
 
 function NS.get_player_stance()
-    -- Primary: engine-level shapeshift form ID (works on PS builds where buff APIs are broken)
-    if not (core and core.spell_book) then return 0 end
-    local ok, form_id = pcall(function() return core.spell_book.get_shapeshift_form_id() end)
-    if ok and form_id and form_id > 0 then
-        if form_id == 1 then return 1 end  -- Battle Stance
-        if form_id == 2 then return 2 end  -- Defensive Stance
-        if form_id == 3 then return 3 end  -- Berserker Stance
+    -- Primary: the shapeshift BAR INDEX (core.spell_book.get_shapeshift_form).
+    -- The .api contract marks this the cross-version / cross-class-layout source
+    -- and says to prefer it ("warrior stances, druid/rogue forms"), while
+    -- get_shapeshift_form_id is a class-global form id that returns 0 whenever
+    -- the wrapper is unavailable. 0 reads as "no stance", and every warrior
+    -- stance lane is written as "if not in the stance I need, cast it" -- so a
+    -- 0 here made the rotation re-cast the stance on every tick (observed live
+    -- on a TBC client: Battle/Berserker stance spam, and Berserker Stance never
+    -- registering as active even straight after it was cast).
+    if core and core.spell_book then
+        local ok_bar, bar = pcall(function() return core.spell_book.get_shapeshift_form() end)
+        if ok_bar and type(bar) == "number" and bar >= 1 and bar <= 3 then
+            return bar
+        end
+        local ok, form_id = pcall(function() return core.spell_book.get_shapeshift_form_id() end)
+        if ok and form_id and form_id > 0 then
+            if form_id == 1 then return 1 end  -- Battle Stance
+            if form_id == 2 then return 2 end  -- Defensive Stance
+            if form_id == 3 then return 3 end  -- Berserker Stance
+        end
     end
-    -- Fallback: buff-based detection
+    -- Last resort: buff-based detection (absent aura API => 0, unchanged).
     if NS.has_form("battle") then return 1 end
     if NS.has_form("defensive") then return 2 end
     if NS.has_form("berserker") then return 3 end

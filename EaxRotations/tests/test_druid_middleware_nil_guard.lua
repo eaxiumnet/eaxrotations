@@ -363,6 +363,57 @@ do
 end
 
 -- ============================================================================
+-- ThreatDrop (Cower) group gate (2026-09-13)
+-- Live report: Cower fired every couple of seconds while solo, burning the
+-- resource for a threat drop that had no group to hand threat back to. The lane
+-- was gated on "in combat" alone, so the spell's own form and readiness were
+-- never consulted. It now requires a group member, a form that can cast it, and
+-- a ready spell -- and fails OPEN when no group API exists at all.
+-- ============================================================================
+do
+    local threat_drop = find_strategy("ThreatDrop")
+    assert_true(threat_drop ~= nil, "ThreatDrop strategy must exist")
+
+    local NS = _G.EaxRotations
+    local orig_party, orig_raid = NS.GetPartyMembers, NS.GetRaidMembers
+    local ctx = { in_combat = true, settings = {}, me = _G._mock_player }
+
+    -- SOLO: the group API answers "nobody" -> hold.
+    NS.GetPartyMembers = function() return {} end
+    NS.GetRaidMembers = nil
+    assert_false(threat_drop.matches(ctx),
+        "ThreatDrop must NOT fire solo (a threat drop with no group is pure waste)")
+
+    -- GROUPED: one party member -> the hold lifts (the fire side).
+    NS.GetPartyMembers = function() return { _G._mock_player } end
+    assert_true(threat_drop.matches(ctx),
+        "ThreatDrop SHOULD fire once a group member exists")
+
+    -- OUT OF COMBAT -> always hold.
+    assert_false(threat_drop.matches({ in_combat = false, settings = {}, me = _G._mock_player }),
+        "ThreatDrop must NOT fire out of combat")
+
+    -- OPT-OUT setting still wins.
+    assert_false(threat_drop.matches({ in_combat = true, settings = { use_threat_drop = false }, me = _G._mock_player }),
+        "ThreatDrop must honour use_threat_drop = false")
+
+    -- NOT READY -> hold (this is the gate that was missing entirely).
+    local orig_ready = NS.spell_ready
+    NS.spell_ready = function() return false end
+    assert_false(threat_drop.matches(ctx), "ThreatDrop must NOT fire while the spell is not ready")
+    NS.spell_ready = orig_ready
+
+    -- FAIL-OPEN: no group API at all -> keep the pre-existing behavior.
+    NS.GetPartyMembers = nil
+    NS.GetRaidMembers = nil
+    assert_true(threat_drop.matches(ctx),
+        "ThreatDrop must fail OPEN when no group API exists (mock/older clients)")
+
+    NS.GetPartyMembers = orig_party
+    NS.GetRaidMembers = orig_raid
+end
+
+-- ============================================================================
 -- Cleanup
 -- ============================================================================
 _G._druid_strategies = nil

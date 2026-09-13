@@ -16,6 +16,16 @@ end
 local spell_index = bridge.spell_index_tbc or {}
 local item_index  = bridge.item_index or {}
 
+-- Name-agreement helper ("bridge-valid" must mean "same spell", not merely "some
+-- spell with a valid id").  SoD loaders run on the TBC/SoD client, so they are
+-- checked against the TBC bridge.  See tests/spell_name_agreement.lua for the
+-- rule and the 2026-09-13 spell-id sweep that motivated it.
+local name_ok, name_agreement = pcall(require, "tests/spell_name_agreement")
+if not name_ok or not name_agreement then
+    print("[ERROR] Could not load tests/spell_name_agreement")
+    os.exit(2)
+end
+
 -- Count entries (hash tables, not arrays)
 local spell_count, item_count = 0, 0
 for _ in pairs(spell_index) do spell_count = spell_count + 1 end
@@ -450,17 +460,40 @@ local function scan_content(content, cross_era, sod)
     return { found = #hits > 0, hits = hits }
 end
 
+-- Ladder-label agreement: a define() label must describe the same spell as the
+-- bridge name of each id it pins.  This is what turns "TBC-bridge-valid" into
+-- "same spell": the sweep found SodHuntersMark headed by 30706 (Totem of Wrath),
+-- SodVolley by 27019 (Arcane Shot) and SodAspectHawk by 13159 (Aspect of the
+-- Pack) -- every one bridge-valid, so membership alone accepted lanes that cast
+-- a different spell.  SoD labels carry a "Sod" prefix by convention; it is
+-- stripped before comparison so the prefix is never the reason a check passes.
+local function scan_name_agreement(content, sod)
+    if type(content) ~= "string" then return {} end
+    return name_agreement.check_ladders(content, {
+        index = spell_index,
+        strip = sod and "Sod" or nil,
+    })
+end
+
 local function scan_file(filepath, sod)
     if not file_exists(filepath) then
-        return { skipped = true, hits = {} }
+        return { skipped = true, hits = {}, name_hits = {} }
     end
     local content = read_file(filepath)
     if not content then
-        return { error = "could not read", hits = {} }
+        return { error = "could not read", hits = {}, name_hits = {} }
     end
     -- Cross-era flag is scoped to the shared talent_inference module only.
     local cross_era = CROSS_ERA_FILES[filepath:gsub("^" .. root .. "/", "")] == true
-    return scan_content(content, cross_era, sod)
+    local result = scan_content(content, cross_era, sod)
+    -- Scope: the ladder-label check runs on the SoD tier only (20 loaders), which
+    -- is where this audit's "TBC-bridge-valid" contract is defined.  The TBC class
+    -- tier carries deliberate cross-spell fallback ladders (mage FrostArmor covers
+    -- the Ice Armor ranks) and a handful of client-name qualifiers ("Remove Lesser
+    -- Curse", "Summon Water Elemental"), so enabling it there is its own pass with
+    -- its own Wowhead decisions -- see the triage addendum.
+    result.name_hits = sod and scan_name_agreement(content, true) or {}
+    return result
 end
 
 -- ---------------------------------------------------------------------------
@@ -598,7 +631,80 @@ local function run_self_tests()
     expect(is_tracked("classes/mage/arcane_sylvanas.lua"), false, "untracked inventory entry stays clear")
     TRACKED = saved_tracked
 
-    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), masking-gap helper resolves")
+    -- Name agreement ("TBC-bridge-valid" must mean "same spell").  Every one of
+    -- the sweep's SoD live defects was a bridge-VALID id pinned under a label
+    -- naming a different spell, so this is the check that closes that class.
+    local function agrees(label, bridge)
+        return (name_agreement.name_agrees(label, bridge))
+    end
+    expect(agrees("HuntersMark", "Hunter's Mark"), true, "plural label, possessive client name")
+    expect(agrees("SurvivalInstincts", "Survival Instinct"), true, "plural label, singular client name")
+    expect(agrees("AvengerShield", "Avenger's Shield"), true, "possessive client name")
+    expect(agrees("HealingWave", "Lesser Healing Wave"), false, "client qualifier is not a free pass")
+    expect(agrees("HuntersMark", "Totem of Wrath"), false, "wrong spell (SodHuntersMark/30706 shape)")
+    expect(agrees("AspectHawk", "Aspect of the Pack"), false, "same prefix, different spell")
+    expect(agrees("Volley", "Arcane Shot"), false, "wrong spell (SodVolley/27019 shape)")
+    expect(agrees("DemoralizingRoar", "Faerie Fire (Feral)"), false, "wrong spell (SodDemoralizingRoar/16857 shape)")
+    expect(agrees("Devastate", "Sunder Armor"), false, "fallback id is not a rule-level free pass")
+
+    -- Ladder-level non-vacuity in the exact SoD shape: the label carries the SoD
+    -- prefix and the offending id (30706 Totem of Wrath) is TBC-bridge-VALID, so
+    -- the id-existence scan alone is silent on it.
+    local bad_sod = scan_name_agreement(
+        'HuntersMark = define("SodHuntersMark", { 14325, 30706 }, {}, "HuntersMark")', true)
+    expect(#bad_sod, 1, "mislabelled SoD ladder id flagged")
+    expect(bad_sod[1].id, 30706, "flagged SoD ladder id")
+    expect(bad_sod[1].bridge, "Totem of Wrath", "flagged SoD bridge name")
+    local ok_sod = scan_name_agreement(
+        'HuntersMark = define("SodHuntersMark", { 14325, 14324, 14323, 1130 }, {}, "HuntersMark")', true)
+    expect(#ok_sod, 0, "correct SodHuntersMark ladder clean")
+
+    -- The one documented cross-spell fallback ladder is excused by LABEL plus the
+    -- exact client name, and ONLY when the ladder head agrees, so it cannot be
+    -- used to smuggle an arbitrary id in.
+    expect(#scan_name_agreement(
+        'Devastate = define("SodDevastate", { 20243, 11597 }, {}, "Devastate")', true), 0,
+        "documented SoD Devastate fallback accepted")
+    expect(#scan_name_agreement(
+        'Devastate = define("SodDevastate", { 20243, 16857 }, {}, "Devastate")', true), 1,
+        "fallback allowance does not cover other ids")
+    expect(#scan_name_agreement(
+        'Devastate = define("SodDevastate", { 11597 }, {}, "Devastate")', true), 1,
+        "fallback allowance needs an agreeing head")
+    local fallback_count = 0
+    for _ in pairs(name_agreement.FALLBACK_LADDERS) do fallback_count = fallback_count + 1 end
+    expect(fallback_count, 1, "documented cross-spell fallback ladder count")
+
+    -- Live SoD inventory must be name-clean (the audit's own HARD-bucket zero).
+    local live_sod_names = 0
+    for _, file in ipairs(SOD_FILES) do
+        local body = read_file(root .. "/" .. file)
+        if body then live_sod_names = live_sod_names + #scan_name_agreement(body, true) end
+    end
+    expect(live_sod_names, 0, "no live SoD ladder label disagreements")
+
+    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (9 rule cases + SoD ladder probe + fallback gate + live SoD inventory), masking-gap helper resolves")
+end
+
+local function run_name_probe()
+    -- Non-vacuity: 30706 (Totem of Wrath) is TBC-bridge-VALID, so the id-existence
+    -- scan is silent on it -- only the name-agreement check rejects the
+    -- SodHuntersMark label.  That is precisely the "bridge-valid means same spell"
+    -- gap this assertion closes.
+    local probe = 'HuntersMark = define("SodHuntersMark", { 14325, 30706 }, {}, "HuntersMark")'
+    local ids = scan_content(probe, nil, true)
+    local name_hits = scan_name_agreement(probe, true)
+    if ids.error or ids.found then
+        print("[ERROR] name probe was not bridge-valid (the id scan already rejects it)")
+        os.exit(2)
+    end
+    if #name_hits == 0 then
+        print("[ERROR] name probe did not flag a bridge-valid wrong-spell id")
+        os.exit(2)
+    end
+    print(string.format("[FAIL] name-agreement probe rejected as expected: id %d [NAME_MISMATCH] label %q vs bridge %q",
+        name_hits[1].id, name_hits[1].label, name_hits[1].bridge))
+    os.exit(1)
 end
 
 -- ---------------------------------------------------------------------------
@@ -607,6 +713,8 @@ end
 if arg and arg[1] == "--self-test" then
     run_self_tests()
     os.exit(0)
+elseif arg and arg[1] == "--probe-name" then
+    run_name_probe()
 end
 
 print("=============================================================================")
@@ -643,6 +751,7 @@ for _, entry in ipairs(SCAN_LIST) do
     total = total + 1
 
     local result = scan_file(path, entry.sod)
+    local name_hits = result.name_hits or {}
     if result.skipped then
         skipped = skipped + 1
         skipped_files[#skipped_files + 1] = file
@@ -650,13 +759,18 @@ for _, entry in ipairs(SCAN_LIST) do
         failed = failed + 1
         failures[#failures + 1] = { file = file, error = result.error }
         print(string.format("  [ ERROR ] %-50s %s", file, result.error))
-    elseif result.found then
+    elseif result.found or #name_hits > 0 then
         failed = failed + 1
-        failures[#failures + 1] = { file = file, hits = result.hits }
-        print(string.format("  [ FAIL ]  %-50s %d invalid ID(s)", file, #result.hits))
+        failures[#failures + 1] = { file = file, hits = result.hits, name_hits = name_hits }
+        print(string.format("  [ FAIL ]  %-50s %d invalid ID(s), %d name mismatch(es)",
+            file, #result.hits, #name_hits))
         for _, hit in ipairs(result.hits) do
             print(string.format("            line %4d: id %d [%s]  %s",
                 hit.line, hit.id, hit.kind, hit.snippet))
+        end
+        for _, hit in ipairs(name_hits) do
+            print(string.format("            line %4d: id %d [NAME_MISMATCH]  label %q vs bridge %q (unmatched: %s)",
+                hit.line, hit.id, hit.label, hit.bridge, table.concat(hit.extra or {}, ",")))
         end
     else
         passed = passed + 1
@@ -700,11 +814,17 @@ if failed > 0 or #masked > 0 then
                     print(string.format("    %s  line %d: id %d [%s]",
                         f.file, hit.line, hit.id, hit.kind))
                 end
+                for _, hit in ipairs(f.name_hits or {}) do
+                    print(string.format("    %s  line %d: id %d [NAME_MISMATCH] label %q vs bridge %q",
+                        f.file, hit.line, hit.id, hit.label, hit.bridge))
+                end
             end
         end
         print("")
         print("  ID 'ITEM_AS_SPELL' means the ID exists in item_index but not spell_index.")
         print("  ID 'INVALID' means the ID exists in neither — definitely a bug.")
+        print("  NAME_MISMATCH means a define() label and the bridge name of one of its ids")
+        print("  describe different spells: bridge-valid, but NOT the same spell.")
     end
     if #masked > 0 then
         print("  Masking gaps (git-tracked files the audit could not scan):")

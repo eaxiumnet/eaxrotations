@@ -25,6 +25,9 @@ local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 local healthstone_helper = require("shared/warlock_healthstone_sylvanas")
 local mana_gem_helper = require("shared/warlock_mana_gem_sylvanas")
+local life_tap_batch = require("shared/life_tap_batch_sylvanas")
+-- A reload in the same Lua state must never inherit a previous load's batch.
+life_tap_batch.reset()
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -36,7 +39,7 @@ local ACTION = {
     CurseElements   = define("CurseElements",   { 27228, 11722, 11721, 1490 }, "CurseElements"),
     CurseOfRecklessness = define("CurseOfRecklessness", { 27226, 11717, 7659, 7658, 704 }, "CurseOfRecklessness"),
     CurseOfWeakness     = define("CurseOfWeakness",     { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
-    DeathCoil       = define("DeathCoil",       { 27223, 17926, 17925, 6789 }, "DeathCoil"),
+    DeathCoil       = define("DeathCoil",       { 30500, 27223, 17926, 17925, 6789 }, "DeathCoil"),
     FelArmor        = define("FelArmor",        { 28189, 28176 }, "FelArmor"),
     Immolate        = define("Immolate",        { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
     Incinerate      = define("Incinerate",      { 32231, 29722 }, "Incinerate"),
@@ -92,6 +95,25 @@ local LIFE_TAP_MOVING_MIN_HP = 50   -- never Life Tap while moving below this HP
 local DARK_PACT_MANA_THRESHOLD = 45
 local LIFE_TAP_MIN_INTERVAL = 1.5
 local _last_life_tap = 0
+-- Consecutive Life Tap batching (2026-09-13): once mana drops below the
+-- entry threshold the lane taps on consecutive GCDs until mana reaches
+-- (entry + buffer), instead of tapping once and letting the very next
+-- filler cast knock mana back under the threshold (the live tap/cast
+-- ping-pong every GCD).
+local LIFE_TAP_BATCH_BUFFER_DEFAULT = 20
+local LIFE_TAP_RECOVER_CAP = 95
+
+-- Resolve this tick's Life Tap thresholds: entry = the configured tap
+-- threshold, recover = the batch exit target, min_hp = the safety gate.
+local function life_tap_thresholds(context)
+    local entry = spec_kit.setting_number(context, "destro_life_tap_mana", 20)
+    local buffer = spec_kit.setting_number(context, "destro_life_tap_batch", LIFE_TAP_BATCH_BUFFER_DEFAULT)
+    local recover = entry + buffer
+    if recover > LIFE_TAP_RECOVER_CAP then recover = LIFE_TAP_RECOVER_CAP end
+    if recover < entry then recover = entry end
+    local min_hp = spec_kit.setting_number(context, "destro_life_tap_min_hp", 50)
+    return entry, recover, min_hp
+end
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before first use in shadowburn_matches)
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
@@ -116,6 +138,8 @@ local DESTRO_SCHEMA = {
     mana_pct = 100,
     mana_gem_ready = false,
     spell_damage = 0,
+    conflagrate_cd = 0,
+    shadowburn_cd = 0,
     healthstone_ready = false,
 }
 
@@ -139,6 +163,8 @@ local destro_state = {
     spell_damage = 0,
     healthstone_id = nil,
     healthstone_ready = false,
+    conflagrate_cd = 0,
+    shadowburn_cd = 0,
 }
 local _last_build_state_time = -1
 local function build_state(context)
@@ -167,6 +193,19 @@ local function build_state(context)
     state.mana_pct = context.mana_pct or 100
     state.spell_damage = context.spell_damage or 0  -- populated by the engine only when the player_spell_damage setting is > 0 (Phase 2.1)
     state.level = context.level or context.player_level or 70
+    -- Real cooldowns on the two DSL lanes whose ACTIONS entry used to carry a
+    -- `cooldown` field that the DSL substitution drops: TBC Conflagrate 17962
+    -- is 10s and Shadowburn 30546 is 15s (Wowhead TBC 2.5.5). Without the read
+    -- both lanes matched on their own condition alone (Immolate live / execute
+    -- band) while the cooldown ran, claiming the race above the curse and
+    -- filler lanes. Fail-open to 0 = ready when the engine read is unavailable.
+    state.conflagrate_cd = (ACTION.Conflagrate and NS.cooldown_remains and NS.cooldown_remains(ACTION.Conflagrate)) or 0
+    state.shadowburn_cd = (ACTION.Shadowburn and NS.cooldown_remains and NS.cooldown_remains(ACTION.Shadowburn)) or 0
+    -- Life Tap batch housekeeping: end the batch at the recover target, on
+    -- an unsafe HP, or when no tap has landed inside the stall window.
+    local lt_now = (NS.time_now and NS.time_now()) or now
+    local lt_entry, lt_recover, lt_min_hp = life_tap_thresholds(context)
+    life_tap_batch.observe(lt_now, state.mana_pct, state.hp, lt_entry, lt_recover, lt_min_hp)
     -- Find ready mana item
     state.mana_gem_id = nil
     for _, id in ipairs(MANA_ITEM_IDS) do
@@ -522,10 +561,13 @@ local DSL_DEFS = {
                 return true
             end },
             { type = "custom", fn = function(context, state)
-                -- Refresh window is should_refresh_dot's 1.5s (the former
-                -- IMMOLATE_PANDEMIC_WINDOW=3.5 pre-check was dead: anything
-                -- above 1.5s is already rejected here).
-                return NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)
+                -- Refresh window is configurable (destro_immolate_refresh,
+                -- default the historical 1.5s). TBC has no pandemic, so a
+                -- larger window refreshes earlier and clips the tail DoT;
+                -- the former IMMOLATE_PANDEMIC_WINDOW=3.5 pre-check was
+                -- dead (anything above the window is already rejected).
+                local refresh = spec_kit.setting_number(context, "destro_immolate_refresh", 1.5)
+                return NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), refresh, context.ttd, 15)
             end },
         },
         action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DESTRUCTION] Immolate" },
@@ -534,6 +576,10 @@ local DSL_DEFS = {
         name = "Conflagrate",
         conditions = {
             { type = "state", field = "immolate_remains", op = ">", value = 0 },
+            -- Real 10s cooldown. The ACTIONS entry this DSL lane replaced
+            -- carried `cooldown = 10`; the DSL substitution drops action
+            -- metadata, so the gate has to be an explicit state read.
+            { type = "state", field = "conflagrate_cd", op = "<=", value = 0 },
             { type = "custom", fn = function(context, state)
                 if context.ttd_known and context.ttd < 3 then return false end
                 return true
@@ -545,6 +591,7 @@ local DSL_DEFS = {
         name = "Shadowburn",
         conditions = {
             { type = "context", field = "target", op = "!=", value = nil },
+            { type = "state", field = "shadowburn_cd", op = "<=", value = 0 },
             { type = "custom", fn = function(context, state)
                 if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
                 local hp_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", SHADOWBURN_HP_PCT)
@@ -585,23 +632,47 @@ local DSL_DEFS = {
         conditions = {
             { type = "custom", fn = function(context, state)
                 if context.is_casting or context.is_channeling then return false end
-                if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)
-                -- Configurable mana threshold (default 20% per user request)
-                local mana_thresh = spec_kit.setting_number(context, "destro_life_tap_mana", 20)
-                return (state.mana_pct or 100) <= mana_thresh
-            end },
-            { type = "custom", fn = function(context, state)
-                -- Safety gate: configurable min HP (default 50% per user request)
-                local min_hp = spec_kit.setting_number(context, "destro_life_tap_min_hp", 50)
-                return (state.hp or 100) >= min_hp
+                -- Batch-aware mana/HP gate. Idle: tap at or below the entry
+                -- threshold. In a batch: stay matched while mana is still under
+                -- the recover target, so the action can hold the GCD between
+                -- two consecutive taps instead of yielding it to a filler.
+                local entry, recover, min_hp = life_tap_thresholds(context)
+                local now = NS.time_now and NS.time_now() or 0
+                if not life_tap_batch.wants(now, state.mana_pct, state.hp, entry, recover, min_hp) then
+                    return false
+                end
+                -- Outside a batch the tap throttle still applies (anti-spam);
+                -- inside one the lane keeps claiming the tick so no filler can
+                -- slot a cast between taps.
+                if not life_tap_batch.is_active()
+                   and (now - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then
+                    return false
+                end
+                return true
             end },
         },
         action = { type = "custom", fn = function(context, state)
-            _last_life_tap = NS.time_now()
-            return NS.try_cast(ACTION.LifeTap, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[DESTRUCTION] Life Tap", { skip_range = true })
+            local entry, recover, min_hp = life_tap_thresholds(context)
+            local now = NS.time_now and NS.time_now() or 0
+            -- HOLD: inside a batch and the tap GCD has not elapsed -> claim the
+            -- tick (return true so the dispatcher stops) but do not cast. This
+            -- is what removes the tap/cast ping-pong.
+            if life_tap_batch.is_active() and (now - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then
+                return true
+            end
+            local cast_ok = NS.try_cast(ACTION.LifeTap, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[DESTRUCTION] Life Tap", { skip_range = true })
+            _last_life_tap = now
+            if cast_ok then
+                if life_tap_batch.is_active() then
+                    life_tap_batch.note_tap(now)
+                else
+                    life_tap_batch.start(now, recover)
+                end
+            end
+            return cast_ok
         end },
     },
     {
