@@ -1003,3 +1003,53 @@ rows (subtlety 6 lanes — the era's lowest DPS rating — demonology 6, balance
   era-shared), size pin 245 -> 251 measured from the table. WotLK battery
   never-fires = 0; scorecard regenerated (strategies 503 -> 515, decision rules
   2595 -> 2607); era-pair seed regenerated (88 entries / 1383 names).
+
+
+## Addendum (e) - 2026-09-12: WotLK thin-spec guide pass, round 2
+
+The next thinnest WotLK specs were brought to twelve lanes each from the pinned
+wowsims fixtures and the published playstyle priority. All four now report
+**never-fires = 0**, so none of the new lanes is a triage candidate.
+
+| Spec | Before | After | New lanes (id - why) |
+|---|---|---|---|
+| `warlock/destruction` | 10 | 12 | CurseOfDoom 47867 (APL entry 3, boss, 1-min CD/1-min duration); CurseOfAgony 47864 (APL entry 8 fallback curse) |
+| `warrior/protection` | 10 | 12 | CommandingShout 47440 (APL auraShouldRefresh on self, 2-min buff); DemoralizingShout 47437 (APL AP-debuff refresh) |
+| `paladin/protection` | 9 | 12 | HammerOfWrath 48806 (APL priority 4, <=20% hp, 6s CD); SacredShield 53601 (30s self barrier); DivineProtection 498 (-50% damage under 35% hp) |
+| `shaman/restoration` | 10 | 12 | CleanseSpirit 51886 (dispel, real `NS.has_dispel_type_debuff`); EarthlivingWeapon 51730 (OOC imbue upkeep) |
+
+### Correctness fixes found while verifying ids
+
+- `paladin/protection` Holy Shield was **casting a spell that does not exist**: the
+  ladder head was pinned as 48927, which wowhead WotLK Classic 404s, so the
+  shield lane both cast nothing and read an impossible buff. The real 3.3.5 max
+  rank is **48952** (8 charges / 10s / 8s CD) - the id the wowsims pal_prot
+  fixture casts. 48952 replaced it in the action ladder and the buff-id table,
+  the false alias moved to `WOTLK_REJECTED_IDS`, and the charge-refresh /
+  buff-up / cooldown pin sites (`test_paladin_protection_wotlk_strategies.lua`,
+  `test_paladin_wotlk_live_fixes.lua`, the `prot_hs_charges` battery scenario)
+  were re-pointed. A level-80 protection paladin now keeps the real shield up.
+- `warlock/destruction` Chaos Bolt shipped the **level-60 rank 1 (50796)** as a
+  single-id action, so a level-80 warlock cast rank 1. The ladder now leads with
+  the level-80 max rank **59172** (the id the wl_destro fixture casts), keeping
+  50796 as the low-level fallback.
+
+### Proof discipline
+
+- Fire/hold pins on both sides of every new gate, in the four behavioral suites
+  (`test_warlock_destruction_wotlk_strategies.lua`,
+  `test_protection_wotlk_strategies.lua`,
+  `test_paladin_protection_wotlk_strategies.lua`,
+  `test_shaman_restoration_wotlk_strategies.lua`).
+- Three positional priority suites were converted to name-resolved lookup
+  (warrior protection, paladin protection, resto shaman) - insertion silently
+  breaks index assertions, and the paladin one was already mis-indexed against
+  its own file order.
+- **Real-dispatch proof**: `test_dispatcher_role_mode.lua` now also runs the real
+  `protection_wotlk.lua` under the real dispatcher (rage 15, Revenge on
+  cooldown) and asserts CommandingShout claims the cast and emits a real
+  `cast_safe`; a second tick with `buff_remains` = 120 proves the lane holds.
+- Allowlist +6 measured pins (59172/47440/48952/51886/51730/498 bridge-gap)
+  minus the disproven 48927, size pin 251 -> 256 read from the table. WotLK
+  audit 43/43 files clean; battery 563/563; scorecard regenerated (strategies
+  515 -> 524); era-pair seed regenerated; `verify_all` exit 0.

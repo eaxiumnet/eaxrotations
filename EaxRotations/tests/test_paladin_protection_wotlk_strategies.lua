@@ -29,11 +29,15 @@ local hs_charges = 0
 local not_ready = {}
 local cds = {}
 local creature_type = 1
+local hp = 100
+local target_hp = 100
+local sacred_remains = 0
 
 local function consecration(secs) debuffs[48819] = secs end
 local function set_buff(id, up) buffs[id] = up or nil end
 local function rf(up) set_buff(25780, up) end
-local function hs(up) set_buff(48927, up) end
+local function hs(up) set_buff(48952, up) end
+local function sacred(secs) sacred_remains = secs end
 
 local function reset_env()
     mana, enemy_count, combat = 100, 1, true
@@ -41,10 +45,11 @@ local function reset_env()
     debuffs, buffs, not_ready = {}, {}, {}
     hs_charges = 0
     cds, creature_type = {}, 1
+    hp, target_hp, sacred_remains = 100, 100, 0
 end
 
 _G.EaxRotations = {
-    me = { get_health_percentage = function() return 100 end },
+    me = { get_health_percentage = function() return hp end },
     GetPlayer = function() return _G.EaxRotations.me end,
     unit_mana_pct = function() return mana end,
     time_now = function() return now end,
@@ -60,9 +65,15 @@ _G.EaxRotations = {
         end
         return false
     end,
+    buff_remains = function(unit, ids)
+        for _, id in ipairs(ids) do
+            if id == 53601 then return sacred_remains end
+        end
+        return 0
+    end,
     buff_points = function(unit, ids)
         for _, id in ipairs(ids) do
-            if id == 48927 then return { hs_charges } end
+            if id == 48952 then return { hs_charges } end
         end
         return { 0 }
     end,
@@ -96,7 +107,7 @@ local function scenario(label, strategy_name, expect)
         mana_pct = mana,
         enemy_count = enemy_count,
         target = {
-            get_health_percentage = function() return 100 end,
+            get_health_percentage = function() return target_hp end,
             get_creature_type = function() return creature_type end,
         },
         settings = {},
@@ -168,7 +179,7 @@ assert_lane("HolyShield fires at 0 charges (buff lag)", "HolyShield",
 assert_lane("HolyShield held with 3 charges remaining", "HolyShield",
     function() hs(true); hs_charges = 3 end, false)
 assert_lane("HolyShield blocked while on cooldown", "HolyShield",
-    function() not_ready[48927] = true end, false)
+    function() not_ready[48952] = true end, false)
 assert_lane("HolyShield blocked out of combat", "HolyShield",
     function() combat = false end, false)
 
@@ -196,5 +207,41 @@ assert_lane("DivinePlea blocked while on cooldown", "DivinePlea",
     function() mana = 20; cds[54428] = 60 end, false)
 assert_lane("DivinePlea blocked out of combat", "DivinePlea",
     function() mana = 20; combat = false end, false)
+
+-- ============================================================================
+-- DivineProtection (2026-09-12 guide pass): -50% damage panic button.
+-- ============================================================================
+assert_lane("Divine Protection fires under 35% hp", "DivineProtection",
+    function() hp = 30 end, true)
+assert_lane("Divine Protection held at the 35% boundary", "DivineProtection",
+    function() hp = 35 end, false)
+assert_lane("Divine Protection held on cooldown", "DivineProtection",
+    function() hp = 20; cds[498] = 60 end, false)
+assert_lane("Divine Protection held out of combat", "DivineProtection",
+    function() hp = 20; combat = false end, false)
+
+-- ============================================================================
+-- HammerOfWrath (APL priority 4): the <=20% hp execute, 6s CD.
+-- ============================================================================
+assert_lane("Hammer of Wrath fires in the execute band", "HammerOfWrath",
+    function() target_hp = 20 end, true)
+assert_lane("Hammer of Wrath held above the execute band", "HammerOfWrath",
+    function() target_hp = 21 end, false)
+assert_lane("Hammer of Wrath held on cooldown", "HammerOfWrath",
+    function() target_hp = 10; cds[48806] = 6 end, false)
+assert_lane("Hammer of Wrath held out of combat", "HammerOfWrath",
+    function() target_hp = 10; combat = false end, false)
+
+-- ============================================================================
+-- SacredShield (guide pass): 30s self barrier, refill inside the last 5s.
+-- ============================================================================
+assert_lane("Sacred Shield applies when the barrier is down", "SacredShield",
+    function() sacred(0) end, true)
+assert_lane("Sacred Shield refreshes at 4.9s remaining", "SacredShield",
+    function() sacred(4.9) end, true)
+assert_lane("Sacred Shield held at the 5.0s boundary", "SacredShield",
+    function() sacred(5) end, false)
+assert_lane("Sacred Shield held out of combat", "SacredShield",
+    function() sacred(0); combat = false end, false)
 
 print("PASS test_paladin_protection_wotlk_strategies")

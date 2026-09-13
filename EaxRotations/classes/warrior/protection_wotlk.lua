@@ -47,10 +47,19 @@ local ACTION = {
     -- 2026-09-09 guide pass: Shockwave 46968 (protection talent, 20s CD,
     -- frontal-cone stun + AP-scaled damage; Wowhead-verified).
     Shockwave = define("Shockwave", 46968, "Shockwave"),
+    -- 2026-09-12 guide pass: the two shout upkeep lanes the wowsims prot APL
+    -- carries but this file lacked — Commanding Shout 47440 (2-min raid
+    -- health buff, 10 rage; APL 'auraShouldRefresh maxOverlap 3s' on self)
+    -- and Demoralizing Shout 47437 (WotLK max rank, bridge level 79).
+    CommandingShout = define("CommandingShout", 47440, "CommandingShout"),
+    DemoralizingShout = define("DemoralizingShout", 47437, "DemoralizingShout"),
     BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),
 }
 
 local THUNDER_CLAP_DEBUFF = { 47502, 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
+-- Shout upkeep ids (single WotLK max ranks).
+local COMMANDING_SHOUT_BUFF = { 47440 }
+local DEMORALIZING_SHOUT_DEBUFF = { 47437 }
 
 local SHIELD_BLOCK_RAGE_MIN = 60 -- WotLK Shield Block costs 60 rage
 local SHIELD_BLOCK_HP_NEED  = 70 -- ...or use it when the tank is under pressure
@@ -58,6 +67,9 @@ local LAST_STAND_HP         = 30 -- emergency HP band (rubric protection item)
 local HEROIC_RAGE_MIN       = 30 -- queued Heroic Strike threshold (wowsims prot APL)
 local HEROIC_SWING_WINDOW   = 1.0 -- queue HS when the next auto swing lands within 1s
 local PUMMEL_RAGE_MIN       = 10 -- Pummel costs 10 rage
+local SHOUT_RAGE_MIN        = 10 -- Commanding/Demoralizing Shout cost 10 rage
+local SHOUT_REFRESH_SECONDS = 60 -- Commanding Shout 2-min buff: refresh under 1 min
+local DEMORALIZING_REFRESH  = 3 -- debuff refresh window (Tclap idiom)
 
 -- -----------------------------------------------------------------------------
 -- Cooldown reads go through NS.cooldown_remains / NS.get_spell_cooldown (both
@@ -105,6 +117,8 @@ local protection_state = {
     in_combat = false,
     target_is_casting = false,
     tclap_remains = 0,
+    shout_remains = 0,
+    demoralizing_remains = 0,
     shield_block_ready = false,
     shockwave_ready = false,
     last_stand_ready = false,
@@ -138,6 +152,10 @@ local function build_state(context)
     state.in_combat = (context.in_combat == true)
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.tclap_remains = (target and NS.debuff_remains and NS.debuff_remains(target, THUNDER_CLAP_DEBUFF)) or 0
+    -- Shout upkeep reads (real buff/debuff APIs; 0 = down → the refresh
+    -- windows fire, and once cast the 2-min buff holds the lane off).
+    state.shout_remains = (me and NS.buff_remains and NS.buff_remains(me, COMMANDING_SHOUT_BUFF)) or 0
+    state.demoralizing_remains = (target and NS.debuff_remains and NS.debuff_remains(target, DEMORALIZING_SHOUT_DEBUFF)) or 0
 
     -- Cooldown / availability tracking (real API: NS.cooldown_remains, 0 = ready)
     state.shield_block_ready = cd_remaining(ACTION.ShieldBlock) <= 0
@@ -242,6 +260,16 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Revenge, target = "target" },
     },
+    -- APL upkeep: Commanding Shout (47440) refresh window on self.
+    {
+        name = "CommandingShout",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "shout_remains", op = "<", value = SHOUT_REFRESH_SECONDS },
+            { type = "state", field = "rage", op = ">=", value = SHOUT_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.CommandingShout, target = "self" },
+    },
     {
         name = "ThunderClap",
         conditions = {
@@ -250,6 +278,17 @@ local DSL_DEFS = {
             { type = "state", field = "rage", op = ">=", value = 20 },
         },
         action = { type = "cast", spell = ACTION.ThunderClap, target = "target" },
+    },
+    -- APL upkeep: Demoralizing Shout (47437) attack-power debuff refresh —
+    -- same maxOverlap-2s shape the sim uses for Tclap/Shout refreshes.
+    {
+        name = "DemoralizingShout",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "demoralizing_remains", op = "<", value = DEMORALIZING_REFRESH },
+            { type = "state", field = "rage", op = ">=", value = SHOUT_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.DemoralizingShout, target = "target" },
     },
     {
         name = "Shockwave",
@@ -282,7 +321,9 @@ local strategies = {
     { name = "ShieldBlock" },
     { name = "ShieldSlam" },
     { name = "Revenge" },
+    { name = "CommandingShout" },
     { name = "ThunderClap" },
+    { name = "DemoralizingShout" },
     { name = "Shockwave" },
     { name = "Devastate" },
 }

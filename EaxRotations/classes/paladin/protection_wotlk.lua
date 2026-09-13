@@ -31,19 +31,31 @@ local ACTION = {
     Consecration = define("Consecration", { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
     Judgement = define("Judgement", { 20271, 53407, 53408 }, "Judgement"),
     RighteousFury = define("RighteousFury", 25780, "RighteousFury"),
-    -- Holy Shield ladder: 48927 = 3.3.5 max rank, 27179/20925 = TBC-era ranks
-    -- (all pinned in run_wotlk_audit_tests.lua WOTLK_REFERENCE_ALIASES).
-    HolyShield = define("HolyShield", { 48927, 27179, 20925 }, "HolyShield"),
+    -- Holy Shield ladder: 48952 = 3.3.5 max rank (8 charges / 10s / 8s CD,
+    -- Wowhead-verified; the old head 48927 is not a WotLK spell — 404 — and
+    -- silently broke the tank lane). 27179/20925 = TBC-era ranks, all pinned
+    -- in run_wotlk_audit_tests.lua WOTLK_REFERENCE_ALIASES.
+    HolyShield = define("HolyShield", { 48952, 27179, 20925 }, "HolyShield"),
     -- 2026-09-09 guide pass: Holy Wrath 48817 (30s CD, self-centered Holy
     -- AoE + undead/demon stun) and Divine Plea 54428 (25% mana, -50% healing
     -- 15s — bridge-verified; retribution_wotlk already defines 54428).
     HolyWrath = define("HolyWrath", { 48817, 37897, 31898 }, "HolyWrath"),
     DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
+    -- 2026-09-12 guide pass: Hammer of Wrath 48806 (APL priority 4 — the
+    -- <=20% HP execute, 6s CD, 30y; Wowhead-verified single WotLK rank) and
+    -- Sacred Shield 53601 (prot self barrier the guides keep up: 30s
+    -- duration, no cooldown, one target — bridge-known, level 80).
+    HammerOfWrath = define("HammerOfWrath", 48806, "HammerOfWrath"),
+    SacredShield = define("SacredShield", 53601, "SacredShield"),
+    -- Divine Protection 498 (Wowhead-verified single rank): -50% damage
+    -- taken for 12s, 3-min CD — the prot panic button the file lacked.
+    DivineProtection = define("DivineProtection", 498, "DivineProtection"),
 }
 
 local CONSECRATION_DEBUFF = { 48819, 27173, 20924, 20923, 20922, 20116, 26573 }
 local RIGHTEOUS_FURY_BUFF = { 25780 }
-local HOLY_SHIELD_BUFF = { 48927, 27179, 20925 }
+local HOLY_SHIELD_BUFF = { 48952, 27179, 20925 }
+local SACRED_SHIELD_BUFF = { 53601 }
 
 -- -----------------------------------------------------------------------------
 -- State table (raw; safe_state proxy applied in build_state)
@@ -60,6 +72,11 @@ local protection_state = {
     divine_plea_ready = false,
     target_creature_type = 0,
     holy_shield_ready = false,
+    target_hp = 100,
+    hp = 100,
+    divine_protection_ready = false,
+    hammer_of_wrath_ready = false,
+    sacred_shield_remains = 0,
 }
 
 -- -----------------------------------------------------------------------------
@@ -83,6 +100,12 @@ local function build_state(context)
     state.righteous_fury_up = (me and NS.buff_up and NS.buff_up(me, RIGHTEOUS_FURY_BUFF)) or false
     state.holy_wrath_ready = (ACTION.HolyWrath and NS.cooldown_remains and NS.cooldown_remains(ACTION.HolyWrath) <= 0) or false
     state.divine_plea_ready = (ACTION.DivinePlea and NS.cooldown_remains and NS.cooldown_remains(ACTION.DivinePlea) <= 0) or false
+    -- Execute band + Sacred Shield upkeep (real target HP / cooldown reads).
+    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
+    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.divine_protection_ready = (ACTION.DivineProtection and NS.cooldown_remains and NS.cooldown_remains(ACTION.DivineProtection) <= 0) or false
+    state.hammer_of_wrath_ready = (ACTION.HammerOfWrath and NS.cooldown_remains and NS.cooldown_remains(ACTION.HammerOfWrath) <= 0) or false
+    state.sacred_shield_remains = (me and NS.buff_remains and NS.buff_remains(me, SACRED_SHIELD_BUFF)) or 0
     state.target_creature_type = (target and target.get_creature_type and target:get_creature_type()) or 0
     state.holy_shield_up = (me and NS.buff_up and NS.buff_up(me, HOLY_SHIELD_BUFF)) or false
     -- Pattern 11: buff.points[1] is the remaining Holy Shield block count
@@ -106,6 +129,17 @@ end
 local _last_righteous_fury_match_time = -999
 
 local DSL_DEFS = {
+    -- Panic defensive first (warrior LastStand precedent): -50% damage for
+    -- 12s under 35% hp, real cooldown read.
+    {
+        name = "DivineProtection",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "divine_protection_ready", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 35 },
+        },
+        action = { type = "cast", spell = ACTION.DivineProtection, target = "self" },
+    },
     {
         name = "AvengersShield",
         conditions = {
@@ -126,6 +160,16 @@ local DSL_DEFS = {
             { type = "state", field = "in_combat", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.HammerOfTheRighteous, target = "target" },
+    },
+    -- APL priority 4: the <=20% execute (6s CD, real cooldown read).
+    {
+        name = "HammerOfWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hammer_of_wrath_ready", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.HammerOfWrath, target = "target" },
     },
     {
         name = "Consecration",
@@ -169,6 +213,15 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.DivinePlea, target = "self" },
     },
+    -- Sacred Shield upkeep: refill inside the last 5s of the 30s barrier.
+    {
+        name = "SacredShield",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "sacred_shield_remains", op = "<", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.SacredShield, target = "self" },
+    },
     {
         name = "HolyWrath",
         conditions = {
@@ -208,14 +261,17 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
+    { name = "DivineProtection" },
     { name = "AvengersShield" },
     { name = "ShieldOfRighteousness" },
     { name = "HammerOfTheRighteous" },
+    { name = "HammerOfWrath" },
     { name = "Consecration" },
     { name = "HolyWrath" },
     { name = "Judgement" },
     { name = "RighteousFury" },
     { name = "DivinePlea" },
+    { name = "SacredShield" },
     { name = "HolyShield" },
 }
 

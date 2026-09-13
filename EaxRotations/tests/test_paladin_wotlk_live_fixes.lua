@@ -264,7 +264,7 @@ clear_buffs()
 print("  PASS: protection Righteous Fury upkeep lane")
 
 -- 3b. Holy Shield charge management (Pattern 11 buff_points).
-any_buffs[48927] = true  -- Holy Shield up
+any_buffs[48952] = true  -- Holy Shield up
 shield_points = { 5 }    -- 5 blocks remaining > refresh floor (2) → hold
 _now = 120
 pstate = prot.build_state(prot_ctx)

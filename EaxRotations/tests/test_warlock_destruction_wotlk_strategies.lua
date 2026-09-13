@@ -33,10 +33,14 @@ local buffs = {}
 local function immo(secs) debuffs[47811] = secs end
 local function coe(secs) debuffs[47865] = secs end
 local function backdraft(up) buffs[54277] = up or nil end
+local function doom(secs) debuffs[47867] = secs end
+local function agony(secs) debuffs[47864] = secs end
+local boss = false  -- context.target_is_boss (dispatcher-produced)
 
 local function reset_env()
     combat, hp, mana, thp, enemies = true, 100, 100, 100, 1
     sb_cd, aoe_ok, spell_ok = 0, false, true
+    boss = false
     debuffs, buffs = {}, {}
 end
 
@@ -90,6 +94,7 @@ local function scenario(label, strategy_name, expect)
             get_health_percentage = function() return thp end,
         },
         settings = {},
+        target_is_boss = boss,
     }
     local state = result.build_state(ctx)
     local matched = find_strategy(strategy_name).matches(ctx, state)
@@ -205,5 +210,24 @@ assert_lane("HellfireAoE blocked when the AoE volume read fails", "HellfireAoE",
     function() combat = true; enemies = 4; aoe_ok = false end, false)
 assert_lane("HellfireAoE blocked when the channel is not ready", "HellfireAoE",
     function() combat = true; enemies = 4; aoe_ok = true; spell_ok = false end, false)
+
+assert_lane("Curse of Doom fires on a boss with Doom down", "CurseOfDoom",
+    function() boss = true end, true)
+assert_lane("Curse of Doom held on a non-boss target", "CurseOfDoom",
+    function() boss = false end, false)
+assert_lane("Curse of Doom held while the DoT is already ticking", "CurseOfDoom",
+    function() boss = true; doom(30) end, false)
+assert_lane("Curse of Doom held out of combat", "CurseOfDoom",
+    function() boss = true; combat = false end, false)
+assert_lane("Curse of Agony fires on a non-boss with the curse down", "CurseOfAgony",
+    function() boss = false end, true)
+assert_lane("Curse of Agony refreshes at 2.9s remaining", "CurseOfAgony",
+    function() boss = false; agony(2.9) end, true)
+assert_lane("Curse of Agony held at the 3.0s boundary", "CurseOfAgony",
+    function() boss = false; agony(3) end, false)
+assert_lane("Curse of Agony held on a boss (Doom owns the slot)", "CurseOfAgony",
+    function() boss = true end, false)
+assert_lane("Curse of Agony held out of combat", "CurseOfAgony",
+    function() boss = false; combat = false end, false)
 
 print("PASS test_warlock_destruction_wotlk_strategies")

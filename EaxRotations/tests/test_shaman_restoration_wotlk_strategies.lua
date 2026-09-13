@@ -28,11 +28,15 @@ local es_up = false
 local es_charges = 0
 local not_ready = {}
 local water_shield_up = false
+local combat = true
+local dispellable = false
+local earthliving_up = false
 
 local function reset_env()
     mana, friendly_hp, injured_count, lowest_hp = 100, 100, 0, 100
     riptide, es_up, es_charges = 0, false, 0
     not_ready, water_shield_up = {}, false
+    combat, dispellable, earthliving_up = true, false, false
 end
 
 local function rip(secs) riptide = secs end
@@ -51,6 +55,7 @@ _G.EaxRotations = {
         for _, id in ipairs(ids) do
             if id == 49284 and es_up then return true end
             if id == 52127 and water_shield_up then return true end
+            if id == 51730 and earthliving_up then return true end
         end
         return false
     end,
@@ -65,6 +70,7 @@ _G.EaxRotations = {
         if not_ready[id] then return false end
         return true
     end,
+    has_dispel_type_debuff = function(unit, dispel_type) return dispellable end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -86,7 +92,7 @@ local function scenario(label, strategy_name, expect)
         is_casting = function() return false end,
     }
     local ctx = {
-        in_combat = true,
+        in_combat = combat,
         mana_pct = mana,
         enemy_count = 0,
         lowest = { unit = friendly },
@@ -176,5 +182,22 @@ assert_lane("Water Shield held while up", "WaterShield",
 assert_lane("Water Shield held at 50% mana", "WaterShield", function() end, false)
 assert_lane("Water Shield held on cooldown", "WaterShield",
     function() mana = 49; not_ready[52127] = true end, false)
+
+assert_lane("Cleanse Spirit fires on an afflicted ally", "CleanseSpirit",
+    function() dispellable = true end, true)
+assert_lane("Cleanse Spirit held on a clean ally", "CleanseSpirit",
+    function() dispellable = false end, false)
+assert_lane("Cleanse Spirit held out of combat", "CleanseSpirit",
+    function() dispellable = true; combat = false end, false)
+assert_lane("Cleanse Spirit held on cooldown", "CleanseSpirit",
+    function() dispellable = true; not_ready[51886] = true end, false)
+assert_lane("Earthliving Weapon re-arms out of combat when down", "EarthlivingWeapon",
+    function() combat = false; earthliving_up = false end, true)
+assert_lane("Earthliving Weapon held while the imbue is up", "EarthlivingWeapon",
+    function() combat = false; earthliving_up = true end, false)
+assert_lane("Earthliving Weapon held in combat", "EarthlivingWeapon",
+    function() combat = true; earthliving_up = false end, false)
+assert_lane("Earthliving Weapon held on cooldown", "EarthlivingWeapon",
+    function() combat = false; earthliving_up = false; not_ready[51730] = true end, false)
 
 print("PASS test_shaman_restoration_wotlk_strategies")
