@@ -4164,17 +4164,24 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- modules (rune/presence/interrupt/fsr/ts/stealth managers) in the dofile
     -- error-handler block so later suites get the real modules back.
 
-    -- Seed binary-only game modules spec files require (present in the live
-    -- client but absent from this repo). Without this, hunter specs' item
-    -- lanes (Healthstone / potions / trinkets) silently read nil helpers and
-    -- the battery reports them never-firing even though they work in game.
-    package.loaded["common/utility/inventory_helper"] = {
-        has_item = function(id) return true end,
-        get_item_count = function(id) return 1 end,
-        is_item_ready = function(id) return true end,
-    }
-
     local ns = M.build_ns(class_key, era)
+    -- Item presence: seed the REAL read the class files use (NS.has_item,
+    -- installed by core/items.lua). The battery used to seed a package.loaded
+    -- "common/utility/inventory_helper" whose has_item member the .api module
+    -- does not actually expose -- so the battery reported hunter/shaman/priest
+    -- item lanes firing while the live client threw "attempt to call field
+    -- 'has_item' (a nil value)" on every combat tick. is_item_ready already
+    -- comes from build_ns.
+    --
+    -- The bag is "you are carrying it" EXCEPT the soulstone family: affliction
+    -- and demonology consult NS.has_item to decide whether a pre-combat
+    -- self-soulstone is still needed, and presenting one holds SelfSoulstone --
+    -- a lane a real pre-pull fires. The old stub never reached that read, so
+    -- excluding the family keeps every pinned never-fire count truthful.
+    local BATTERY_ABSENT_ITEMS = {
+        [22116] = true, [16896] = true, [16895] = true, [16893] = true, [16892] = true, [5232] = true,
+    }
+    ns.has_item = function(id) return BATTERY_ABSENT_ITEMS[id] ~= true end
     _G.EaxRotations = ns
     local had_core = _G.core
     _G.core = {

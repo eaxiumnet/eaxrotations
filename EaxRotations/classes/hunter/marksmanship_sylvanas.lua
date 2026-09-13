@@ -48,7 +48,6 @@ local shot_timer = require("shared/shot_timer_sylvanas")
 local hunter_core = require("shared/hunter_core_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
-local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 local MULTI_SHOT_CAST_MS = 500
 local AIMED_SHOT_CAST_MS = 2500
@@ -101,11 +100,15 @@ local SERPENT_STING_REFRESH_SEC = 1.5
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
-    if type(inventory_helper) ~= "table" then return nil end
-    if type(inventory_helper.has_item) ~= "function" then return nil end
+    -- NS.has_item is the repo-wide presence read (installed by core/items.lua;
+    -- used by mage/paladin/rogue/warlock/consumable_manager). The previous
+    -- `inventory_helper.has_item` call was a nil call: the .api
+    -- inventory_helper module exposes NO has_item member, so it threw
+    -- "attempt to call field 'has_item' (a nil value)" every combat tick.
+    if type(NS.has_item) ~= "function" then return nil end
     for _, id in ipairs(ids) do
-        local ok, has = pcall(inventory_helper.has_item, id)
-        if ok and has then return id end
+        local ok, has = pcall(NS.has_item, id)
+        if ok and has == true then return id end
     end
     return nil
 end

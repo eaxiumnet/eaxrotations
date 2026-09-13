@@ -126,7 +126,8 @@ package.loaded["shared/tbc_data_sylvanas"] = { SPELLS = { shaman = {} } }
 package.loaded["shared/health_pred_helper_sylvanas"] = nil
 package.loaded["shared/aoe_hit_volume_sylvanas"] = { install = function() end }
 package.loaded["shared/find_dead_party_ally_sylvanas"] = nil
-package.loaded["common/utility/inventory_helper"] = { has_item = function() return true end }
+-- Item presence comes from the real NS.has_item (core/items.lua).
+NS.has_item = function() return true end
 
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
