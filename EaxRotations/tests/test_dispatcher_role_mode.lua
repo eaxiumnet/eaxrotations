@@ -418,44 +418,53 @@ player.is_casting = function() return false end
 player.is_channeling = function() return false end
 
 -- ============================================================================
--- Rejected-cast hold (2026-09-13): the engine's own UNIT_SPELLCAST_FAILED
--- events hold an ability the client just refused, so the central cast guard
--- stops re-offering it every frame and the dispatcher falls through to the
--- next lane. Proven through the REAL dispatcher and the REAL try_cast; the
--- same tick is also shown winning with no guard installed, so the hold -- not
--- the 0.3s anti-flicker -- is what changes the outcome.
+-- Cast-confirmation state machine, refusal half (2026-09-13): the engine's own
+-- UNIT_SPELLCAST_FAILED / _FAILED_QUIET events hold an ability the client just
+-- refused, so the central cast guard stops re-offering it every frame and the
+-- dispatcher falls through to the next lane. Proven through the REAL
+-- dispatcher and the REAL try_cast; the same tick is also shown winning with
+-- no hold installed, so the refusal -- not the 0.3s anti-flicker -- is what
+-- changes the outcome. The never-acknowledged half of the same machine is
+-- proven further down, over a real caster spec.
 -- ============================================================================
-local crg = NS.CastRejectGuard
-assert_true(type(crg) == "table" and type(crg.is_held) == "function",
-    "rejected-cast guard is installed with the dispatcher")
+local cc = NS.CastConfirm
+assert_true(type(cc) == "table" and type(cc.is_held) == "function"
+    and type(cc.note_queued) == "function" and type(cc.pending_id) == "function",
+    "cast-confirmation state machine is installed with the dispatcher")
 
 NS.try_cast = real_try_cast
 
-local fail_handlers = _game_event_handlers["UNIT_SPELLCAST_FAILED"]
-assert_true(type(fail_handlers) == "table" and #fail_handlers >= 1,
-    "the guard must subscribe to UNIT_SPELLCAST_FAILED through the real dispatcher")
-local fail_quiet_handlers = _game_event_handlers["UNIT_SPELLCAST_FAILED_QUIET"]
-assert_true(type(fail_quiet_handlers) == "table" and #fail_quiet_handlers >= 1,
-    "the guard must also subscribe to UNIT_SPELLCAST_FAILED_QUIET")
-
-local function inject_reject(spell_id, unit_token)
-    for i = 1, #fail_handlers do
-        fail_handlers[i]("UNIT_SPELLCAST_FAILED", { unit_token or "player", "cast-guid", spell_id })
+-- Fire one engine cast event into every handler the real dispatcher registered
+-- for it. SENT is the one event whose spell id sits at args[4]
+-- ({ unit, target_name, cast_guid, spell_id }); every other event carries
+-- { unit, cast_guid, spell_id }.
+local function inject_event(event_name, spell_id, unit_token)
+    local handlers = _game_event_handlers[event_name]
+    assert_true(type(handlers) == "table" and #handlers >= 1,
+        "the state machine must subscribe to " .. tostring(event_name) .. " through the real dispatcher")
+    local args
+    if event_name == "UNIT_SPELLCAST_SENT" then
+        args = { unit_token or "player", "Some Target", "cast-guid", spell_id }
+    else
+        args = { unit_token or "player", "cast-guid", spell_id }
+    end
+    for i = 1, #handlers do
+        handlers[i](event_name, args)
     end
 end
 
 -- (a) Event contract: the player's refusal holds that spell, and neither a
 --     different spell id nor another unit's refusal may hold ours.
 _test_clock = 500
-crg.reset()
-inject_reject(30451)
-assert_true(crg.is_held(30451) == true, "the player's UNIT_SPELLCAST_FAILED holds the offered spell")
-assert_true(crg.is_held(30455) == false, "a refusal must not hold a different spell")
-inject_reject(30455, "target")
-assert_true(crg.is_held(30455) == false, "another unit's refusal must not hold our spell")
-assert_true(crg.remaining(30451) > 0, "the hold reports its remaining window")
-_test_clock = 500 + crg.HOLD_SEC + 0.01
-assert_true(crg.is_held(30451) == false, "the hold expires after HOLD_SEC")
+cc.reset()
+inject_event("UNIT_SPELLCAST_FAILED", 30451)
+assert_true(cc.is_held(30451) == true, "the player's UNIT_SPELLCAST_FAILED holds the offered spell")
+assert_true(cc.is_held(30455) == false, "a refusal must not hold a different spell")
+inject_event("UNIT_SPELLCAST_FAILED", 30455, "target")
+assert_true(cc.is_held(30455) == false, "another unit's refusal must not hold our spell")
+assert_true(cc.remaining(30451) > 0, "the hold reports its remaining window")
+_test_clock = 500 + cc.HOLD_SEC + 0.01
+assert_true(cc.is_held(30451) == false, "the hold expires after HOLD_SEC")
 
 -- (b) Real dispatcher. Each assertion uses a spell id that has NEVER been cast
 --     successfully, because NS.spell_ready keeps its own 2.5s cast-history
@@ -484,10 +493,10 @@ NS.rotation_registry = {
 NS.set_setting("playstyle", "reject_probe")
 NS.set_setting("active_playstyle", nil)
 NS.refresh_settings_cache()
-crg.reset()
+cc.reset()
 cast_ids = {}
 _test_clock = 600
-inject_reject(30460)
+inject_event("UNIT_SPELLCAST_FAILED", 30460)
 dispatcher.on_rotation_update()
 assert_true(cast_ids[#cast_ids] == 30465,
     "a refused lane must lose the GCD to the next lane (got " .. tostring(cast_ids[#cast_ids]) .. ")")
@@ -497,7 +506,7 @@ assert_true(cast_ids[#cast_ids] == 30465,
 -- the 0.15s manual global-GCD window the mock's zero global cooldown leaves
 -- behind; lane B is still inside its own 0.3s anti-flicker at this tick, so
 -- lane A is the only candidate that can claim it.
-crg.reset()
+cc.reset()
 cast_ids = {}
 _test_clock = 600.2
 dispatcher.on_rotation_update()
@@ -506,19 +515,19 @@ assert_true(cast_ids[#cast_ids] == 30460,
 
 -- Fresh virgin pair: the hold still holds, and it releases on its own clock.
 NS.rotation_registry.playstyles.reject_probe = probe_pair(30470, 30475)
-crg.reset()
+cc.reset()
 cast_ids = {}
 _test_clock = 601
-inject_reject(30470)
+inject_event("UNIT_SPELLCAST_FAILED", 30470)
 dispatcher.on_rotation_update()
 assert_true(cast_ids[#cast_ids] == 30475,
     "fresh pair: the refused lane still falls through (got " .. tostring(cast_ids[#cast_ids]) .. ")")
-_test_clock = 601 + crg.HOLD_SEC + 0.05
+_test_clock = 601 + cc.HOLD_SEC + 0.05
 cast_ids = {}
 dispatcher.on_rotation_update()
 assert_true(cast_ids[#cast_ids] == 30470,
     "the held lane wins the GCD back once the hold expires (got " .. tostring(cast_ids[#cast_ids]) .. ")")
-crg.reset()
+cc.reset()
 -- Hand the harness back exactly as this section found it: the later sections
 -- drive mocked casts and must not inherit this section's real cast path, clock
 -- or manual global-GCD state.
@@ -584,6 +593,138 @@ assert_true(ok_affl, "real dispatcher tick with the real affliction spec must no
 assert_eq(fired_lane, "CurseOfDoom",
     "the new Curse of Doom lane must fire through the REAL dispatcher on a boss (fired=" .. tostring(fired_lane) .. ")")
 assert_true(casts >= 1, "the new lane must emit a real cast through NS.izi.cast_safe (casts=" .. tostring(casts) .. ")")
+
+-- ============================================================================
+-- Cast-confirmation state machine, never-acknowledged half (2026-09-13): the
+-- other way a queued cast dies is silence -- the engine never reports it at all
+-- -- and that is only detectable by waiting. The machine records every cast the
+-- addon issues (mark_spell_cast) and holds the offered spell id once the
+-- confirmation window elapses with no engine event, so the dispatcher falls
+-- through to the next lane instead of re-queuing the same offer every frame.
+-- Proven through the REAL dispatcher over a REAL caster spec (affliction), the
+-- real try_cast and the real central cast guard.
+-- ============================================================================
+
+-- (a) The events that can resolve an offer are wired through the real
+--     dispatcher. STOP is deliberately absent: it fires on completion,
+--     self-cancel and kick alike, so it cannot resolve anything (a STOP handler
+--     would let a kick or a self-cancel silently clear a hold).
+for _, ev in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START",
+                      "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_INTERRUPTED",
+                      "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_FAILED",
+                      "UNIT_SPELLCAST_FAILED_QUIET" }) do
+    assert_true(type(_game_event_handlers[ev]) == "table" and #_game_event_handlers[ev] >= 1,
+        "the state machine must subscribe to " .. ev .. " through the real dispatcher")
+end
+assert_true(_game_event_handlers["UNIT_SPELLCAST_STOP"] == nil,
+    "UNIT_SPELLCAST_STOP must not be subscribed (it cannot resolve an offer)")
+
+-- (b) Fail-open arming: a host that never reports a player cast can never see a
+--     silence hold, which is what keeps the battery harness and older clients
+--     byte-for-byte on the pre-existing cast path.
+_test_clock = 1000
+cc.reset()
+assert_true(cc.armed() == false, "a fresh state machine starts disarmed")
+cc.note_queued(30401)
+_test_clock = 1000 + cc.CONFIRM_SEC + 1
+assert_true(cc.is_held(30401) == false,
+    "disarmed: a silent offer must not hold the lane")
+assert_true(cc.pending_id() == nil, "the unanswered offer is still closed out")
+assert_true(cc.count() == 0, "disarmed: no never-confirmed verdict may be recorded")
+
+-- (c) The player's own cast event arms it; another unit's never does, and can
+--     neither hold nor resolve our offers.
+_test_clock = 1100
+cc.note_queued(30402)
+inject_event("UNIT_SPELLCAST_FAILED", 30403, "target")
+assert_true(cc.is_held(30403) == false, "another unit's refusal must not hold our spell")
+assert_true(cc.armed() == false, "another unit's event must not arm the machine")
+assert_true(cc.pending_id() == 30402, "another unit's event must not resolve our offer")
+inject_event("UNIT_SPELLCAST_SUCCEEDED", 30403)
+assert_true(cc.armed() == true, "the player's own cast event arms the machine")
+_test_clock = 1100 + cc.CONFIRM_SEC
+assert_true(cc.is_held(30402) == true,
+    "an offer the engine never acknowledges is held once the window elapses")
+assert_true(cc.remaining(30402) > 0, "the silence hold reports its window")
+_test_clock = 1100 + cc.CONFIRM_SEC + cc.HOLD_SEC + 0.01
+assert_true(cc.is_held(30402) == false, "the silence hold expires on its own clock")
+
+-- (d) An acknowledgement resolves the offer, so a cast the engine did take is
+--     never punished for going quiet. SENT carries the spell id at args[4].
+for _, ev in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START",
+                      "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START",
+                      "UNIT_SPELLCAST_INTERRUPTED" }) do
+    cc.reset()
+    _test_clock = 1200
+    inject_event("UNIT_SPELLCAST_SUCCEEDED", 30409)   -- arm with an earlier cast
+    cc.note_queued(30404)
+    inject_event(ev, 30404)
+    assert_true(cc.pending_id() == nil, ev .. " must resolve the offer it names")
+    _test_clock = 1200 + cc.CONFIRM_SEC + 1
+    assert_true(cc.is_held(30404) == false, ev .. " must not leave a silence hold")
+end
+
+-- (e) The refusal half is untouched by the new one.
+cc.reset()
+_test_clock = 1300
+inject_event("UNIT_SPELLCAST_FAILED", 30405)
+assert_true(cc.is_held(30405) == true, "FAILED still holds at once")
+inject_event("UNIT_SPELLCAST_FAILED_QUIET", 30406)
+assert_true(cc.is_held(30406) == true, "FAILED_QUIET still holds at once")
+
+-- (f) REAL DISPATCHER, REAL CASTER SPEC. The real affliction warlock lanes run
+--     through the real decision loop and the REAL cast path, so the central
+--     commit point hands each queued cast to the machine. Tick 1 emits Curse of
+--     Doom; the engine then says nothing about it for the whole window, so tick
+--     2 must HOLD that lane and fall through instead of re-queueing it. The
+--     4s step also clears the central guard's own 2.5s cast-history throttle,
+--     and the final tick clears the hold at the same clock, so the hold -- not
+--     the throttle or the anti-flicker -- is what changed the outcome.
+NS.try_cast = real_try_cast
+cc.reset()
+_test_clock = 2000
+inject_event("UNIT_SPELLCAST_SUCCEEDED", 999999)   -- the engine has spoken before
+
+reset()
+cast_ids = {}
+fired_lane = nil
+local ok_cod, err_cod = pcall(dispatcher.on_rotation_update)
+assert_true(ok_cod, "first real-dispatcher affliction tick must not error: " .. tostring(err_cod))
+assert_eq(fired_lane, "CurseOfDoom",
+    "the real caster spec's Curse of Doom lane must claim the GCD (fired=" .. tostring(fired_lane) .. ")")
+local cod_id = cast_ids[#cast_ids]
+assert_true(type(cod_id) == "number",
+    "the lane must reach the real cast backend (cast_ids=" .. tostring(#cast_ids) .. ")")
+assert_eq(cc.pending_id(), cod_id,
+    "the real cast path must hand the queued cast to the machine (pending=" .. tostring(cc.pending_id()) .. ")")
+
+-- The engine stays silent for the whole window.
+_test_clock = 2004
+reset()
+cast_ids = {}
+fired_lane = nil
+local ok_silence, err_silence = pcall(dispatcher.on_rotation_update)
+assert_true(ok_silence, "the silent-window tick must not error: " .. tostring(err_silence))
+assert_true(fired_lane ~= "CurseOfDoom",
+    "a lane whose cast was never acknowledged must be held, not re-queued (fired=" .. tostring(fired_lane) .. ")")
+assert_true(cc.is_held(cod_id) == true, "the never-acknowledged offer is held")
+
+-- Non-vacuity: clear the hold and the SAME lane wins the SAME clock, so the
+-- hold is the only thing that took the GCD away above.
+cc.reset()
+_test_clock = 2008
+reset()
+cast_ids = {}
+fired_lane = nil
+local ok_release, err_release = pcall(dispatcher.on_rotation_update)
+assert_true(ok_release, "the release tick must not error: " .. tostring(err_release))
+assert_eq(fired_lane, "CurseOfDoom",
+    "with no hold the same lane wins the same GCD (fired=" .. tostring(fired_lane) .. ")")
+
+-- Hand the harness back: mocked cast path, the shared clock, no verdicts left.
+NS.try_cast = stub_try_cast
+cc.reset()
+_test_clock = 100
 
 -- ============================================================================
 -- Thin-spec guide pass (2026-09-12), part 2: the REAL warrior protection spec

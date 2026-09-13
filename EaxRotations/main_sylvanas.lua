@@ -28,16 +28,18 @@ end
 pcall(require, "shared/cast_trace_sylvanas")
 local cast_trace = NS.CastTrace
 
--- Rejected-cast hold (shared/cast_reject_guard_sylvanas.lua): the engine's own
--- UNIT_SPELLCAST_FAILED events hold an ability the client just refused, so the
--- cast guard stops re-offering it every frame (the invalid-target / wrong-weapon
--- offer loop). Pure module installed with the namespace here; fail-open when it
--- is missing -- no guard means exactly the pre-existing cast path.
-local _crg_ok, cast_reject_guard = pcall(require, "shared/cast_reject_guard_sylvanas")
-if not _crg_ok or type(cast_reject_guard) ~= "table" or type(cast_reject_guard.install) ~= "function" then
-    cast_reject_guard = nil
+-- Cast confirmation (shared/cast_confirm_sylvanas.lua): every cast the addon
+-- queues is resolved against the engine's own cast events -- an acknowledgement
+-- clears it, a refusal holds it, and silence past the confirmation window holds
+-- it too. A held ability is skipped by the central cast guard instead of being
+-- re-queued every frame (the invalid-target / wrong-weapon offer loop). Pure
+-- module installed with the namespace here; fail-open when it is missing -- no
+-- module means exactly the pre-existing cast path.
+local _cc_ok, cast_confirm = pcall(require, "shared/cast_confirm_sylvanas")
+if not _cc_ok or type(cast_confirm) ~= "table" or type(cast_confirm.install) ~= "function" then
+    cast_confirm = nil
 else
-    pcall(cast_reject_guard.install, NS)
+    pcall(cast_confirm.install, NS)
 end
 
 local M = {}
