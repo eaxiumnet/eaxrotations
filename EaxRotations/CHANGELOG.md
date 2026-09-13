@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Feature - Targeting: smart auto-targeting, seven priority override slots, party-combat pull mode
+
+- **Smart auto-targeting** (`shared/targeting_sylvanas.lua`): the rotation can
+  only act on a target the player selected, so a player who has not clicked
+  anything gets a dead rotation and a target that dies mid-fight leaves the next
+  cast targetless. New Targeting menu section with an **Auto Target** dropdown:
+  `Off` (default - never touches your selection), `Assist` (only in combat, only
+  when you have no live target: rescues a fight, never starts one) and `Auto`
+  (also out of combat, still gated by the pull mode).
+- **Seven override slots**: pin up to seven priority targets from the Targeting
+  section by targeting a mob and clicking a slot button; clicking it again
+  clears it. Slot 1 beats slot 2; a pin whose mob is not present is skipped, so a
+  stale pin never blinds the rotation.
+- **Party-combat pull mode**: a new `Party combat` option in the Pull Mode
+  dropdown opens the rotation up when a group member has pulled, instead of
+  requiring your own combat flag.
+- Safety: auto-targeting is opt-in and defaults to Off (one cached setting read
+  per tick when off); it never runs mid-cast or mid-channel, never picks a tapped
+  mob while leveling, is throttled, and fails open when `core.input.set_target`
+  is unavailable. The player's own selection is always kept unless a pinned
+  override outranks it.
+- Pinned in `test_boss_count.lua` with 25 new assertions (party-combat fire/hold,
+  override priority + stale-pin fallthrough + out-of-range slot, and the full
+  auto-target gate matrix including the off/dispatch and mid-cast holds).
+  Non-vacuity proven by neutering the party-combat branch.
+
+
 ### Fix - live-client cast spam: the engine's own refusal now holds the ability
 
 - The rotation had no way to learn that the client refused a cast. A lane that
