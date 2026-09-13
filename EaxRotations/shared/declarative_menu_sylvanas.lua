@@ -369,6 +369,69 @@ function M:initialize(schema, class_config, MenuTheme, playstyle_keys,
     end
 
     -- ======================================================================
+    -- Targeting section (2026-09-13): the player-facing half of
+    -- shared/targeting_sylvanas.lua -- smart auto-targeting, the pull mode and
+    -- the seven priority override slots. Auto Target defaults to Off, so
+    -- nothing here changes behavior until a player opts in.
+    -- ======================================================================
+    local tgt_ok, tgt_section = pcall(page.section, page, "Targeting", nil, {
+        column = "full",
+        collapsed = true,
+    })
+    if tgt_ok and tgt_section then
+        tgt_section:dropdown("eax_auto_target", "Auto Target",
+            { "Off", "Assist (in combat)", "Auto (also out of combat)" }, 1, {
+                description = "Pick a target for you when you have none. Off never touches your selection.",
+            })
+        _widget_registry[#_widget_registry + 1] = {
+            id = "eax_auto_target", type = "dropdown",
+            option_values = { "off", "assist", "auto" },
+            default_index = 1,
+        }
+        tgt_section:dropdown("eax_pull_mode", "Pull Mode",
+            { "Combat only", "Party combat", "Full auto", "HUD target" }, 1, {
+                description = "When the rotation may start a fight. Party combat opens up when your group has pulled.",
+            })
+        _widget_registry[#_widget_registry + 1] = {
+            id = "eax_pull_mode", type = "dropdown",
+            option_values = { "combat_only", "party_combat", "full_auto", "hud_target" },
+            default_index = 1,
+        }
+        -- Seven priority override slots. The engine exposes no text-input
+        -- widget, so a slot is filled by targeting the mob and clicking: the
+        -- button stores that mob's name, and clicking it again clears the slot.
+        -- Slots are priority order (1 highest), resolved by
+        -- Targeting.override_target().
+        for slot = 1, 7 do
+            tgt_section:button("eax_pin_target_" .. slot, "Pin Target to Override Slot " .. slot, {
+                description = "Store your current target in slot " .. slot
+                    .. " (priority " .. slot
+                    .. " of 7). Click again while it holds the same mob to clear.",
+                on_click = function()
+                    local ns = _G.EaxRotations
+                    if not ns or type(ns.set_setting) ~= "function" then return end
+                    local key = "eax_override_target_" .. slot
+                    local held = type(ns.get_setting) == "function" and ns.get_setting(key, nil) or nil
+                    local unit = type(ns.GetTarget) == "function" and ns.GetTarget() or nil
+                    local name = nil
+                    if unit and type(unit.get_name) == "function" then
+                        local ok, value = pcall(unit.get_name, unit)
+                        if ok and type(value) == "string" and value ~= "" then name = value end
+                    end
+                    if not name or held == name then
+                        pcall(ns.set_setting, key, nil)
+                    else
+                        pcall(ns.set_setting, key, name)
+                    end
+                    if ns.Targeting and type(ns.Targeting.reset_override_cache) == "function" then
+                        pcall(ns.Targeting.reset_override_cache)
+                    end
+                end,
+            })
+        end
+    end
+
+    -- ======================================================================
     -- Diagnostics section
     -- ======================================================================
     local diag_ok, diag_section = pcall(page.section, page, "Diagnostics", nil, {

@@ -1824,6 +1824,16 @@ function M.on_rotation_update()
         return false
     end
     if context.in_combat and aft and aft.on_update then pcall(aft.on_update, context) end
+
+    -- Smart auto-targeting (shared/targeting_sylvanas.lua). OPT-IN -- the
+    -- setting defaults to off, in which case this is one cached read per tick
+    -- and the player's own selection is never touched. When on, it selects a
+    -- target only when the mode allows (see M.update): never mid-cast, never a
+    -- surprise pull for a combat_only player, never a tapped mob while leveling.
+    local targeting_mod = NS.Targeting
+    if targeting_mod and type(targeting_mod.update) == "function" then
+        pcall(targeting_mod.update, context)
+    end
     -- Get class_key early so we can run middleware for OOC utilities even in pure no-target non-leveling cases.
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
@@ -1942,6 +1952,16 @@ function M.on_rotation_update_unified()
         return false
     end
     if context.in_combat and aft and aft.on_update then pcall(aft.on_update, context) end
+
+    -- Smart auto-targeting (shared/targeting_sylvanas.lua). OPT-IN -- the
+    -- setting defaults to off, in which case this is one cached read per tick
+    -- and the player's own selection is never touched. When on, it selects a
+    -- target only when the mode allows (see M.update): never mid-cast, never a
+    -- surprise pull for a combat_only player, never a tapped mob while leveling.
+    local targeting_mod = NS.Targeting
+    if targeting_mod and type(targeting_mod.update) == "function" then
+        pcall(targeting_mod.update, context)
+    end
     -- Get class_key early so we can run middleware for OOC utilities even in pure no-target non-leveling cases.
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
