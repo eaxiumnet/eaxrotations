@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### Fix - wrong-family spell ids in the TBC / SoD / WotLK ladders
+
+- The 2026-09-13 spell-id sweep found ladders headed by an id that resolves to a
+  *different spell*. `NS.get_spell_id` takes the first id the player knows, so a
+  wrong head is what gets cast - not skipped. Every row was verified against the
+  local TBC bridge and Wowhead before the fix.
+- `mage/class_sylvanas.lua` IceBlock: the head was 11958 = Cold Snap, so a TBC
+  mage already holding Cold Snap never reached Ice Block. The ladder is now
+  `{45438, 27619}` (45438 = the TBC Ice Block with Hypothermia, 27619 = the
+  Classic one).
+- SoD hunter (`hunter/dps_hunter_sod.lua`): Aspect of the Hawk was headed by
+  13159 = Aspect of the Pack (the hunter ran Pack, dazing itself on melee hits),
+  Volley by 27019 = Arcane Shot rank 9 (the AoE lane cast a single-target shot),
+  and Hunter's Mark by 30706 = a shaman Totem of Wrath (never known, so the lane
+  silently fell through to its lowest rank). All three are now the real
+  descending rank lists, and the two buff tables mirror them.
+- SoD bear (`druid/tank_sod.lua`): Demoralizing Roar was headed by 16857 =
+  Faerie Fire (Feral), so the bear cast FF and never the -AP roar.
+- Hunter Immolation Trap (`hunter/class_sylvanas.lua` and
+  `hunter/survival_sylvanas.lua`): the TBC head was 29906 = Ravage (a pet
+  ability) and the tail carried the DoT *effect* spells, not the trap cast. The
+  ladder is now the real trap ranks only.
+- SoD shaman (`elemental` / `enhancement` / `warden`): the Lightning Bolt ladder
+  carried 930 = Chain Lightning rank 1 in place of 915 = Lightning Bolt rank 6.
+- Wrong-family tails removed: 548 (Lightning Bolt) from Power Word: Shield
+  (`priest/leveling_wotlk.lua`); 2944 (Devouring Plague) from Shadow Word: Death
+  (`priest/shadow_wotlk.lua`); 51414 / 51415 / 51420 / 51421 (Venomous Breath
+  Aura, Venomous Breath, Digging for Treasure Ping, Fire Cannon) from Frost
+  Strike (`deathknight/frost_wotlk.lua`).
+- Paladin Holy Wrath (`paladin/protection_wotlk.lua` and
+  `paladin/leveling_wotlk.lua`): the ladder carried 37897 = Parachute and
+  31898 = Judgement of Blood behind the correct 48817 head. Replaced with the
+  real era-shared ranks 27139 / 10318 / 2812.
+- Pin tables: `run_wotlk_audit_tests.lua` lost the two disproven Holy Wrath
+  pins, gained the real era-shared Holy Wrath ranks (they are TBC-era ids, so
+  the era-family classifier needs them pinned), and its 2944 entry is relabelled
+  Devouring Plague - the id is legitimate, the SW:Death label was not. The
+  allowlist size pin was re-measured from the table, 256 -> 257.
+- Test-side stubs that repeated the same wrong ids were cleaned
+  (`test_leveling_load`, `test_hunter_middleware_viper_sting`,
+  `test_frost_deathknight_wotlk_strategies`, `test_deathknight_wotlk_live_fixes`,
+  `test_hunter_live_fixes`, the SoD buff mock in `test_sod_druid_hunter`), and
+  `test_mage_vanilla_live_fixes` had been asserting the wrong Ice Block ladder.
+- Proof: 563/563 rotation suites, leveling 39/39, WotLK runner 82/82, battery
+  never-fires unchanged (TBC 11 / vanilla 9 / SoD 0 / WotLK 0), all audits 0
+  invalid, `verify_all` exit 0. Offline-verified against the bridge and Wowhead;
+  not observed on a live client.
+
 ### Feature - Targeting: smart auto-targeting, seven priority override slots, party-combat pull mode
 
 - **Smart auto-targeting** (`shared/targeting_sylvanas.lua`): the rotation can
