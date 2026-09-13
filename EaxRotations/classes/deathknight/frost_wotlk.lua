@@ -37,7 +37,10 @@ local ACTION = {
     PlagueStrike = define("PlagueStrike", { 49921, 49917, 49918, 49919, 49920 }, "PlagueStrike"),
     Obliterate = define("Obliterate", { 51425, 49020, 51423, 51424 }, "Obliterate"),
     HowlingBlast = define("HowlingBlast", { 51411, 49184, 51409, 51410 }, "HowlingBlast"),
-    FrostStrike = define("FrostStrike", { 55268, 49143, 51414, 51415, 51416, 51417, 51418, 51419, 51420, 51421 }, "FrostStrike"),
+    -- Real Frost Strike ranks only (55268 r80 .. 49143). 51414 Venomous Breath
+    -- Aura, 51415 Venomous Breath, 51420 Digging for Treasure Ping and 51421
+    -- Fire Cannon were wrong-family ids padded into the ladder.
+    FrostStrike = define("FrostStrike", { 55268, 51419, 51418, 51417, 51416, 49143 }, "FrostStrike"),
     BloodStrike = define("BloodStrike", { 49930, 45902, 49926, 49927, 49928, 49929 }, "BloodStrike"),
     HornOfWinter = define("HornOfWinter", { 57623, 57330 }, "HornOfWinter"),
     UnbreakableArmor = define("UnbreakableArmor", 51271, "UnbreakableArmor"),

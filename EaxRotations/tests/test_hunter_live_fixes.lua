@@ -49,7 +49,7 @@ _G.EaxRotations = {
         AimedShot = 27065, ArcaneShot = 27019, AspectOfTheHawk = 27044,
         AspectOfTheViper = 34074, BestialWrath = 19574, CallPet = 883,
         ConcussiveShot = 5116, ExplosiveTrap = 27025, FeignDeath = 5384,
-        FreezingTrap = 14311, HuntersMark = 14325, ImmolationTrap = 29906,
+        FreezingTrap = 14311, HuntersMark = 14325, ImmolationTrap = 27023,
         Intimidation = 19577, KillCommand = 34026, MendPet = 27046,
         Misdirection = 34477, MongooseBite = 14271, MultiShot = 27021,
         RapidFire = 3045, RaptorStrike = 27014, Readiness = 23989,

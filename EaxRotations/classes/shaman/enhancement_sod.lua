@@ -15,7 +15,9 @@ local ACTION = {
     ShamanisticRage = define("ShamanisticRage", 425336, nil, "ShamanisticRage"),
     LavaBurst = define("LavaBurst", 408490, { rune_id = 408490 }, "LavaBurst"),
     MaelstromGate = define("MaelstromWeapon", 408498, { rune_id = 408498, min_phase = 2 }, "MaelstromWeapon"),
-    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 930, 548, 529, 403 }, nil, "LightningBolt"),
+    -- 915 (Lightning Bolt r6 at 20), not 930 (Chain Lightning r1) — the
+    -- sweep caught the rank-1 chain bolt padding this ladder.
+    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 915, 548, 529, 403 }, nil, "LightningBolt"),
     ChainLightning = define("ChainLightning", { 10605, 2860, 930, 421 }, nil, "ChainLightning"),
     Stormstrike = define("Stormstrike", 17364, nil, "Stormstrike"),
     LavaLash = define("LavaLash", 408507, { rune_id = 408507 }, "LavaLash"),

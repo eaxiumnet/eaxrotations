@@ -6,7 +6,7 @@
 --        RemoveCurse combat+curse gates / BlastWave AoE lane; frost
 --        FireBlast-vs-Frostbolt order / Polymorph PvP gate / RemoveCurse gates /
 --        IceBarrier rank 1; leveling polymorph + remove_curse inversion fixes;
---        shared class IceBlock ids {11958, 27619}.
+--        shared class IceBlock ids {45438, 27619} (11958 is Cold Snap).
 -- WHEN:  standalone; registered in run_rotation_tests.lua (Wave 1.5 close-out).
 -- WHY:   audit-verified live bugs; this test pins the fixed behavior.
 -- SAFETY: Pure unit tests with a mocked _G.EaxRotations; no game API calls.
@@ -347,9 +347,12 @@ for _, t in ipairs(captured) do
     if t and t.name == "IceBlock" then ice_block_entry = t break end
 end
 assert_true(ice_block_entry ~= nil, "class MageSpells must define IceBlock")
-assert_eq(table.concat(ice_block_entry.ids, ","), "11958,27619",
-    "IceBlock ids must be {11958, 27619} (45438 does not exist in the 2.5.5 DBC)")
-assert_true(class_ns.MageSpells.IceBlock.ids[1] == 11958 and class_ns.MageSpells.IceBlock.ids[2] == 27619,
-    "IceBlock rank ladder must be 11958 (R1) then 27619 (R2)")
+-- 2026-09-13 spell-id sweep: the old assertion pinned the bug. 45438 is the
+-- TBC Ice Block (Hypothermia, wowhead.com/tbc/spell=45438), 27619 the Classic
+-- one (wowhead.com/classic/spell=27619); 11958 is Cold Snap.
+assert_eq(table.concat(ice_block_entry.ids, ","), "45438,27619",
+    "IceBlock ids must be {45438, 27619} (11958 is Cold Snap, not Ice Block)")
+assert_true(class_ns.MageSpells.IceBlock.ids[1] == 45438 and class_ns.MageSpells.IceBlock.ids[2] == 27619,
+    "IceBlock rank ladder must be 45438 (TBC) then 27619 (Classic fallback)")
 
 print("PASS test_mage_vanilla_live_fixes")

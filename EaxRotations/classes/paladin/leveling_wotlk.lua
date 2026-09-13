@@ -47,10 +47,14 @@ local ACTION = {
     -- Full Exorcism ladder { 48801 ... 879 }: the level-1 rank is what a
     -- leveling toon trains first; first-known-wins picks the right rank.
     Exorcism = define("Exorcism", { 48801, 27138, 10314, 10313, 10312, 5615, 5614, 879 }, "Exorcism"),
-    -- Holy Wrath { 48817 r5, 37897 r4, 31898 r3 }: the three WotLK-trained
-    -- ranks, identical ladder to protection_wotlk (TBC/vanilla ranks are
-    -- rejected by the audit's era-family check).
-    HolyWrath = define("HolyWrath", { 48817, 37897, 31898 }, "HolyWrath"),
+    -- Holy Wrath: identical ladder to protection_wotlk (the era-shared ranks
+    -- are pinned in WOTLK_REFERENCE_ALIASES so the era-family check sees them).
+    -- Holy Wrath ladder: 48817 is the WotLK max rank (30s CD, self-centered
+    -- Holy AoE + undead/demon stun, wowhead.com/wotlk/spell=48817), then the
+    -- era-shared ranks 27139 (69), 10318 (60), 2812 (50). The old tail
+    -- 37897 is Parachute and 31898 is Judgement of Blood — both wrong-family
+    -- ids the pin table had mislabelled as Holy Wrath ranks.
+    HolyWrath = define("HolyWrath", { 48817, 27139, 10318, 2812 }, "HolyWrath"),
 }
 
 local SEAL_OF_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
