@@ -156,18 +156,9 @@ local DAMAGE_CASTS = {
     [403] = true, [529] = true, [548] = true, [915] = true, [943] = true, [6041] = true, [10391] = true, [10392] = true, [15207] = true, [15208] = true, [25448] = true, [25449] = true,
 }
 
-local safe_method
-pcall(function() safe_method = NS and NS.safe_method end)
-if type(safe_method) ~= "function" then
-    safe_method = function(unit, method_name)
-        if unit == nil then return nil end
-        local fn = unit[method_name]
-        if type(fn) ~= "function" then return nil end
-        local ok, value = pcall(fn, unit)
-        if ok then return value end
-        return nil
-    end
-end
+-- Single owner (2026-09-12): shared/safe_helpers_sylvanas.
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe_method = NS and NS.safe_method or safe_helpers.safe_method
 
 --- Detect whether a target is actively channeling a spell.
 local function is_target_channeling(target)

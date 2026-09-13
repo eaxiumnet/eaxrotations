@@ -273,23 +273,10 @@ local CAT_SCHEMA = {
 -- available (real game); falls back to no caching in test environments.
 local _last_build_state_time = -1
 
-local function safe_method(object, method_name, fallback)
-    if not object then return fallback end
-    local method = object[method_name]
-    if type(method) ~= "function" then return fallback end
-    local ok, value = pcall(method, object)
-    if not ok or value == nil then return fallback end
-    return value
-end
-
-local function safe_method_arg(object, method_name, arg, fallback)
-    if not object then return fallback end
-    local method = object[method_name]
-    if type(method) ~= "function" then return fallback end
-    local ok, value = pcall(method, object, arg)
-    if not ok or value == nil then return fallback end
-    return value
-end
+-- Single owner (2026-09-12): shared/safe_helpers_sylvanas.
+local safe_helpers = require("shared/safe_helpers_sylvanas")
+local safe_method = safe_helpers.safe_method_or
+local safe_method_arg = safe_helpers.safe_method_arg_or
 
 
 

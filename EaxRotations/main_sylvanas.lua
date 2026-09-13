@@ -13,12 +13,14 @@ local _core = _G.core or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local lazy_context = require("shared/lazy_context_sylvanas")
--- Engine cast/channel end-time gate (see shared/cast_timing_sylvanas.lua). Pure
--- module; a missing file degrades to "unknown timing" (fail-open) rather than
--- breaking the dispatcher.
-local _cast_timing_ok, cast_timing = pcall(require, "shared/cast_timing_sylvanas")
-if not _cast_timing_ok or type(cast_timing) ~= "table" then
-    cast_timing = { remaining = function() return nil end }
+-- Engine signal registry (shared/engine_signals_sylvanas.lua): THE landing
+-- place for every "read a raw engine API -> publish a normalised context key"
+-- signal. Adding one is a single entry in that module; this file does not change.
+-- Its cast/channel readers wrap shared/cast_timing_sylvanas.lua, so the
+-- dispatcher no longer requires it directly. A missing module no-ops (fail-open).
+local _signals_ok, engine_signals = pcall(require, "shared/engine_signals_sylvanas")
+if not _signals_ok or type(engine_signals) ~= "table" or type(engine_signals.publish) ~= "function" then
+    engine_signals = { publish = function() end }
 end
 -- CastTrace (the in-game "why" trace) is a shared subsystem module that
 -- sets NS.CastTrace at load; requiring it here keeps the recorder available
@@ -946,31 +948,16 @@ local function build_context()
     if not _context.is_casting and not _context.is_channeling then
         _context.is_channeling = unit_bool(me, "is_channeling_or_casting")
     end
-    -- Engine cast/channel END TIME (shared/cast_timing_sylvanas.lua). The
-    -- is_casting/is_channeling booleans above say *whether* something is
-    -- running; this says *how long is left*, which is what the interrupt gate
-    -- needs: a cast that lands before the interrupt arrives must not claim the
-    -- cooldown. Fail-open: 0 = unknown/none, so every gate behaves exactly as it
-    -- did before this signal existed.
-    _context.target_cast_remaining = 0
-    if target then
-        local target_remaining = cast_timing.remaining(target)
-        if type(target_remaining) == "number" and target_remaining > 0 then
-            _context.target_cast_remaining = target_remaining
-        end
-    end
-    -- Channel-clip opt-in (2026-09-12): the id of the channel the PLAYER is
-    -- currently running, so the dispatcher can tell whether this channel is one
-    -- the active spec declared clip-managed (registry.channel_clip_ids) and may
-    -- therefore re-enter the decision loop mid-channel. 0 = none/unknown, which
-    -- keeps the pre-existing blanket channel skip.
-    _context.channel_spell_id = 0
-    if _context.is_channeling then
-        local channel_id = cast_timing.channel_id(me)
-        if type(channel_id) == "number" and channel_id > 0 then
-            _context.channel_spell_id = channel_id
-        end
-    end
+    -- ENGINE SIGNALS (shared/engine_signals_sylvanas.lua). All engine-derived
+    -- signals publish from one registry, so the next signal is a single entry
+    -- there and nothing here changes. Reads include the cast/channel end time
+    -- (is_casting says WHETHER a cast runs, the end time says HOW LONG is left -
+    -- what an interrupt gate needs so a cast that lands first cannot claim the
+    -- cooldown), the player's channel id for the clip-managed channel opt-in
+    -- (registry.channel_clip_ids -> re-enter the loop mid-channel), and the
+    -- school lockout bitmask that lets a spec fall back off-school. Each signal
+    -- fails open to its documented default (0 = none/unknown).
+    engine_signals.publish(_context, me, target, _context.is_channeling)
 
     -- PvP detection: health_prediction platform module, fallback to zone-based detection
     if health_prediction and type(health_prediction.is_pvp_situation) == "function" and target then
@@ -1495,21 +1482,9 @@ local function build_context()
     end
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
     _context.player_control_locked = _api.player_control_locked and _api.player_control_locked() or false
-    -- Engine school lockout (interrupted school): the native LoC info carries
-    -- lockout_school as a schools_flag bitmask. Published so specs can fall
-    -- back to their OFF-SCHOOL spell instead of queueing a locked cast
-    -- (shared/spell_school_gate_sylvanas.lua). Fail-open: a client/harness
-    -- without the field leaves the mask at 0 = "nothing locked".
-    _context.school_lockout = 0
-    if me then
-        local loc_fn = _api.safe_field and _api.safe_field(me, "get_loss_of_control_info") or nil
-        if loc_fn then
-            local ok, loc = pcall(fast, loc_fn, me)
-            if ok and type(loc) == "table" and loc.valid and type(loc.lockout_school) == "number" and loc.lockout_school > 0 then
-                _context.school_lockout = loc.lockout_school
-            end
-        end
-    end
+    -- school_lockout is published by shared/engine_signals_sylvanas.lua (see the
+    -- ENGINE SIGNALS call above); it moved there so every engine signal has one
+    -- owner. Same reader, same fail-open 0 = "nothing locked".
     _context.combat_length_forecast = _context.ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)

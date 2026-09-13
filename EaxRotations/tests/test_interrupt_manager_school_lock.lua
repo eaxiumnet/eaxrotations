@@ -13,6 +13,8 @@ local function assert_true(v, label) if not v then error(label or "assert_true f
 local function assert_false(v, label) if v then error(label or "assert_false failed: expected false", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
+
 -- Minimal NS mock
 local _mock_time = 0
 local NS = {
