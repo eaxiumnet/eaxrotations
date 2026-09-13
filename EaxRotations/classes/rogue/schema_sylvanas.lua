@@ -42,6 +42,7 @@ return {
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Blade Flurry when a nearby enemy is Polymorphed/Sapped/etc." },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Cloak/Vanish)", default = true, tooltip = "Preemptively Cloak or Vanish when enemy casts Polymorph/Fear/Blind at you" },
                     { key = "rogue_poison_check", type = "checkbox", label = "Poison Check", default = true, tooltip = "Warn when weapon poisons are missing in combat. Applies to all rogue specs." },
+                    { key = "rogue_auto_apply_poisons", type = "checkbox", label = "Auto-Apply Poisons", default = true, tooltip = "Out of combat, apply Instant Poison to the main hand and Deadly Poison to the off hand, using the highest rank in your bags." },
                     { key = "rogue_use_vanish_defensive", type = "checkbox", label = "Vanish (Emergency)", default = false },
                     { key = "rogue_vanish_hp", type = "slider", label = "Vanish HP", min = 10, max = 40, default = 20 },
                     { key = "rogue_vanish_in_raid", type = "checkbox", label = "Vanish on Raid Bosses", default = false },

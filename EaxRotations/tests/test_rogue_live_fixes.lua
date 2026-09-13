@@ -292,4 +292,76 @@ at(cloak.matches({ target = {}, settings = { rogue_use_cloak = true, rogue_cloak
     { hp = 100, is_caster_target = true }),
     "Cloak must remain allowed at full HP in PvP")
 
+-- 17. Weapon poison upkeep (2026-09-13): the lane that only WARNED now applies.
+--     Module-level pins against the real shared/weapon_poison_sylvanas - the
+--     apply surface is item-on-weapon (NS.use_item_by_id(poison, weapon)), the
+--     same call the archived original EAX rogue poison manager used in game.
+local WeaponPoison = dofile("EaxRotations/shared/weapon_poison_sylvanas.lua")
+at(type(WeaponPoison) == "table", "weapon poison module must load")
+
+local mh_weapon = { get_item_id = function() return 2819 end }  -- Cross Dagger
+local oh_weapon = { get_item_id = function() return 2092 end }  -- Worn Dagger
+local enchanted = { mh = false, oh = false }
+_G.GetWeaponEnchantInfo = function() return enchanted.mh, 0, 0, 0, enchanted.oh end
+local owned = {}
+local applied_calls = {}
+local pns = {
+    time_now = function() return 100 end,
+    GetPlayer = function()
+        return { get_item_at_inventory_slot = function(_, slot)
+            if slot == 16 then return { object = mh_weapon } end
+            if slot == 17 then return { object = oh_weapon } end
+            return nil
+        end }
+    end,
+    has_item = function(id) return owned[id] == true end,
+    use_item_by_id = function(id, target)
+        applied_calls[#applied_calls + 1] = { id = id, target = target }
+        return true
+    end,
+}
+
+-- (a) the engine reports an enchant -> live, nothing to do.
+enchanted.mh, enchanted.oh = true, true
+at(WeaponPoison.slot_status(pns, 16) == WeaponPoison.STATUS.LIVE, "an enchanted main hand must read live")
+af(WeaponPoison.needs_poison(pns, 200), "a live poison must not need a re-apply")
+
+-- (b) bare weapons + one owned poison -> ready, and the apply targets the weapon.
+WeaponPoison.reset()
+enchanted.mh, enchanted.oh = false, false
+owned = { [8928] = true }  -- Instant Poison VI only
+at(WeaponPoison.best_owned(pns, "instant") == 8928, "best_owned must pick the owned rank")
+at(WeaponPoison.best_owned(pns, "deadly") == nil, "an unowned kind must read nil")
+at(WeaponPoison.slot_status(pns, 16) == WeaponPoison.STATUS.READY, "a bare main hand with an owned poison must read ready")
+at(WeaponPoison.needs_poison(pns, 200), "a ready slot must need a poison")
+local applied, applied_slot, applied_id = WeaponPoison.try_apply(pns, 200)
+at(applied == true and applied_slot == 16 and applied_id == 8928, "try_apply must apply the owned rank to the main hand")
+at(applied_calls[1] and applied_calls[1].id == 8928 and applied_calls[1].target == mh_weapon,
+    "the poison must be used ON the weapon object")
+
+-- (c) the highest owned rank wins.
+owned = { [8926] = true, [8928] = true }
+at(WeaponPoison.best_owned(pns, "instant") == 8928, "the highest owned rank must win")
+
+-- (d) after an apply the slot is assumed: no second apply, throttle and window.
+at(WeaponPoison.slot_status(pns, 16, 201) == WeaponPoison.STATUS.ASSUMED, "an applied slot must read assumed")
+af(WeaponPoison.try_apply(pns, 202), "the apply must be throttled inside 5s")
+af(WeaponPoison.try_apply(pns, 400), "an assumed slot must not be re-applied past the throttle")
+
+-- (e) a weapon swap invalidates the assumed reading (a new blade is bare).
+mh_weapon = { get_item_id = function() return 2089 end }  -- Scrimshaw Dagger
+at(WeaponPoison.slot_status(pns, 16, 500) == WeaponPoison.STATUS.READY, "a weapon swap must invalidate the assumed poison")
+
+-- (f) bare weapon and nothing in the bags -> warn, and there is nothing to apply.
+owned = {}
+at(WeaponPoison.warn_state(pns, 600), "a bare weapon with no poison item must raise the warning state")
+at(WeaponPoison.missing(pns, 600), "a bare weapon must read as missing a poison")
+af(WeaponPoison.try_apply(pns, 600), "nothing may be applied when no poison item is owned")
+
+-- (g) when GetWeaponEnchantInfo is unavailable the item enchant fields decide.
+_G.GetWeaponEnchantInfo = nil
+mh_weapon = { get_item_id = function() return 2819 end, item_has_enchant = function() return true end }
+WeaponPoison.reset()
+at(WeaponPoison.slot_status(pns, 16, 700) == WeaponPoison.STATUS.LIVE, "the item enchant field must also read live")
+_G.GetWeaponEnchantInfo = function() return enchanted.mh, 0, 0, 0, enchanted.oh end
 print("PASS test_rogue_live_fixes")

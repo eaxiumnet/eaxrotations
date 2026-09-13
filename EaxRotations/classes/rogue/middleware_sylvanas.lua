@@ -13,6 +13,8 @@ local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylv
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local _imbue_ok, WeaponImbue = pcall(require, "shared/weapon_imbue_sylvanas")
+local _poison_ok, WeaponPoison = pcall(require, "shared/weapon_poison_sylvanas")
+if not _poison_ok or type(WeaponPoison) ~= "table" then WeaponPoison = nil end
 if not _imbue_ok or type(WeaponImbue) ~= "table" then WeaponImbue = nil end
 local SPELLS = NS.RogueSpells or {}
 local scan_cache = require("shared/middleware_scan_cache_sylvanas")
@@ -325,37 +327,61 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- Weapon Poison Check: warns when MH/OH poisons are missing or about to expire
+    -- Weapon poison upkeep (2026-09-13). The old lane only WARNED that a weapon
+    -- had no poison - nothing ever applied one, so the weapons stayed bare and
+    -- the spec lost both the poison damage and the poison-stack gates. Detection
+    -- and application now live in shared/weapon_poison_sylvanas; this lane owns
+    -- WHEN, and the in-combat warning stays as the honest fallback.
     -- ============================================================================
+    {
+        name = "AutoPoison",
+        priority = 1000,
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "rogue_auto_apply_poisons", true) then return false end
+            -- Out of combat by construction: the apply is an inventory action
+            -- (item on weapon), which must not fight the cast queue at 20 Hz.
+            if context.in_combat then return false end
+            if not WeaponPoison then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            return WeaponPoison.missing(NS, now)
+        end,
+        execute = function(context)
+            if not WeaponPoison then return false end
+            local ok, applied, slot, poison_id = pcall(WeaponPoison.try_apply, NS)
+            if ok and applied then
+                if NS.log then
+                    NS.log("[ROGUE] Applied poison " .. tostring(poison_id) .. " to weapon slot " .. tostring(slot) .. " (out of combat)")
+                end
+                return true
+            end
+            return false
+        end,
+    },
+
+    -- In-combat warning: a bare weapon while fighting. Silent when the upkeep
+    -- lane owns a poison it can apply; explicit when nothing in the bags can fix it.
     {
         name = "PoisonCheck",
         matches = function(context)
             if not spec_kit.setting_bool(context, "rogue_poison_check", true) then return false end
             local now = NS.time_now and NS.time_now() or 0
             if now - _last_poison_warn < 30 then return false end
-            if not WeaponImbue then return false end
+            if not WeaponPoison then return false end
             if not context.in_combat then return false end
-            -- Check if we have poisons applied
-            local rec = WeaponImbue.get_recommended_imbue("rogue")
-            if not rec then return false end
-            local missing = false
-            if rec.mh and not WeaponImbue.has_imbue("mainhand", rec.mh) then
-                missing = true
-            end
-            if rec.oh and not WeaponImbue.has_imbue("offhand", rec.oh) then
-                missing = true
-            end
-            if missing then
-                _last_poison_warn = now
-                return true
-            end
-            return false
+            if not WeaponPoison.missing(NS, now) then return false end
+            _last_poison_warn = now
+            return true
         end,
         execute = function(context)
-            if NS.log then NS.log("[ROGUE] ⚠️ Weapon poisons missing — apply Instant Poison (MH) and Deadly Poison (OH)") end
+            if WeaponPoison and WeaponPoison.warn_state(NS, NS.time_now and NS.time_now() or 0) then
+                if NS.log then NS.log("[ROGUE] ⚠️ Weapon has no poison and no poison item is in the bags - buy Instant/Deadly Poison and the out-of-combat upkeep will apply it") end
+            else
+                if NS.log then NS.log("[ROGUE] ⚠️ Weapon poison missing - the out-of-combat upkeep applies it between pulls") end
+            end
             return false
         end,
     },
+
 
     -- ============================================================================
     -- PvP CC Gate: placed at END of middleware so defensives (Evasion, Vanish, Cloak) still fire.
