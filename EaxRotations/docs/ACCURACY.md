@@ -202,5 +202,5 @@ A rating below S is never silent: every non-firing rule is individually document
 ## How to check this yourself
 
 - Full engineering detail (every rule, every reason): `docs/scorecard.md`.
-- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (563 rotation suites + leveling + four era batteries + this page’s drift check).
+- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (564 rotation suites + leveling + four era batteries + this page’s drift check).
 - Regenerate this page and the scorecard: `lua tools/spec_scorecard.lua`.
