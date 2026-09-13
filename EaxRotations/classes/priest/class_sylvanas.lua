@@ -370,8 +370,8 @@ local SPELLS = {
     }),
     Resurrection = NS.spell_action({
         name = "Resurrection",
-        ids = {20770, 10881, 10880, 2010, 2006},
-        levels = {58, 46, 34, 22, 10},
+        ids = {25435, 20770, 10881, 10880, 2010, 2006},
+        levels = {68, 58, 46, 34, 22, 10},
         cast_time = 10,
         cooldown = 0,
         power_cost = 60,

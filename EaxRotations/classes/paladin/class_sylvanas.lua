@@ -90,8 +90,8 @@ local SPELLS = {
     }),
     BlessingOfLight = NS.spell_action({
         name = "BlessingOfLight",
-        ids = {27144, 19979, 19978, 19977},
-        levels = {69, 60, 50, 40},
+        ids = {32770, 27144, 19979, 19978, 19977},
+        levels = {70, 69, 60, 50, 40},
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,

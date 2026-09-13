@@ -23,6 +23,8 @@ local mana = 100
 local debuffs = {}
 local buffs = {}
 local long_cd_refused = {}
+local meta_cd = 0   -- Metamorphosis cooldown (3 min in WotLK)
+local ia_cd = 0     -- Immolation Aura cooldown (30s in WotLK)
 
 local boss, enemies, aoe_ok = false, 1, false
 
@@ -38,6 +40,7 @@ local function reset_env()
     combat, hp, mana = true, 100, 100
     boss, enemies, aoe_ok = false, 1, false
     debuffs, buffs, long_cd_refused = {}, {}, {}
+    meta_cd, ia_cd = 0, 0
 end
 
 _G.EaxRotations = {
@@ -58,6 +61,14 @@ _G.EaxRotations = {
     should_use_long_cd = function(context, seconds)
         if long_cd_refused[seconds] then return false end
         return true
+    end,
+    -- Real cooldown reads for the demon-form pair (Metamorphosis 47241 3 min,
+    -- Immolation Aura 50589 30s). Every other action reports ready.
+    cooldown_remains = function(spell)
+        local id = type(spell) == "number" and spell or (spell and spell.ids and spell.ids[1]) or 0
+        if id == 47241 then return meta_cd end
+        if id == 50589 then return ia_cd end
+        return 0
     end,
     aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
     log = function() end,
@@ -205,6 +216,26 @@ assert_lane("ImmolationAura blocked outside Metamorphosis", "ImmolationAura",
     function() end, false)
 assert_lane("ImmolationAura blocked out of combat", "ImmolationAura",
     function() meta(true); combat = false end, false)
+-- ============================================================================
+-- Demon-form availability (2026-09-13 cooldown audit): the form window is NOT
+-- availability. Metamorphosis is 3 min with a 30s duration (47241) and
+-- Immolation Aura is 30s (50589), so both lanes matched for the whole span
+-- their real cooldown was still running.
+-- ============================================================================
+assert_lane("Metamorphosis held while the 3-min cooldown is running", "Metamorphosis",
+    function() meta(false); meta_cd = 150 end, false)
+assert_lane("Metamorphosis fires at the cooldown-ready boundary", "Metamorphosis",
+    function() meta(false); meta_cd = 0 end, true)
+assert_lane("Metamorphosis held on cooldown even with the form down", "Metamorphosis",
+    function() meta(false); meta_cd = 0.1 end, false)
+assert_lane("Metamorphosis held out of combat with the cooldown ready", "Metamorphosis",
+    function() meta(false); combat = false end, false)
+assert_lane("ImmolationAura held while its 30s cooldown is running", "ImmolationAura",
+    function() meta(true); ia_cd = 29.9 end, false)
+assert_lane("ImmolationAura fires at the cooldown-ready boundary in form", "ImmolationAura",
+    function() meta(true); ia_cd = 0 end, true)
+assert_lane("ImmolationAura held on cooldown inside the form window", "ImmolationAura",
+    function() meta(true); ia_cd = 0.1 end, false)
 
 assert_lane("SeedOfCorruptionAoE fires into a 4-enemy pack", "SeedOfCorruptionAoE",
     function() enemies = 4; aoe_ok = true end, true)

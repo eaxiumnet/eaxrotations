@@ -51,7 +51,9 @@ local ACTION = {
     -- Mend Pet ranks (lexxer); removed invalid 13539-43/1515 (1515 is Tame Beast).
     MendPet = define("MendPet", { 48990, 48989, 27046, 13544, 13543, 13542, 3662, 3661, 3111 }, "MendPet"),
     MultiShot = define("MultiShot", { 49048, 49047, 27021, 25294, 14290, 14289, 14288, 2643 }, "MultiShot"),
-    Volley = define("Volley", { 58434, 58433, 42243, 27022, 1543 }, "Volley"),
+    -- 2026-09-13 sweep: 1543 is FLARE and 42243 is the 100-yard tower Volley
+    -- (Wowhead TBC, Uncategorized/Tower) - neither is a player Volley rank.
+    Volley = define("Volley", { 58434, 58433, 27022 }, "Volley"),
 }
 
 local DRAGONHAWK_BUFF = { 61847 }

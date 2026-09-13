@@ -35,6 +35,15 @@ for id in pairs(vanilla_index) do
     valid_vanilla_ids[id] = true
 end
 
+-- Name-agreement helper ("bridge-valid" must mean "same spell", not merely
+-- "some spell with a valid id"). See tests/spell_name_agreement.lua for the rule
+-- and the 2026-09-13 spell-id sweep that motivated it.
+local name_ok, name_agreement = pcall(require, "tests/spell_name_agreement")
+if not name_ok or not name_agreement then
+    print("[ERROR] Could not load tests/spell_name_agreement")
+    os.exit(2)
+end
+
 local WOTLK_REFERENCE_SHA = "563e4a08cb15729f1fdcbcf68e6d68224553bfef"
 local WOTLK_REFERENCE_ALIASES = {
     [27011] = { kind = "VALID_RANK_ALIAS", family = "Feral Faerie Fire", source = "sim/druid/faerie_fire.go" },
@@ -628,6 +637,52 @@ local function is_max_rank(id)
     return WOTLK_MAX_RANK_IDS[id] == true
 end
 
+-- ---------------------------------------------------------------------------
+-- Pin-name agreement (2026-09-13 spell-id sweep, PIN-FAMILY-MISMATCH bucket)
+--
+-- A pin whose declared family disagrees with the client name for the same id is
+-- the allowlist being SELF-CERTIFYING: the sweep found 2944 pinned as
+-- "Shadow Word: Death" while the client calls it Devouring Plague, which is
+-- exactly what let a stray 2944 tail into the ShadowWordDeath ladder.  The pin
+-- tables are checked as DATA (not re-parsed from source) so a pin and its
+-- family cannot drift apart unnoticed.
+--
+-- Only pins the WotLK bridge actually describes are compared: a VALID_BRIDGE_GAP
+-- pin exists precisely because the bridge omits the id, and this audit's own
+-- Wowhead-sourced note is the evidence for those.
+-- ---------------------------------------------------------------------------
+local function pin_name_mismatches()
+    local out = {}
+    local function check(id, label, table_name)
+        local entry = wotlk_index[id]
+        if not entry or not entry.name then return end
+        local ok, extra = name_agreement.name_agrees(label, entry.name)
+        if not ok then
+            out[#out + 1] = {
+                id = id, family = label, bridge = entry.name,
+                extra = extra, source = table_name,
+            }
+        end
+    end
+    for id, alias in pairs(WOTLK_REFERENCE_ALIASES) do
+        if type(alias) == "table" and alias.family then
+            check(id, alias.family, "WOTLK_REFERENCE_ALIASES")
+        end
+    end
+    for id, family in pairs(WOTLK_BRIDGE_MAX_RANKS) do
+        if type(family) == "string" then
+            check(id, family, "WOTLK_BRIDGE_MAX_RANKS")
+        end
+    end
+    for id, shared in pairs(WOTLK_SHARED_IDS) do
+        if type(shared) == "table" and shared.family then
+            check(id, shared.family, "WOTLK_SHARED_IDS")
+        end
+    end
+    table.sort(out, function(a, b) return a.id < b.id end)
+    return out
+end
+
 local root = "EaxRotations"
 
 local function file_exists(path)
@@ -830,15 +885,27 @@ local function scan_content(content)
     return { found = #hits > 0, hits = hits, unverified = unverified }
 end
 
+-- Ladder-label agreement: every define() label must describe the same spell as
+-- the bridge name of each id it pins.  This is the check that turns
+-- "bridge-valid" into "same spell": 25286 (Heroic Strike) pinned under a Cleave
+-- label and 1543 (Flare) pinned under a Volley label are both bridge-valid, so
+-- membership alone accepted two lanes that cast the wrong spell.
+local function scan_name_agreement(content)
+    if type(content) ~= "string" then return {} end
+    return name_agreement.check_ladders(content, { index = wotlk_index })
+end
+
 local function scan_file(filepath)
     if not file_exists(filepath) then
-        return { skipped = true, hits = {}, unverified = {} }
+        return { skipped = true, hits = {}, unverified = {}, name_hits = {} }
     end
     local content = read_file(filepath)
     if not content then
-        return { error = "could not read", hits = {}, unverified = {} }
+        return { error = "could not read", hits = {}, unverified = {}, name_hits = {} }
     end
-    return scan_content(content)
+    local result = scan_content(content)
+    result.name_hits = scan_name_agreement(content)
+    return result
 end
 
 -- ============================================================================
@@ -1108,7 +1175,47 @@ local function run_self_tests()
     -- positive probe: all-pinned ladder scans clean
     local clean_shared = scan_shared_ladders('local FOO = { 2649, 14916, 27047 }', "numeric_local", "last")
     expect(#clean_shared, 0, "all-pinned shared ladder clean")
-    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder id validation, unverified aliases resolved, negative IDs, 41-file inventory")
+    -- Name agreement ("bridge-valid" must mean "same spell").  The rule compares
+    -- the BRIDGE's own tokens against the label: every bridge token must appear in
+    -- the label or be a documented modifier token.  Both directions are covered,
+    -- and the positives are the live shapes that must stay green (Judgement
+    -- umbrellas three variants, MagmaTotem covers the "Passive" effect twin).
+    local function agrees(label, bridge)
+        return (name_agreement.name_agrees(label, bridge))
+    end
+    expect(agrees("HolyShock", "Holy Shock"), true, "exact label agrees")
+    expect(agrees("Judgement", "Judgement of Light"), true, "umbrella label covers its variant")
+    expect(agrees("MagmaTotem", "Magma Totem Passive"), true, "effect-twin suffix forgiven")
+    expect(agrees("DireBearForm", "Bear Form"), true, "qualifier label agrees with client name")
+    expect(agrees("ConjureManaEmerald", "Conjure Mana Gem"), true, "conjure-family item name forgiven")
+    expect(agrees("PrayerofMending", "Prayer of Mending"), true, "camelCase glue word split")
+    expect(agrees("Cleave", "Heroic Strike"), false, "wrong spell (SodCleave/25286 shape)")
+    expect(agrees("Volley", "Flare"), false, "wrong spell (Volley/1543 shape)")
+    expect(agrees("SodAspectHawk", "Aspect of the Pack"), false, "same prefix, different spell")
+    expect(agrees("ShadowWordDeath", "Devouring Plague"), false, "wrong spell (2944 shape)")
+    expect(agrees("Volley", "Volley"), true, "identical names agree")
+    expect(agrees(nil, "Volley"), true, "unlabelled id fails open")
+    -- Ladder-level non-vacuity: a mislabelled pin must be flagged in the exact
+    -- shape the sweep's live defects used, and the corrected ladder must be clean.
+    local bad_ladder = name_agreement.check_ladders(
+        'Volley = define("Volley", { 27022, 1543 }, "Volley")', { index = wotlk_index })
+    expect(#bad_ladder, 1, "mislabelled ladder id flagged")
+    expect(bad_ladder[1].id, 1543, "flagged ladder id")
+    expect(bad_ladder[1].bridge, "Flare", "flagged bridge name")
+    local ok_ladder = name_agreement.check_ladders(
+        'Volley = define("Volley", { 58434, 27022 }, "Volley")', { index = wotlk_index })
+    expect(#ok_ladder, 0, "correct Volley ladder clean")
+    -- Live inventory + pin tables must be name-clean (the audit's own equivalent
+    -- of the sweep's HARD bucket being zero).
+    local live_name_hits = 0
+    for _, file in ipairs(WOTLK_FILES) do
+        local body = read_file(root .. "/" .. file)
+        if body then live_name_hits = live_name_hits + #scan_name_agreement(body) end
+    end
+    expect(live_name_hits, 0, "no live WotLK ladder label disagreements")
+    expect(#pin_name_mismatches(), 0, "no pin family disagreements")
+
+    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder id validation, unverified aliases resolved, name agreement (12 rule cases + ladder probe + live inventory), pin names agree, negative IDs, 41-file inventory")
 end
 
 local function run_invalid_probe()
@@ -1157,6 +1264,30 @@ local function run_unverified_probe()
     os.exit(1)
 end
 
+local function run_name_probe()
+    -- The point of this probe: 1543 is a perfectly bridge-VALID WotLK id, so the
+    -- pre-existing classify_id path is silent on it -- only the name-agreement
+    -- check rejects the Volley label.  This is the non-vacuity proof for
+    -- "bridge-valid means same spell".
+    -- Single-numeric define form so no multi-id ladder exists: that keeps the
+    -- pre-existing STALE_TOP and classify_id paths completely silent on the id,
+    -- which is exactly the gap this check closes.
+    local probe = 'Volley = define("Volley", 1543, "Volley")'
+    local result = scan_content(probe)
+    local name_hits = scan_name_agreement(probe)
+    if result.error or result.found then
+        print("[ERROR] name probe was not bridge-valid (the id scan already rejects it)")
+        os.exit(2)
+    end
+    if #name_hits == 0 then
+        print("[ERROR] name probe did not flag a bridge-valid wrong-spell id")
+        os.exit(2)
+    end
+    print(string.format("[FAIL] name-agreement probe rejected as expected: id %d [NAME_MISMATCH] label %q vs bridge %q",
+        name_hits[1].id, name_hits[1].label, name_hits[1].bridge))
+    os.exit(1)
+end
+
 local function run_malformed_probe()
     local result = scan_content(nil)
     if result.error ~= "content must be a string" then
@@ -1180,6 +1311,8 @@ elseif arg and arg[1] == "--probe-unverified" then
     run_unverified_probe()
 elseif arg and arg[1] == "--probe-malformed" then
     run_malformed_probe()
+elseif arg and arg[1] == "--probe-name" then
+    run_name_probe()
 end
 
 print("=============================================================================")
@@ -1197,19 +1330,25 @@ for _, file in ipairs(WOTLK_FILES) do
     total = total + 1
 
     local result = scan_file(path)
+    local name_hits = result.name_hits or {}
     if result.skipped then
         skipped = skipped + 1
     elseif result.error then
         failed = failed + 1
         failures[#failures + 1] = { file = file, error = result.error }
         print(string.format("  [ ERROR ] %-50s %s", file, result.error))
-    elseif result.found then
+    elseif result.found or #name_hits > 0 then
         failed = failed + 1
-        failures[#failures + 1] = { file = file, hits = result.hits }
-        print(string.format("  [ FAIL ]  %-50s %d invalid ID(s)", file, #result.hits))
+        failures[#failures + 1] = { file = file, hits = result.hits, name_hits = name_hits }
+        print(string.format("  [ FAIL ]  %-50s %d invalid ID(s), %d name mismatch(es)",
+            file, #result.hits, #name_hits))
         for _, hit in ipairs(result.hits) do
             print(string.format("            line %4d: id %d [%s]  %s",
                 hit.line, hit.id, hit.kind, hit.snippet))
+        end
+        for _, hit in ipairs(name_hits) do
+            print(string.format("            line %4d: id %d [NAME_MISMATCH]  label %q vs bridge %q (unmatched: %s)",
+                hit.line, hit.id, hit.label, hit.bridge, table.concat(hit.extra or {}, ",")))
         end
     else
         passed = passed + 1
@@ -1250,6 +1389,25 @@ for _, spec in ipairs(WOTLK_SHARED_LADDERS) do
     end
 end
 
+-- Pin-name agreement: a pin whose declared family disagrees with the client
+-- name for the same id is a self-certifying allowlist entry (the 2944 shape).
+do
+    local pin_hits = pin_name_mismatches()
+    total = total + 1
+    if #pin_hits > 0 then
+        failed = failed + 1
+        failures[#failures + 1] = { file = "pin tables", pin_hits = pin_hits }
+        print(string.format("  [ FAIL ]  %-50s %d pin name mismatch(es)", "pin tables", #pin_hits))
+        for _, hit in ipairs(pin_hits) do
+            print(string.format("            id %d [PIN_NAME_MISMATCH]  %s family %q vs bridge %q (unmatched: %s)",
+                hit.id, hit.source, hit.family, hit.bridge, table.concat(hit.extra or {}, ",")))
+        end
+    else
+        passed = passed + 1
+        print(string.format("  [ PASS ]  %-50s pin families agree with the bridge", "pin tables"))
+    end
+end
+
 print("")
 print("=============================================================================")
 print("  WOTLK SPELL AUDIT RESULTS")
@@ -1271,6 +1429,14 @@ if failed > 0 or skipped > 0 then
                 print(string.format("    %s  line %d: id %d [%s]",
                     f.file, hit.line, hit.id, hit.kind))
             end
+            for _, hit in ipairs(f.name_hits or {}) do
+                print(string.format("    %s  line %d: id %d [NAME_MISMATCH] label %q vs bridge %q",
+                    f.file, hit.line, hit.id, hit.label, hit.bridge))
+            end
+            for _, hit in ipairs(f.pin_hits or {}) do
+                print(string.format("    pin tables  id %d [PIN_NAME_MISMATCH] %s family %q vs bridge %q",
+                    hit.id, hit.source, hit.family, hit.bridge))
+            end
         end
     end
     print("")
@@ -1280,6 +1446,10 @@ if failed > 0 or skipped > 0 then
     print("  VALID_RANK_ALIAS, VALID_AURA_ALIAS, and VALID_BRIDGE_GAP IDs are accepted only from the pinned reference table.")
     print("  UNVERIFIED_ALIAS IDs are reported separately and are not part of the valid allowlist.")
     print("  ID 'INVALID' means no WotLK bridge or pinned alias classification exists.")
+    print("  NAME_MISMATCH means a define() label and the bridge name of one of its ids")
+    print("  describe different spells (bridge-valid, but NOT the same spell).")
+    print("  PIN_NAME_MISMATCH means an allowlist pin's declared family disagrees with")
+    print("  the bridge name for that id - a self-certifying pin.")
     os.exit(1)
 end
 

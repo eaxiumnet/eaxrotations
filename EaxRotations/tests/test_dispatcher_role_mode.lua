@@ -1117,4 +1117,44 @@ for i = 1, #wotlk_failures do io.write("  [ UNREACHED ] " .. wotlk_failures[i] .
 assert_true(#wotlk_failures == 0,
     "every WotLK spec must claim a cast through the real dispatcher; unreached: " .. table.concat(wotlk_failures, " | "))
 assert_true(wotlk_proven_specs == #WOTLK_SPECS, "the sweep must cover every WotLK spec (" .. wotlk_proven_specs .. "/" .. #WOTLK_SPECS .. ")")
+
+-- ============================================================================
+-- Stance source (2026-09-13). Live report from a TBC client: Battle/Berserker
+-- stance spam, and Berserker Stance never registering as active even straight
+-- after it had been cast. The producer read core.spell_book.get_shapeshift_form_id,
+-- which the .api contract documents as returning 0 whenever that wrapper is
+-- unavailable -- and 0 reads as "no stance", so every stance lane (all written
+-- as "if not in the stance I need, cast it") re-cast the stance on every tick.
+-- The shapeshift BAR INDEX (get_shapeshift_form) is the source .api tells new
+-- logic to prefer, and it now wins. Fail-open: the same 0 as before when every
+-- source is absent.
+-- ============================================================================
+do
+    local sb = _G.core.spell_book
+    local orig_bar, orig_id = sb.get_shapeshift_form, sb.get_shapeshift_form_id
+
+    sb.get_shapeshift_form = function() return 3 end
+    sb.get_shapeshift_form_id = function() return 0 end
+    assert_true(NS.get_player_stance() == 3,
+        "the shapeshift bar index must be the primary stance source (Berserker = 3)")
+
+    sb.get_shapeshift_form = function() return 0 end
+    sb.get_shapeshift_form_id = function() return 2 end
+    assert_true(NS.get_player_stance() == 2,
+        "form_id must still resolve when the bar index reports no stance")
+
+    sb.get_shapeshift_form = function() error("wrapper unavailable") end
+    sb.get_shapeshift_form_id = function() return 1 end
+    assert_true(NS.get_player_stance() == 1,
+        "a throwing bar-index wrapper must fall through to form_id, not raise")
+
+    sb.get_shapeshift_form = nil
+    sb.get_shapeshift_form_id = nil
+    assert_true(NS.get_player_stance() == 0,
+        "no stance source at all must read 0 (unchanged fail-open)")
+
+    sb.get_shapeshift_form = orig_bar
+    sb.get_shapeshift_form_id = orig_id
+end
+
 print("PASS test_dispatcher_role_mode")

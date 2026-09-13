@@ -39,7 +39,7 @@ local ACTION = {
     -- 12328 is Sweeping Strikes, NOT a Death Wish rank (rank-list contamination);
     -- WotLK Death Wish is the single rank 12292.
     DeathWish = define("DeathWish", { 12292 }, "DeathWish"),
-    BattleShout = define("BattleShout", { 47436, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleShout = define("BattleShout", { 47436, 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     -- Baseline warrior interrupt (3.3.5): not in the wowsims fury APL, so it
     -- sits outside the pinned order (first, like arms' class-sibling template).
     Pummel = define("Pummel", { 6554, 6552 }, "Pummel"),

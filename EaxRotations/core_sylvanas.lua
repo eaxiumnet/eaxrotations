@@ -3684,15 +3684,28 @@ function NS.is_behind_target(target)
 end
 
 function NS.get_player_stance()
-    -- Primary: engine-level shapeshift form ID (works on PS builds where buff APIs are broken)
-    if not (core and core.spell_book) then return 0 end
-    local ok, form_id = pcall(function() return core.spell_book.get_shapeshift_form_id() end)
-    if ok and form_id and form_id > 0 then
-        if form_id == 1 then return 1 end  -- Battle Stance
-        if form_id == 2 then return 2 end  -- Defensive Stance
-        if form_id == 3 then return 3 end  -- Berserker Stance
+    -- Primary: the shapeshift BAR INDEX (core.spell_book.get_shapeshift_form).
+    -- The .api contract marks this the cross-version / cross-class-layout source
+    -- and says to prefer it ("warrior stances, druid/rogue forms"), while
+    -- get_shapeshift_form_id is a class-global form id that returns 0 whenever
+    -- the wrapper is unavailable. 0 reads as "no stance", and every warrior
+    -- stance lane is written as "if not in the stance I need, cast it" -- so a
+    -- 0 here made the rotation re-cast the stance on every tick (observed live
+    -- on a TBC client: Battle/Berserker stance spam, and Berserker Stance never
+    -- registering as active even straight after it was cast).
+    if core and core.spell_book then
+        local ok_bar, bar = pcall(function() return core.spell_book.get_shapeshift_form() end)
+        if ok_bar and type(bar) == "number" and bar >= 1 and bar <= 3 then
+            return bar
+        end
+        local ok, form_id = pcall(function() return core.spell_book.get_shapeshift_form_id() end)
+        if ok and form_id and form_id > 0 then
+            if form_id == 1 then return 1 end  -- Battle Stance
+            if form_id == 2 then return 2 end  -- Defensive Stance
+            if form_id == 3 then return 3 end  -- Berserker Stance
+        end
     end
-    -- Fallback: buff-based detection
+    -- Last resort: buff-based detection (absent aura API => 0, unchanged).
     if NS.has_form("battle") then return 1 end
     if NS.has_form("defensive") then return 2 end
     if NS.has_form("berserker") then return 3 end

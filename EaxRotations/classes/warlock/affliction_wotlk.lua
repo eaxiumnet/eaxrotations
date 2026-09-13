@@ -61,6 +61,7 @@ local affliction_state = {
     in_combat = false,
     unstable_remains = 0,
     haunt_remains = 0,
+    haunt_cd = 0,
     corruption_remains = 0,
     agony_remains = 0,
     cod_remains = 0,
@@ -102,6 +103,12 @@ local function build_state(context)
     state.target_is_boss = (context and context.target_is_boss) == true
     state.shadow_trance_up = (me and NS.buff_up and NS.buff_up(me, SHADOW_TRANCE_BUFF)) or false
     state.infernal_ready = cd_remaining(ACTION.SummonInfernal) <= 0
+    -- Haunt's aura lasts 12s but the spell carries a real 8s cooldown
+    -- (Wowhead WotLK 3.3.5: 59164, "Cooldown 8 seconds"). The aura read alone
+    -- can only gate this lane while the aura resolves; when it does not, the
+    -- lane matched at the very top of the race for the whole cooldown. The
+    -- read fails open (cd_remaining returns 0 when the engine is silent).
+    state.haunt_cd = cd_remaining(ACTION.Haunt)
     return state
 end
 
@@ -110,6 +117,10 @@ local DSL_DEFS = {
         name = "Haunt",
         conditions = {
             { type = "state", field = "haunt_remains", op = "<", value = 3 },
+            -- Real 8s cooldown: the aura window can outlive a failed aura read,
+            -- and this lane is entry 1, so an ungated match starves every DoT
+            -- and filler below it.
+            { type = "state", field = "haunt_cd", op = "<=", value = 0 },
         },
         action = { type = "cast", spell = ACTION.Haunt, target = "target", opts = { skip_casting = true } },
     },

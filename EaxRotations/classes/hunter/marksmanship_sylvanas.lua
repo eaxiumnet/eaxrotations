@@ -39,7 +39,7 @@ local ACTION = {
     SerpentSting     = define("SerpentSting",     { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
     SilencingShot    = define("SilencingShot",    { 34490 }, "SilencingShot"),
     SteadyShot       = define("SteadyShot",       { 34120 }, "SteadyShot"),
-    TrueshotAura     = define("TrueshotAura",     { 19506, 20905, 20906 }, "TrueshotAura"),
+    TrueshotAura     = define("TrueshotAura",     { 27066, 20906, 20905, 19506 }, "TrueshotAura"),
     ViperSting       = define("ViperSting",       { 27018, 14280, 14279, 3034 }, "ViperSting"),
     WingClip         = define("WingClip",         { 14268, 14267, 2974 }, "WingClip"),
 }

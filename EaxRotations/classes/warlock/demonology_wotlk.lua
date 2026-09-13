@@ -52,6 +52,8 @@ local DEMO_SCHEMA = {
     enemy_count = 1, in_combat = false,
     immolate_remains = 0, corruption_remains = 0,
     metamorphosis_up = false,
+    metamorphosis_cd = 0,
+    immolation_aura_cd = 0,
     molten_core_up = false,
     decimation_up = false,
     hp = 100, mana_pct = 100,
@@ -78,6 +80,14 @@ local function build_state(context)
     state.cod_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF)) or 0
     state.agony_remains = (target and NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF)) or 0
     state.target_is_boss = (context and context.target_is_boss) == true
+    -- Real cooldowns for the two demon-form abilities: Metamorphosis is 3 min
+    -- (Wowhead 3.3.5: 47241, 30s duration) and Immolation Aura is 30s (50589,
+    -- 15s duration). Both lanes gated on their aura/buff only, so for the
+    -- ~150s after the 30s Metamorphosis dropped the entry-1 lane matched every
+    -- tick, and Immolation Aura matched for the whole form window. Fail-open
+    -- to 0 = ready when the engine read is unavailable.
+    state.metamorphosis_cd = (ACTION.Metamorphosis and NS.cooldown_remains and NS.cooldown_remains(ACTION.Metamorphosis)) or 0
+    state.immolation_aura_cd = (ACTION.ImmolationAura and NS.cooldown_remains and NS.cooldown_remains(ACTION.ImmolationAura)) or 0
     -- Demo signature procs (Wowhead-verified buff ids): Molten Core
     -- (Corruption-tick proc empowering the next 3 Incinerate/Soul Fire casts)
     -- and Decimation (Shadow Bolt/Incinerate/Soul Fire on a sub-35% target
@@ -94,6 +104,10 @@ local DSL_DEFS = {
         conditions = {
             { type = "context", field = "in_combat", op = "==", value = true },
             { type = "state", field = "metamorphosis_up", op = "==", value = false },
+            -- The buff falling off is NOT availability: the real 3-min cooldown
+            -- outlives the 30s form by ~150s, during which this entry-1 lane
+            -- would otherwise claim every GCD from the curse/DoT/filler lanes.
+            { type = "state", field = "metamorphosis_cd", op = "<=", value = 0 },
             { type = "custom", fn = function(context, state)
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
                 return true
@@ -172,6 +186,10 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
             { type = "state", field = "metamorphosis_up", op = "truthy" },
+            -- The form aura is a 30s window and the ability's own cooldown is
+            -- also 30s, so the form gate alone let the lane claim every GCD of
+            -- the window after its one real cast.
+            { type = "state", field = "immolation_aura_cd", op = "<=", value = 0 },
         },
         action = { type = "cast", spell = ACTION.ImmolationAura, target = "target", label = "[DEMONOLOGY WOTLK] Immolation Aura" },
     },

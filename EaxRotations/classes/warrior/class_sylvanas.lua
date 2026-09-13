@@ -280,8 +280,8 @@ local SPELLS = {
     }),
     MockingBlow = NS.spell_action({
         name = "MockingBlow",
-        ids = {20560, 20559, 7400, 694},
-        levels = {56, 46, 26, 16},
+        ids = {25266, 20560, 20559, 7400, 694},
+        levels = {65, 56, 46, 26, 16},
         cast_time = 0,
         cooldown = 120,
         power_cost = 10,

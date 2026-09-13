@@ -36,6 +36,7 @@ local enemies, aoe_ok = 1, false
 local boss = false
 local trance = false
 local infernal_cd = 0
+local haunt_cd = 0    -- Haunt cooldown (8s in WotLK)
 -- Captured from the REAL spec: the register options and the opts the DSL hands
 -- to try_cast when a lane executes (channel-clip opt-in pins, 2026-09-12).
 local registered_options = nil
@@ -45,7 +46,7 @@ local function reset_env()
     combat, target_hp, hp, mana = true, 100, 100, 100
     debuffs = {}
     enemies, aoe_ok = 1, false
-    boss, trance, infernal_cd = false, false, 0
+    boss, trance, infernal_cd, haunt_cd = false, false, 0, 0
 end
 
 _G.EaxRotations = {
@@ -69,6 +70,7 @@ _G.EaxRotations = {
     cooldown_remains = function(spell)
         local id = type(spell) == "number" and spell or (spell and spell.ids and spell.ids[1]) or 0
         if id == 1122 then return infernal_cd end
+        if id == 59164 then return haunt_cd end
         return 0
     end,
     aoe_target_meets = function(n) return aoe_ok and enemies >= (n or 1) end,
@@ -115,12 +117,21 @@ local function assert_lane(label, strategy_name, setup, expect)
 end
 
 -- ============================================================================
--- Haunt: refresh at/below 3s.
+-- Haunt: refresh at/below 3s AND the real 8s cooldown ready (state.haunt_cd via
+-- the real cd_remaining helper; Wowhead 3.3.5 59164 "Cooldown 8 seconds",
+-- aura 12s). Haunt is entry 1, so an ungated match — the shape that lands when
+-- the aura read does not resolve — starves every DoT and filler below it.
 -- ============================================================================
 assert_lane("Haunt refreshes when the debuff is down", "Haunt", function() end, true)
 assert_lane("Haunt refreshes at 2.9s remaining", "Haunt", function() haunt(2.9) end, true)
 assert_lane("Haunt blocked at the 3.0s boundary", "Haunt", function() haunt(3) end, false)
 assert_lane("Haunt blocked while the debuff is healthy", "Haunt", function() haunt(3.1) end, false)
+assert_lane("Haunt held with no resolvable aura while the 8s cooldown runs", "Haunt",
+    function() haunt_cd = 7.9 end, false)
+assert_lane("Haunt fires at the cooldown-ready boundary with no aura read", "Haunt",
+    function() haunt_cd = 0 end, true)
+assert_lane("Haunt held on cooldown even with the aura about to drop", "Haunt",
+    function() haunt(0.1); haunt_cd = 4 end, false)
 
 -- ============================================================================
 -- Corruption: refresh at/below 3s.

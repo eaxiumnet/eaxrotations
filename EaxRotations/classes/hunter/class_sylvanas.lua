@@ -341,8 +341,8 @@ local SPELLS = {
         -- DBC-verified ranks 1-4 (1495/14269/14270/14271 @ lvl 16/26/38/50).
         -- Was: {25285, 14271, ...} with a level-62 entry — 25285 is an item ID,
         -- not a spell, and Mongoose Bite has no rank 5. Audit caught it.
-        ids = {14271, 14270, 14269, 1495},
-        levels = {50, 38, 26, 16},
+        ids = {36916, 14271, 14270, 14269, 1495},
+        levels = {70, 50, 38, 26, 16},
         cast_time = 0,
         cooldown = 5,
         power_cost = 0,

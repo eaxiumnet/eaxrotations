@@ -23,7 +23,11 @@ local define = spec_kit.define_action
 
 local ACTION = {
     BeaconOfLight = define("BeaconOfLight", 53563, "BeaconOfLight"),
-    HolyShock = define("HolyShock", { 48821, 33074, 33073, 33072, 33071, 33070, 20473 }, "HolyShock"),
+    -- 33071/33070 removed 2026-09-13 (name-agreement assertion): both are
+    -- bridge-valid but NOT Holy Shock -- wowhead WotLK Classic calls them
+    -- "Shadow Prison" and "Cloud of Corruption" (server-side dummy auras),
+    -- so a paladin who knew them cast a dummy instead of the heal.
+    HolyShock = define("HolyShock", { 48821, 33074, 33073, 33072, 20473 }, "HolyShock"),
     -- FoL/HL ranks verified lexxer (removed FoL/HL mixups 1022-1025 HoP, 19993 invalid, HL IDs that are FoL).
     FlashOfLight = define("FlashOfLight", { 48785, 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
     HolyLight = define("HolyLight", { 48782, 27136, 27135, 25292, 10329, 10328, 3472, 1026, 647, 639, 635 }, "HolyLight"),

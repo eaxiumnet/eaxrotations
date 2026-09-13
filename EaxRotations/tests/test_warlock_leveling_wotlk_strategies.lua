@@ -28,6 +28,9 @@ local aoe_hits = 0
 local debuffs = {}
 local buffs = {}
 local pet_dead = true
+local lock_cd = 0    -- Spell Lock cooldown (24s in WotLK)
+local conf_cd = 0    -- Conflagrate cooldown (10s in WotLK)
+local cb_cd = 0      -- Chaos Bolt cooldown (12s in WotLK)
 
 local function ua(secs) debuffs[47843] = secs end
 local function corr(secs) debuffs[47813] = secs end
@@ -46,6 +49,7 @@ local function reset_env()
     combat, hp, target_hp, mana, casting, aoe_hits = true, 100, 100, 100, false, 0
     debuffs, buffs = {}, {}
     pet_dead = true
+    lock_cd, conf_cd, cb_cd = 0, 0, 0
 end
 
 _G.EaxRotations = {
@@ -64,6 +68,15 @@ _G.EaxRotations = {
         return 0
     end,
     is_interruptible = function() return true end,
+    -- Real cooldown reads for the three lanes that had no readiness read at all
+    -- (Spell Lock 19647 24s, Conflagrate 17962/30912 10s, Chaos Bolt 50796 12s).
+    cooldown_remains = function(spell)
+        local id = type(spell) == "number" and spell or (spell and spell.ids and spell.ids[1]) or 0
+        if id == 19647 then return lock_cd end
+        if id == 30912 then return conf_cd end
+        if id == 50796 then return cb_cd end
+        return 0
+    end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -230,5 +243,22 @@ assert_lane("SpellLock fires above the 0.30s lead floor", "SpellLock",
     function() casting = true; cast_remaining = 0.31; cast_lead = nil end, true)
 assert_lane("SpellLock honours a raised interrupt_lead_sec setting", "SpellLock",
     function() casting = true; cast_remaining = 0.9; cast_lead = 1.2 end, false)
+-- ============================================================================
+-- Cooldown audit (2026-09-13): the three lanes that had no readiness read at
+-- all beyond the central guard's 1.5s catch-all now gate on the real cooldown.
+-- Spell Lock 19647 = 24s, Conflagrate 17962/30912 = 10s, Chaos Bolt 50796 = 12s.
+-- ============================================================================
+assert_lane("SpellLock held while its 24s cooldown is running", "SpellLock",
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil; lock_cd = 23.9 end, false)
+assert_lane("SpellLock fires at the cooldown-ready boundary", "SpellLock",
+    function() casting = true; cast_remaining = 1.0; cast_lead = nil; lock_cd = 0 end, true)
+assert_lane("Conflagrate held while its 10s cooldown is running", "Conflagrate",
+    function() immo(12); conf_cd = 9.9 end, false)
+assert_lane("Conflagrate fires at the cooldown-ready boundary", "Conflagrate",
+    function() immo(12); conf_cd = 0 end, true)
+assert_lane("ChaosBolt held while its 12s cooldown is running", "ChaosBolt",
+    function() mana = 100; cb_cd = 11.9 end, false)
+assert_lane("ChaosBolt fires at the cooldown-ready boundary", "ChaosBolt",
+    function() mana = 100; cb_cd = 0 end, true)
 
 print("PASS test_warlock_leveling_wotlk_strategies")

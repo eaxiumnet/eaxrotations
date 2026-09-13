@@ -4,3 +4,10 @@
 # on or off) and in CI: `text` makes git normalize both sides of the diff,
 # so a Windows-text-mode CRLF regeneration can never false-fail the check.
 buff_debuff_full_verification.json text eol=lf
+
+# The spell-id sweep's classified-once baseline (EaxRotations/tools/
+# spell_id_sweep.py --write-baseline). Pin to LF so the gate is
+# line-ending-independent on every dev box (core.autocrlf on or off) and in CI:
+# `text` normalizes both sides, so a Windows-text-mode regeneration cannot
+# false-fail the drift check or add phantom churn to a re-baseline diff.
+spell_id_sweep_baseline.json text eol=lf

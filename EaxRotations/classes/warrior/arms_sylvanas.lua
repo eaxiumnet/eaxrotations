@@ -37,7 +37,7 @@ local PLAYER_UNIT = NS.PLAYER_UNIT
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    BattleShout = define("BattleShout", { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleShout = define("BattleShout", { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     BattleStance = define("BattleStance", 2457, "BattleStance"),
     BerserkerRage = define("BerserkerRage", 18499, "BerserkerRage"),
     BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),

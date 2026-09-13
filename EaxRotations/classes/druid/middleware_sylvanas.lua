@@ -62,6 +62,25 @@ local FORM_BUFF_CAT = { 768 }
 -- optional-member pattern: live play always takes the `return true` path, so
 -- this is a benign unreached probe; keep the guard until a real form-cast API
 -- lands.
+--- True when someone else shares our group (the target of a threat drop).
+--- FAIL-OPEN: with no group API at all we cannot tell, so the old behavior is
+--- kept; an API that answers "nobody" is what suppresses the lane.
+local function has_group_members()
+    local capable = false
+    if type(NS.GetPartyMembers) == "function" then
+        capable = true
+        local ok, members = pcall(NS.GetPartyMembers)
+        if ok and type(members) == "table" and #members > 0 then return true end
+    end
+    if type(NS.GetRaidMembers) == "function" then
+        capable = true
+        local ok, members = pcall(NS.GetRaidMembers)
+        if ok and type(members) == "table" and #members > 1 then return true end
+    end
+    if not capable then return true end
+    return false
+end
+
 local function can_cast_in_current_form(spell_id)
     if not spell_id then return true end
     if not NS.can_cast_in_form then return true end  -- Module not loaded
@@ -313,6 +332,15 @@ local strategies = {
         matches = function(context)
             if not context.in_combat then return false end
             if context.settings and context.settings.use_threat_drop == false then return false end
+            -- 2026-09-13 live report: Cower fired every couple of seconds while
+            -- solo, burning energy for nothing. Cower hands threat back to a
+            -- tank, so it is only meaningful in a group; also require a form
+            -- that can cast it and an actually-ready spell (the previous gate
+            -- was "in combat" alone, so the spell's own cost/cooldown was never
+            -- consulted).
+            if not (SPELLS.Cower and can_cast_in_current_form(SPELLS.Cower)) then return false end
+            if not has_group_members() then return false end
+            if NS.spell_ready and not NS.spell_ready(SPELLS.Cower, context.me) then return false end
             return true
         end,
         execute = function(context)

@@ -41,7 +41,8 @@ NS.GetPlayer = function() return NS.PLAYER_UNIT end
 NS.GetTarget = function() return nil end
 NS.buff_up = function() return false end
 NS.debuff_up = function() return false end
-NS.debuff_remains = function() return 0 end
+local immo_remains = 0
+NS.debuff_remains = function() return immo_remains end
 NS.get_debuff_stacks = function() return 0 end
 NS.spell_ready = function() return true end
 NS.try_cast = function() return true end
@@ -50,7 +51,16 @@ NS.unit_health_pct = function() return 100 end
 NS.time_now = function() return 0 end
 NS.game_time_ms = function() return 0 end
 NS.broken_api_throttled = function() return false end
-NS.cooldown_remains = function() return 0 end
+-- Cooldown reads for the two DSL lanes whose ACTIONS entry used to carry a
+-- `cooldown` field that the DSL substitution drops (TBC Conflagrate 30912 10s,
+-- Shadowburn 30546 15s). Variable-driven so the pins can prove both sides.
+local conf_cd, sb_cd = 0, 0
+NS.cooldown_remains = function(spell)
+    local id = (NS.get_spell_id and NS.get_spell_id(spell)) or spell
+    if id == 30912 then return conf_cd end
+    if id == 30546 then return sb_cd end
+    return 0
+end
 NS.spell_exists = function() return true end
 NS.is_item_ready = function() return false end
 NS.has_item = function(id) return true end
@@ -137,6 +147,7 @@ package.loaded["shared/potion_helper_sylvanas"] = {
 package.loaded["shared/warlock_soulshatter_sylvanas"] = dofile("EaxRotations/shared/warlock_soulshatter_sylvanas.lua")
 package.loaded["shared/warlock_healthstone_sylvanas"] = dofile("EaxRotations/shared/warlock_healthstone_sylvanas.lua")
 package.loaded["shared/warlock_mana_gem_sylvanas"] = dofile("EaxRotations/shared/warlock_mana_gem_sylvanas.lua")
+package.loaded["shared/life_tap_batch_sylvanas"] = dofile("EaxRotations/shared/life_tap_batch_sylvanas.lua")
 
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
@@ -242,6 +253,17 @@ assert_true(strategies[idx_imm].matches(make_ctx(), make_state({ spell_damage = 
 -- New: Immolate toggle — disable destro_use_immolate to skip entirely (speed kills)
 assert_false(strategies[idx_imm].matches(make_ctx({ settings = { destro_use_immolate = false } }), make_state()),
     "Immolate skips when destro_use_immolate is false (speed kill mode)")
+-- Configurable refresh window (destro_immolate_refresh slider). The mock
+-- should_refresh_dot returns `remains <= window`, so this pins the setting is
+-- actually read and that the default keeps the historical 1.5s behaviour.
+assert_true(strategies[idx_imm].matches(make_ctx(), make_state({ immolate_remains = 1.0 })),
+    "Immolate refresh fires at 1.0s remaining with the default 1.5s window")
+assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ immolate_remains = 2.0 })),
+    "Immolate refresh holds at 2.0s remaining with the default 1.5s window")
+assert_true(strategies[idx_imm].matches(make_ctx({ settings = { destro_immolate_refresh = 3.0 } }), make_state({ immolate_remains = 2.0 })),
+    "Immolate refresh slider fires at 2.0s remaining with a 3.0s window")
+assert_false(strategies[idx_imm].matches(make_ctx({ settings = { destro_immolate_refresh = 3.0 } }), make_state({ immolate_remains = 3.5 })),
+    "Immolate refresh slider holds at 3.5s remaining with a 3.0s window")
 -- Original match function does not gate on target presence, so DSL equivalence
 -- preserves that behavior (target check is left to the framework/execute path).
 
@@ -256,6 +278,23 @@ assert_false(strategies[idx_conf].matches(make_ctx(), make_state({ immolate_rema
 assert_false(strategies[idx_conf].matches(make_ctx({ ttd_known = true, ttd = 2 }), make_state({ immolate_remains = 8 })),
     "Conflagrate skips when target dying soon")
 
+-- Real 10s cooldown (Wowhead TBC 2.5.5: 17962, "Cooldown 10 seconds"): the
+-- ACTIONS entry this DSL lane replaced carried cooldown = 10 and the DSL
+-- substitution dropped it, so the lane claimed the race while cooling.
+assert_true(strategies[idx_conf].matches(make_ctx(), make_state({ immolate_remains = 8, conflagrate_cd = 0 })),
+    "Conflagrate matches at the cooldown-ready boundary")
+assert_false(strategies[idx_conf].matches(make_ctx(), make_state({ immolate_remains = 8, conflagrate_cd = 4 })),
+    "Conflagrate holds while its 10s cooldown is running")
+-- End-to-end through the real read path: NS.cooldown_remains -> build_state ->
+-- state.conflagrate_cd -> the gate.
+immo_remains = 8; conf_cd = 0
+assert_true(strategies[idx_conf].matches(make_ctx(), destruction.build_state(make_ctx())),
+    "Conflagrate matches when NS.cooldown_remains reports ready")
+immo_remains = 8; conf_cd = 9.9
+assert_false(strategies[idx_conf].matches(make_ctx(), destruction.build_state(make_ctx())),
+    "Conflagrate holds through the real cooldown read (NS.cooldown_remains)")
+immo_remains = 0; conf_cd = 0
+
 -- ============================================================================
 -- Shadowburn: target exists, has soul shard, target in execute range, spell ready
 -- ============================================================================
@@ -264,6 +303,16 @@ assert_true(strategies[idx_sb].matches(make_ctx({ target_hp = 15 }), make_state(
     "Shadowburn matches in execute range with soul shard")
 assert_false(strategies[idx_sb].matches(make_ctx({ target_hp = 50 }), make_state()),
     "Shadowburn skips when target HP above execute threshold")
+-- Real 15s cooldown (Wowhead TBC 2.5.5: 30546, "Cooldown 15 seconds").
+assert_true(strategies[idx_sb].matches(make_ctx({ target_hp = 15 }), make_state({ shadowburn_cd = 0 })),
+    "Shadowburn matches at the cooldown-ready boundary")
+assert_false(strategies[idx_sb].matches(make_ctx({ target_hp = 15 }), make_state({ shadowburn_cd = 14.9 })),
+    "Shadowburn holds while its 15s cooldown is running")
+-- End-to-end through the real read path (NS.cooldown_remains -> build_state).
+sb_cd = 10
+assert_false(strategies[idx_sb].matches(make_ctx({ target_hp = 15 }), destruction.build_state(make_ctx({ target_hp = 15 }))),
+    "Shadowburn holds through the real cooldown read (NS.cooldown_remains)")
+sb_cd = 0
 
 -- ============================================================================
 -- Incinerate: not moving, immolate active, target not dying
@@ -361,6 +410,75 @@ assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = true }), make_st
     "LifeTapMoving skips when HP below safety gate")
 assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = true, is_casting = true }), make_state({ mana_pct = 50, hp = 100 })),
     "LifeTapMoving skips while casting")
+NS.time_now = _orig_time_now
+
+-- ============================================================================
+-- LifeTap batching engine: fire / hold / consecutive / exit pins
+-- ============================================================================
+local lt_batch = require("shared/life_tap_batch_sylvanas")
+lt_batch.reset()
+local _bt = 100
+local _casts = 0
+local _orig_try_cast = NS.try_cast
+NS.try_cast = function(...) _casts = _casts + 1 return true end
+NS.time_now = function() return _bt end
+
+-- FIRE from idle: mana under the entry threshold taps and opens a batch.
+local lt_ctx = make_ctx()
+local lt_low = make_state({ mana_pct = 15, hp = 100 })
+assert_true(strategies[idx_lt].matches(lt_ctx, lt_low), "LifeTap batch: fire from idle at 15% mana")
+_casts = 0
+assert_true(strategies[idx_lt].execute(lt_ctx, lt_low) == true, "LifeTap batch: first tap returns true")
+assert_true(_casts == 1, "LifeTap batch: first tap casts once")
+assert_true(lt_batch.is_active(), "LifeTap batch: first tap opens the batch")
+assert_true(lt_batch.target() >= 20, "LifeTap batch: recover target is at/above the entry threshold")
+
+-- HOLD: same GCD, mana still under the recover target -> the lane still claims
+-- the tick but must not cast, so no filler slots in between the taps.
+local lt_mid = make_state({ mana_pct = 25, hp = 100 })
+assert_true(strategies[idx_lt].matches(lt_ctx, lt_mid), "LifeTap batch: claim the tick inside the batch")
+_casts = 0
+assert_true(strategies[idx_lt].execute(lt_ctx, lt_mid) == true, "LifeTap batch: hold returns true")
+assert_true(_casts == 0, "LifeTap batch: hold does NOT cast (no tap/cast ping-pong)")
+
+-- CONSECUTIVE: next GCD, still under the recover target -> taps again.
+_bt = _bt + 2
+_casts = 0
+assert_true(strategies[idx_lt].matches(lt_ctx, lt_mid), "LifeTap batch: matched at the next GCD")
+assert_true(strategies[idx_lt].execute(lt_ctx, lt_mid) == true, "LifeTap batch: consecutive tap returns true")
+assert_true(_casts == 1, "LifeTap batch: taps again on the next GCD")
+assert_true(lt_batch.taps() >= 2, "LifeTap batch: two consecutive taps recorded")
+
+-- EXIT + hysteresis re-arm.
+local _recover = lt_batch.target()
+local lt_full = make_state({ mana_pct = _recover + 1, hp = 100 })
+assert_false(strategies[idx_lt].matches(lt_ctx, lt_full), "LifeTap batch: exits at the recover target")
+lt_batch.observe(_bt, _recover + 1, 100, 20, _recover, 50)
+assert_false(lt_batch.is_active(), "LifeTap batch: cleared at the recover target")
+assert_false(strategies[idx_lt].matches(lt_ctx, lt_mid),
+    "LifeTap batch: above the entry threshold a new batch does not re-enter")
+
+-- ABORT on unsafe HP.
+lt_batch.start(_bt, _recover)
+assert_false(strategies[idx_lt].matches(lt_ctx, make_state({ mana_pct = 25, hp = 30 })),
+    "LifeTap batch: holds off when HP is unsafe mid-batch")
+lt_batch.observe(_bt, 25, 30, 20, _recover, 50)
+assert_false(lt_batch.is_active(), "LifeTap batch: aborts when HP drops below the safety gate")
+
+-- A zero buffer disables batching: the recover target collapses onto entry.
+lt_batch.reset()
+local lt_nobatch = make_ctx({ settings = { destro_life_tap_batch = 0 } })
+_bt = _bt + 2  -- step past the tap GCD left by the abort pin above
+_casts = 0
+assert_true(strategies[idx_lt].matches(lt_nobatch, lt_low), "LifeTap no-batch: still taps from idle")
+_casts = 0
+assert_true(strategies[idx_lt].execute(lt_nobatch, lt_low) == true, "LifeTap no-batch: first tap returns true")
+_bt = _bt + 2
+lt_batch.observe(_bt, 25, 100, 20, 20, 50)
+assert_false(lt_batch.is_active(), "LifeTap no-batch: buffer 0 ends the batch once mana leaves entry")
+
+lt_batch.reset()
+NS.try_cast = _orig_try_cast
 NS.time_now = _orig_time_now
 
 -- ============================================================================

@@ -46,7 +46,7 @@ local define = spec_kit.define_action_for_class(SPELLS)
 -- Spells with expansion-aware IDs in class_sylvanas.lua (DeathWish, SweepingStrikes)
 -- use SPELLS.X directly; all others use define() with explicit rank ID arrays.
 local ACTION = {
-    BattleShout = define("BattleShout", { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleShout = define("BattleShout", { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     BattleStance = define("BattleStance", 2457, "BattleStance"),
     BerserkerRage = define("BerserkerRage", 18499, "BerserkerRage"),
     BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),

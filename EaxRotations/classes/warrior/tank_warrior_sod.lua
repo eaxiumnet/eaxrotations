@@ -11,11 +11,18 @@ local ACTION = {
     Recklessness = define("SodRecklessness", 1719, {}, "Recklessness"),
     LastStand = define("SodLastStand", 12975, {}, "LastStand"),
     Shockwave = define("SodShockwave", 440488, { rune_id = 440488, min_phase = 4 }, "Shockwave"),
-    Cleave = define("SodCleave", 25286, {}, "Cleave"),
+    -- 2026-09-13 sweep: 25286 is HEROIC STRIKE rank 9, not Cleave (bridge +
+    -- Wowhead TBC 25286 = Heroic Strike; 25231 = Cleave). SoD is level-60
+    -- capped, so the vanilla-era Cleave ladder is the reachable one.
+    Cleave = define("SodCleave", { 20569, 11609, 11608, 7369, 845 }, {}, "Cleave"),
     ThunderClap = define("SodThunderClap", 11581, {}, "ThunderClap"),
     ShieldSlam = define("SodShieldSlam", 23925, {}, "ShieldSlam"),
     Revenge = define("SodRevenge", 11601, {}, "Revenge"),
-    Devastate = define("SodDevastate", 11597, { rune_id = 403195, min_phase = 1 }, "Devastate"),
+    -- 2026-09-13 sweep: 11597 is SUNDER ARMOR rank 5, not Devastate (bridge +
+    -- Wowhead TBC 11597 = Sunder Armor; 20243 = Devastate). The rune id (403195)
+    -- gates availability but is not a TBC-audited spell, so the ladder leads with
+    -- the real Devastate and keeps Sunder Armor last as the era-clean fallback.
+    Devastate = define("SodDevastate", { 20243, 11597 }, { rune_id = 403195, min_phase = 1 }, "Devastate"),
     DemoralizingShout = define("SodDemoralizingShout", 11554, {}, "DemoralizingShout"),
     Bloodrage = define("SodBloodrage", 2687, {}, "Bloodrage"),
 }

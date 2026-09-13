@@ -89,8 +89,8 @@ local SPELLS = {
     }),
     DeathCoil = NS.spell_action({
         name = "DeathCoil",
-        ids = {27223, 17926, 17925, 6789},
-        levels = {68, 58, 50, 42},
+        ids = {30500, 27223, 17926, 17925, 6789},
+        levels = {70, 68, 58, 50, 42},
         cast_time = 0,
         cooldown = 120,
         power_cost = 0,

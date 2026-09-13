@@ -438,8 +438,8 @@ local SPELLS = {
     }),
     PoisonCleansingTotem = NS.spell_action({
         name = "PoisonCleansingTotem",
-        ids = {8166},
-        levels = {22},
+        ids = {38306, 8166},
+        levels = {70, 22},
         cast_time = 0,
         cooldown = 0,
         power_cost = 0,
