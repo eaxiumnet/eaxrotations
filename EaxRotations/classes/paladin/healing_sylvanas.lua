@@ -36,7 +36,11 @@ local ACTION = {
     -- NOT live in production: define_action_for_class prefers NS.PaladinSpells, and
     -- that shared ladder never carried 10324 -- this is the standalone path.
     -- Replaced in place by 3472 (Holy Light, level 38), the rank for this slot.
-    HolyLight         = define("HolyLight",         { 27136, 25292, 10329, 10328, 3472, 1042, 647, 639, 635 }, "HolyLight"),
+    -- 2026-09-13 (same pass): also restored 27135 (level 62) and 1026 (level 22),
+    -- the two ranks this fallback ladder was still missing relative to the live
+    -- NS.PaladinSpells.HolyLight, so a standalone load resolves the same rank the
+    -- shared table would.
+    HolyLight         = define("HolyLight",         { 27136, 27135, 25292, 10329, 10328, 3472, 1042, 1026, 647, 639, 635 }, "HolyLight"),
     HolyShock         = define("HolyShock",         { 33072, 27174, 20930, 20929, 20473 }, "HolyShock"),
     Cleanse           = define("Cleanse",           { 4987 }, "Cleanse"),
     Purify            = define("Purify",            { 1152 }, "Purify"),

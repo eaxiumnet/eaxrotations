@@ -21,6 +21,7 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 if not spec_kit then return nil end
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 if not leveling_helpers then return nil end
+local druid_form = require("shared/druid_form_sylvanas")
 
 -- ============================================================================
 -- Module table
@@ -153,10 +154,16 @@ function druid_leveling.build_state(context)
     state.natures_grasp_ready = spell_ready(SPELLS.NaturesGrasp)
     state.faerie_fire_ready = spell_ready(SPELLS.FaerieFire)
 
-    -- Feral form checks
-    state.is_bear = NS.has_form and NS.has_form("bear") or false
-    state.is_cat = NS.has_form and NS.has_form("cat") or false
-    state.in_caster = not state.is_bear and not state.is_cat
+    -- Feral form checks. One detector (shapeshift bar index + aura) so a
+    -- single lying aura read cannot make the rotation believe a shifted
+    -- druid is a caster: the Cat Form lane below would then re-cast Cat
+    -- Form while the druid is ALREADY in it, which TOGGLES THE FORM OFF
+    -- (live 2026-09-13 report: a TBC feral/cat druid left cat form right
+    -- after combat ended, when the OOC lanes re-evaluated).
+    local form = druid_form.current(context)
+    state.is_bear = form == "bear"
+    state.is_cat = form == "cat"
+    state.in_caster = form == nil
 
     -- Feral resources
     state.energy = context.energy or 0
@@ -457,21 +464,24 @@ end
 -- Caster match functions (original)
 -- ============================================================================
 
---- Mark of the Wild - OOC buff
+--- Mark of the Wild - OOC buff (caster form only: a shifted druid cannot
+--- cast it, and attempting it costs the form)
 local motw_matches = function(_, state)
 	    if not state then return false end
 	    if not state.use_self_buffs then return false end
 	    if state.in_combat then return false end
+	    if state.in_caster == false then return false end
     if state.has_mark_of_wild then return false end
     if not state.mark_of_the_wild_ready then return false end
     return true
 end
 
---- Thorns - OOC buff
+--- Thorns - OOC buff (caster form only, same as Mark of the Wild)
 local thorns_matches = function(_, state)
 	    if not state then return false end
 	    if not state.use_self_buffs then return false end
 	    if state.in_combat then return false end
+	    if state.in_caster == false then return false end
     if state.has_thorns then return false end
     if not state.thorns_ready then return false end
     return true
@@ -771,6 +781,33 @@ local strategies = {
           return ok and (result == true) or false
       end },
 }
+
+-- Feral-blocked lanes. Cat Form and Bear Form cannot cast any of them and the
+-- client UNSHIFTS the druid to cast the caster-form ones (TBC: Barkskin
+-- "still removes you from form to cast it"), so a feral druid must not
+-- evaluate them -- the feral lanes above own everything it can do shifted.
+-- ONLY the feral forms are gated: TBC allows the Balance kit in Moonkin Form
+-- and HoTs / poison removal / Barkskin in Tree of Life, so a moonkin or tree
+-- druid keeps casting these. Mark of the Wild / Thorns are caster-only in
+-- EVERY form and are gated separately on state.in_caster above.
+local FERAL_BLOCKED_LANES = {
+    "NaturesGrasp", "Barkskin", "HealingTouch", "Rejuvenation", "EntanglingRoots",
+    "Moonfire", "InsectSwarm", "FaerieFire", "Hurricane", "Starfire", "Wrath", "Wand",
+}
+local feral_blocked_lane = {}
+for i = 1, #FERAL_BLOCKED_LANES do feral_blocked_lane[FERAL_BLOCKED_LANES[i]] = true end
+for i = 1, #strategies do
+    local strategy = strategies[i]
+    if feral_blocked_lane[strategy.name] then
+        local inner_matches = strategy.matches
+        strategy.matches = function(context, state)
+            if state and (state.is_cat or state.is_bear) then return false end
+            return inner_matches(context, state)
+        end
+    end
+end
+-- A renamed lane would silently lose its gate, so the rotation suite pins this
+-- same list against the live strategies table.
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = druid_leveling.build_state })

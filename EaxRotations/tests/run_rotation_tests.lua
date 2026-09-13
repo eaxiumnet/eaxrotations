@@ -579,6 +579,7 @@ local tests = {
   "test_cast_path_integration.lua",
   "test_discipline_healer_mode.lua",
   "test_druid_middleware_nil_guard.lua",
+  "test_druid_form_stay_cat.lua",
   "test_evaluate_cast_casting_guard.lua",
   "test_healer_deficit_overheal.lua",
   "test_interrupt_spec_integration.lua",

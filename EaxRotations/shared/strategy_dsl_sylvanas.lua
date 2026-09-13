@@ -261,7 +261,23 @@ action_handlers["cast"] = function(context, state, action)
     if not NS or not NS.try_cast then return false end
     local target = resolve_target(context, action.target)
     if not target then return false end
+    -- Carry a declared cooldown through as opts.expected_cooldown, the way every
+    -- imperative row does.  Forwarding `action.opts` verbatim silently dropped it:
+    -- NS.action_ready reads action.cooldown, but a DSL strategy never goes through
+    -- that path -- compile_strategy emits only {name, matches, execute} and the
+    -- executor calls try_cast directly -- so a long-cooldown DSL cast had nothing
+    -- but try_cast's 1.5s default throttle behind it.  No declaration sets a
+    -- cooldown today, so this closes a latent gap rather than changing behaviour;
+    -- the table is copied only when a cooldown actually needs adding, so the hot
+    -- path stays allocation-free.
     local opts = action.opts or {}
+    local declared = action.cooldown or opts.cooldown
+    if declared and not opts.expected_cooldown then
+        local merged = {}
+        for k, v in pairs(opts) do merged[k] = v end
+        merged.expected_cooldown = declared
+        opts = merged
+    end
     local ok, result = pcall(NS.try_cast, action.spell, target, action.label or "[DSL]", opts)
     return ok and result == true
 end

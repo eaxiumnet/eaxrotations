@@ -18,7 +18,12 @@ local vanilla_bridge_ok, vanilla_bridge = pcall(require, "shared/wowhead_data_br
 
 local wotlk_index = bridge.spell_index_wotlk or {}
 local tbc_index = (tbc_bridge_ok and tbc_bridge.spell_index_tbc) or {}
-local vanilla_index = (vanilla_bridge_ok and vanilla_bridge.spell_index_vanilla) or {}
+-- The three shipped bridge files disagree about SHAPE: the TBC file exposes its
+-- id map under `spell_index_tbc`, while the vanilla file RETURNS the id map
+-- directly.  Reading only the named key left `vanilla_index` empty, which made
+-- `valid_vanilla_ids` permanently empty and the VANILLA_ID_IN_WOTLK verdict dead
+-- code -- a vanilla-only id in a WotLK file could never be reported.
+local vanilla_index = (vanilla_bridge_ok and (vanilla_bridge.spell_index_vanilla or vanilla_bridge)) or {}
 
 local valid_wotlk_ids = {}
 for id in pairs(wotlk_index) do
@@ -74,7 +79,7 @@ local WOTLK_REFERENCE_ALIASES = {
     -- on the target — fire_wotlk.lua:33 read it and scorch_remains stayed 0.
     -- DBC SpellName (wowsims.db 2.5.5): 22959 = "Fire Vulnerability",
     -- 12873 = "Improved Scorch"; matches fire_sylvanas.lua:47 (TBC) precedent.
-    [22959] = { kind = "VALID_AURA_ALIAS", family = "Scorch", source = "DBC SpellName 22959 + fire_sylvanas.lua:47 precedent" },
+    [22959] = { kind = "VALID_AURA_ALIAS", family = "Fire Vulnerability (Improved Scorch debuff)", source = "DBC SpellName 22959 + fire_sylvanas.lua:47 precedent" },
     [19940] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "sim/paladin/holy/holy.go + shared/_dbc_spell_ids.lua + shared/wowhead_data_bridge_sylvanas.lua" },
     [19939] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "sim/paladin/holy/holy.go + shared/_dbc_spell_ids.lua + shared/wowhead_data_bridge_sylvanas.lua" },
     [48785] = { kind = "VALID_RANK_ALIAS", family = "Flash of Light", source = "wowhead WotLK Classic spell=48785 (Flash of Light, top 3.3.x rank) + shared/wowhead_data_bridge_spell_index_wotlk_sylvanas.lua rank family" },
@@ -361,7 +366,7 @@ local WOTLK_REFERENCE_ALIASES = {
     [28275] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r4)", source = "wowhead WotLK Classic spell=28275/lightwell (ladder shared with holy_sylvanas)" },
     [27871] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r3)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r3)" },
     [27870] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (TBC-era r2)", source = "wowhead WotLK Classic spell=724/lightwell ladder (r2)" },
-    [7001] = { kind = "VALID_RANK_ALIAS", family = "Lightwell (r1)", source = "wowhead WotLK Classic spell=724/lightwell (r1, 801 heal)" },
+    [7001] = { kind = "VALID_RANK_ALIAS", family = "Lightwell Renew", source = "wowhead WotLK Classic spell=724/lightwell (r1, 801 heal)" },
     -- 2026-09-09 DPS/tank guide-pass pins (each Wowhead wotlk verified):
     [61336] = { kind = "VALID_RANK_ALIAS", family = "Survival Instincts", source = "wowhead.com/wotlk/spell=61336 - talent, 3-min CD, +30% hp 20s" },
     [22812] = { kind = "VALID_RANK_ALIAS", family = "Barkskin", source = "wowhead.com/wotlk/spell=22812 - single rank, DR usable in form" },
@@ -398,7 +403,7 @@ local WOTLK_REFERENCE_ALIASES = {
     -- 2026-09-11 school-lockout wave (frost mage + balance druid).
     [33831] = { kind = "VALID_SHARED_ID", family = "Talent: Force of Nature", source = "wowhead WotLK Classic spell=33831/force-of-nature - exists in both TBC and WotLK data (already documented in WOTLK_SHARED_IDS); the classifier's TBC_ID_IN_WOTLK path needs this alias entry to see it" },
     [43039] = { kind = "VALID_BRIDGE_GAP", family = "Ice Barrier", source = "wowhead WotLK Classic spell=43039/ice-barrier - Rank 8 (3300 absorb), the WotLK max; absent from the local WotLK bridge (which stops at 33405 r6) and the Glyph of Ice Barrier page confirms 'Rank 8 Ice Barrier'" },
-    [43038] = { kind = "VALID_BRIDGE_GAP", family = "Ice Barrier", source = "wowhead WotLK Classic spell=43038/ice-barrier - Rank 7 (2860 absorb); absent from the local WotLK bridge" },    -- 2026-09-12 thin-spec guide pass (affliction / demonology / fury).
+    [43038] = { kind = "VALID_BRIDGE_GAP", max_rank = false, family = "Ice Barrier", source = "wowhead WotLK Classic spell=43038/ice-barrier - Rank 7 (2860 absorb); absent from the local WotLK bridge" },    -- 2026-09-12 thin-spec guide pass (affliction / demonology / fury).
     [47867] = { kind = "VALID_BRIDGE_GAP", family = "Curse of Doom", source = "wowhead WotLK Classic spell=47867/curse-of-doom - 1min duration + 1min CD, the long-fight curse the wl_demo/wl_destro fixtures cast when remainingTime > 60s; absent from the local WotLK bridge" },
     [50589] = { kind = "VALID_BRIDGE_GAP", family = "Immolation Aura", source = "wowhead WotLK Classic spell=50589/immolation-aura - Demonology Metamorphosis-form instant, 30s CD / 15s duration; absent from the local WotLK bridge" },
     [57755] = { kind = "VALID_BRIDGE_GAP", family = "Heroic Throw", source = "wowhead WotLK Classic spell=57755/heroic-throw - the fury APL ranged filler (auto + both main CDs away); absent from the local WotLK bridge" },
@@ -412,9 +417,9 @@ local WOTLK_REFERENCE_ALIASES = {
     -- verified on Wowhead WotLK Classic (each 68% of base mana, 3 sec cast, 1.5s
     -- GCD, self range): 20752 "Creates a Lesser Soulstone", 20755 "Creates a
     -- Soulstone", 20756 "Creates a Greater Soulstone".
-    [20752] = { kind = "VALID_SHARED_ID", family = "Create Soulstone", source = "wowhead WotLK Classic spell=20752/create-soulstone - Creates a Lesser Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
-    [20755] = { kind = "VALID_SHARED_ID", family = "Create Soulstone", source = "wowhead WotLK Classic spell=20755/create-soulstone - Creates a Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
-    [20756] = { kind = "VALID_SHARED_ID", family = "Create Soulstone", source = "wowhead WotLK Classic spell=20756/create-soulstone - Creates a Greater Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
+    [20752] = { kind = "VALID_SHARED_ID", max_rank = false, family = "Create Soulstone", source = "wowhead WotLK Classic spell=20752/create-soulstone - Creates a Lesser Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
+    [20755] = { kind = "VALID_SHARED_ID", max_rank = false, family = "Create Soulstone", source = "wowhead WotLK Classic spell=20755/create-soulstone - Creates a Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
+    [20756] = { kind = "VALID_SHARED_ID", max_rank = false, family = "Create Soulstone", source = "wowhead WotLK Classic spell=20756/create-soulstone - Creates a Greater Soulstone; era-shared with TBC, absent from the local WotLK bridge" },
     -- 2026-09-12 thin-spec guide pass (destruction / warrior prot / paladin
     -- prot / resto shaman). All wowhead WotLK Classic verified; absent from
     -- the local file-derived WotLK bridge (except 48952, also cast by the
@@ -635,9 +640,16 @@ local WOTLK_BRIDGE_MAX_RANKS = {
 }
 
 -- Union of every pinned max rank: reference aliases (bridge-gap IDs) + bridge max ranks.
+-- A pin records that an id is legitimate; it does NOT claim the id is its
+-- spell's top rank.  `max_rank = false` says so explicitly, so a 
+-- mid-ladder rank can be pinned without also becoming a legal ladder HEAD:
+-- STALE_TOP only ever judges the head, and a ladder that LEADS with rank 7 of
+-- Ice Barrier (43038) or rank 2 of Create Soulstone (20752) is still stale.
 local WOTLK_MAX_RANK_IDS = {}
-for id in pairs(WOTLK_REFERENCE_ALIASES) do
-    WOTLK_MAX_RANK_IDS[id] = true
+for id, alias in pairs(WOTLK_REFERENCE_ALIASES) do
+    if not (type(alias) == "table" and alias.max_rank == false) then
+        WOTLK_MAX_RANK_IDS[id] = true
+    end
 end
 for id in pairs(WOTLK_BRIDGE_MAX_RANKS) do
     WOTLK_MAX_RANK_IDS[id] = true
@@ -646,6 +658,36 @@ end
 local function is_max_rank(id)
     return WOTLK_MAX_RANK_IDS[id] == true
 end
+
+-- Cross-era name allowances (2026-09-13).  Only 2 reference pins are described by
+-- the WotLK bridge; resolving names across all three era bridges covers 320 of
+-- them, and that wider net found exactly 5 pins whose two sources title the same
+-- spell differently.  Each entry names BOTH halves of the exception -- the pin
+-- LABEL it excuses and the EXACT bridge string it excuses -- so a different or
+-- newly-wrong label on the same id still fails.  This is not an id-level
+-- allowlist: excusing on the id alone would have let any label pinned to these
+-- five ids through, which the self-test now proves is not the case.
+-- Verified: for every id here the local classic DBC (TBC and vanilla agree with
+-- each other) is the source that differs, and it is the same spell.
+local CROSS_ERA_NAME_ALLOWANCES = {
+    -- Local DBC "Inferno" = the infernal guardian's summon/cast; the pin cites
+    -- wowhead WotLK Classic spell=1122/summon-infernal.  Same spell, two titles.
+    [1122]  = { family = "Summon Infernal", excused = "Inferno",
+                reason = "summon-infernal vs local DBC Inferno" },
+    -- Local DBC "Quake" is the documented pet-book collision the pin's own source
+    -- already calls out ("wowhead page shows NPC collision 'Quake'").
+    [26093] = { family = "Pet: Thunderstomp (wind serpent)", excused = "Quake",
+                reason = "pet-book artifact; pin documents it" },
+    -- Voidwalker threat ability: wowhead calls it Torment, the local DBC Suffering.
+    [17735] = { family = "Pet: Torment r1 (voidwalker)", excused = "Suffering",
+                reason = "torment vs local DBC Suffering" },
+    -- Felguard Intercept: the local DBC names the stun the charge applies, not the
+    -- charge; wowhead names the charge.
+    [30195] = { family = "Pet: Intercept r1 (felguard)", excused = "Intercept Stun",
+                reason = "felguard charge-stun vs Intercept" },
+    [30197] = { family = "Pet: Intercept r2 (felguard)", excused = "Intercept Stun",
+                reason = "felguard charge-stun vs Intercept" },
+}
 
 -- ---------------------------------------------------------------------------
 -- Pin-name agreement (2026-09-13 spell-id sweep, PIN-FAMILY-MISMATCH bucket)
@@ -661,36 +703,76 @@ end
 -- pin exists precisely because the bridge omits the id, and this audit's own
 -- Wowhead-sourced note is the evidence for those.
 -- ---------------------------------------------------------------------------
-local function pin_name_mismatches()
+local function pin_name_mismatches(test_table)
     local out = {}
+    -- Coverage accounting.  This check can only compare a pin whose id some local
+    -- bridge actually names, so how many it compared is part of its result: a PASS
+    -- that silently skipped every pin is not evidence of anything.  Of the 260
+    -- reference pins, only 2 are WotLK-bridge-described, so a WotLK-only lookup
+    -- made this effectively vacuous -- resolving the name across all three era
+    -- bridges is what makes the check real.
+    local stats = {
+        checked_wotlk = 0, checked_cross_era = 0, excused = 0, skipped = 0,
+    }
+    local function era_name(id)
+        local nm = name_agreement.entry_name(wotlk_index[id])
+        if nm then return nm, "wotlk" end
+        nm = name_agreement.entry_name(tbc_index[id])
+        if nm then return nm, "tbc" end
+        nm = name_agreement.entry_name(vanilla_index[id])
+        if nm then return nm, "vanilla" end
+        return nil
+    end
     local function check(id, label, table_name)
-        local entry = wotlk_index[id]
-        if not entry or not entry.name then return end
-        local ok, extra = name_agreement.name_agrees(label, entry.name)
+        local bridge, era = era_name(id)
+        if not bridge then
+            stats.skipped = stats.skipped + 1
+            return
+        end
+        if era == "wotlk" then
+            stats.checked_wotlk = stats.checked_wotlk + 1
+        else
+            local allow = CROSS_ERA_NAME_ALLOWANCES[id]
+            if allow and allow.excused == bridge
+                and allow.family and name_agreement.name_agrees(label, allow.family) then
+                stats.excused = stats.excused + 1
+                return
+            end
+            stats.checked_cross_era = stats.checked_cross_era + 1
+        end
+        local ok, extra = name_agreement.name_agrees(label, bridge)
         if not ok then
             out[#out + 1] = {
-                id = id, family = label, bridge = entry.name,
+                id = id, family = label, bridge = bridge, era = era,
                 extra = extra, source = table_name,
             }
         end
     end
-    for id, alias in pairs(WOTLK_REFERENCE_ALIASES) do
-        if type(alias) == "table" and alias.family then
-            check(id, alias.family, "WOTLK_REFERENCE_ALIASES")
+    if test_table then
+        for id, alias in pairs(test_table) do
+            if type(alias) == "table" and alias.family then
+                check(id, alias.family, "TEST_TABLE")
+            end
         end
-    end
-    for id, family in pairs(WOTLK_BRIDGE_MAX_RANKS) do
-        if type(family) == "string" then
-            check(id, family, "WOTLK_BRIDGE_MAX_RANKS")
+    else
+        for id, alias in pairs(WOTLK_REFERENCE_ALIASES) do
+            if type(alias) == "table" and alias.family then
+                check(id, alias.family, "WOTLK_REFERENCE_ALIASES")
+            end
         end
-    end
-    for id, shared in pairs(WOTLK_SHARED_IDS) do
-        if type(shared) == "table" and shared.family then
-            check(id, shared.family, "WOTLK_SHARED_IDS")
+        for id, family in pairs(WOTLK_BRIDGE_MAX_RANKS) do
+            if type(family) == "string" then
+                check(id, family, "WOTLK_BRIDGE_MAX_RANKS")
+            end
+        end
+        for id, shared in pairs(WOTLK_SHARED_IDS) do
+            if type(shared) == "table" and shared.family then
+                check(id, shared.family, "WOTLK_SHARED_IDS")
+            end
         end
     end
     table.sort(out, function(a, b) return a.id < b.id end)
-    return out
+    return out, stats
 end
 
 local root = "EaxRotations"
@@ -900,9 +982,14 @@ end
 -- "bridge-valid" into "same spell": 25286 (Heroic Strike) pinned under a Cleave
 -- label and 1543 (Flare) pinned under a Volley label are both bridge-valid, so
 -- membership alone accepted two lanes that cast the wrong spell.
-local function scan_name_agreement(content)
+-- Coverage accumulator for the live inventory (see spell_name_agreement.lua:
+-- a PASS that compared nothing is not evidence of anything).  Only the live loop
+-- feeds it, so the counts are the 41-file inventory's, not the probes' synthetics.
+local name_coverage = { ladders = 0, ids = 0, named = 0 }
+
+local function scan_name_agreement(content, stats)
     if type(content) ~= "string" then return {} end
-    return name_agreement.check_ladders(content, { index = wotlk_index })
+    return name_agreement.check_ladders(content, { index = wotlk_index, stats = stats })
 end
 
 local function scan_file(filepath)
@@ -914,7 +1001,7 @@ local function scan_file(filepath)
         return { error = "could not read", hits = {}, unverified = {}, name_hits = {} }
     end
     local result = scan_content(content)
-    result.name_hits = scan_name_agreement(content)
+    result.name_hits = scan_name_agreement(content, name_coverage)
     return result
 end
 
@@ -1145,6 +1232,19 @@ local function run_self_tests()
     expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count") -- 30357 Revenge replaced by 57823 (alias); +3 W3.3 warrior entries in flight (actual table count, 2026-08-13)
     expect(map_count(WOTLK_SHARED_IDS), 117, "shared pin count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")
+    -- A pinned mid rank must not become a legal ladder HEAD (the Ice Barrier r7 /
+    -- Create Soulstone r30-50 shape).  Both halves are asserted so the flag can
+    -- never silently invert.
+    expect(is_max_rank(43039), true, "Ice Barrier r8 stays head-legal")
+    expect(is_max_rank(43038), false, "pinned Ice Barrier r7 is not head-legal")
+    expect(is_max_rank(47884), true, "Create Soulstone bridge max stays head-legal")
+    expect(is_max_rank(20752), false, "pinned Create Soulstone r30 is not head-legal")
+    expect(is_max_rank(20755), false, "pinned Create Soulstone r40 is not head-legal")
+    expect(is_max_rank(20756), false, "pinned Create Soulstone r50 is not head-legal")
+    local stale_cs = scan_content("CreateSoulstone = define(\"CreateSoulstone\", { 20752, 693 }, \"CreateSoulstone\")")
+    local sees = false
+    for _, h in ipairs(stale_cs.hits) do if h.kind == "STALE_TOP" then sees = true end end
+    expect(sees, true, "a ladder headed by a pinned mid rank is still stale")
     expect(WOTLK_REJECTED_IDS[48999], true, "disproven Counterattack ID rejected")
     expect(WOTLK_REFERENCE_ALIASES[44459], nil, "disproven ID absent from allowlist")
     expect(#WOTLK_FILES, 41, "WotLK inventory size")
@@ -1227,9 +1327,46 @@ local function run_self_tests()
         if body then live_name_hits = live_name_hits + #scan_name_agreement(body) end
     end
     expect(live_name_hits, 0, "no live WotLK ladder label disagreements")
-    expect(#pin_name_mismatches(), 0, "no pin family disagreements")
+    -- Coverage is pinned for the same reason the pin-family counts are: this
+    -- assertion is only evidence if the comparison actually happened.
+    local cov_ladders, cov_ids, cov_named = 0, 0, 0
+    do
+        local cov = {}
+        for _, file in ipairs(WOTLK_FILES) do
+            local body = read_file(root .. "/" .. file)
+            if body then scan_name_agreement(body, cov) end
+        end
+        cov_ladders, cov_ids, cov_named = cov.ladders or 0, cov.ids or 0, cov.named or 0
+    end
+    expect(cov_ladders, 523, "name-agreement coverage: labelled ladders compared")
+    expect(cov_ids, 2207, "name-agreement coverage: ids compared")
+    expect(cov_named, 1753, "name-agreement coverage: ids the bridge names")
+    -- Pin-name agreement: coverage is pinned, because the check's value is the
+    -- number of pins it actually compared.  A WotLK-only lookup compared 2 of 260;
+    -- resolving names across all three era bridges is what makes it real, so a
+    -- bridge refresh that quietly stops naming these ids now fails here instead of
+    -- silently reducing the check to a no-op.
+    local pin_hits, pin_stats = pin_name_mismatches()
+    expect(#pin_hits, 0, "no pin family disagreements")
+    expect(pin_stats.checked_wotlk, 94, "pin-name coverage: WotLK-bridge pins compared")
+    expect(pin_stats.checked_cross_era, 229, "pin-name coverage: cross-era pins compared")
+    expect(pin_stats.excused, 5, "pin-name coverage: excused source-naming differences")
+    expect(pin_stats.skipped, 143, "pin-name coverage: pins no local bridge names")
+    -- Non-vacuity: a mislabelled pin for a cross-era id must fail, and the
+    -- allowance must excuse ONLY the exact bridge string it names -- a different
+    -- wrong label for an excused id still fails.
+    expect(#pin_name_mismatches({ [20752] = { family = "Create Soulstone" } }), 0,
+        "cross-era pin-name check accepts a correct label")
+    expect(#pin_name_mismatches({ [20752] = { family = "Fireball" } }), 1,
+        "cross-era pin-name check rejects a wrong label")
+    expect(#pin_name_mismatches({ [1122] = { family = "Summon Infernal" } }), 0,
+        "allowance excuses the exact cross-era string it names")
+    expect(#pin_name_mismatches({ [1122] = { family = "Frostbolt" } }), 1,
+        "allowance does not excuse any other label")
+    expect(#pin_name_mismatches({ [999999] = { family = "Anything" } }), 0,
+        "an id no bridge names is skipped, not failed")
 
-    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder id validation, unverified aliases resolved, name agreement (12 rule cases + ladder probe + live inventory), pin names agree, negative IDs, 41-file inventory")
+    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder id validation, unverified aliases resolved, name agreement (12 rule cases + ladder probe + live inventory, coverage 523/2207 pinned), pin names agree, negative IDs, 41-file inventory")
 end
 
 local function run_invalid_probe()
@@ -1406,19 +1543,25 @@ end
 -- Pin-name agreement: a pin whose declared family disagrees with the client
 -- name for the same id is a self-certifying allowlist entry (the 2944 shape).
 do
-    local pin_hits = pin_name_mismatches()
+    local pin_hits, pin_stats = pin_name_mismatches()
     total = total + 1
+    -- The coverage line is the point: a PASS that compared almost nothing is not
+    -- evidence, and printing the counts is what makes that visible in CI output.
+    local coverage = string.format(
+        "%d wotlk + %d cross-era compared, %d named-difference excused, %d no local name",
+        pin_stats.checked_wotlk, pin_stats.checked_cross_era,
+        pin_stats.excused, pin_stats.skipped)
     if #pin_hits > 0 then
         failed = failed + 1
         failures[#failures + 1] = { file = "pin tables", pin_hits = pin_hits }
-        print(string.format("  [ FAIL ]  %-50s %d pin name mismatch(es)", "pin tables", #pin_hits))
+        print(string.format("  [ FAIL ]  %-50s %d pin name mismatch(es) [%s]", "pin tables", #pin_hits, coverage))
         for _, hit in ipairs(pin_hits) do
-            print(string.format("            id %d [PIN_NAME_MISMATCH]  %s family %q vs bridge %q (unmatched: %s)",
-                hit.id, hit.source, hit.family, hit.bridge, table.concat(hit.extra or {}, ",")))
+            print(string.format("            id %d [PIN_NAME_MISMATCH]  %s family %q vs %s bridge %q (unmatched: %s)",
+                hit.id, hit.source, hit.family, hit.era or "wotlk", hit.bridge, table.concat(hit.extra or {}, ",")))
         end
     else
         passed = passed + 1
-        print(string.format("  [ PASS ]  %-50s pin families agree with the bridge", "pin tables"))
+        print(string.format("  [ PASS ]  %-50s pin names agree [%s]", "pin tables", coverage))
     end
 end
 
@@ -1427,6 +1570,8 @@ print("=========================================================================
 print("  WOTLK SPELL AUDIT RESULTS")
 print("=============================================================================")
 print(string.format("  Total:     %3d wotlk files", total))
+print(string.format("  Ladder-label check: %d labelled ladder(s), %d id(s) compared, %d named by the bridge",
+    name_coverage.ladders or 0, name_coverage.ids or 0, name_coverage.named or 0))
 print(string.format("  Skipped:   %3d (file not present)", skipped))
 print(string.format("  Clean:     %3d", passed))
 print(string.format("  Invalid:   %3d", failed))

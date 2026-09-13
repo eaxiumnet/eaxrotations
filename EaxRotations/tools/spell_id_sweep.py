@@ -124,9 +124,19 @@ def load_pins():
             if m:
                 rejected.add(int(m.group(1)))
             continue
-        m = re.match(r'\s*\[(\d+)\]\s*=\s*\{\s*kind\s*=\s*"([^"]+)"\s*,\s*family\s*=\s*"([^"]*)"', ln)
+        # Field ORDER must not matter.  The original pattern required
+        # kind-then-family verbatim, so adding a field between them (the
+        # 2026-09-13 `max_rank = false` Ice Barrier flag) silently dropped the
+        # pin and reclassified a bridge-gap alias as UNSOURCED.  Read the two
+        # fields out of the entry body instead of matching their positions.
+        m = re.match(r'\s*\[(\d+)\]\s*=\s*\{(.*)$', ln)
         if m:
-            pins[int(m.group(1))] = {"kind": m.group(2), "family": m.group(3), "table": cur}
+            body = m.group(2)
+            kind = re.search(r'kind\s*=\s*"([^"]+)"', body)
+            family = re.search(r'family\s*=\s*"([^"]*)"', body)
+            if kind and family:
+                pins[int(m.group(1))] = {"kind": kind.group(1), "family": family.group(1),
+                                         "table": cur}
     return pins, rejected, tables
 
 
@@ -300,7 +310,7 @@ CHECK_BLURB = {
     "ERA-TBC-IN-VANILLA": "post-60 id in a vanilla file",
     "ERA-WOTLK-IN-TBC": "WotLK-only id in a TBC file",
     "REDIRECTED": "bridge name disagrees with the pinned label (wrong-family id)",
-    "WRONG-RANK": "a higher rank of the same spell exists outside the ladder (the bridge names cast/effect twins alike, so verify before acting)",
+    "WRONG-RANK": "the highest rank a ladder lists for one of its spells is below the highest rank that era can learn (checked at EVERY slot, not just the head: originally the head-only form, widened 2026-09-13 -- a descending ladder still fires only at its head, but a ladder that stops short of the era max anywhere, or lists a second spell whose own chain is incomplete, is now covered; the bridge names cast/effect twins alike, so verify before acting)",
     "PIN-FAMILY-MISMATCH": "audit pin family disagrees with the bridge name",
     "DUPLICATE-CONFLICT": "one id pinned under two different names",
     "UNSOURCED": "no local source knows the id (WotLK triage only: the local index is a subset)",
@@ -512,10 +522,20 @@ def self_test():
         with open(right, "w", encoding="utf-8", newline="\n") as fh:
             fh.write('local S = {}\nS.zz = { define("BattleShout", 2048, "Battle Shout") }\n')
 
-        _summary, findings = sweep([wrong, dead, right])
+        # The mage FrostArmor shape: the ladder HEAD is a DIFFERENT spell's top
+        # rank, so 7301 (Frost Armor, level 20) is the top rank this ladder lists
+        # for ITS spell while the era can still learn 31256 (level 70).  Under the
+        # head-only form there was nothing at that slot to check -- this is the
+        # slot widening, proved end to end.
+        bodyfile = os.path.join(tmp, "zz_selftest_bodyslot_sylvanas.lua")
+        with open(bodyfile, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write('local S = {}\nS.zz = { define("FrostArmor", { 27124, 7301, 7300, 168 }, "FrostArmor") }\n')
+
+        _summary, findings = sweep([wrong, dead, right, bodyfile])
         wrong_rel = os.path.relpath(wrong, REPO).replace("\\", "/")
         right_rel = os.path.relpath(right, REPO).replace("\\", "/")
 
+        body_rel = os.path.relpath(bodyfile, REPO).replace("\\", "/")
         redirected = [f for f in findings
                       if f["check"] == "REDIRECTED" and f.get("id") == 2048
                       and f["file"] == wrong_rel]
@@ -529,6 +549,17 @@ def self_test():
         expect(redirected and not gate_buckets_hit(redirected),
                "REDIRECTED must be a 'pinned' bucket, so a wrong-family id is pinnable-but-flagged")
 
+
+        body_hits = [f for f in findings if f["check"] == "WRONG-RANK"
+                     and f.get("id") == 7301 and f["file"] == body_rel]
+        expect(bool(body_hits),
+               "a BODY slot that is the top rank its ladder lists for its own spell, but "
+               "below the era max, must flag WRONG-RANK (the widened slot coverage)")
+        expect(all(f.get("position") == "body" for f in body_hits),
+               "the widened check must report the slot it fired at")
+        expect(not [f for f in findings if f["check"] == "WRONG-RANK"
+                    and f.get("id") in (7300, 168) and f["file"] == body_rel],
+               "only the top rank of a spell's chain is judged, not every body slot")
         base = load_baseline()
         if base is None:
             checks.append("baseline present")
@@ -537,7 +568,7 @@ def self_test():
         else:
             pinned = collections.Counter(base.get("findings") or {})
             new = collections.Counter(finding_key(f) for f in findings) - pinned
-            for f in redirected + unknown:
+            for f in redirected + unknown + body_hits:
                 expect(finding_key(f) in new,
                        "injected finding must classify NEW vs the baseline: %s" % finding_key(f))
     finally:
@@ -549,8 +580,9 @@ def self_test():
             print("   !! " + msg)
         return 1
     print("[PASS] spell_id_sweep self-test: injected wrong-family pin flagged REDIRECTED, "
-          "injected unknown id flagged HARD, correctly labelled pin stayed silent, and both "
-          "injected findings classify NEW vs the committed baseline (%d/%d checks)"
+          "injected unknown id flagged HARD, a rank gap at a BODY slot flagged WRONG-RANK "
+          "while the era-max head stayed silent, a correctly labelled pin stayed silent, "
+          "and every injected finding classifies NEW vs the committed baseline (%d/%d checks)"
           % (len(checks), len(checks)))
     return 0
 
@@ -668,23 +700,44 @@ def sweep(paths):
                             "pin table calls this id %r, the bridge calls it %r"
                             % (pins[sid]["family"], bridge_name),
                             pin_table=pins[sid]["table"], **base)
-            # WRONG-RANK: the ladder HEAD must be the highest rank its own era
-            # can learn. Tails are fallbacks by design, so only the head is
-            # checked: a lower rank leading the ladder is the Chaos Bolt /
-            # Holy Shield failure shape.
-            if pos == 0 and era in ERA_CAP and rec and sid in dbc and rec["name"] and rec["level"] is not None:
+            # WRONG-RANK: for every spell a ladder can cast, the highest rank it
+            # LISTS must be the highest rank its own era can learn -- a lower one
+            # means every cast from that lane silently down-ranks (the Chaos Bolt /
+            # Holy Shield failure shape).
+            #
+            # This runs at EVERY slot, not just the head (widened 2026-09-13: the
+            # head-only form left 5,495 of 7,374 ids -- 75% -- never rank-checked).
+            # The question asked of a body slot is the same one, phrased for the
+            # spell that slot belongs to: "am I the top rank this ladder lists for
+            # my spell, and does my era have a better one?"  A descending ladder
+            # answers yes only at its head, so ordinary ladders report exactly what
+            # they used to; what the widening ADDS is a ladder that stops short of
+            # the era max in the middle (a gap the head cannot see) or lists a
+            # whole second spell whose own chain is incomplete -- e.g. the mage
+            # FrostArmor ladder, which leads with Ice Armor and then tops out the
+            # Frost Armor chain at level 20.
+            if era in ERA_CAP and rec and sid in dbc and rec["name"] and rec["level"] is not None:
                 key = (normalize(rec["name"]), normalize(rec["cls"] or ""))
-                best = era_max[ERA_CAP[era]].get(key)
+                cap = ERA_CAP[era]
+                best = era_max[cap].get(key)
+                # Peers are era-capped on purpose: a WotLK-era rank sitting in a
+                # TBC ladder is a different (era) question, not a rank inside this
+                # cap, and counting it here would mask a genuine low top.
+                top_of_spell = not any(
+                    q != sid and classic.get(q) and q in dbc
+                    and normalize(classic.get(q, {}).get("name") or "") == key[0]
+                    and normalize(classic.get(q, {}).get("cls") or "") == key[1]
+                    and classic[q]["level"] is not None
+                    and rec["level"] < classic[q]["level"] <= cap
+                    for q in site["ids"])
                 # the vanilla audit's curated TBC_IDS list already classifies the
                 # late-vanilla 25xxx boundary ids as TBC-era: suppressing those
                 # keeps this check to ids the repo has not already adjudicated.
-                head_below_era_max = (best and best[1] > rec["level"]
-                                      and best[0] not in site["ids"][1:]
-                                      and best[0] not in S["v_tbc"])
-                if head_below_era_max:
+                if (best and top_of_spell and best[1] > rec["level"]
+                        and best[0] not in S["v_tbc"]):
                     add_finding(findings, "WRONG-RANK", "review", site,
-                                "%s ladder head is the level-%d rank, but %d is the level-%d rank of the same spell"
-                                % (era, rec["level"], best[0], best[1]),
+                                "%s ladder's top %s rank is level %d, but %d is the level-%d rank of the same spell"
+                                % (era, where, rec["level"], best[0], best[1]),
                                 better_id=best[0], better_level=best[1], **base)
             # RANK-ORDER: a higher rank must never sit after a lower one
             if pos > 0 and rec and sid in dbc and rec["level"] is not None:

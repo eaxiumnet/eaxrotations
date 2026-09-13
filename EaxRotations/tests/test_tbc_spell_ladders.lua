@@ -32,7 +32,14 @@ local function ladder_case(path, filler_names, opts)
             -- skip band (e.g. cat form L20+)
         else
             expect(path .. " L" .. level .. " filler", function()
-                local mod = H.load_module(path, { level = level, class_folder = opts.class_folder })
+                -- Forward the NS mock knobs too: `has_form` is how a caster-form
+                -- ladder declares that the druid is NOT shifted. Dropping it here
+                -- silently restored the default "always in cat/bear" fiction.
+                local mod = H.load_module(path, {
+                    level = level,
+                    class_folder = opts.class_folder,
+                    has_form = opts.has_form,
+                })
                 assert_true(mod.strategies ~= nil or (mod.result and mod.result.on_update),
                     "strategies or leveling module captured")
                 local strategies = mod.strategies
@@ -372,9 +379,22 @@ ladder_case("EaxRotations/classes/druid/resto_sylvanas.lua", {
     "HealingTouch", "Rejuvenation", "Regrowth", "RegrowthSpotHeal", "PriorityRejuvenation",
     "SwiftmendEmergency", "FallbackHealingTouch", "Lifebloom",
 }, { class_folder = "druid" })
+-- Caster form: this filler list is caster-only (Wrath L1 / Moonfire L4). A
+-- shifted druid cannot cast those, and the rotation now holds them while in a
+-- form, so the fixture must not claim Cat Form it also expects caster casts
+-- from. The feral side of this same file is pinned by test_druid_form_stay_cat
+-- and the stay_in_cat cases in test_leveling_druid.
 ladder_case("EaxRotations/classes/druid/leveling_sylvanas.lua", {
     "Wrath", "Moonfire", "HealingTouch", "Rejuvenation", "CatForm", "BearForm",
-}, { class_folder = "druid" })
+}, {
+    class_folder = "druid",
+    has_form = false,
+    -- The helper's default context claims Cat Form via the shapeshift bar
+    -- (stance = 3). A caster-form ladder must not: the rotation reads the bar
+    -- index as the primary source, so claiming cat form while expecting Wrath
+    -- is the same contradiction the has_form flag above fixes.
+    context_extra = { stance = 0 },
+})
 high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "MangleDebuff", 25, { class_folder = "druid" })
 high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "MangleFiller", 25, { class_folder = "druid" })
 high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "StealthMangle", 25, {

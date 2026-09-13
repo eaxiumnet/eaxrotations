@@ -15,7 +15,7 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 | Decision rules exercised by the test rig | 2616 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
 | Rules the rig never triggers, each with a filed written reason | 20 |
-| Behavioral test battery | 563 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
+| Behavioral test battery | 564 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
 | Cast order machine-checked against simulators | 50 of 50 pinned specs (where a simulator exists) |
 | Unreachable-rule gate | strict in all 4 eras — an unexplained unreachable rule fails the release |
 
