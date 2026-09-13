@@ -95,7 +95,7 @@ local function make_ns()
             PlagueStrike      = spell_action({ 49921, 49917, 49918, 49919, 49920 }, "PlagueStrike"),
             Obliterate        = spell_action({ 51425, 49020, 51423, 51424 }, "Obliterate"),
             HowlingBlast      = spell_action({ 51411, 49184, 51409, 51410 }, "HowlingBlast"),
-            FrostStrike       = spell_action({ 55268, 49143, 51414 }, "FrostStrike"),
+            FrostStrike       = spell_action({ 55268, 51419, 51418, 51417, 51416, 49143 }, "FrostStrike"),
             BloodStrike       = spell_action({ 49930, 45902, 49926 }, "BloodStrike"),
             HornOfWinter      = spell_action({ 57623, 57330 }, "HornOfWinter"),
             UnbreakableArmor  = spell_action(51271, "UnbreakableArmor"),

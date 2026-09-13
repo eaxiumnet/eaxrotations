@@ -47,7 +47,7 @@ _G.EaxRotations = {
     HunterSpells = {
         SilencingShot = 34490, ScatterShot = 19503, FeignDeath = 5384,
         ViperSting = 27018, FreezingTrap = 1499, RapidFire = 3045,
-        MendPet = 27046, RevivePet = 1515, CallPet = 883, HuntersMark = 27019,
+        MendPet = 27046, RevivePet = 1515, CallPet = 883, HuntersMark = 14325,
         AspectOfTheHawk = 13165, AspectOfTheViper = 34074,
     },
     register_class_middleware = function(key, strategies) captured = strategies end,

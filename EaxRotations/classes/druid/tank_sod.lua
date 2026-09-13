@@ -25,7 +25,10 @@ local ACTION = {
     Maul = define("Maul", { 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, {}, "Maul"),
     -- Era-common abilities (TBC-bridge-valid ids) + the Survival Instincts
     -- rune (409809 castable, Wowhead-verified; buff 408024).
-    DemoralizingRoar = define("SodDemoralizingRoar", { 16857, 9898 }, {}, "DemoralizingRoar"),
+    -- Full Demoralizing Roar ladder (99 r1 -> 9898 max at 52). 16857 is
+    -- Faerie Fire (Feral), NOT Demoralizing Roar: the old head made the bear
+    -- cast FF and never the -AP roar.
+    DemoralizingRoar = define("SodDemoralizingRoar", { 9898, 9747, 9490, 1735, 99 }, {}, "DemoralizingRoar"),
     Growl = define("SodGrowl", 6795, {}, "Growl"),
     Enrage = define("SodEnrage", 5229, {}, "Enrage"),
     SurvivalInstincts = define("SodSurvivalInstincts", 409809, { rune_id = 409809 }, "SurvivalInstincts"),

@@ -251,10 +251,12 @@ local SPELLS = {
     }),
     IceBlock = NS.spell_action({
         name = "IceBlock",
-        -- 11958 = Ice Block R1 (Vanilla + TBC 2.5.5; verified in wowsims.db), 27619 = Ice Block R2 (TBC).
-        -- 12472 = Cold Snap (NOT Ice Block — the old comment was factually wrong);
-        -- 45438 is the WotLK-only Ice Block and does NOT exist in the 2.5.5 DBC.
-        ids = {11958, 27619},
+        -- 45438 = Ice Block (TBC Classic: 10s immunity + Hypothermia,
+        --   wowhead.com/tbc/spell=45438 - verified), 27619 = Ice Block (the
+        --   pre-Hypothermia Classic/TBC version, wowhead.com/classic/spell=27619).
+        -- 11958 is Cold Snap (480s CD) and must never head this ladder; first-
+        --   known-wins meant a TBC mage already holding Cold Snap cast Cold Snap here.
+        ids = {45438, 27619},
         levels = {30},
         cast_time = 0,
         cooldown = 300,

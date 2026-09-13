@@ -16,7 +16,9 @@ local ACTION = {
     FlameShock = define("FlameShock", { 29228, 10448, 10447, 8053, 8052, 8050 }, nil, "FlameShock"),
     MaelstromGate = define("MaelstromWeapon", 408498, { rune_id = 408498, min_phase = 2 }, "MaelstromWeapon"),
     ChainLightning = define("ChainLightning", { 10605, 2860, 930, 421 }, nil, "ChainLightning"),
-    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 930, 548, 529, 403 }, nil, "LightningBolt"),
+    -- 915 (Lightning Bolt r6 at 20), not 930 (Chain Lightning r1) — the
+    -- sweep caught the rank-1 chain bolt padding this ladder.
+    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 915, 548, 529, 403 }, nil, "LightningBolt"),
     MoltenBlast = define("MoltenBlast", 425339, { rune_id = 425339 }, "MoltenBlast"),
     Stormstrike = define("Stormstrike", 17364, nil, "Stormstrike"),
     EarthShock = define("EarthShock", { 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, nil, "EarthShock"),

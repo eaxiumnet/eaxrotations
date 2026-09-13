@@ -325,8 +325,11 @@ local SPELLS = {
     }),
     ImmolationTrap = NS.spell_action({
         name = "ImmolationTrap",
-        ids = {29906, 27023, 14299, 14298, 13795},
-        levels = {70, 60, 50, 40, 30},
+        -- Real trap cast ranks only (27023 r6 at 65 .. 13795 r1 at 16).
+        -- 29906 is Ravage (a pet ability) and 14299/14298 are the DoT *effect*
+        -- spells, not the trap cast: the old head made the TBC trap uncastable.
+        ids = {27023, 14305, 14304, 14303, 14302, 13795},
+        levels = {65, 56, 46, 36, 26, 16},
         cast_time = 0,
         cooldown = 30,
         power_cost = 0,

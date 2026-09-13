@@ -24,10 +24,18 @@ local ACTION = {
     ArcaneShot = define("ArcaneShot", { 14287, 14286 }, {}, "ArcaneShot"),
     SerpentSting = define("SerpentSting", { 25295, 13555 }, {}, "SerpentSting"),
     -- Era-common abilities (TBC-bridge-valid ids).
-    HuntersMark = define("SodHuntersMark", { 30706, 14323, 14324, 14325 }, {}, "HuntersMark"),
+    -- Real Hunter's Mark ladder, descending (14325 max at 58). 30706 is a
+    -- shaman Totem of Wrath: as the old head it was never known, so the lane
+    -- silently fell through to the lowest rank.
+    HuntersMark = define("SodHuntersMark", { 14325, 14324, 14323, 1130 }, {}, "HuntersMark"),
     RapidFire = define("SodRapidFire", 3045, {}, "RapidFire"),
-    AspectHawk = define("SodAspectHawk", { 13159, 13158, 8352 }, {}, "AspectHawk"),
-    Volley = define("SodVolley", { 27019, 1510 }, {}, "Volley"),
+    -- Real Aspect of the Hawk ladder, descending (14322 max at 58). 13159 is
+    -- Aspect of the Pack (30% speed / daze on hit) — the old head made the SoD
+    -- hunter run Pack instead of Hawk.
+    AspectHawk = define("SodAspectHawk", { 14322, 14321, 14320, 14319, 14318, 13165 }, {}, "AspectHawk"),
+    -- Real Volley ladder, descending (14295 max at 58). 27019 is Arcane Shot
+    -- r9 — the old head made the AoE lane cast a single-target shot.
+    Volley = define("SodVolley", { 14295, 14294, 1510 }, {}, "Volley"),
 }
 
 local function number(context, key, fallback)
@@ -35,8 +43,8 @@ local function number(context, key, fallback)
 end
 
 -- Aspect of the Hawk / Hunter's Mark player buffs (real reads, retri seal pattern).
-local HAWK_BUFF = { 13159, 13158, 8352 }
-local MARK_BUFF = { 30706, 14323, 14324, 14325, 1130 }
+local HAWK_BUFF = { 14322, 14321, 14320, 14319, 14318, 13165 }
+local MARK_BUFF = { 14325, 14324, 14323, 1130 }
 local function has_buff(ids)
     if not NS.buff_up then return false end
     local ok, up = pcall(NS.buff_up, NS.GetPlayer and NS.GetPlayer() or nil, ids)

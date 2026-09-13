@@ -39,7 +39,12 @@ local ACTION = {
     -- 2026-09-09 guide pass: Holy Wrath 48817 (30s CD, self-centered Holy
     -- AoE + undead/demon stun) and Divine Plea 54428 (25% mana, -50% healing
     -- 15s — bridge-verified; retribution_wotlk already defines 54428).
-    HolyWrath = define("HolyWrath", { 48817, 37897, 31898 }, "HolyWrath"),
+    -- Holy Wrath ladder: 48817 is the WotLK max rank (30s CD, self-centered
+    -- Holy AoE + undead/demon stun, wowhead.com/wotlk/spell=48817), then the
+    -- era-shared ranks 27139 (69), 10318 (60), 2812 (50). The old tail
+    -- 37897 is Parachute and 31898 is Judgement of Blood — both wrong-family
+    -- ids the pin table had mislabelled as Holy Wrath ranks.
+    HolyWrath = define("HolyWrath", { 48817, 27139, 10318, 2812 }, "HolyWrath"),
     DivinePlea = define("DivinePlea", 54428, "DivinePlea"),
     -- 2026-09-12 guide pass: Hammer of Wrath 48806 (APL priority 4 — the
     -- <=20% HP execute, 6s CD, 30y; Wowhead-verified single WotLK rank) and

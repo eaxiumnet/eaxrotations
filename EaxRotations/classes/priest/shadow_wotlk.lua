@@ -53,7 +53,7 @@ local ACTION = {
     -- (49821 rank 1 learned 50 / 53023 max rank 74) and Shadow Word: Death
     -- execute (48158 max / 48157 rank at 75; 12s CD, backlash recoil).
     MindSear = define("MindSear", { 53023, 49821 }, "MindSear"),
-    ShadowWordDeath = define("ShadowWordDeath", { 48158, 48157, 32379, 2944 }, "ShadowWordDeath"),
+    ShadowWordDeath = define("ShadowWordDeath", { 48158, 48157, 32379 }, "ShadowWordDeath"),
 }
 
 local VAMPIRIC_TOUCH_DEBUFF = { 48160, 34917, 34916, 34914 }

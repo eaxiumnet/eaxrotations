@@ -17,7 +17,9 @@ local ACTION = {
     LavaBurst = define("LavaBurst", 408490, { rune_id = 408490 }, "LavaBurst"),
     ChainLightning = define("ChainLightning", { 10605, 2860, 930, 421 }, nil, "ChainLightning"),
     FireNova = define("FireNova", 408427, { rune_id = 408339, min_phase = 2 }, "FireNova"),
-    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 930, 548, 529, 403 }, nil, "LightningBolt"),
+    -- 915 (Lightning Bolt r6 at 20), not 930 (Chain Lightning r1) — the
+    -- sweep caught the rank-1 chain bolt padding this ladder.
+    LightningBolt = define("LightningBolt", { 15208, 15207, 10392, 10391, 943, 915, 548, 529, 403 }, nil, "LightningBolt"),
     -- Era-common Earth Shock ladder (bridge 10414 max); guide: discharge
     -- filler while moving.
     EarthShock = define("EarthShock", { 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, nil, "EarthShock"),

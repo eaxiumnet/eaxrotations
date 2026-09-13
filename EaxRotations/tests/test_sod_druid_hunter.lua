@@ -34,8 +34,11 @@ _G.EaxRotations = {
         -- pin); else the Aspect of the Hawk / Hunter's Mark set lets
         -- buff-upkeep lanes hold so the damage core is reachable (matches
         -- live behavior).
-        local up = { [13159] = true, [13158] = true, [8352] = true,
-            [30706] = true, [14323] = true, [14324] = true, [14325] = true, [1130] = true }
+        -- Real Aspect of the Hawk / Hunter's Mark ranks (2026-09-13 spell-id
+        -- sweep replaced the wrong-family 13159/13158/8352/30706 set).
+        local up = { [14322] = true, [14321] = true, [14320] = true, [14319] = true,
+            [14318] = true, [13165] = true,
+            [14325] = true, [14324] = true, [14323] = true, [1130] = true }
         if type(BUFF_UP_EXTRA) == "table" then
             for id in pairs(BUFF_UP_EXTRA) do up[id] = true end
         end
