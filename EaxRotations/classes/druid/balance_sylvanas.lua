@@ -33,6 +33,13 @@ if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
 local _izi_ok, _izi = pcall(require, "common/izi_sdk")
 if not _izi_ok or type(_izi) ~= "table" then _izi = nil end
 
+-- Friendly/enemy periodic cycling (shared/periodic_cycler_sylvanas.lua):
+-- the spread pickers below read the cursor so a two-mob spread alternates
+-- instead of hammering the mob it just dotted. Absent module => nil, and
+-- every picker keeps its first-match behavior.
+local _cyc_ok, periodic_cycler = pcall(require, "shared/periodic_cycler_sylvanas")
+if not _cyc_ok or type(periodic_cycler) ~= "table" then periodic_cycler = nil end
+
 local _INSECT_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local _MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local _FAERIE_DEBUFF  = { 26993, 9907, 9749, 778, 770 }
@@ -130,6 +137,15 @@ end
 ---@return game_object|nil
 local function _find_multidot_target(debuff_ids, range)
     if not debuff_ids then return nil end
+    -- Cycling (shared/periodic_cycler_sylvanas): prefer a candidate other than
+    -- the unit this effect was last applied to, so a two-mob spread alternates.
+    -- The cursor unit is still returned when it is the ONLY candidate, so a
+    -- cycle can never starve the one mob that needs the DoT. Discovery and
+    -- every gate stay here; only the cursor is shared. No allocation: the
+    -- scan is a single pass with a fallback, not a candidate list.
+    local cyc_key = debuff_ids[1]
+    local avoid = periodic_cycler and periodic_cycler.cursor(cyc_key) or nil
+    local fallback = nil
     local enemies = _multidot_enemy_list(range)
     for _, enemy in ipairs(enemies) do
         if _is_valid_enemy(enemy) and _is_in_combat(enemy) and not is_cc_target(enemy) and _unit_hp_pct(enemy) >= 20 then
@@ -142,12 +158,15 @@ local function _find_multidot_target(debuff_ids, range)
             if not skip_immune then
                 local has_dot = NS.debuff_up and NS.debuff_up(enemy, debuff_ids)
                 if not has_dot then
-                    return enemy
+                    if avoid == nil or enemy ~= avoid then
+                        return enemy
+                    end
+                    fallback = fallback or enemy
                 end
             end
         end
     end
-    return nil
+    return fallback
 end
 
 --- Count enemies that currently have any of the given debuff IDs.
@@ -542,7 +561,11 @@ local strategies = {
         execute=function(ctx)
             local target = ctx._balance_mf_spread_target
             if not target then return false end
-            return NS.try_cast(SPELLS.Moonfire, target, "[BALANCE] Moonfire Spread")
+            local cast_ok = NS.try_cast(SPELLS.Moonfire, target, "[BALANCE] Moonfire Spread")
+            -- Advance ONLY on a landed cast: a refused cast must keep the cursor
+            -- so the next tick re-offers the same mob instead of drifting on.
+            if cast_ok and periodic_cycler then periodic_cycler.advance(_MOONFIRE_DEBUFF[1], target) end
+            return cast_ok
         end,
     },
     {
@@ -569,7 +592,11 @@ local strategies = {
         execute=function(ctx)
             local target = ctx._balance_is_spread_target
             if not target then return false end
-            return NS.try_cast(SPELLS.InsectSwarm, target, "[BALANCE] Insect Swarm Spread")
+            local cast_ok = NS.try_cast(SPELLS.InsectSwarm, target, "[BALANCE] Insect Swarm Spread")
+            -- Advance ONLY on a landed cast: a refused cast must keep the cursor
+            -- so the next tick re-offers the same mob instead of drifting on.
+            if cast_ok and periodic_cycler then periodic_cycler.advance(_INSECT_DEBUFF[1], target) end
+            return cast_ok
         end,
     },
     {

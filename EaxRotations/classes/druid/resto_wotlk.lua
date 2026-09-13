@@ -21,6 +21,12 @@ if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 
+-- Friendly multi-DoT cycling (shared/periodic_cycler_sylvanas.lua): pick the
+-- ally that should get the NEXT HoT instead of always the single lowest. Absent
+-- module => nil, and every lane keeps the lowest-only target it had.
+local _cyc_ok, periodic_cycler = pcall(require, "shared/periodic_cycler_sylvanas")
+if not _cyc_ok or type(periodic_cycler) ~= "table" then periodic_cycler = nil end
+
 -- Plain define_action: file-local WotLK rank lists must win over the
 -- TBC-capped DruidSpells class table (precedent: mage/fire_wotlk.lua:20).
 local define = spec_kit.define_action
@@ -109,6 +115,17 @@ local function build_state(context)
     state.regrowth_remains = (lowest_unit and NS.buff_remains and NS.buff_remains(lowest_unit, REGROWTH_BUFF)) or 0
     state.lifebloom_remains = (lowest_unit and NS.buff_remains and NS.buff_remains(lowest_unit, LIFEBLOOM_BUFF)) or 0
     state.lifebloom_stacks = (lowest_unit and NS.buff_stacks and NS.buff_stacks(lowest_unit, LIFEBLOOM_BUFF)) or 0
+    -- Friendly cycling: when the lowest ally already carries the HoT, cover the
+    -- next injured ally instead of holding the lane -- the "two people at 60%
+    -- and only one gets a HoT" deficit. Falls back to the lowest unit (the
+    -- pre-existing target) without the module or a party list, so a solo fight
+    -- is unchanged.
+    local hot_unit = lowest_unit
+    if periodic_cycler then
+        hot_unit = periodic_cycler.friendly(context, REJUVENATION_BUFF, { hp_below = 88 }) or lowest_unit
+    end
+    state.hot_unit = hot_unit
+    state.hot_remains = (hot_unit and NS.buff_remains and NS.buff_remains(hot_unit, REJUVENATION_BUFF)) or 0
     -- Nature's Swiftness self-buff (emergency pair enable state, TBC sibling
     -- resto_sylvanas has_natures_swiftness idiom).
     state.has_natures_swiftness = (me and NS.buff_up and NS.buff_up(me, NATURES_SWIFTNESS_BUFF)) or false
@@ -170,13 +187,22 @@ local DSL_DEFS = {
         name = "Rejuvenation",
         conditions = {
             { type = "state", field = "lowest_hp_pct", op = "<=", value = 88 },
-            { type = "state", field = "rejuvenation_remains", op = "<", value = 3 },
+            -- The refresh window and the overheal check follow the CYCLED unit,
+            -- not the lowest: the ally this lane is about to cover is the one
+            -- whose HoT state matters.
+            { type = "state", field = "hot_remains", op = "<", value = 3 },
             { type = "state", field = "mana_pct", op = ">=", value = 25 },
             { type = "custom", fn = function(context, state)
-                return not overheal_blocked("Rejuvenation", context and context.lowest and context.lowest.unit, 0, context)
+                return not overheal_blocked("Rejuvenation", state.hot_unit, 0, context)
             end },
         },
-        action = { type = "cast", spell = ACTION.Rejuvenation, target = "friendly" },
+        action = { type = "custom", fn = function(_, state)
+            -- Cast on the cycler's pick (state.hot_unit); the DSL "friendly"
+            -- target resolves to the single lowest ally and cannot cycle.
+            local unit = state.hot_unit
+            if not unit then return false end
+            return NS.try_cast(ACTION.Rejuvenation, unit, "[RESTO] Rejuvenation")
+        end },
     },
     {
         name = "Regrowth",

@@ -39,11 +39,29 @@ local function reset_env()
     ho, stacks, not_ready = {}, {}, {}
 end
 
+-- Friendly-cycle harness (2026-09-13): shared/periodic_cycler_sylvanas scans
+-- the player plus NS.GetPartyMembers, so the mock exposes a party list and a
+-- per-unit HoT table (unit.hot). Empty list => the pre-cycling behavior.
+local party = {}
+local function ally(hp, hot_remains)
+    return {
+        get_health_percentage = function() return hp end,
+        hot = hot_remains and { [48441] = hot_remains } or nil,
+    }
+end
+
 _G.EaxRotations = {
     me = { get_health_percentage = function() return 100 end },
     GetPlayer = function() return _G.EaxRotations.me end,
+    GetPartyMembers = function() return party end,
     mana_pct = function() return mana end,
     buff_remains = function(unit, ids)
+        if unit and unit.hot then
+            for _, id in ipairs(ids) do
+                if unit.hot[id] then return unit.hot[id] end
+            end
+            return 0
+        end
         for _, id in ipairs(ids) do
             if ho[id] then return ho[id] end
         end
@@ -182,5 +200,86 @@ assert_lane("Innervate fires at 30% mana", "Innervate", function() mana = 30 end
 assert_lane("Innervate blocked above 30% mana", "Innervate", function() mana = 31 end, false)
 assert_lane("Innervate blocked while on cooldown", "Innervate",
     function() mana = 20; not_ready[29166] = true end, false)
+
+-- ============================================================================
+-- Friendly multi-HoT cycling (2026-09-13, shared/periodic_cycler_sylvanas).
+-- The pre-cycling lane always refreshed the single lowest ally, so when that
+-- ally already carried a fresh Rejuvenation a second injured ally was never
+-- covered. The lane now follows the CYCLED unit (state.hot_unit).
+-- ============================================================================
+local cyc = require("shared/periodic_cycler_sylvanas")
+assert_true(cyc and type(cyc.friendly) == "function", "periodic_cycler must export friendly()")
+
+-- FIRE: lowest ally already carries a fresh Rejuv -> cover the OTHER ally.
+do
+    local lowest = ally(60, 10)          -- fresh HoT, must NOT be re-HoTted
+    local other  = ally(70, nil)         -- injured, uncovered
+    party = { lowest, other }
+    reset_env()
+    local ctx = {
+        in_combat = true, mana_pct = 100, party_injured_count = 2,
+        lowest = { unit = lowest, hp = 60 }, lowest_hp = 60,
+        target = { get_health_percentage = function() return 100 end },
+        settings = {},
+    }
+    local state = result.build_state(ctx)
+    assert_true(state.hot_unit == other,
+        "cycled HoT unit should be the second injured ally, got "
+        .. tostring(state.hot_unit == lowest and "lowest" or "other"))
+    assert_true(state.hot_remains == 0, "cycled unit has no HoT -> remains 0")
+    assert_true(find_strategy("Rejuvenation").matches(ctx, state),
+        "Rejuvenation should cover the second injured ally")
+end
+
+-- HOLD: every candidate already carries the HoT -> hold the lane.
+do
+    local lowest = ally(60, 10)
+    local other  = ally(70, 4)
+    party = { lowest, other }
+    reset_env()
+    rejuv(10)
+    local ctx = {
+        in_combat = true, mana_pct = 100, party_injured_count = 2,
+        lowest = { unit = lowest, hp = 60 }, lowest_hp = 60,
+        target = { get_health_percentage = function() return 100 end },
+        settings = {},
+    }
+    local state = result.build_state(ctx)
+    assert_true(state.hot_unit == lowest, "no uncovered candidate -> lowest ally")
+    assert_false(find_strategy("Rejuvenation").matches(ctx, state),
+        "Rejuvenation must hold when every candidate is already HoTted")
+    party = {}
+end
+
+-- ROTATION: consecutive picks must move on, and a lone candidate must never
+-- be starved by its own cursor.
+do
+    local a, b = ally(60, nil), ally(70, nil)
+    party = { a, b }
+    reset_env()          -- the HOLD block above left a Rejuv in the flat ho map
+    cyc.reset()
+    local ctx = { target = {} }
+    local first = cyc.friendly(ctx, { 48441 }, { hp_below = 88 })
+    assert_true(first == a, "first pick is the most injured candidate")
+    local second = cyc.friendly(ctx, { 48441 }, { hp_below = 88 })
+    assert_true(second == b, "second pick must rotate off the cursor unit")
+    local third = cyc.friendly(ctx, { 48441 }, { hp_below = 88 })
+    assert_true(third == a, "third pick rotates back (round-robin)")
+
+    party = { a }
+    cyc.reset()
+    assert_true(cyc.friendly(ctx, { 48441 }, { hp_below = 88 }) == a, "sole candidate picked")
+    assert_true(cyc.friendly(ctx, { 48441 }, { hp_below = 88 }) == a,
+        "a lone candidate must never be starved by the cursor")
+
+    -- FAIL-OPEN: no party API at all -> nil, and the lane keeps its old target.
+    local saved = _G.EaxRotations.GetPartyMembers
+    _G.EaxRotations.GetPartyMembers = nil
+    cyc.reset()
+    assert_true(cyc.friendly(ctx, { 48441 }, { hp_below = 88 }) == nil,
+        "no party API must return nil (fail-open)")
+    _G.EaxRotations.GetPartyMembers = saved
+    party = {}
+end
 
 print("PASS test_druid_resto_wotlk_strategies")

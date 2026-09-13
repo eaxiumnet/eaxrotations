@@ -191,6 +191,70 @@ assert_never(bal, bal_ns, "druid", "shadow_multidot", "MoonfireSpread",
 print("PASS: druid/balance InsectSwarmSpread + MoonfireSpread")
 
 -- ============================================================================
+-- Enemy cycling (2026-09-13, shared/periodic_cycler_sylvanas): the spread
+-- pickers read a per-effect cursor so two equally valid mobs alternate instead
+-- of hammering the first one -- and the cursor mob is still returned when it is
+-- the ONLY candidate, so a cycle can never starve the one mob that needs the
+-- DoT. The candidate list is swapped in the battery's own state bank, so the
+-- REAL picker (balance _find_multidot_target) does the choosing.
+-- ============================================================================
+do
+    local cyc = require("shared/periodic_cycler_sylvanas")
+    assert_true(type(cyc.cursor) == "function" and type(cyc.advance) == "function",
+        "periodic_cycler must export cursor()/advance()")
+    local mf = find_strategy(bal.strategies, "MoonfireSpread")
+    local isw = find_strategy(bal.strategies, "InsectSwarmSpread")
+    local MOONFIRE_KEY = 26988
+
+    local function pick(lane, ctx, state)
+        ctx._balance_mf_spread_target = nil
+        ctx._balance_is_spread_target = nil
+        local m = lane.matches(ctx, state)
+        return m, ctx._balance_mf_spread_target or ctx._balance_is_spread_target
+    end
+
+    local ctx, state = make_state(bal, bal_ns, "druid", "multidot")
+    local enemies = bal_ns._battery.enemies
+    assert_true(type(enemies) == "table" and #enemies >= 2,
+        "the multidot fixture must expose at least one undotted peer")
+    local peer = enemies[#enemies]
+    local peer_copy = {}
+    for k, v in pairs(peer) do peer_copy[k] = v end
+
+    -- FIRE/HOLD: two undotted peers -> consecutive picks move on.
+    bal_ns._battery.enemies = { peer, peer_copy }
+    cyc.reset()
+    local m1, t1 = pick(mf, ctx, state)
+    assert_true(m1 == true, "MoonfireSpread must match with two undotted peers")
+    assert_true(t1 == peer, "first spread pick is the first valid candidate")
+    cyc.advance(MOONFIRE_KEY, t1)
+    local m2, t2 = pick(mf, ctx, state)
+    assert_true(m2 == true, "MoonfireSpread must still match after the cursor moves")
+    assert_true(t2 == peer_copy,
+        "the second pick must rotate off the cursor mob (got the same mob twice)")
+    -- per-effect buckets: the Moonfire cursor must not move Insect Swarm.
+    local mi, ti = pick(isw, ctx, state)
+    assert_true(mi == true and ti == peer,
+        "InsectSwarm's own bucket must start fresh (independent cursors)")
+
+    -- HOLD: no candidate -> the lane must not match.
+    bal_ns._battery.enemies = {}
+    local m3 = pick(mf, ctx, state)
+    assert_true(m3 ~= true, "MoonfireSpread must hold when no enemy needs the DoT")
+
+    -- NO STARVATION: the cursor mob is the only candidate -> still returned.
+    bal_ns._battery.enemies = { peer }
+    cyc.reset()
+    cyc.advance(MOONFIRE_KEY, peer)
+    local m4, t4 = pick(mf, ctx, state)
+    assert_true(m4 == true and t4 == peer,
+        "a sole undotted candidate must never be starved by its own cursor")
+
+    cyc.reset()
+    print("PASS: enemy multi-DoT cycling (balance Moonfire/InsectSwarm)")
+end
+
+-- ============================================================================
 -- End-to-end: the battery must report each cleared lane as firing — and only
 -- in its intended scenario(s). SWPSpread/VTSpread fire in shadow_cleave AND
 -- target_melee (3+ enemies auto-detects cleave) — assert the intended one is

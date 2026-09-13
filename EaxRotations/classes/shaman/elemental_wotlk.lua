@@ -22,6 +22,28 @@ if not _ct_ok or type(cast_timing) ~= "table" then
     cast_timing = { context_interrupt_open = function() return true end }
 end
 
+-- Ordered boss opener (shared/boss_opener_sylvanas.lua): while the target is a
+-- raid boss, only the step at the head of the declared order may claim the GCD,
+-- so the Fire Elemental is on the ground before Heroism/Lust and Heroism before
+-- the Elemental Mastery burst. Off a boss the sequencer is INERT and every lane
+-- falls back to its own readiness gate, exactly as before. Fail-open stub keeps
+-- the spec loadable when the module is absent.
+local _bo_ok, boss_opener = pcall(require, "shared/boss_opener_sylvanas")
+if not _bo_ok or type(boss_opener) ~= "table" then
+    boss_opener = {
+        define = function() return false end,
+        sync = function() return 0 end,
+        turn = function() return true end,
+        advance = function() return false end,
+    }
+end
+local OPENER_KEY = "elemental_shaman_wotlk"
+boss_opener.define(OPENER_KEY, {
+    { name = "FireElemental", spell = 2894 },
+    { name = "Bloodlust", spell = 2825 },          -- Horde; Heroism is the Alliance twin
+    { name = "ElementalMastery", spell = 16166 },
+})
+
 local define = spec_kit.define_action
 
 local ACTION = {
@@ -31,6 +53,10 @@ local ACTION = {
     -- filler that fires while the target casts (no pushback), outside the
     -- pinned wowsims order like the rogue Kick template.
     EarthShock = define("EarthShock", 49231, "EarthShock"),
+    -- Bloodlust (Horde). The Alliance twin (Heroism 32182) is NOT in the WotLK
+    -- bridge -- the spell audit classifies it TBC_ID_IN_WOTLK -- so carrying it
+    -- here would only be accepted by mislabelling a pin. Same slot, same
+    -- opener step; left Horde-only until the bridge carries it.
     Bloodlust = define("Bloodlust", 2825, "Bloodlust"),
     FireElemental = define("FireElemental", 2894, "FireElemental"),
     ElementalMastery = define("ElementalMastery", 16166, "ElementalMastery"),
@@ -77,6 +103,14 @@ local function build_state(context)
     state.mana_pct = (context and context.mana_pct) or (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    -- Ordered boss opener state. Armed only in a boss fight, so trash and
+    -- leveling keep the independent CD lanes they had; while armed,
+    -- opener_step is the 1-based head of the declared order and only that lane
+    -- may leave (see boss_opener_sylvanas).
+    local opener_active = state.in_combat == true
+        and context ~= nil and context.target_is_boss == true
+    state.opener_active = opener_active
+    state.opener_step = boss_opener.sync(OPENER_KEY, opener_active)
     state.target_is_casting = (target and target.is_casting and target:is_casting()) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0
     -- CD windows from REAL cooldown API (production never exposes the phantom
@@ -119,6 +153,10 @@ local DSL_DEFS = {
         name = "Bloodlust",
         conditions = {
             { type = "state", field = "bloodlust_ready", op = "truthy" },
+            -- Opener order: wait for the Fire Elemental to land first.
+            { type = "custom", fn = function(context, state)
+                return boss_opener.turn(OPENER_KEY, state.opener_active, state.opener_step, "Bloodlust")
+            end, watch = { "opener_active", "opener_step" } },
         },
         action = { type = "cast", spell = ACTION.Bloodlust, target = "self" },
     },
@@ -126,6 +164,10 @@ local DSL_DEFS = {
         name = "FireElemental",
         conditions = {
             { type = "state", field = "fire_elemental_ready", op = "truthy" },
+            -- Opener order: this is step 1.
+            { type = "custom", fn = function(context, state)
+                return boss_opener.turn(OPENER_KEY, state.opener_active, state.opener_step, "FireElemental")
+            end, watch = { "opener_active", "opener_step" } },
         },
         action = { type = "cast", spell = ACTION.FireElemental, target = "self" },
     },
@@ -133,6 +175,10 @@ local DSL_DEFS = {
         name = "ElementalMastery",
         conditions = {
             { type = "state", field = "elemental_mastery_ready", op = "truthy" },
+            -- Opener order: the burst closes the sequence.
+            { type = "custom", fn = function(context, state)
+                return boss_opener.turn(OPENER_KEY, state.opener_active, state.opener_step, "ElementalMastery")
+            end, watch = { "opener_active", "opener_step" } },
         },
         action = { type = "cast", spell = ACTION.ElementalMastery, target = "self" },
     },
@@ -220,6 +266,23 @@ for i = 1, #strategies do
         if strategies[i].name == DSL_DEFS[j].name then
             strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
             break
+        end
+    end
+end
+
+-- Opener progress is owned by the sequencer, so the lanes only report. The
+-- wrapper keeps the compiled action itself untouched (same target resolution,
+-- same label) and advances the head only when the cast really landed -- a
+-- refused cast leaves the head where it is and the lane keeps its turn.
+for i = 1, #strategies do
+    local strat = strategies[i]
+    local lane = strat and strat.name
+    if lane == "FireElemental" or lane == "Bloodlust" or lane == "ElementalMastery" then
+        local inner = strat.execute
+        strat.execute = function(context, state)
+            local ok = inner(context, state)
+            if ok then boss_opener.advance(OPENER_KEY, lane) end
+            return ok
         end
     end
 end

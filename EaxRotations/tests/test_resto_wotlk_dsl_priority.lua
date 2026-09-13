@@ -127,6 +127,9 @@ local function make_state(overrides)
         lowest_hp_pct = 55, party_injured_count = 0,
         rejuvenation_remains = 0, regrowth_remains = 0, lifebloom_remains = 0,
         lifebloom_stacks = 0,
+        -- 2026-09-13 friendly cycling: the Rejuvenation lane refreshes the
+        -- CYCLED ally (state.hot_unit), so its window field is hot_remains.
+        hot_remains = 0, hot_unit = false,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -170,9 +173,11 @@ tests.test_Lifebloom_does_not_clip_at_3_stacks = test_match("Lifebloom", { lifeb
 tests.test_Lifebloom_refreshes_at_3_stacks_near_expiry = test_match("Lifebloom", { lifebloom_remains = 0.6, lifebloom_stacks = 3 }, true)
 
 -- Rejuvenation: matches when lowest ally <= 88 and HoT expiring (friendly target)
-tests.test_Rejuvenation_matches_when_expiring = test_match("Rejuvenation", { rejuvenation_remains = 2 }, true)
-tests.test_Rejuvenation_does_not_match_when_fresh = test_match("Rejuvenation", { rejuvenation_remains = 10 }, false)
-tests.test_Rejuvenation_does_not_match_when_group_healthy = test_match("Rejuvenation", { rejuvenation_remains = 2, lowest_hp_pct = 95 }, false)
+-- 2026-09-13: the lane follows the CYCLED ally's window (hot_remains) -- that is
+-- what lets it cover a SECOND injured ally instead of re-HoTing the same one.
+tests.test_Rejuvenation_matches_when_expiring = test_match("Rejuvenation", { hot_remains = 2 }, true)
+tests.test_Rejuvenation_does_not_match_when_fresh = test_match("Rejuvenation", { hot_remains = 10 }, false)
+tests.test_Rejuvenation_does_not_match_when_group_healthy = test_match("Rejuvenation", { hot_remains = 2, lowest_hp_pct = 95 }, false)
 
 -- Regrowth: matches when lowest ally <= 70 and HoT expiring and mana >= 25
 tests.test_Regrowth_matches_when_all_conditions = test_match("Regrowth", { regrowth_remains = 2, lowest_hp_pct = 50, mana_pct = 50 }, true)
