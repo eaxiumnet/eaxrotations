@@ -370,8 +370,12 @@ local SPELLS = {
     }),
     Repentance = NS.spell_action({
         name = "Repentance",
-        ids = {20066, 5164},
-        levels = {20, 1},
+        -- 2026-09-13 sweep (any-slot name agreement): 5164 is Knockdown -- melee
+        -- range, instant, 10 sec cooldown, "Knocks an enemy down", level 1, no class.
+        -- It is an NPC knockback, not a Repentance rank; Repentance has a single
+        -- rank in TBC (20066), so the id and its parallel level entry are dropped.
+        ids = {20066},
+        levels = {20},
         cast_time = 0,
         cooldown = 60,
         power_cost = 0,

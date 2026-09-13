@@ -204,6 +204,100 @@ component fail with `NEW: 2` (the redirected id plus the cross-file duplicate
 conflict); an unknown id fails on the `DEAD` gate bucket with `HARD: 1`, and
 `--write-baseline` refuses to freeze it.
 
+## Any-slot name agreement: the body slots the WRONG-RANK check never scanned (2026-09-13)
+
+`WRONG-RANK` and every head fix above only ever examined `pos == 0`. The resolver does
+not: `NS.get_spell_id` is **first-known-wins over the whole list** (`core_sylvanas.lua`,
+the `for i = 1, #ids` loop), so every body slot is reachable. `REDIRECTED` is already a
+per-slot scan, so attaching slot positions to it turns it into the any-slot audit:
+**119 rows, 28 distinct shapes**. Three shapes were provably a *different spell* and are
+fixed; the rest are naming conventions, deliberate ladders, or explicitly listed as
+ambiguous.
+
+| File:line | Ladder (slot) | Was | Proof it is a different spell | Now |
+|---|---|---|---|---|
+| `paladin/healing_sylvanas.lua:31` | HolyLight (slot 5) | 10324 | **Redemption** -- 64% of base mana, 10 sec cast, "Brings a dead player back to life", Requires Paladin, level 36 | **3472** (Holy Light r6, level 38) |
+| `paladin/class_sylvanas.lua:372` | Repentance | 5164 | **Knockdown** -- melee range, instant, 10 sec cooldown, "Knocks an enemy down", level 1, no class | dropped (Repentance is single-rank in TBC) |
+| `paladin/retribution_sylvanas.lua:59` | Repentance | 5164 | same id, same proof | dropped |
+| `warlock/leveling_wotlk.lua:50` | CreateSoulstone | 20770, 20759, 20758 | **Resurrection** (priest, 60% base mana, level 58) and **Use Soulstone** x2 | **20756 / 20755 / 20752** -- the real Create Soulstone ranks 50/40/30 the sibling warlock lanes already carry |
+
+Proof per id is three-way and independent: the sweep's own index, the classic bridge, and
+a Wowhead TBC tooltip. The three right-hand replacements are themselves bridge-verified
+(`3472` = Holy Light level 38; `20756/20755/20752` = Create Soulstone 50/40/30; `20066` =
+Repentance level 20, cooldown 60).
+
+The Create Soulstone replacements need one extra step: the local WotLK bridge stops at
+27238 (r70) / 47884 (r76), so the classifier read 20756/20755/20752 as TBC-only ids in a
+`_wotlk` file. They are real WotLK Classic spells (each 68% of base mana, 3 sec cast,
+1.5s GCD, self range; "Creates a Lesser / a / a Greater Soulstone"), so they are
+registered as `VALID_SHARED_ID` era-shared aliases in the WotLK audit and its
+allowlist-size pin is moved 257 -> 260 deliberately. Dropping them would have been the
+smaller change but would have silently cost a leveling warlock the rank 30/40/50 steps.
+
+The sweep corroborated the cross-spell nature independently: clearing these removed two
+`DUPLICATE-CONFLICT` rows as well (`10324` was pinned under **both** Redemption and
+HolyLight; `20770` under **both** warlock Create Soulstone and priest Resurrection).
+Baseline re-frozen deliberately to **384 findings / 377 unique keys** (was 392 / 385).
+
+### Liveness: one of the four is shadowed, and the previous claim was wrong
+
+`spec_kit.define_action_for_class(SPELLS)` returns `SPELLS[field]` whenever the shared
+class table already carries it (`shared/spec_kit_sylvanas.lua`), and
+`classes/paladin/class_sylvanas.lua` assigns `NS.PaladinSpells = SPELLS` (line 507)
+*before* it loads its specs (lines 532-537). So the inline `HolyLight` ladder in
+`healing_sylvanas.lua` is **shadowed in production**: the live
+`NS.PaladinSpells.HolyLight` is the full ladder and never carried 10324.
+
+It is still fixed -- it is the fallback any standalone or degraded load would use, it is
+the same provable wrong id, and leaving it invites the next reader to copy it -- but the
+earlier pass's claim that the emergency-heal lane was *firing* a resurrection described
+dead code. The live path was already clean. Correcting that is the point of this section.
+
+The other three shapes are live:
+
+* `NS.PaladinSpells.Repentance` (line 372) **is** the shared table, so every paladin spec
+  resolves through it and 5164 was reachable there. Reachability is bounded by the
+  spellbook, though: Knockdown is an NPC ability, so a player almost certainly never
+  resolves it -- latent in practice rather than firing.
+* `warlock/leveling_wotlk.lua` deliberately binds `spec_kit.define_action` and *not*
+  `..._for_class` (its own comment: "WotLK file-local rank ladders are authoritative ...
+  so the TBC-era NS.WarlockSpells table can never shadow them"), so its ladder **is** the
+  live one. Whether 20770/20759/20758 ever resolved depends on the client spellbook:
+  Resurrection is a priest spell a warlock does not know, while "Use Soulstone" plausibly
+  is known -- that one could have misfired. Offline there is no way to settle which ids a
+  warlock's spellbook holds; the fix removes the question.
+
+### Left alone on purpose (listed, not changed)
+
+Adjudicated benign because the ids agree with *each other* and the ladder is deliberate;
+only the label is loose:
+
+* `FrostArmor` (`mage/class_sylvanas.lua:184`, `mage/frost_sylvanas.lua:35`) -- every
+  Ice Armor id followed by the real Frost Armor ranks (7301/7300/168): a deliberate
+  Ice-Armor-preferred, Frost-Armor-fallback buff ladder with correct descending levels.
+* `ConjureManaEmerald` -- Emerald/Ruby/Citrine/Jade/Agate: a "conjure the best gem you
+  can" ladder with correct descending levels.
+* Naming conventions only: SealRighteousness, SealCommand, SealCrusader, SealBlood,
+  SealWisdom, SodSealMartyr, SodAspectHawk, AvengerShield, CurseElements, RemoveCurse
+  (bridge: "Remove Lesser Curse").
+* Deliberate documented lanes: `SealCommandRank1` (rank-1 prep twist), `SodDevastate`
+  (`{20243, 11597}` -- the real Devastate, then the documented Sunder Armor era-clean
+  fallback), and the vanilla `elemental_vanilla.lua` `X` downrank helper table.
+
+### What extending the check to non-head slots would cover
+
+Deliberately not done in this pass. A body-slot variant of WRONG-RANK would re-run the
+existing head rule at every position. Scale: the sweep extracts **1,879 ladders / 7,374
+pinned ids / 1,879 heads**, so **5,495 body ids (75%)** are currently never rank-checked.
+
+It would **not** have caught 10324/5164/20770 -- those are *name* disagreements, which
+`REDIRECTED` already scans at every slot. What it *would* catch is a below-cap rank
+sitting mid-ladder ahead of a higher rank, i.e. the RANK-ORDER defect one slot deeper.
+Expect real hits: the shadowed `healing_sylvanas` HolyLight ladder is still missing 27135
+(level 62) and 1026 (level 22) relative to the live shared ladder. That is a completeness
+gap, not a wrong spell, so it is reported here rather than patched -- consistent with how
+the head pass separated order defects from completeness gaps.
+
 ## Honest limits
 
 * The sweep can only speak for ids the local sources describe. WotLK proof is narrow

@@ -56,7 +56,9 @@ local ACTION = {
     Judgement            = define("Judgement",            { 20271 }, "Judgement"),
     LayOnHands           = define("LayOnHands",           { 27154, 10310, 2800, 633 }, "LayOnHands"),
     Purify               = define("Purify",               { 1152 }, "Purify"),
-    Repentance           = define("Repentance",           { 20066, 5164 }, "Repentance"),
+    -- 5164 dropped 2026-09-13 (sweep): it is Knockdown (NPC melee knockback), not a
+    -- Repentance rank.  Repentance is single-rank in TBC.
+    Repentance           = define("Repentance",           { 20066 }, "Repentance"),
     SanctityAura         = define("SanctityAura",         { 20218 }, "SanctityAura"),
     SealBlood            = define("SealBlood",            { 31892 }, "SealBlood"),
     SealCommand          = define("SealCommand",          { 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
