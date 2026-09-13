@@ -1078,3 +1078,26 @@ a GCD. Both gates are now real:
   requires the curse lane).
 - DSL note: `custom` conditions may now declare `watch = { "field" }`, so a rule whose
   window is a live engine value still renders its state in the cast trace.
+
+## Addendum (g) - 2026-09-13: rejected-cast hold (core cast path, no lane deltas)
+
+The live "invalid target" report (Feint / Slice and Dice re-queued every frame)
+was traced to a structural gap rather than a bad lane: nothing in the addon ever
+learned that the CLIENT refused a cast, so any uncastable-but-matching ability
+re-queued on the next 20Hz tick.
+
+| Piece | Where | Contract |
+|---|---|---|
+| Rejected-cast hold | `shared/cast_reject_guard_sylvanas.lua` | engine `UNIT_SPELLCAST_FAILED` / `_FAILED_QUIET` (player token only) -> per-spell 0.6s hold |
+| Consumer | `core_sylvanas.lua` `NS.evaluate_cast` step 2b | returns false while held, so `run_list` falls through to the next lane |
+| Installer | `main_sylvanas.lua` (next to the CastTrace require) | `M.install(NS)`; absent module = no-op |
+
+- **No lane counts changed** in any era, so the scorecard, ACCURACY, era-pair seed
+  and the never-firing pins are content-identical after regeneration (verified).
+  WotLK never-firing stays 0; TBC 11 / vanilla 9 / SoD 0 unchanged.
+- Fail-open contract: no guard, no clock, or no event => exactly the previous cast
+  path. Only a refusal by the local player's token can hold OUR offers.
+- Proof: `test_dispatcher_role_mode.lua` drives the real dispatcher with the real
+  `try_cast` over virgin spell ids (the suite's 2.5s cast-history throttle is
+  longer than the 0.6s hold, so only never-cast ids isolate it).
+
