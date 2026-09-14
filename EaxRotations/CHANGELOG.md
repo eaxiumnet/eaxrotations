@@ -14,6 +14,26 @@
   Wowhead) and both warlock specs (Spell Lock 19647 is the pet's
   cast, not the player's). Fire/hold/inert/identity/stance pins in
   test_sod_interrupt_lanes.lua; both load-bearing injections fire.
+
+## 2.26.1 — 2026-09-14
+
+### Customer Changelog
+- **SoD druids can interrupt**: the Skull Bash rune charges and locks a
+  caster's school in cat or bear form; feral Faerie Fire is maintained as
+  an armor-shred filler.
+- **WotLK resto Barkskin**: a self-preservation damage-reduction band at
+  low own-HP (55% default, configurable), matching the TBC sibling.
+- **Provenance fix**: the SoD feral file no longer cites an unrelated
+  commit as its APL source; the real source is stated.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #43 (squash a7ad011af:
+  the aura-first form-detector hotfix plus the druid gap wave) converted
+  to the release entry. This commit changes only this conversion and the
+  four version pins (header.lua, the README badge, the PvP footer, this
+  top entry).
+
+### Added
 - **SoD druids can interrupt**: the Wowhead-verified Skull Bash rune
   (410176, 13y charge interrupt, 10s CD) is wired into feral_sod and
   tank_sod via the shared interrupt manager, with school-lock tracking
