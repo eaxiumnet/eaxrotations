@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased
+## 2.26.2 — 2026-09-14
+
+### Customer Changelog
+- **SoD specs can interrupt**: twelve more SoD rotations (mage, rogues,
+  warriors, shamans, shadow priest, paladins) now kick, pummel, shock,
+  silence or hammer a casting enemy, with the correct stance gates and
+  school-lock tracking.
+- **Healers cast smarter ranks** (TBC holy priest + paladin): heals pick
+  the smallest rank that still covers the target's missing health, so
+  small deficits stop burning max-rank mana. Optional +healing slider
+  sharpens the math; a checkbox restores the old always-max behavior.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #44 (squash 6d6a08197:
+  the SoD interrupt sweep) and PR #45 (squash 4ba662ce2: the PhDamage-
+  harvested heal-value wave) converted to the release entry. This commit
+  changes only this conversion and the four version pins (header.lua, the
+  README badge, the PvP footer, this top entry).
 
 ### Added
 - **Healers cast deficit-fit ranks** (TBC holy priest + paladin): a new

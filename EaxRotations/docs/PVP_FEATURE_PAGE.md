@@ -266,4 +266,4 @@ Ranked by impact. Highest = most noticeable in arena/battleground performance.
 
 ---
 
-EaxRotations v2.26.1 — CC-BY-4.0 License — Built for TBC Classic Anniversary
+EaxRotations v2.26.2 — CC-BY-4.0 License — Built for TBC Classic Anniversary
