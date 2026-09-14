@@ -219,7 +219,15 @@ local function select_heal(context, state, target)
         if me.is_mounted and me:is_mounted() then return nil end
     end
 
+    -- 2026-09-14: bonus healing now comes from the heal_bonus_healing knob
+    -- (shared/heal_value_sylvanas). 0 (default) keeps the prior base-only
+    -- behavior; a real value makes select_rank's deficit-fit use true
+    -- expected heals.
     local bonus_healing = 0
+    local HV = NS.HealValue
+    if HV and type(HV.get_bonus_healing) == "function" then
+        bonus_healing = HV.get_bonus_healing("paladin", context.settings) or 0
+    end
     local deficit = target.effective_deficit or target.deficit or 0
 
     local use_hl = false
