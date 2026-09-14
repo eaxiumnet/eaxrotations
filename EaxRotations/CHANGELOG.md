@@ -1,6 +1,44 @@
 # Changelog
 
-## Unreleased
+## 2.26.0 — 2026-09-14
+
+### Customer Changelog
+- **Stays in Cat Form**: a shifted druid no longer drops form when combat
+  ends (out-of-combat buffs, the party dispel and food are held while
+  shifted), and Moonkin/Tree keep their legal in-form kits instead of being
+  blacked out by an any-form gate.
+- **Spell-id integrity wave**: every slot in every spell ladder is
+  rank-checked (7,374 ids, not just 1,879 heads), "bridge-valid" now means
+  "same spell", and the sweep is a gate - a new wrong-family id hard-fails
+  the build instead of shipping.
+- **Warlock fixes**: nine TBC/WotLK lanes can no longer claim a GCD while
+  their real cooldown runs, and destruction gains consecutive Life Tap
+  batching with a configurable Immolate refresh window.
+- **New: smart multi-DoT cycling** (enemy + friendly) **and an ordered boss
+  opener**.
+- **New: smart auto-targeting** with seven priority override slots and
+  party-combat pull mode.
+- **Cast state machine**: a cast the engine refuses (or never acknowledges)
+  is held, so lanes stop re-queueing it every tick.
+- **Rogue, from live reports**: Backstab/Ambush are gated on a real
+  main-hand dagger check, weapon poisons actually apply, and Feint / Slice
+  and Dice target the enemy.
+- **WotLK proof pass**: every WotLK spec is proven reachable through the
+  real dispatcher, plus rotation-content guide waves for TBC, SoD and
+  WotLK.
+- **Release integrity**: CI now fails when the shipped version is newer
+  than the newest published release - the stall that kept 2.18.0->2.22.0
+  and 2.24.2->2.25.0 users on old zips cannot happen silently again.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of the 2026-09-07..14 master
+  wave (through ed58e178d) converted to the release entry. The detailed
+  sections below are that record, unchanged; the only edits this release
+  commit makes are this conversion, the four version pins (header.lua, the
+  README badge, the PvP footer, this top entry), and removal of one empty
+  duplicated header that left a claimless `### Fix - warlock cooldown
+  audit` line above the real section.
+
 
 ### Fix - a shifted druid never leaves form for an out-of-combat lane
 
@@ -276,7 +314,6 @@
   scorecard and era-pair seed content-identical; clean-checkout probe pass (the new
   helper is tracked); `verify_all` exit 0; pre-commit 19/19.
 
-### Fix - warlock cooldown audit: nine TBC/WotLK lanes could claim a GCD while their real cooldown ran
 ### Fix - warlock cooldown audit: nine TBC/WotLK lanes could claim a GCD while their real cooldown ran
 
 - **Same defect class as the Conflagrate race, swept across every warlock lane.**
