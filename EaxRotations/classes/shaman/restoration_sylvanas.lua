@@ -125,6 +125,14 @@ local HEALING_WAVE_MAX = 25396      -- Rank 12 (max)
 local HEALING_WAVE_CONSERVE = 25391 -- Rank 11 (conserve)
 local HEALING_WAVE_EFFICIENT = 25357 -- Rank 10 (efficient)
 
+-- 2026-09-14 (heal-fit ext): per-rank ladders from NS.HealValue. The
+-- mana-tier constants above stay as the legacy fallback and as the
+-- gate_overheal id when no deficit data is available.
+local HEALING_WAVE_RANKS = NS.ShamanHEALING_WAVE_RANKS
+local LESSER_HEALING_WAVE_RANKS = NS.ShamanLESSER_HEALING_WAVE_RANKS
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+local _hv = NS.HealValue
+
 -- Lesser Healing Wave rank tiers
 
 -- Small helper to keep rank selection consistent and reduce duplication
@@ -623,6 +631,17 @@ local function healing_way_matches(context, state)
   -- if the tank doesn't actually need the healing
   local mana_pct = state.mana_pct or context.mana_pct or 100
   local spell_id = choose_healing_wave(mana_pct)
+  -- heal-fit ext: when the deficit is readable, gate on the rank that
+  -- will actually be cast (deficit fit) instead of the mana tier.
+  local deficit = _hv and _hv.unit_deficit and _hv.unit_deficit(state.tank.unit) or nil
+  if deficit then
+    local bonus = _hv.get_bonus_healing and _hv.get_bonus_healing(nil, context.settings) or nil
+    local fit = _hv.pick_castable(HEALING_WAVE_RANKS, deficit, bonus, { is_ready = NS.spell_ready, unit = state.tank.unit })
+    if fit then
+      if gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, fit.entry.id) then return false end
+      return true
+    end
+  end
   if gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
@@ -630,10 +649,17 @@ end
  local function healing_way_execute(context, state)
  if not state.tank then return false end
  local mana_pct = state.mana_pct or context.mana_pct or 100
+ -- heal-fit ext: deficit-fit rank selection through the shared hook.
+ local chosen, rank_label = cast_best_heal_rank(HEALING_WAVE_RANKS, state.tank, context, "HealingWay")
+ if chosen then
+  local ltxt = rank_label and ("[RESTO] " .. rank_label .. " (stack %d/3)"):format(state.healing_way_stacks) or "[RESTO] HealingWay"
+  return NS.try_cast(chosen, state.tank.unit, ltxt)
+ end
+ -- Legacy fallback: mana-tier single actions (no deficit data / no module).
  local spell_id = choose_healing_wave(mana_pct)
  local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
- local rank_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
- return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s (penalty %.0f%%)", state.healing_way_stacks, rank_label, (penalty or 1) * 100))
+ local tier_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
+ return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s (penalty %.0f%%)", state.healing_way_stacks, tier_label, (penalty or 1) * 100))
 end
 
 -- ============================================================================
@@ -712,10 +738,17 @@ local healing_strategies = {
    local ft = state.friendly_target
    if not ft or not ft.unit then return false end
    local mana_pct = state.mana_pct or context.mana_pct or 100
+   -- heal-fit ext: deficit-fit rank selection through the shared hook.
+   local chosen, ft_label = cast_best_heal_rank(HEALING_WAVE_RANKS, ft, context, "Healing Wave (friendly target)")
+   if chosen then
+    local ltxt = ft_label and ("[RESTO] " .. ft_label .. " %.0f%%"):format(ft.hp_pct or 100) or "[RESTO] Healing Wave"
+    return NS.try_cast(chosen, ft.unit, ltxt)
+   end
+   -- Legacy fallback: mana-tier single actions.
    local spell_id = choose_healing_wave(mana_pct)
    local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
-   local rank_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
-   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s (penalty %.0f%%)", ft.hp_pct or 100, rank_label, (penalty or 1) * 100))
+   local tier_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
+   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s (penalty %.0f%%)", ft.hp_pct or 100, tier_label, (penalty or 1) * 100))
   end },
  { name = "ManaPotion",
   matches = function(context)

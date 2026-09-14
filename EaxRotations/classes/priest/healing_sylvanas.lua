@@ -489,6 +489,12 @@ local function cast_on(spell, unit, reason, opts)
     return NS.try_cast and NS.try_cast(spell, unit, reason, opts) or false
 end
 
+-- 2026-09-14 (heal-fit ext): GH/FH become deficit-fit picks through the
+-- shared hook (ladders built by the priest class module).
+local PRIEST_GH_RANKS = NS.PriestGREATER_HEAL_RANKS
+local PRIEST_FH_RANKS = NS.PriestFLASH_HEAL_RANKS
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+
 local function emergency_pws_matches(context, state)
     if not state.pws_ready then return false end
     local target = state.lowest
@@ -627,10 +633,16 @@ local strategies = {
       end },
     { name = "GreaterHeal", matches = greater_heal_matches,
       execute = function(context, state)
+          -- heal-fit ext: deficit-fit rank through the shared hook.
+          local chosen, ltxt = cast_best_heal_rank(PRIEST_GH_RANKS, state.lowest, context, "[HEAL] Greater Heal")
+          if chosen then return cast_on(chosen, state.lowest.unit, ltxt or "[HEAL] Greater Heal") end
           return cast_on(ACTION.GreaterHeal, state.lowest.unit, "[HEAL] Greater Heal")
       end },
     { name = "FlashHeal", matches = flash_heal_matches,
       execute = function(context, state)
+          -- heal-fit ext: deficit-fit rank through the shared hook.
+          local chosen, ltxt = cast_best_heal_rank(PRIEST_FH_RANKS, state.lowest, context, "[HEAL] Flash Heal")
+          if chosen then return cast_on(chosen, state.lowest.unit, ltxt or "[HEAL] Flash Heal") end
           return cast_on(ACTION.FlashHeal, state.lowest.unit, "[HEAL] Flash Heal")
       end },
     { name = "Renew", matches = renew_matches,

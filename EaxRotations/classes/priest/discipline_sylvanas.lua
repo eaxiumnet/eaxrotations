@@ -78,6 +78,18 @@ local GREATER_HEAL_MAX = 25213
 local GREATER_HEAL_CONSERVE = 25210
 local GREATER_HEAL_EFFICIENT = 25314
 
+-- 2026-09-14 (heal-fit ext): GH ranks become deficit-fit picks capped at
+-- the mana tier (R7/R6/R5) — the tier ids now cap the actual cast, fixing
+-- the documented no-op downrank (tier id only ever fed gate_overheal).
+local GREATER_HEAL_RANKS = NS.PriestGREATER_HEAL_RANKS
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+local _hv = NS.HealValue
+local find_rank_by_id = _hv and _hv.find_rank_by_id or function() return nil end
+local function gh_ceiling(tier_id)
+ if not _hv or not _hv.pick_castable then return nil end
+ return find_rank_by_id(tier_id)
+end
+
 local function target_creature_type(unit)
  if not unit then return nil end
  if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
@@ -453,6 +465,14 @@ local function greater_heal_matches(context, s)
   -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
   local mana_pct = s.mana_pct or context.mana_pct or 100
   local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+  -- heal-fit ext: gate on the rank that will actually be cast when the
+  -- deficit is readable (tier-capped deficit fit), else the mana tier.
+  local deficit = _hv and _hv.unit_deficit and _hv.unit_deficit(s.lowest.unit) or nil
+  if deficit then
+    local bonus = _hv.get_bonus_healing and _hv.get_bonus_healing(nil, context.settings) or nil
+    local fit = _hv.pick_castable(GREATER_HEAL_RANKS, deficit, bonus, { is_ready = NS.spell_ready, unit = s.lowest.unit, ceiling = gh_ceiling(spell_id) })
+    if fit then spell_id = fit.entry.id end
+  end
   if gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
@@ -908,16 +928,21 @@ local healing_strategies = {
   return PreemptiveHeal.execute(context, s, ACTION.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
  end },
   { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
+   -- heal-fit ext: deficit-fit rank capped at the mana tier (R7/R6/R5).
    local mana_pct = s.mana_pct or context.mana_pct or 100
-   local spell_id
-   if mana_pct > 30 then
-    spell_id = GREATER_HEAL_MAX
-   elseif mana_pct > 15 then
-    spell_id = GREATER_HEAL_CONSERVE
-   else
-    spell_id = GREATER_HEAL_EFFICIENT
+   local tier_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+   local deficit = _hv and _hv.unit_deficit and _hv.unit_deficit(s.lowest.unit) or nil
+   if deficit and _hv and _hv.pick_castable then
+    local bonus = _hv.get_bonus_healing and _hv.get_bonus_healing(nil, context.settings) or nil
+    local fit = _hv.pick_castable(GREATER_HEAL_RANKS, deficit, bonus, { is_ready = NS.spell_ready, unit = s.lowest.unit, ceiling = gh_ceiling(tier_id) })
+    if fit then
+     local ltxt = ("[DISCIPLINE] Greater Heal %.0f%% (rank %s)"):format(s.lowest.effective_hp or 0, fit.entry.label or fit.entry.rank or "fit")
+     return NS.try_cast(fit.entry.spell, s.lowest.unit, ltxt)
+    end
    end
-   return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
+   -- Legacy fallback: mana-tier single actions.
+   local tier_label = mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")
+   return NS.try_cast(tier_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, tier_label))
   end },
   { name = "FSRPause",
    matches = function(context, s)

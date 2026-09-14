@@ -125,6 +125,66 @@ M.RANKS = {
             { id = 10917, rank = 7, level = 56, base_min =  833, base_max =  979, cost = 380 },
         },
     },
+    shaman = {
+        -- Healing Wave / Lesser Healing Wave: full per-rank data from
+        -- PhDamage SpellData_Shaman (SpellData[331]/[8004].ranks @ 22b8ed92);
+        -- R12/R11/R10 and LHW R7 heads verified against Wowhead spell=25396 /
+        -- 25391 / 25357 / 25420 descriptions (exact match). Costs kept only
+        -- where the Wowhead page was read (25396=720, 25391=655, 25357=620,
+        -- 10396=560, 25420=440).
+        HealingWave = {
+            coeff = 0.857, cast_time = 3.0,
+            { id = 25396, rank = 12, level = 70, base_min = 2134, base_max = 2436, cost = 720 },
+            { id = 25391, rank = 11, level = 63, base_min = 1756, base_max = 2001, cost = 655 },
+            { id = 25357, rank = 10, level = 60, base_min = 1647, base_max = 1878, cost = 620 },
+            { id = 10396, rank =  9, level = 56, base_min = 1394, base_max = 1589, cost = 560 },
+            { id = 10395, rank =  8, level = 48, base_min = 1040, base_max = 1191 },
+            { id =  8005, rank =  7, level = 40, base_min =  759, base_max =  874 },
+            { id =   959, rank =  6, level = 32, base_min =  552, base_max =  639 },
+            { id =   939, rank =  5, level = 24, base_min =  389, base_max =  454 },
+            { id =   913, rank =  4, level = 18, base_min =  279, base_max =  328 },
+            { id =   547, rank =  3, level = 12, base_min =  136, base_max =  163 },
+            { id =   332, rank =  2, level =  6, base_min =   69, base_max =   83 },
+            { id =   331, rank =  1, level =  1, base_min =   36, base_max =   47 },
+        },
+        LesserHealingWave = {
+            coeff = 0.429, cast_time = 1.5,
+            { id = 25420, rank = 7, level = 66, base_min = 1051, base_max = 1198, cost = 440 },
+            { id = 10468, rank = 6, level = 60, base_min =  853, base_max =  949 },
+            { id = 10467, rank = 5, level = 52, base_min =  649, base_max =  723 },
+            { id = 10466, rank = 4, level = 44, base_min =  473, base_max =  529 },
+            { id =  8010, rank =  3, level = 36, base_min =  349, base_max =  394 },
+            { id =  8008, rank =  2, level = 28, base_min =  257, base_max =  292 },
+            { id =  8004, rank =  1, level = 20, base_min =  170, base_max =  195 },
+        },
+    },
+    druid = {
+        -- Healing Touch direct ranks. PhDamage SpellData_Druid
+        -- (SpellData[5185].ranks @ 22b8ed92) with three TBC-tail corrections:
+        -- Wowhead's TBC description (2.4.3 client, which a 2.5.5 realm runs)
+        -- disagrees with PhDamage for R12/R13 (26978: 2401-2827, 26979:
+        -- 2715-3206; PhDamage carries pre-2.4 sizes there, ~0.84x) while
+        -- agreeing for R10/R11 and every shaman rank checked. Wowhead wins
+        -- for the tail. Costs kept only where the page was read (26979=935,
+        -- 26978=820, 25297=800, 9889=720). HoTs (Rej/Regrowth/Lifebloom)
+        -- deliberately excluded: not deficit-driven, lanes are refresh-based.
+        HealingTouch = {
+            coeff = 1.0, cast_time = 3.5,
+            { id = 26979, rank = 13, level = 69, base_min = 2715, base_max = 3206, cost = 935 },
+            { id = 26978, rank = 12, level = 62, base_min = 2401, base_max = 2827, cost = 820 },
+            { id = 25297, rank = 11, level = 60, base_min = 2303, base_max = 2714, cost = 800 },
+            { id =  9889, rank = 10, level = 56, base_min = 1923, base_max = 2263, cost = 720 },
+            { id =  9888, rank =  9, level = 50, base_min = 1545, base_max = 1826 },
+            { id =  9758, rank =  8, level = 44, base_min = 1225, base_max = 1453 },
+            { id =  8903, rank =  7, level = 38, base_min =  958, base_max = 1143 },
+            { id =  6778, rank =  6, level = 32, base_min =  762, base_max =  914 },
+            { id =  5189, rank =  5, level = 26, base_min =  589, base_max =  712 },
+            { id =  5188, rank =  4, level = 20, base_min =  376, base_max =  459 },
+            { id =  5187, rank =  3, level = 14, base_min =  204, base_max =  253 },
+            { id =  5186, rank =  2, level =  8, base_min =   94, base_max =  119 },
+            { id =  5185, rank =  1, level =  1, base_min =   40, base_max =   55 },
+        },
+    },
 }
 
 -- ---------------------------------------------------------------------------

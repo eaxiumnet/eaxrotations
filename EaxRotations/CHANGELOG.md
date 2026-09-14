@@ -69,6 +69,35 @@
   unclassified until it is classified. `--self-test` is 14/14 checks.
 
 
+### Healers - deficit-fit rank selection extended to shaman, druid and discipline
+- **What changed:** the PhDamage-harvested per-rank heal tables (PR #45) now also
+  drive TBC restoration shaman (Healing Wave 12 ranks, Lesser Healing Wave 7),
+  TBC restoration druid (Healing Touch 13 direct ranks) and TBC discipline plus
+  the generic priest healing spec (Greater Heal/Flash Heal deficit fit). The
+  mana-tier lanes (shaman FriendlyTarget/HealingWay tiers, druid
+  DownrankHealingTouch, discipline GreaterHeal) now CAP the deficit-fit walk at
+  their tier instead of only feeding the overheal gate — the discipline tier id
+  previously never reached the cast at all.
+- **Data provenance:** shaman ranks from Xerrion/PhDamage @ 22b8ed92 (MIT),
+  heads verified against Wowhead descriptions. Druid HT R12/R13 corrected to
+  Wowhead's TBC (2.4.3) sizes — PhDamage's tail carries pre-2.4 values there
+  (~0.84x too large); R10/R11 agree and are adopted from PhDamage. The pinned
+  mid-rank test proves the correction load-bearing: at deficit 2000 the R12
+  overshoot is what moves the pick to R11.
+- **Untouched on purpose:** Chain Heal (rank choice needs a group-deficit
+  aggregate, not a single-target fit), druid HoTs (Rej/Regrowth/Lifebloom are
+  refresh-based, not deficit-driven), the named HealingTouchRank4 downrank
+  action, and the vanilla-era druid lanes. All behavior is unchanged when the
+  deficit is unreadable or the kill switch (`healer_rank_fit_enabled=false`) is
+  set; the existing `heal_bonus_healing` slider governs the new families too —
+  no new settings.
+- **Validation:** 22 new pins in `test_heal_value_ranks.lua` (math, ladder
+  shapes, mid-rank discriminators, tier-ceiling semantics, hook end-to-end for
+  the new families); two load-bearing injections on throwaway copies (reverting
+  HT R12 to the stale PhDamage value fails the suite; dropping the ceiling cap
+  fails the ceiling pins), each restored byte-identical. 566/566 rotation
+  suites, verify_all exit 0, spell sweep --check NEW 0, doc-count gate in sync.
+
 ## 2.26.2 — 2026-09-14
 
 ### Customer Changelog
