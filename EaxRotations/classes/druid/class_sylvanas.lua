@@ -590,6 +590,26 @@ local SPELLS = {
 }
 NS.DruidSpells = SPELLS
 
+-- 2026-09-14 (heal-fit ext): Healing Touch direct-heal ladder now carries
+-- full per-rank data from NS.HealValue (PhDamage bases with Wowhead 2.4.3
+-- corrections for the TBC-tail ranks), each rank as its own spell_action.
+-- The HealingTouchRank4 downrank action stays deliberately untouched: it
+-- is a named single-rank efficiency lane, not a deficit-driven pick.
+-- HoTs (Rej/Regrowth/Lifebloom) are refresh-based, not deficit-driven, and
+-- keep their single actions. Without the module the legacy ladder keeps
+-- behavior unchanged.
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_ht(id)
+        return NS.spell_action({ name = "HealingTouch", ids = { id } })
+    end
+    NS.DruidHEALING_TOUCH_RANKS = _HealValue.build_ladder("druid", "HealingTouch", _mk_ht) or NS.DruidHEALING_TOUCH_RANKS
+else
+    -- Module unavailable (should not happen): legacy single-action ladder.
+    NS.DruidHEALING_TOUCH_RANKS = { { spell = SPELLS.HealingTouch, label = "R13" } }
+end
+
 local config = {
     class_key = "druid",
     class_name = "Druid",

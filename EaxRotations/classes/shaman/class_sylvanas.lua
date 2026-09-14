@@ -475,6 +475,30 @@ local SPELLS = {
 
 NS.ShamanSpells = SPELLS
 
+-- 2026-09-14 (heal-fit ext): HW/LHW ladders now carry full per-rank data
+-- from NS.HealValue (PhDamage-verified bases; Wowhead-verified TBC heads),
+-- each rank as its own spell_action. Chain Heal deliberately stays
+-- single-action: its rank choice needs a group-deficit aggregate, not a
+-- single-target fit. The deficit-fit hook in cast_best_heal_rank consumes
+-- the data; without the module the restoration lanes keep the legacy
+-- mana-tier single actions unchanged.
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_hw(id)
+        return NS.spell_action({ name = "HealingWave", ids = { id } })
+    end
+    local function _mk_lhw(id)
+        return NS.spell_action({ name = "LesserHealingWave", ids = { id } })
+    end
+    NS.ShamanHEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw) or NS.ShamanHEALING_WAVE_RANKS
+    NS.ShamanLESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw) or NS.ShamanLESSER_HEALING_WAVE_RANKS
+else
+    -- Module unavailable (should not happen): legacy single-action ladders.
+    NS.ShamanHEALING_WAVE_RANKS = { { spell = SPELLS.HealingWave, label = "R12" } }
+    NS.ShamanLESSER_HEALING_WAVE_RANKS = { { spell = SPELLS.LesserHealingWave, label = "R7" } }
+end
+
 local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
 local config = {
     class_key = "shaman",

@@ -227,4 +227,61 @@ local tier = HV.find_rank_by_id(25314) -- GH R5 (EFFICIENT tier)
 assert_true(tier and tier.rank == 5, "find_rank_by_id locates the tier entry")
 assert_true(HV.find_rank_by_id(123456) == nil, "find_rank_by_id unknown id -> nil")
 
+
+-- ===========================================================================
+-- 8. shaman + druid + discipline extension (2026-09-14 heal-fit ext wave)
+-- ===========================================================================
+-- HW R12 base avg (2134+2436)/2 = 2285 (PhDamage @ 22b8ed92, Wowhead-verified)
+local hw12 = { base_min = 2134, base_max = 2436, coeff = 0.857, level = 70 }
+assert_eq(HV.expected_heal(hw12, 0), 2285, "HW R12 base avg")
+-- LHW R7 base avg (1051+1198)/2 = 1125
+local lhw7 = { base_min = 1051, base_max = 1198, coeff = 0.429, level = 66 }
+assert_eq(HV.expected_heal(lhw7, 0), 1125, "LHW R7 base avg")
+-- HT R13 base avg (2715+3206)/2 = 2961 (Wowhead 2.4.3-corrected tail, coeff 1.0)
+local ht13 = { base_min = 2715, base_max = 3206, coeff = 1.0, level = 69 }
+assert_eq(HV.expected_heal(ht13, 0), 2961, "HT R13 base avg (Wowhead-corrected)")
+-- HT R12 (26978) must NOT be PhDamage's stale pre-2.4 value (2707-3197):
+-- Wowhead's TBC description (2401-2827, avg 2614) is the 2.5.5 truth.
+local ht12 = HV.RANKS.druid.HealingTouch[2]
+assert_eq(ht12.id, 26978, "HT R12 id")
+assert_eq(HV.expected_heal(ht12, 0), 2614, "HT R12 carries the Wowhead 2.4.3 size, not PhDamage pre-2.4")
+-- Ladder shapes
+assert_eq(#HV.RANKS.shaman.HealingWave, 12, "HW ladder 12 ranks")
+assert_eq(HV.RANKS.shaman.HealingWave[1].id, 25396, "HW head 25396")
+assert_eq(HV.RANKS.shaman.HealingWave[12].id, 331, "HW tail 331")
+assert_eq(#HV.RANKS.shaman.LesserHealingWave, 7, "LHW ladder 7 ranks")
+assert_eq(HV.RANKS.shaman.LesserHealingWave[1].id, 25420, "LHW head 25420")
+assert_eq(#HV.RANKS.druid.HealingTouch, 13, "HT ladder 13 ranks")
+assert_eq(HV.RANKS.druid.HealingTouch[1].id, 26979, "HT head 26979")
+assert_eq(HV.RANKS.druid.HealingTouch[13].id, 5185, "HT tail 5185")
+-- find_rank_by_id across the new families (ceiling path used by lanes)
+assert_true(HV.find_rank_by_id(25420) and HV.find_rank_by_id(25420).rank == 7, "find 25420 -> LHW R7")
+assert_true(HV.find_rank_by_id(5189) and HV.find_rank_by_id(5189).rank == 5, "find 5189 -> HT R5")
+-- Mid-rank discriminators (legacy first-ready walk would cast the head):
+-- HW deficit 1500: R11 1879 > 1950? no fits -> ... probe: 25391
+local mk_fake = function(id) return { id = id } end
+assert_eq(HV.heal_rank_for_deficit(HV.build_ladder("shaman", "HealingWave", mk_fake), 1500, 0).id, 25391, "HW deficit 1500 -> R11 (mid-rank fit)")
+assert_eq(HV.heal_rank_for_deficit(HV.build_ladder("shaman", "LesserHealingWave", mk_fake), 800, 0).id, 10468, "LHW deficit 800 -> R6 (mid-rank fit)")
+-- HT deficit 2000: R12 2614 > 2600 bar overshoots -> R11 2509. Legacy would cast R13.
+assert_eq(HV.heal_rank_for_deficit(HV.build_ladder("druid", "HealingTouch", mk_fake), 2000, 0).id, 25297, "HT deficit 2000 -> R11 (R12 overshoots: Wowhead-corrected tail is load-bearing)")
+-- Huge deficit -> head; nil deficit -> head (legacy max-rank)
+assert_eq(HV.heal_rank_for_deficit(HV.build_ladder("druid", "HealingTouch", mk_fake), 100000, 0).id, 26979, "HT huge deficit -> R13")
+assert_eq(HV.heal_rank_for_deficit(HV.build_ladder("shaman", "HealingWave", mk_fake), nil, 0).id, 25396, "HW nil deficit -> R12 (legacy max-rank)")
+-- Ceiling path over the new ladders (mana-tier cap semantics)
+local ht_ladder = HV.build_ladder("druid", "HealingTouch", mk_fake)
+local ceil12 = HV.find_rank_by_id(26978)
+local fitc = HV.pick_castable(ht_ladder, 100000, 0, { ceiling = ceil12 })
+assert_eq(fitc.entry.id, 26978, "HT ceiling R12: oversized deficit lands on the ceiling rank")
+local fitd = HV.pick_castable(ht_ladder, 2000, 0, { ceiling = ceil12 })
+assert_eq(fitd.entry.id, 25297, "HT ceiling R12: deficit 2000 still refines to R11 below the cap")
+-- Hook end-to-end over the new families (NS.spell_ready stubbed above)
+local built_hw = HV.build_ladder("shaman", "HealingWave", function(id) return NS.spell_action({ name = "HealingWave", ids = { id } }) end)
+local hook_pick = NS.cast_best_heal_rank(built_hw, { unit = unit3 }, { settings = {} }, "T")
+assert_true(hook_pick and hook_pick._meta and hook_pick._meta.id[1] == 25391, "hook deficit-fit picks HW R11 at deficit 1700 (mid-rank, legacy would pick R12)")
+local built_ht = HV.build_ladder("druid", "HealingTouch", function(id) return NS.spell_action({ name = "HealingTouch", ids = { id } }) end)
+local hook_ht = NS.cast_best_heal_rank(built_ht, { unit = unit3 }, { settings = {} }, "T")
+-- deficit 1700, bar 2210: R13 2961 / R12 2614 / R11 2509 all overshoot;
+-- R10 9889 (penalized 2003) fits -> R10, a deeper mid-rank proof.
+assert_true(hook_ht and hook_ht._meta and hook_ht._meta.id[1] == 9889, "hook deficit-fit picks HT R10 at deficit 1700 (R11 overshoots)")
+
 print("PASS test_heal_value_ranks")

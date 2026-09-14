@@ -10,6 +10,22 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
+
+-- 2026-09-14 (heal-fit ext): per-rank Healing Touch ladder from NS.HealValue.
+local HEALING_TOUCH_RANKS = NS.DruidHEALING_TOUCH_RANKS
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+-- heal-fit ext: mana-tier ids resolve to their ladder entry so the
+-- DownrankHealingTouch lane can cap the deficit-fit walk at its tier.
+local _hv = NS.HealValue
+local find_rank_by_id = _hv and _hv.find_rank_by_id or function() return nil end
+local function ht_fit(entry, tier_id)
+ if not _hv or not _hv.pick_castable or not HEALING_TOUCH_RANKS or not entry or not entry.unit then return nil end
+ local deficit = _hv.unit_deficit and _hv.unit_deficit(entry.unit) or nil
+ if type(deficit) ~= "number" or deficit <= 0 then return nil end
+ local bonus = _hv.get_bonus_healing and _hv.get_bonus_healing(nil, nil) or nil
+ local ceiling = tier_id and find_rank_by_id(tier_id) or nil
+ return _hv.pick_castable(HEALING_TOUCH_RANKS, deficit, bonus, { is_ready = NS.spell_ready, unit = entry.unit, ceiling = ceiling })
+end
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
@@ -819,7 +835,13 @@ local strategies = {
   if not NS.spell_ready(ACTION.HealingTouch, state.ht_target.unit) then return false end
   if predictive_overheal("HealingTouch", state.ht_target, 2.5, context.settings, 25) then return false end
   return true
-  end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+  end, execute = function(context, state)
+   -- heal-fit ext: deficit-fit rank over the full ladder (emergency keeps
+   -- the lane's max-rank intent via pick_castable's overshoot rule).
+   local chosen, ltxt = cast_best_heal_rank(HEALING_TOUCH_RANKS, state.ht_target, context, "Healing Touch emergency")
+   if chosen then return NS.try_cast(chosen, state.ht_target.unit, ltxt or "[RESTO] Healing Touch emergency") end
+   return NS.try_cast(ACTION.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency")
+  end },
 
   { name = "FSRPause",
    matches = function(context, state)
@@ -883,19 +905,18 @@ local strategies = {
   if downrank_ht_overheal(state.lowest, context.settings) then return false end
   return true
   end, execute = function(context, state)
+   -- heal-fit ext: deficit-fit pick capped at the mana tier (R13/R12/R11).
    local mana_pct = context.mana_pct or 100
-   local spell_id
-   if mana_pct > 30 then
-    spell_id = HEALING_TOUCH_MAX
-   elseif mana_pct > 15 then
-    spell_id = HEALING_TOUCH_CONSERVE
-   else
-    spell_id = HEALING_TOUCH_EFFICIENT
+   local tier_id = (mana_pct > 30) and HEALING_TOUCH_MAX or ((mana_pct > 15) and HEALING_TOUCH_CONSERVE or HEALING_TOUCH_EFFICIENT)
+   local fit = ht_fit(state.lowest, tier_id)
+   if fit then
+    local ltxt = ("[RESTO] Downrank Healing Touch %s"):format(fit.entry.label or fit.entry.rank or "fit")
+    return NS.try_cast(fit.entry.spell, state.lowest.unit, ltxt)
    end
-   -- Rank labels (26979/26978/25297 = ranks 13/12/11 of the 13-rank Healing
-   -- Touch ladder — 5189, formerly mislabeled "HealingTouchRank4", is rank 5).
-   local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 3000)
-   return NS.try_cast(spell_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s (penalty %.0f%%)", mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11"), (penalty or 1) * 100))
+   -- Legacy fallback: tier single actions with the penalty readout.
+   local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(tier_id, 3000)
+   local tier_label = mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11")
+   return NS.try_cast(tier_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s (penalty %.0f%%)", tier_label, (penalty or 1) * 100))
   end },
  { name = "TreeOfLifeMaintain", matches = function(_, state) return state.can_tree and not state.in_tree and state.tree_aura_count >= 2 end, execute = function() return NS.try_cast(ACTION.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Tree of Life aura", TREE_OPTS) end },
   { name = "CycloneEnemyHealer", matches = CycloneEnemyHealer_matches, execute = CycloneEnemyHealer_execute },
@@ -911,7 +932,12 @@ local strategies = {
   if not NS.spell_ready(ACTION.HealingTouch, state.lowest.unit) then return false end
   if predictive_overheal("HealingTouch", state.lowest, 2.5, context.settings, 35) then return false end
   return true
- end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
+ end, execute = function(context, state)
+  -- heal-fit ext: deficit-fit rank over the full ladder.
+  local chosen, ltxt = cast_best_heal_rank(HEALING_TOUCH_RANKS, state.lowest, context, "Healing Touch fallback")
+  if chosen then return NS.try_cast(chosen, state.lowest.unit, ltxt or "[RESTO] Healing Touch fallback") end
+  return NS.try_cast(ACTION.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback")
+ end },
 }
 
 -- Replace the 6 imperative strategies with compiled DSL equivalents by name.
