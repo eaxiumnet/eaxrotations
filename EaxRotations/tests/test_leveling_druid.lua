@@ -3658,25 +3658,39 @@ end
 -- ============================================================================
 -- STAY IN CAT FORM (2026-09-13 live report: a TBC feral/cat druid left Cat Form
 -- right after combat ended). Two shapes are pinned:
---   1. form detection survives an aura API that reports nothing (bar index);
+--   1. the AURA names the form; the stance number only proves that some form is
+--      active (a live cat druid reports the class-global form id 1, not bar
+--      index 3, so naming from the number read cat as bear and silenced every
+--      cat lane -- the follow-up report);
 --   2. no form-restricted lane -- and no Cat Form re-shift -- runs in a feral
 --      form, while the same lanes keep firing in Moonkin Form (TBC allows the
 --      Balance kit there: a blanket "any form" gate blacked the rotation out).
 -- ============================================================================
 
-test("stay_in_cat: build_state reads the shapeshift bar index when the aura lies", function()
+test("stay_in_cat: the aura names the form, the stance number only proves shifted", function()
     local saved = NS.has_form
-    NS.has_form = function() return false end  -- aura API reports no form at all
-    local ctx = make_context({ stance = 3 })
-    local state = get_state(ctx)
-    assert_true(state.is_cat, "stance 3 -> is_cat")
-    assert_false(state.in_caster, "stance 3 -> not caster")
-    ctx.stance = 1
-    local bear = get_state(ctx)
-    assert_true(bear.is_bear, "stance 1 -> is_bear")
-    assert_false(bear.in_caster, "stance 1 -> not caster")
-    ctx.stance = 0
-    local caster = get_state(ctx)
+    -- Live shape: a TBC cat druid reports the class-global form id (1), not bar
+    -- index 3, while the aura names cat. Naming from the number read cat as bear.
+    NS.has_form = function(form) return form == "cat" end
+    local state = get_state(make_context({ stance = 1 }))
+    assert_true(state.is_cat, "aura cat + stance 1 -> is_cat")
+    assert_false(state.is_bear, "aura cat is not bear")
+    assert_false(state.in_caster, "aura cat is not caster")
+
+    NS.has_form = function(form) return form == "bear" end
+    local bear = get_state(make_context({ stance = 5 }))
+    assert_true(bear.is_bear, "aura bear -> is_bear")
+    assert_false(bear.is_cat, "aura bear is not cat")
+    assert_false(bear.in_caster, "aura bear is not caster")
+
+    -- Aura silent: the number answers the shifted question but cannot name a
+    -- form, so it must never claim cat or bear.
+    NS.has_form = function() return false end
+    local unnamed = get_state(make_context({ stance = 1 }))
+    assert_false(unnamed.is_cat, "stance 1 alone must not claim cat")
+    assert_false(unnamed.is_bear, "stance 1 alone must not claim bear")
+    assert_false(unnamed.in_caster, "stance 1 alone -> shifted (unnamed)")
+    local caster = get_state(make_context({ stance = 0 }))
     assert_true(caster.in_caster, "stance 0 -> caster")
     NS.has_form = saved
 end)
@@ -3778,13 +3792,13 @@ end)
 
 test("stay_in_cat: ProwlOpener never re-casts Cat Form while already in cat form", function()
     -- Casting Cat Form while ALREADY in Cat Form toggles the form off. The live
-    -- shape was an aura API reporting no cat form, which sent this lane down the
-    -- re-shift branch right after combat ended.
+    -- shape is aura cat + the class-global form id (1), which a stance-named
+    -- detector read as bear and sent down this re-shift branch.
     local saved_has_form = NS.has_form
-    NS.has_form = function() return false end
-    local ctx = make_context({ in_combat = false, stance = 3 })
+    NS.has_form = function(form) return form == "cat" end
+    local ctx = make_context({ in_combat = false, stance = 1 })
     local state = get_state(ctx)
-    assert_true(state.is_cat, "shape: in cat form per the bar index")
+    assert_true(state.is_cat, "shape: live aura cat + stance 1")
     state.in_combat = false
     state.use_feral = true
     state.prowl_ready = true
@@ -3818,8 +3832,8 @@ test("stay_in_cat: after combat ends the cat druid stays shifted and drops no fo
     -- lanes re-evaluate in the same tick. Before the fix a caster-only lane
     -- (or a Cat Form re-shift) claimed that frame and the druid left cat form.
     local saved_has_form = NS.has_form
-    NS.has_form = function() return false end   -- aura API reports nothing
-    local ctx = make_context({ in_combat = false, stance = 3 })
+    NS.has_form = function(form) return form == "cat" end   -- the live aura
+    local ctx = make_context({ in_combat = false, stance = 1 })
     local state = get_state(ctx)
     assert_true(state.is_cat, "still in cat form after combat ends")
     assert_false(state.in_caster, "not treated as caster after combat ends")
@@ -3844,6 +3858,7 @@ test("stay_in_cat: after combat ends the cat druid stays shifted and drops no fo
 
     -- Control: the same out-of-combat frame with the druid standing in caster
     -- form still performs the maintenance the OOC path exists for.
+    NS.has_form = function() return false end
     local caster_ctx = make_context({ in_combat = false, stance = 0 })
     local caster = get_state(caster_ctx)
     assert_true(caster.in_caster, "unshifted -> caster")

@@ -293,7 +293,18 @@ local VANILLA_LANE_CLASS = {
 -- is empty because there are NO never-lanes to classify. STRICT like WotLK: a
 -- future never-lane hard-fails until pinned.
 -- ---------------------------------------------------------------------------
-local SOD_LANE_CLASS = {}
+-- 2026-09-14 Skull Bash wiring (Wowhead-verified 410176) added interrupt
+-- lanes to druid/feral_sod + druid/tank_sod. The battery harness does not
+-- stub NS.try_interrupt / NS.gcd_remains, so the manager's gate (needs all
+-- four interrupt APIs present) correctly holds every scenario — the
+-- dedicated suite test_sod_druid_hunter pins both firing paths. Bucket (c):
+-- works live, silent under the battery mock, mirroring priest/leveling Fade.
+local SOD_LANE_CLASS = {
+    druid = {
+        feral = { Interrupt = 'c' },
+        tank  = { Interrupt = 'c' },
+    },
+}
 
 -- ---------------------------------------------------------------------------
 -- APL conformance status — COMPUTED, not hardcoded. tools/apl_status.lua is the

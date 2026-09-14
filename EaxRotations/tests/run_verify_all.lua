@@ -603,7 +603,11 @@ local components = {
             return {
                 { "sod specs " .. tostring(specs) .. " (expected 20)", specs == 20 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                { "never-firing " .. never .. " (expected 0)", never == 0 },
+                -- 2026-09-14: 0 -> 2 classified (SOD_LANE_CLASS, bucket c):
+                -- druid/feral + druid/tank Interrupt lanes hold under the
+                -- battery (no interrupt-API stubs); both firing paths are
+                -- pinned in test_sod_druid_hunter.lua.
+                { "never-firing " .. never .. " (expected 2 baseline, classified)", never == 2 },
             }
         end,
     },

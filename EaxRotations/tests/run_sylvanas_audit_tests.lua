@@ -124,6 +124,7 @@ local SOD_RUNE_IDS = {
     [409593] = 409593,  -- hunter/dps_hunter_sod.lua:18
     [409824] = 409824,  -- druid/restoration_sod.lua:16 (Lifebloom)
     [409828] = 409828,  -- druid/feral_sod.lua:16   (Mangle Cat)
+    [410176] = 410176,  -- druid/feral_sod.lua + tank_sod.lua (Skull Bash rune, Wowhead-verified 2026-09-14)
     [412096] = 412096,  -- rogue/tank_sod.lua:17    (CrimsonTempest)
     [412532] = 412532,  -- mage/dps_mage_sod.lua:18
     [412758] = 412758,  -- warlock/tank_sod.lua:13
@@ -604,7 +605,7 @@ local function run_self_tests()
     -- an UNPINNED rune id must fail even in sod mode.
     local sod_pinned_count = 0
     for _ in pairs(SOD_RUNE_IDS) do sod_pinned_count = sod_pinned_count + 1 end
-    expect(sod_pinned_count, 65, "SOD_RUNE_IDS size") -- +1 Earth Shield 408514 (shaman restoration guide pass 2026-09-09)
+    expect(sod_pinned_count, 66, "SOD_RUNE_IDS size") -- +1 Skull Bash 410176 (2026-09-14) -- +1 Earth Shield 408514 (shaman restoration guide pass 2026-09-09)
     local dup_runes = {}
     for id in pairs(SOD_RUNE_IDS) do
         if dup_runes[id] then error("duplicate SOD_RUNE_IDS entry: " .. tostring(id)) end
@@ -740,9 +741,10 @@ local function run_self_tests()
         if body then live_sod_names = live_sod_names + #scan_name_agreement(body, true, sod_cov) end
     end
     expect(live_sod_names, 0, "no live SoD ladder label disagreements")
-    expect(sod_cov.ladders or 0, 199, "SoD name-agreement coverage: labelled ladders compared")
-    expect(sod_cov.ids or 0, 385, "SoD name-agreement coverage: ids compared")
-    expect(sod_cov.named or 0, 308, "SoD name-agreement coverage: ids the bridge names")
+    -- +3 (2026-09-14): SkullBash x2 (feral_sod/tank_sod) + FaerieFireFeral
+    expect(sod_cov.ladders or 0, 202, "SoD name-agreement coverage: labelled ladders compared")
+    expect(sod_cov.ids or 0, 392, "SoD name-agreement coverage: ids compared")
+    expect(sod_cov.named or 0, 313, "SoD name-agreement coverage: ids the bridge names")
 
     print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (12 rule cases + SoD ladder probe + four exception gates + live SoD AND live TBC class inventories, coverage pinned 717/2974 TBC and 199/385 SoD), masking-gap helper resolves")
 end

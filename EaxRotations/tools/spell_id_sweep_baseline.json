@@ -16,7 +16,7 @@
  "buckets": {
   "UNSOURCED": {
    "hard": 0,
-   "review": 85
+   "review": 87
   },
   "WRONG-RANK": {
    "hard": 0,
@@ -37,8 +37,8 @@
  },
  "totals": {
   "hard": 0,
-  "review": 386,
-  "findings": 386
+  "review": 388,
+  "findings": 388
  },
  "findings": {
   "DUPLICATE-CONFLICT|10053|EaxRotations/classes/mage/arcane_wotlk.lua": 1,
@@ -272,6 +272,8 @@
   "UNSOURCED|409809|EaxRotations/classes/druid/tank_sod.lua": 1,
   "UNSOURCED|409824|EaxRotations/classes/druid/restoration_sod.lua": 1,
   "UNSOURCED|409828|EaxRotations/classes/druid/feral_sod.lua": 1,
+  "UNSOURCED|410176|EaxRotations/classes/druid/feral_sod.lua": 1,
+  "UNSOURCED|410176|EaxRotations/classes/druid/tank_sod.lua": 1,
   "UNSOURCED|412096|EaxRotations/classes/rogue/combat_sod.lua": 1,
   "UNSOURCED|412096|EaxRotations/classes/rogue/tank_sod.lua": 1,
   "UNSOURCED|412532|EaxRotations/classes/mage/dps_mage_sod.lua": 1,

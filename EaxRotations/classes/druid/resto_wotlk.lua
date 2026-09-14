@@ -48,6 +48,9 @@ local ACTION = {
     HealingTouch = define("HealingTouch", { 48378, 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
     Rebirth = define("Rebirth", { 48477, 26994, 20484 }, "Rebirth"),
     Tranquility = define("Tranquility", { 48447 }, "Tranquility"),
+    -- Self-preservation: Barkskin (22812, damage reduction, usable in
+    -- form; the TBC/Vanilla siblings all carry this lane — W3 audit gap).
+    Barkskin = define("Barkskin", { 22812 }, "Barkskin"),
 }
 
 -- Max-rank-first HoT buff tables: WotLK Rejuv/Regrowth/Lifebloom auras are
@@ -70,6 +73,8 @@ local REBIRTH_EXPECTED_CD = 600            -- 10 min in WotLK (Wowhead; TBC was 
 -- expected_cooldown feeds the swing-diagnostic drift check).
 local NS_OPTS = { skip_range = true, expected_cooldown = NATURES_SWIFTNESS_EXPECTED_CD }
 local TRANQUILITY_OPTS = { skip_range = true, expected_cooldown = TRANQUILITY_EXPECTED_CD }
+local BARKSKIN_EXPECTED_CD = 60          -- 1 min (Wowhead)
+local BARKSKIN_OPTS = { skip_range = true, expected_cooldown = BARKSKIN_EXPECTED_CD }
 local REBIRTH_OPTS = { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }
 
 
@@ -301,6 +306,22 @@ local DSL_DEFS = {
             return NS.try_cast(ACTION.Tranquility, nil, "[RESTO] Tranquility party burst", TRANQUILITY_OPTS) == true
         end },
     },
+    {
+        name = "BarkskinSelfPreservation",
+        conditions = {
+            { type = "in_combat" },
+            -- Own-HP gate (NOT lowest ally: this is self-preservation).
+            -- Same setting key + 55 default as the TBC sibling, so one
+            -- knob governs Barkskin across eras.
+            { type = "custom", fn = function(context, state)
+                return (context.hp or 100) <= spec_kit.setting_number(context, "barkskin_hp", 55)
+            end },
+            { type = "spell_ready", spell = ACTION.Barkskin, target = "self", opts = BARKSKIN_OPTS },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.Barkskin, nil, "[RESTO] Barkskin self", BARKSKIN_OPTS) == true
+        end },
+    },
 }
 
 local strategies = {
@@ -310,6 +331,7 @@ local strategies = {
     { name = "NaturesSwiftnessHealingTouch" },
     { name = "Rebirth" },
     { name = "Tranquility" },
+    { name = "BarkskinSelfPreservation" },
     { name = "WildGrowth" },
     { name = "Swiftmend" },
     { name = "Lifebloom" },

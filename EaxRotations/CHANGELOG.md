@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **SoD druids can interrupt**: the Wowhead-verified Skull Bash rune
+  (410176, 13y charge interrupt, 10s CD) is wired into feral_sod and
+  tank_sod via the shared interrupt manager, with school-lock tracking
+  (physical, 2s). Fires in both cat and bear forms; Moonkin is excluded
+  by the rune's own form list.
+- **SoD feral Faerie Fire maintain**: classic Feral Faerie Fire (16857
+  family, newest rank 27011 first) as a low-priority filler lane below
+  every damage lane, with the 6s refresh window the vanilla cat uses.
+- **WotLK resto Barkskin self-preservation**: own-HP band (barkskin_hp
+  setting, 55 default — one knob across eras), same lane and CD (60s)
+  as the TBC sibling, slotted before Wild Growth.
+
+### Fixed
+- SoD feral APL provenance: the file header and its test cited a
+  wowsims/sod commit that is an unrelated GitHub-Pages workflow change;
+  both now state the real source (Wowhead SoD druid guides, every rune
+  id verified in-tree). No SoD APL fixture was ever pinned.
+
 ## 2.26.0 — 2026-09-14
 
 ### Customer Changelog

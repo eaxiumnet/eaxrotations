@@ -6,7 +6,11 @@
 --       2025).
 -- WHEN: SoD tank combat with a valid hostile target (Enrage also pre-pull).
 -- WHY: translates the pinned wowsims/sod phase 6 Feral Tank APL plus the
---      guide-priority tank-control lanes the file lacked.
+--      guide-priority tank-control lanes the file lacked. The SoD Skull
+--      Bash rune (410176, Wowhead-verified) is registered via the shared
+--      interrupt manager: bear tank keeps its interrupt while holding the
+--      form (the classic Bash lane in the TBC middleware is redundant with
+--      it, and Skull Bash shares its cooldown with Feral Charge).
 -- SAFETY: 20 percent defensive gate and all phase/rune/resource reads fail closed.
 
 local NS = _G.EaxRotations
@@ -14,6 +18,8 @@ if not NS then return nil end
 if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local define = spec_kit.define_sod_action_for_class({})
 local ACTION = {
     Barkskin = define("Barkskin", 22812, {}, "Barkskin"),
@@ -32,6 +38,9 @@ local ACTION = {
     Growl = define("SodGrowl", 6795, {}, "Growl"),
     Enrage = define("SodEnrage", 5229, {}, "Enrage"),
     SurvivalInstincts = define("SodSurvivalInstincts", 409809, { rune_id = 409809 }, "SurvivalInstincts"),
+    -- Skull Bash rune (410176, Wowhead-verified 2026-09-14): the bear-form
+    -- interrupt (10s CD, shares CD with Feral Charge).
+    SkullBash = define("SkullBash", 410176, { rune_id = 410176 }, "SkullBash"),
 }
 
 local function number(context, key, fallback)
@@ -81,6 +90,13 @@ local function cast(descriptor, context, target, label)
 end
 
 local strategies = {
+    -- Interrupt: Skull Bash in bear form. No form gate: the rune is legal
+    -- in cat AND bear and the tank spec is always bear, so the omitted
+    -- `required` argument is safe here too.
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        -- pass the inner action (with _meta.id), not the SoD descriptor wrapper
+        and interrupt_manager.register_interrupt_spell("druid", "SkullBash", { SkullBash = ACTION.SkullBash.action }))
+        or { name = "SkullBashSkip", matches = function() return false end, execute = function() return false end },
     { name = "Barkskin", matches = function(c, s) return base(c, ACTION.Barkskin) and s.hp_pct <= 20 and ready(ACTION.Barkskin, c.me) end,
       execute = function(c) return cast(ACTION.Barkskin, c, c.me, "Barkskin") end },
     -- Survival Instincts (guide: emergency defensive; 30% max health +
