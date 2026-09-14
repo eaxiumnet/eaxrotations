@@ -12,10 +12,10 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 |---|---|
 | Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |
 | Specs rated | 132 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 2616 |
+| Decision rules exercised by the test rig | 2632 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
-| Rules the rig never triggers, each with a filed written reason | 20 |
-| Behavioral test battery | 564 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
+| Rules the rig never triggers, each with a filed written reason | 34 |
+| Behavioral test battery | 566 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
 | Cast order machine-checked against simulators | 50 of 50 pinned specs (where a simulator exists) |
 | Unreachable-rule gate | strict in all 4 eras — an unexplained unreachable rule fails the release |
 
@@ -169,25 +169,25 @@ A rating below S is never silent: every non-firing rule is individually document
 | Spec | Rating | Rules the rig never triggers | Sim-checked |
 |---|---|---|---|
 | druid/balance | S | 0 |  |
-| druid/feral | S | 0 |  |
+| druid/feral | A | 1 |  |
 | druid/restoration | S | 0 |  |
-| druid/tank | S | 0 |  |
+| druid/tank | A | 1 |  |
 | hunter/dps_hunter | S | 0 |  |
-| mage/dps_mage | S | 0 |  |
-| paladin/protection | S | 0 |  |
-| paladin/retribution | S | 0 |  |
+| mage/dps_mage | A | 1 |  |
+| paladin/protection | A | 1 |  |
+| paladin/retribution | A | 1 |  |
 | priest/healing | S | 0 |  |
-| priest/shadow | S | 0 |  |
-| rogue/combat | S | 0 |  |
-| rogue/tank | S | 0 |  |
-| shaman/elemental | S | 0 |  |
-| shaman/enhancement | S | 0 |  |
-| shaman/restoration | S | 0 |  |
-| shaman/warden | S | 0 |  |
+| priest/shadow | A | 1 |  |
+| rogue/combat | A | 1 |  |
+| rogue/tank | A | 1 |  |
+| shaman/elemental | A | 1 |  |
+| shaman/enhancement | A | 1 |  |
+| shaman/restoration | A | 1 |  |
+| shaman/warden | A | 1 |  |
 | warlock/dps | S | 0 |  |
 | warlock/tank | S | 0 |  |
-| warrior/dps_warrior | S | 0 |  |
-| warrior/tank_warrior | S | 0 |  |
+| warrior/dps_warrior | A | 1 |  |
+| warrior/tank_warrior | A | 1 |  |
 
 “Rules the rig never triggers” is 0 for every healthy spec. A non-zero value means the rig cannot construct that exact moment; the reason is on file and visible in the scorecard.
 
@@ -202,5 +202,5 @@ A rating below S is never silent: every non-firing rule is individually document
 ## How to check this yourself
 
 - Full engineering detail (every rule, every reason): `docs/scorecard.md`.
-- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (564 rotation suites + leveling + four era batteries + this page’s drift check).
+- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (566 rotation suites + leveling + four era batteries + this page’s drift check).
 - Regenerate this page and the scorecard: `lua tools/spec_scorecard.lua`.

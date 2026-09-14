@@ -57,6 +57,23 @@ local INTERRUPT_SCHOOL_MAP = {
     [19647] = "shadow",    -- Spell Lock
     [34490] = "physical",  -- Silencing Shot
     [31661] = "fire",      -- Dragon's Breath (Mage)
+    [410176] = "physical", -- Skull Bash (SoD druid rune)
+    [38768] = "physical",  -- Kick (TBC rank)
+    [1769]  = "physical",  -- Kick
+    [1768]  = "physical",  -- Kick
+    [1767]  = "physical",  -- Kick
+    [25454] = "nature",    -- Earth Shock (TBC rank)
+    [10414] = "nature",    -- Earth Shock
+    [10413] = "nature",    -- Earth Shock
+    [10412] = "nature",    -- Earth Shock
+    [8046]  = "nature",    -- Earth Shock
+    [8045]  = "nature",    -- Earth Shock
+    [8044]  = "nature",    -- Earth Shock
+    [29704] = "physical",  -- Shield Bash (TBC rank)
+    [1672]  = "physical",  -- Shield Bash
+    [1671]  = "physical",  -- Shield Bash
+    [72]    = "physical",  -- Shield Bash
+    [15487] = "shadow",    -- Silence (priest)
 }
 
 local INTERRUPT_LOCK_DURATION = {
@@ -68,6 +85,23 @@ local INTERRUPT_LOCK_DURATION = {
     [19647] = 3,
     [34490] = 3,
     [31661] = 3,
+    [410176] = 2,
+    [38768] = 5,
+    [1769]  = 5,
+    [1768]  = 5,
+    [1767]  = 5,
+    [25454] = 2,
+    [10414] = 2,
+    [10413] = 2,
+    [10412] = 2,
+    [8046]  = 2,
+    [8045]  = 2,
+    [8044]  = 2,
+    [29704] = 4,
+    [1672]  = 4,
+    [1671]  = 4,
+    [72]    = 4,
+    [15487] = 5,
 }
 
 -- Counterspell (2139) locks whatever school the target is currently casting.

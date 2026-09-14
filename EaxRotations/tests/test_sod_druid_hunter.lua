@@ -1,6 +1,8 @@
 -- test_sod_druid_hunter.lua -- Focused Druid and Hunter SoD rotation coverage.
 -- WHAT: loads five native rotations and checks source-backed priorities and execution.
--- WHEN: Task 4 focused validation for pinned wowsims/sod commit 0e3f6eff.
+-- WHEN:  Task 4 focused validation (SoD phase 7 kits). The previously
+--       cited wowsims/sod commit is an unrelated gh-pages workflow
+--       change, not an APL source (2026-09-14 evidence audit).
 -- WHY: proves forms, pets, healing, execute, phase, and rune gates through real modules.
 -- SAFETY: deterministic API stubs; no game client, network, or persistent state.
 
@@ -220,5 +222,90 @@ cast_action = nil
 local kill = strategy(hunter, "KillShot")
 assert_eq(kill.execute(hunter_context), true, "Hunter resolved action executes")
 assert_eq(cast_action, hunter.actions.KillShot.action, "execute passes resolved action")
+
+-- 2026-09-14 Skull Bash interrupt pins (Wowhead-verified 410176): the
+-- manager lane is strategy #1 in both feral specs and fires through the
+-- real NS gate stubs; humanize is disabled so the fire pins are
+-- deterministic (first-seen jitter is random).
+local NS = _G.EaxRotations
+local INTERRUPT_SETTINGS = { interrupt_humanize_enabled = false }
+local function interrupt_context(overrides)
+    local ctx = { is_sod = true, sod_phase = 7, sod_runes = runes, target = target, me = me,
+        in_combat = true, settings = INTERRUPT_SETTINGS }
+    if overrides then for k, v in pairs(overrides) do ctx[k] = v end end
+    return ctx
+end
+local sb_feral = strategy(feral, "Interrupt")
+local sb_tank = strategy(tank, "Interrupt")
+local cat_ctx = interrupt_context({ in_cat_form = true })
+-- Inert while the harness lacks interrupt APIs (skip-lane safety: must
+-- hold, not error, before the stubs below are installed).
+assert_eq(sb_feral.matches(cat_ctx, feral.build_state(cat_ctx)), false,
+    "Skull Bash lane inert while the harness lacks interrupt APIs")
+NS.try_interrupt = function(t) return t ~= nil end
+NS.gcd_remains = function() return 0 end
+NS.time_now = function() return 100 end
+assert_eq(sb_feral.matches(cat_ctx, feral.build_state(cat_ctx)), true,
+    "Skull Bash lane fires on a casting target in cat form")
+local bear_ctx = interrupt_context({ in_bear_form = true })
+assert_eq(sb_tank.matches(bear_ctx, tank.build_state(bear_ctx)), true,
+    "Skull Bash lane fires on a casting target in bear form")
+-- Hold paths.
+local spell_ready_saved = NS.spell_ready
+NS.spell_ready = function() return false end
+assert_eq(sb_feral.matches(cat_ctx, feral.build_state(cat_ctx)), false,
+    "Skull Bash held while the spell is not ready")
+NS.spell_ready = spell_ready_saved
+NS.try_interrupt = function() return false end
+assert_eq(sb_feral.matches(cat_ctx, feral.build_state(cat_ctx)), false,
+    "Skull Bash held when the target is not casting")
+NS.try_interrupt = function(t) return t ~= nil end
+local opt_out_ctx = interrupt_context({ in_cat_form = true, settings = { use_interrupt = false } })
+assert_eq(sb_feral.matches(opt_out_ctx, feral.build_state(opt_out_ctx)), false,
+    "Skull Bash held when use_interrupt is false")
+-- Execute drives NS.try_cast with the INNER action: identity against
+-- feral.actions.SkullBash.action proves the .action unwrap (a descriptor
+-- wrapper would fail both identity and the _meta.id read below).
+cast_action = nil
+assert_eq(sb_feral.execute(interrupt_context({ in_cat_form = true })), true,
+    "Skull Bash execute casts through NS.try_cast")
+assert_eq(cast_action, feral.actions.SkullBash.action,
+    "Skull Bash execute passes the inner action (with _meta.id 410176)")
+assert_eq(feral.actions.SkullBash.action._meta.id, 410176, "Skull Bash pinned to the Wowhead-verified rune id")
+
+-- 2026-09-14 Feral Faerie Fire maintain pins: classic 16857-family ids,
+-- low-priority filler below every damage lane (priority must not move).
+do
+    local debuff_remains_value = 0
+    local debuff_remains_saved = NS.debuff_remains
+    NS.debuff_remains = function(unit, ids) return debuff_remains_value end
+    local ff = strategy(feral, "FaerieFireFeral")
+    local ff_ctx = interrupt_context({ in_cat_form = true })
+    assert_eq(ff.matches(ff_ctx, feral.build_state(ff_ctx)), true,
+        "Faerie Fire fires when its debuff is down")
+    debuff_remains_value = 10
+    assert_eq(ff.matches(ff_ctx, feral.build_state(ff_ctx)), false,
+        "Faerie Fire held while its debuff is up")
+    debuff_remains_value = 4
+    assert_eq(ff.matches(ff_ctx, feral.build_state(ff_ctx)), true,
+        "Faerie Fire fires inside the 6s refresh window")
+    debuff_remains_value = 0
+    local sr_saved = NS.spell_ready
+    NS.spell_ready = function() return false end
+    assert_eq(ff.matches(ff_ctx, feral.build_state(ff_ctx)), false,
+        "Faerie Fire held while the spell is not ready")
+    NS.spell_ready = sr_saved
+    NS.debuff_remains = debuff_remains_saved
+    local idx_ff
+    for i, s in ipairs(feral.strategies) do
+        if s.name == "FaerieFireFeral" then idx_ff = i end
+    end
+    assert_eq(idx_ff, #feral.strategies,
+        "Faerie Fire stays the last lane (below every damage lane)")
+    -- Ladder-head convention: newest Feral Faerie Fire rank first,
+    -- 16857 family (same ids cat_vanilla/bear_sylvanas carry).
+    assert_eq(feral.actions.FaerieFireFeral.action._meta.id, 27011,
+        "Faerie Fire heads its rank ladder at 27011 (newest Feral rank)")
+end
 
 print("PASS test_sod_druid_hunter (5 registrations; source priorities/forms/pets/runes/phases)")

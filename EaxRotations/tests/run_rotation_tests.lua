@@ -600,6 +600,7 @@ local tests = {
   "test_sod_rogue_shaman_rotations.lua",
   "test_sod_rogue_shaman_adversarial.lua",
   "test_sod_warlock_warrior_rotations.lua",
+  "test_sod_interrupt_lanes.lua",
   "test_sod_warlock_warrior_adversarial.lua",
   "test_spell_validation_talent_inference_health.lua",
   "test_ttd_normalization.lua",
@@ -649,6 +650,9 @@ local tests = {
  "test_paladin_live_fixes.lua",
  "test_priest_dps_live_fixes.lua",
  "test_priest_healer_live_fixes.lua",
+ 
+ -- 2026-09-14 heal-value wave (PhDamage-harvested per-rank data)
+ "test_heal_value_ranks.lua",
  "test_rogue_live_fixes.lua",
  "test_shaman_live_fixes.lua",
  "test_warlock_live_fixes.lua",

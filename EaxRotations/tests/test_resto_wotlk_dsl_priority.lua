@@ -111,7 +111,9 @@ local failed = 0
 function tests.priority_order()
     -- Healer wave (2026-09-09): emergency band (NS pair, Rebirth,
     -- Tranquility) leads the guide priority, HoT core unchanged behind it.
-    local expected = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Tranquility", "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
+    -- 2026-09-14: BarkskinSelfPreservation added between Tranquility and
+    -- WildGrowth (TBC-sibling parity; own-HP self-preservation band).
+    local expected = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Tranquility", "BarkskinSelfPreservation", "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end

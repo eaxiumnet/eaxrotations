@@ -283,14 +283,22 @@ local function feral_ctx(with_state)
     end
     return c
 end
+-- Name-based lookups: the manager Interrupt lane (strategy 1, 2026-09-14)
+-- makes positional indexes brittle.
+local function feral_strategy(name)
+    for _, s in ipairs(feral.strategies) do
+        if s.name == name then return s end
+    end
+    error("missing feral strategy: " .. name)
+end
 local fc_w = feral_ctx(true)
 local fs_w = feral.build_state(fc_w)
-assert_true(feral.strategies[5].matches(fc_w, fs_w), "feral SavageRoar FIRES with wired in_cat_form")
-assert_true(feral.strategies[7].matches(fc_w, fs_w), "feral Rip FIRES with wired state (5cp, ttd 30)")
+assert_true(feral_strategy("SavageRoar").matches(fc_w, fs_w), "feral SavageRoar FIRES with wired in_cat_form")
+assert_true(feral_strategy("Rip").matches(fc_w, fs_w), "feral Rip FIRES with wired state (5cp, ttd 30)")
 local fc_wo = feral_ctx(false)
 local fs_wo = feral.build_state(fc_wo)
-assert_eq(feral.strategies[2].matches(fc_wo, fs_wo), false, "feral SavageRoar SILENT without wired form")
-assert_eq(feral.strategies[3].matches(fc_wo, fs_wo), false, "feral Mangle SILENT without wired form")
+assert_eq(feral_strategy("SavageRoar").matches(fc_wo, fs_wo), false, "feral SavageRoar SILENT without wired form")
+assert_eq(feral_strategy("Mangle").matches(fc_wo, fs_wo), false, "feral Mangle SILENT without wired form")
 
 package.loaded["classes/shaman/warden_sod"] = nil
 local warden = require("classes/shaman/warden_sod")
@@ -302,10 +310,10 @@ local function warden_ctx(with_imbue)
 end
 local wc_w = warden_ctx(true)
 local ws_w = warden.build_state(wc_w)
-assert_true(warden.strategies[1].matches(wc_w, ws_w), "warden ShamanisticRage FIRES with rockbiter imbue")
+assert_true(warden.strategies[2].matches(wc_w, ws_w), "warden ShamanisticRage FIRES with rockbiter imbue")
 local wc_wo = warden_ctx(false)
 local ws_wo = warden.build_state(wc_wo)
-assert_eq(warden.strategies[1].matches(wc_wo, ws_wo), false, "warden SILENT without imbue (whole rotation gated)")
+assert_eq(warden.strategies[2].matches(wc_wo, ws_wo), false, "warden SILENT without imbue (whole rotation gated)")
 
 package.loaded["classes/warlock/tank_sod"] = nil
 local wtank = require("classes/warlock/tank_sod")

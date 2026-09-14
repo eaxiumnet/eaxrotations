@@ -11,9 +11,11 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local define = spec_kit.define_sod_action_for_class(SPELLS)
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 
 local FAN_OF_KNIVES_ID = 409240
 local ACTION = {
+    Kick = define("Kick", { 1769, 1768, 1767, 1766 }, {}, "Kick"),
     FanOfKnives = define("FanOfKnives", FAN_OF_KNIVES_ID, {
         rune_id = FAN_OF_KNIVES_ID, min_phase = 4,
     }, "FanOfKnives"),
@@ -60,6 +62,10 @@ local function fan_of_knives_matches(context, state)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("rogue", "Kick", { Kick = ACTION.Kick.action }))
+        or { name = "KickSkip", matches = function() return false end, execute = function() return false end },
     -- Opt-in cooldowns (guide: cleave/energy windows). Held while the
     -- target dies inside the buff tail (ttd gate) so the battery's
     -- prot_cd_window scenario presents the firing window.

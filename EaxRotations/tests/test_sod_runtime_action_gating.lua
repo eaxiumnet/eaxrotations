@@ -31,7 +31,7 @@ assert_eq(NS.rotation_registry.playstyles.combat, rotation.strategies,
 
 -- BladeFlurry/AdrenalineRush opt-in cooldowns now lead the arc; the
 -- FanOfKnives AoE lane is the first unconditional production strategy.
-local strategy = rotation.strategies[3]
+local strategy = rotation.strategies[4]
 assert_eq(strategy.name, "FanOfKnives", "source-backed strategy name")
 assert_eq(strategy.matches(context, rotation.build_state(context)), true,
     "equipped rune enables the production strategy")

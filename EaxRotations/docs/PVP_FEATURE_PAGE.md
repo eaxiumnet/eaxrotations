@@ -177,7 +177,7 @@ Verified PvP-related test files:
 | `test_interrupt_spec_integration.lua` | Per-spec interrupt wiring |
 | `test_shadow_silence_interrupt.lua` | Priest Silence interrupt |
 
-Total: 564 rotation suites + 39 leveling suites registered (564/564 rotation passing at runtime — incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator).
+Total: 566 rotation suites + 39 leveling suites registered (566/566 rotation passing at runtime — incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator).
 ---
 
 ### Data provenance: buff/debuff verification pipeline
@@ -266,4 +266,4 @@ Ranked by impact. Highest = most noticeable in arena/battleground performance.
 
 ---
 
-EaxRotations v2.25.0 — CC-BY-4.0 License — Built for TBC Classic Anniversary
+EaxRotations v2.26.2 — CC-BY-4.0 License — Built for TBC Classic Anniversary

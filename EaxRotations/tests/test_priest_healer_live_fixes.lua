@@ -238,6 +238,7 @@ assert_false(md.matches({ in_combat = true, is_group = true, settings = {}, mana
 -- ============================================================================
 local cast_best_heal_argc = nil
 local holy_try_cast_target = nil
+local cast_best_heal_hook_args = nil
 
 local function holy_try_cast(spell, target, label)
     holy_try_cast_target = target
@@ -308,6 +309,15 @@ local holy_ns = {
 }
 _G.EaxRotations = holy_ns
 package.loaded["classes/priest/healing_sylvanas"] = holy_ns.PriestHealing
+-- 2026-09-14: cast_best_heal_rank binds at load time, so capture its args
+-- pre-load. The lane contract (5th-arg ceiling) is pinned here; the hook's
+-- ceiling semantics are pinned in test_heal_value_ranks.lua.
+holy_ns.cast_best_heal_rank = function(...)
+    cast_best_heal_argc = select("#", ...)
+    cast_best_heal_hook_args = { label = select(4, ...), opts = select(5, ...) }
+    return 25213, "Greater Heal"
+end
+holy_ns.HealValue = { find_rank_by_id = function(id) if id == 25314 then return { id = 25314, rank = 5 } end return nil end }
 local holy = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
 
 local function holy_strategy(name)
@@ -344,5 +354,16 @@ assert_true(preheal.matches({ in_combat = true, is_moving = false, player_contro
 assert_false(preheal.matches({ in_combat = true, is_moving = false, player_control_locked = false, settings = {} },
     { tank = { unit = tank_unit, effective_hp = 72 }, tank_hp = 72, has_pushback = false }),
     "holy PreHeal must not fire without pushback")
+
+-- --- 2026-09-14: Clearcasting GH passes the mana-tier ceiling (5th arg) ---
+local cc = holy_strategy("ClearcastingGreaterHeal")
+cast_best_heal_hook_args = nil
+cc.execute({ in_combat = true, is_moving = false, player_control_locked = false, mana_pct = 10, settings = {} },
+    { lowest = { unit = ally_unit, effective_hp = 40 }, clearcasting = true, lowest_hp = 40 })
+assert_true(cast_best_heal_hook_args ~= nil, "Clearcasting execute calls cast_best_heal_rank")
+assert_true(cast_best_heal_hook_args.label == "Clearcasting GH", "Clearcasting lane label preserved")
+assert_true(cast_best_heal_hook_args.opts ~= nil and cast_best_heal_hook_args.opts.ceiling ~= nil
+    and cast_best_heal_hook_args.opts.ceiling.id == 25314,
+    "Clearcasting passes EFFICIENT-tier ceiling (25314) to the hook")
 
 print("PASS test_priest_healer_live_fixes")

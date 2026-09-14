@@ -506,8 +506,29 @@ local SPELLS = {
 
 NS.PaladinSpells = SPELLS
 
-NS.HOLY_LIGHT_RANKS = { { spell = SPELLS.HolyLight, label = "R11", base_min = 2196, base_max = 2446 } }
-NS.FLASH_OF_LIGHT_RANKS = { { spell = SPELLS.FlashOfLight, label = "R7", base_min = 448, base_max = 502 } }
+-- 2026-09-14: full per-rank TBC ladders from NS.HealValue (bases harvested
+-- from PhDamage @ 22b8ed927, Wowhead-verified; FoL R7 corrected to the
+-- 458-513 description values). Replaces the single-entry ladders that left
+-- heal_helper's deficit-fit selector nothing to choose between. Each rank
+-- gets its own spell_action so the selector can cast the specific rank.
+-- talent_mult 1.12 = Healing Light, identical to the previous expectation.
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_hl(id)
+        return NS.spell_action({ name = "HolyLight", ids = { id } })
+    end
+    local function _mk_fol(id)
+        return NS.spell_action({ name = "FlashOfLight", ids = { id } })
+    end
+    NS.HOLY_LIGHT_RANKS = _HealValue.build_ladder("paladin", "HolyLight", _mk_hl, 1.12) or NS.HOLY_LIGHT_RANKS
+    NS.FLASH_OF_LIGHT_RANKS = _HealValue.build_ladder("paladin", "FlashOfLight", _mk_fol, 1.12) or NS.FLASH_OF_LIGHT_RANKS
+else
+    -- Module unavailable (should not happen): keep the legacy single-rank
+    -- ladders so behavior is unchanged.
+    NS.HOLY_LIGHT_RANKS = { { spell = SPELLS.HolyLight, label = "R11", base_min = 2196, base_max = 2446 } }
+    NS.FLASH_OF_LIGHT_RANKS = { { spell = SPELLS.FlashOfLight, label = "R7", base_min = 448, base_max = 502 } }
+end
 NS.HL_COEFFICIENT, NS.FOL_COEFFICIENT, NS.HEALING_LIGHT_MULT = 0.714, 0.429, 1.12
 
 local config = {

@@ -61,12 +61,138 @@
   **and `tests/run_verify_all.lua`** (the check and its `--self-test`); `tools/` is a
   strict gitignore allowlist, so the tool is registered there as well.
 - **The stale counts the gate proved are fixed:** `docs/PER_CLASS_RESEARCH.md`
-  (563 -> 564, both the battery table and the "563-suite battery" line); its line 110
+  (564 -> 566, both the battery table and the "564-suite battery" line); its line 110
   is a dated "record time" paragraph and stays exactly as written.
 - **Proven load-bearing by injection** on the real docs, each restored
   byte-identical: a stale "563-suite" count fails as a wrong count; a NEW phrasing
   carrying the right number fails as unclassified; a newly staged doc fails as
   unclassified until it is classified. `--self-test` is 14/14 checks.
+
+
+## 2.26.2 — 2026-09-14
+
+### Customer Changelog
+- **SoD specs can interrupt**: twelve more SoD rotations (mage, rogues,
+  warriors, shamans, shadow priest, paladins) now kick, pummel, shock,
+  silence or hammer a casting enemy, with the correct stance gates and
+  school-lock tracking.
+- **Healers cast smarter ranks** (TBC holy priest + paladin): heals pick
+  the smallest rank that still covers the target's missing health, so
+  small deficits stop burning max-rank mana. Optional +healing slider
+  sharpens the math; a checkbox restores the old always-max behavior.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #44 (squash 6d6a08197:
+  the SoD interrupt sweep) and PR #45 (squash 4ba662ce2: the PhDamage-
+  harvested heal-value wave) converted to the release entry. This commit
+  changes only this conversion and the four version pins (header.lua, the
+  README badge, the PvP footer, this top entry).
+
+### Added
+- **Healers cast deficit-fit ranks** (TBC holy priest + paladin): a new
+  shared heal-value module (shared/heal_value_sylvanas.lua) carries
+  per-rank base values, coefficients and verified mana costs for Holy
+  Light (11 ranks), Flash of Light (7), Greater Heal (3) and Flash Heal
+  (3); data harvested from PhDamage (Xerrion/PhDamage @ 22b8ed92, MIT)
+  and spot-verified against Wowhead TBC description text, including the
+  FoL R7 base correction (458-513, was 448-502). cast_best_heal_rank now
+  picks the smallest castable rank whose expected heal covers the
+  target's deficit (with the LibHealComm-lineage downrank penalty), so
+  small deficits stop costing max-rank mana; a healer_rank_fit_enabled=false
+  kill switch and a heal_bonus_healing slider (spell power, default 0)
+  restore/tune the behavior. The priest mana-tier ids (GH R7/R6/R5) now
+  also cap the actual cast instead of only gating it, fixing the
+  documented no-op downrank. Pins: math, deficit-fit mid-rank
+  discriminator, ceiling, kill switch, bonus-healing knob; both
+  load-bearing injections fire (fit disabled; tier ceiling dropped).
+- **Every SoD spec can interrupt**: the 12 remaining SoD rotations
+  (mage, rogue x2, warrior x2, shaman x4, priest shadow, paladin x2)
+  gain a shared-interrupt-manager lane at strategy #1, using the
+  repo's classic ladders (Counterspell 2139, Kick 1766-1769, Pummel
+  6552/6554 Berserker-gated, Shield Bash 72-1672 Battle/Defensive-
+  gated, Earth Shock 8042-10414, Silence 15487, Hammer of Justice
+  853-10308), with school-lock tracking for every rank. Deliberately
+  unwired: SoD hunters (Silencing Shot 34490 is TBC-only, refuted by
+  Wowhead) and both warlock specs (Spell Lock 19647 is the pet's
+  cast, not the player's). Fire/hold/inert/identity/stance pins in
+  test_sod_interrupt_lanes.lua; both load-bearing injections fire.
+
+## 2.26.1 — 2026-09-14
+
+### Customer Changelog
+- **SoD druids can interrupt**: the Skull Bash rune charges and locks a
+  caster's school in cat or bear form; feral Faerie Fire is maintained as
+  an armor-shred filler.
+- **WotLK resto Barkskin**: a self-preservation damage-reduction band at
+  low own-HP (55% default, configurable), matching the TBC sibling.
+- **Provenance fix**: the SoD feral file no longer cites an unrelated
+  commit as its APL source; the real source is stated.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #43 (squash a7ad011af:
+  the aura-first form-detector hotfix plus the druid gap wave) converted
+  to the release entry. This commit changes only this conversion and the
+  four version pins (header.lua, the README badge, the PvP footer, this
+  top entry).
+
+### Added
+- **SoD druids can interrupt**: the Wowhead-verified Skull Bash rune
+  (410176, 13y charge interrupt, 10s CD) is wired into feral_sod and
+  tank_sod via the shared interrupt manager, with school-lock tracking
+  (physical, 2s). Fires in both cat and bear forms; Moonkin is excluded
+  by the rune's own form list.
+- **SoD feral Faerie Fire maintain**: classic Feral Faerie Fire (16857
+  family, newest rank 27011 first) as a low-priority filler lane below
+  every damage lane, with the 6s refresh window the vanilla cat uses.
+- **WotLK resto Barkskin self-preservation**: own-HP band (barkskin_hp
+  setting, 55 default — one knob across eras), same lane and CD (60s)
+  as the TBC sibling, slotted before Wild Growth.
+
+### Fixed
+- SoD feral APL provenance: the file header and its test cited a
+  wowsims/sod commit that is an unrelated GitHub-Pages workflow change;
+  both now state the real source (Wowhead SoD druid guides, every rune
+  id verified in-tree). No SoD APL fixture was ever pinned.
+
+## 2.26.0 — 2026-09-14
+
+### Customer Changelog
+- **Stays in Cat Form**: a shifted druid no longer drops form when combat
+  ends (out-of-combat buffs, the party dispel and food are held while
+  shifted), and Moonkin/Tree keep their legal in-form kits instead of being
+  blacked out by an any-form gate.
+- **Spell-id integrity wave**: every slot in every spell ladder is
+  rank-checked (7,374 ids, not just 1,879 heads), "bridge-valid" now means
+  "same spell", and the sweep is a gate - a new wrong-family id hard-fails
+  the build instead of shipping.
+- **Warlock fixes**: nine TBC/WotLK lanes can no longer claim a GCD while
+  their real cooldown runs, and destruction gains consecutive Life Tap
+  batching with a configurable Immolate refresh window.
+- **New: smart multi-DoT cycling** (enemy + friendly) **and an ordered boss
+  opener**.
+- **New: smart auto-targeting** with seven priority override slots and
+  party-combat pull mode.
+- **Cast state machine**: a cast the engine refuses (or never acknowledges)
+  is held, so lanes stop re-queueing it every tick.
+- **Rogue, from live reports**: Backstab/Ambush are gated on a real
+  main-hand dagger check, weapon poisons actually apply, and Feint / Slice
+  and Dice target the enemy.
+- **WotLK proof pass**: every WotLK spec is proven reachable through the
+  real dispatcher, plus rotation-content guide waves for TBC, SoD and
+  WotLK.
+- **Release integrity**: CI now fails when the shipped version is newer
+  than the newest published release - the stall that kept 2.18.0->2.22.0
+  and 2.24.2->2.25.0 users on old zips cannot happen silently again.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of the 2026-09-07..14 master
+  wave (through ed58e178d) converted to the release entry. The detailed
+  sections below are that record, unchanged; the only edits this release
+  commit makes are this conversion, the four version pins (header.lua, the
+  README badge, the PvP footer, this top entry), and removal of one empty
+  duplicated header that left a claimless `### Fix - warlock cooldown
+  audit` line above the real section.
+
 
 ### Fix - a shifted druid never leaves form for an out-of-combat lane
 
@@ -98,29 +224,11 @@
   shapeshifted), which an "any form" gate blacked out entirely; Tree of Life keeps
   the HoT and poison lanes. The feral cat spec's `build_state` and
   `required_form == "cat"` guard read it instead of a bare `NS.has_form("cat")`.
-- **Documented boundary:** Travel Form is never *named* (core's `FORMS` table has no
-  travel/aquatic entry), so a travel-form druid reads as caster when the stance number
-  says 0 and as the generic unnamed `"form"` when it says anything else. That is stated
-  in the module's SCOPE and pinned by the suite so a future fix has to change it
-  deliberately.
-- **FOLLOW-UP LIVE REPORT (same day): the cat rotation went SILENT after that fix,
-  and the detector's source order was the cause.** `M.current` named the form from the
-  engine stance number first, but on live TBC a cat druid reports the class-global form
-  id (`1`), not the shapeshift bar index (`3`) that this codebase's `STANCE_*` constants
-  assume -- so a cat druid was read as a **bear** and every `required_form == "cat"` lane
-  held. The gate it replaced (`NS.has_form("cat") or stance == 3`) had been firing, which
-  is the live proof that the aura is the truthful source. `M.current` now takes the form
-  **name** from the aura only (`NS.has_form`), and reads the stance number solely as proof
-  that SOME form is active, reported as the generic `"form"`. The caster-only gates
-  (MotW / Thorns / the OOC gate) are unaffected -- "some form" is all they need -- while
-  the name-dependent feral gates (party dispel, Cower) fail OPEN on an unnamed form
-  instead of guessing. The cat spec's two legacy `or context.stance == STANCE_CAT`
-  fallbacks went with it: the number is not a form name, and that comparison is the one
-  live disproved. Proven through the real harness: with `aura=cat, stance=1` the cat
-  spec matches cat lanes and `build_state.is_cat` is true, where the previous build read
-  `is_cat=false` and matched none (and left the form-*breaking* lanes open, because an
-  unnamed form is not feral). 10 pins across the two suites fail on the injected
-  pre-fix detector and were restored byte-identical.
+- **Documented boundary:** Travel Form is invisible to both sources (the engine
+  stance stops at bar 3 and core's `FORMS` table has no travel/aquatic entry), so a
+  travel-form druid reads as caster here exactly as it did before this module existed.
+  That is stated in the module's SCOPE and pinned by the suite so a future fix has to
+  change it deliberately.
 - **Pinned (never=0):** `tests/test_druid_form_stay_cat.lua` (13 cases, every
   assertion paired with its unshifted control) and eight `stay_in_cat` cases in
   `tests/test_leveling_druid.lua`; the rotation registry moves to **564 suites**.
@@ -360,7 +468,6 @@
   scorecard and era-pair seed content-identical; clean-checkout probe pass (the new
   helper is tracked); `verify_all` exit 0; pre-commit 19/19.
 
-### Fix - warlock cooldown audit: nine TBC/WotLK lanes could claim a GCD while their real cooldown ran
 ### Fix - warlock cooldown audit: nine TBC/WotLK lanes could claim a GCD while their real cooldown ran
 
 - **Same defect class as the Conflagrate race, swept across every warlock lane.**

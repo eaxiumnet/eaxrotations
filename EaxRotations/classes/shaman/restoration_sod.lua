@@ -14,7 +14,9 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class(NS.ShamanSpells or {})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 local ACTION = {
+    EarthShock = define("EarthShock", { 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, nil, "EarthShock"),
     ShamanisticRage = define("ShamanisticRage", 425336, nil, "ShamanisticRage"),
     WaterShield = define("WaterShield", 408510, { rune_id = 408510 }, "WaterShield"),
     Riptide = define("Riptide", 408521, { rune_id = 408521, min_phase = 3 }, "Riptide"),
@@ -76,6 +78,10 @@ local function cast_self(descriptor, label)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("shaman", "EarthShock", { EarthShock = ACTION.EarthShock.action }))
+        or { name = "EarthShockSkip", matches = function() return false end, execute = function() return false end },
     { name = "NaturesSwiftness", matches = function(context, state)
         return available(context, ACTION.NaturesSwiftness)
             and state.natures_swiftness_up == false and state.player_hp <= 30
