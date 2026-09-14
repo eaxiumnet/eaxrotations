@@ -1,5 +1,6 @@
 -- test_druid_form_stay_cat.lua -- TBC druid: never leave Cat Form to run a lane.
--- WHAT:  pins the shared shapeshift detector (bar index + aura), the druid
+-- WHAT:  pins the shared shapeshift detector (the aura names the form; the
+--        stance number only proves that some form is active), the druid
 --        middleware's caster-only gates (Mark of the Wild / Thorns / party
 --        dispel), and the OOC manager's druid form gate.
 -- WHEN:  standalone: `lua EaxRotations/tests/test_druid_form_stay_cat.lua`
@@ -13,6 +14,11 @@
 --            upgrades (buff_upgrade_sylvanas) and food/flask ungated.
 --        Each assertion is paired with its unshifted control, so a gate that
 --        simply never fires cannot pass this suite.
+--        Follow-up live report (same day): after that fix the cat rotation
+--        went SILENT. The detector named the form from the engine stance
+--        number first, and on that client a cat druid reports the class-global
+--        form id (1), not the bar index (3), so cat was read as bear and every
+--        required_form == "cat" lane held. PHASE A pins the corrected order.
 -- SAFETY: isolated mocked NS; no production code or live game state touched.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -59,23 +65,28 @@ local function load_detector(ns)
     return dofile("EaxRotations/shared/druid_form_sylvanas.lua")
 end
 
--- The engine stance source stops at 3 (bear/aquatic/cat); Moonkin and Tree are
--- resolved by aura below, and an index it cannot name is still a form.
-test("detector: bar index maps the engine forms, unknown index still counts as shifted", function()
-    local form = load_detector({})
-    assert_eq(form.current({ stance = 1 }), "bear", "1 = bear")
-    assert_eq(form.current({ stance = 2 }), "aquatic", "2 = aquatic")
-    assert_eq(form.current({ stance = 3 }), "cat", "3 = cat")
-    assert_eq(form.current({ stance = 4 }), "form", "index 4 is a form, just an unnamed one")
-    assert_eq(form.current({ stance = 7 }), "form", "unknown index is still a form")
-    assert_eq(form.current({ stance = 0 }), nil, "0 = caster")
-    assert_false(form.is_shifted({ stance = 0 }), "stance 0 is not shifted")
-    assert_true(form.is_shifted({ stance = 4 }), "index 4 is shifted even when unnamed")
-    assert_true(form.is_cat({ stance = 3 }), "stance 3 is cat")
-    assert_false(form.is_cat({ stance = 1 }), "bear is not cat")
-    assert_true(form.is_feral({ stance = 3 }), "cat is feral")
-    assert_true(form.is_feral({ stance = 1 }), "bear is feral")
-    assert_false(form.is_feral({ stance = 2 }), "aquatic is not feral")
+-- The aura NAMES the form; the stance number only proves that SOME form is
+-- active. Live proof (2026-09-13): a TBC cat druid reports the class-global
+-- form id (1), not the bar index (3), so naming from the number read cat as
+-- bear and held every required_form == "cat" lane.
+test("detector: the aura names the form, the stance number only says shifted", function()
+    -- LIVE SHAPE (the regression this pins).
+    local live = load_detector({ has_form = function(name) return name == "cat" end })
+    assert_eq(live.current({ stance = 1 }), "cat", "aura cat wins over the live stance number")
+    assert_true(live.is_cat({ stance = 1 }), "is_cat from the aura even when 1 looks like bear")
+    assert_true(live.is_feral({ stance = 1 }), "aura cat is feral")
+    assert_true(live.is_shifted({ stance = 1 }), "aura cat is shifted")
+
+    -- No aura API at all: the number proves a form, never names one.
+    local stance_only = load_detector({})
+    for _, n in ipairs({ 1, 2, 3, 4, 5, 6, 7 }) do
+        assert_eq(stance_only.current({ stance = n }), "form", "stance " .. n .. " is an unnamed form")
+        assert_true(stance_only.is_shifted({ stance = n }), "stance " .. n .. " is shifted")
+        assert_false(stance_only.is_cat({ stance = n }), "stance " .. n .. " must never be named cat")
+        assert_false(stance_only.is_feral({ stance = n }), "an unnamed form is not feral (fail open)")
+    end
+    assert_eq(stance_only.current({ stance = 0 }), nil, "0 = caster")
+    assert_false(stance_only.is_shifted({ stance = 0 }), "stance 0 is not shifted")
 end)
 
 test("detector: aura API alone is enough when no stance is available", function()
@@ -92,18 +103,23 @@ test("detector: aura API alone is enough when no stance is available", function(
     assert_eq(tree.current({}), "tree", "aura tree")
     assert_false(moonkin.is_feral({}), "moonkin is not feral")
     assert_false(tree.is_feral({}), "tree is not feral")
-    -- Documented boundary: core's FORMS table has no travel/aquatic entry and
-    -- the engine stance stops at 3, so a travel-form druid reads as caster
-    -- here -- exactly as it did before this module existed. Pinned so that a
-    -- future fix has to update this line deliberately.
+    -- Documented boundary: core's FORMS table has no travel/aquatic entry, so
+    -- the aura cannot name Travel Form. With no stance reading either it is
+    -- indistinguishable from caster here; when the stance number reports a
+    -- form it comes back as the generic "form" (shifted), which is the safe
+    -- answer for the caster-only gates. Pinned deliberately.
     local travel = load_detector({ has_form = function(name) return name == "travel" end })
-    assert_eq(travel.current({}), nil, "travel has no engine stance and no FORMS aura entry")
+    assert_eq(travel.current({}), nil, "travel: no aura entry, no stance -> caster")
+    assert_eq(travel.current({ stance = 3 }), "form", "travel + a stance reading -> shifted, unnamed")
 end)
 
-test("detector: falls back to NS.get_player_stance when the context has no stance", function()
+test("detector: the stance producer answers the shifted question, never the form name", function()
     local form = load_detector({ get_player_stance = function() return 3 end })
-    assert_eq(form.current({}), "cat", "stance producer read")
-    assert_eq(form.current({ stance = 1 }), "bear", "context stance is the fast path and wins")
+    assert_eq(form.current({}), "form", "producer read: a form, unnamed")
+    assert_true(form.is_shifted({}), "producer read: shifted")
+    assert_false(form.is_cat({}), "the producer number must never name the form")
+    assert_eq(form.current({ stance = 0 }), nil, "context stance 0 is caster")
+    assert_eq(form.current({ stance = 3 }), "form", "context stance 3 is an unnamed form")
 end)
 
 test("detector: a broken source degrades instead of throwing", function()
@@ -183,7 +199,7 @@ local function load_middleware(extra_ns)
     return find, function() return dispel_ran end
 end
 
-test("middleware MarkOfTheWild: blocked by the bar index alone (aura API lying)", function()
+test("middleware MarkOfTheWild: blocked whenever any form is proven (aura silent)", function()
     local find = load_middleware({ has_form = function() return false end })
     local motw = find("MarkOfTheWild")
 
@@ -191,15 +207,12 @@ test("middleware MarkOfTheWild: blocked by the bar index alone (aura API lying)"
     assert_true(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = 0 }),
         "caster form -> MotW fires")
 
-    -- The regression: shifted per the shapeshift bar index while the aura lies.
-    assert_false(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = 3 }),
-        "cat form (bar index 3) -> MotW holds")
-    assert_false(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = 1 }),
-        "bear form -> MotW holds")
-    assert_false(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = 2 }),
-        "aquatic form -> MotW holds")
-    assert_false(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = 4 }),
-        "unnamed form index -> MotW holds (MotW is caster-only in EVERY form)")
+    -- MotW is caster-only in EVERY form, so the generic "some form" answer from
+    -- the stance number is enough to hold the lane -- no form name required.
+    for _, n in ipairs({ 1, 2, 3, 4, 5 }) do
+        assert_false(motw.matches({ in_combat = false, me = mock_me, settings = {}, stance = n }),
+            "stance " .. n .. " (some form) -> MotW holds")
+    end
 end)
 
 test("middleware MarkOfTheWild: blocked by the aura source alone, Moonkin and Tree included", function()
@@ -215,30 +228,44 @@ test("middleware MarkOfTheWild: blocked by the aura source alone, Moonkin and Tr
         "aura-only tree -> MotW holds")
 end)
 
-test("middleware Thorns: same gate, both sources", function()
+test("middleware Thorns: same gate, aura and stance alike", function()
     local find = load_middleware({})
     local thorns = find("Thorns")
     assert_true(thorns.matches({ in_combat = false, me = mock_me, settings = {}, stance = 0 }),
         "caster form -> Thorns fires")
     assert_false(thorns.matches({ in_combat = false, me = mock_me, settings = {}, stance = 3 }),
-        "cat form -> Thorns holds")
-    assert_false(thorns.matches({ in_combat = false, me = mock_me, settings = {}, stance = 4 }),
-        "unnamed form index -> Thorns holds")
+        "some form (stance 3) -> Thorns holds")
+    assert_false(thorns.matches({ in_combat = false, me = mock_me, settings = {}, stance = 1 }),
+        "some form (stance 1) -> Thorns holds")
+    local cat = load_middleware({ has_form = function(n) return n == "cat" end })
+    assert_false(cat("Thorns").matches({ in_combat = false, me = mock_me, settings = {} }),
+        "aura cat -> Thorns holds")
 end)
 
-test("middleware party dispel: refused in the feral forms ONLY", function()
+test("middleware party dispel: refused in an aura-named feral form, fail-open when unnamed", function()
     local find, dispel_did_run = load_middleware({})
     local dispel = find("PartyDispel")
     assert_true(dispel.matches({ in_combat = true, me = mock_me, settings = {}, stance = 3 }),
         "matches still reports the intent in combat")
 
     -- Cat and Bear cannot cast Remove Curse / Abolish Poison: the client
-    -- refuses, so the execute is gated.
-    assert_false(dispel.execute({ in_combat = true, me = mock_me, settings = {}, stance = 3 }),
-        "cat form -> execute refused")
-    assert_false(dispel.execute({ in_combat = true, me = mock_me, settings = {}, stance = 1 }),
-        "bear form -> execute refused")
-    assert_false(dispel_did_run(), "the shared dispel strategy must not run in a feral form")
+    -- refuses, so the execute is gated. Refusing needs the form NAME, which
+    -- only the aura source provides.
+    local cat, cat_ran = load_middleware({ has_form = function(n) return n == "cat" end })
+    assert_false(cat("PartyDispel").execute({ in_combat = true, me = mock_me, settings = {} }),
+        "aura cat -> execute refused")
+    assert_false(cat_ran(), "the shared dispel strategy must not run in cat form")
+    local bear, bear_ran = load_middleware({ has_form = function(n) return n == "bear" end })
+    assert_false(bear("PartyDispel").execute({ in_combat = true, me = mock_me, settings = {} }),
+        "aura bear -> execute refused")
+    assert_false(bear_ran(), "the shared dispel strategy must not run in bear form")
+
+    -- A stance number alone can only say "some form", so the feral-only gate
+    -- FAILS OPEN there: guessing feral from it is how cat was called bear.
+    local unnamed, unnamed_ran = load_middleware({ has_form = function() return false end })
+    assert_true(unnamed("PartyDispel").execute({ in_combat = true, me = mock_me, settings = {}, stance = 3 }),
+        "unnamed form (stance only) -> fail open")
+    assert_true(unnamed_ran(), "the unnamed-form control actually dispatched")
 
     -- TBC allows Remove Curse in Moonkin Form and poison removal in Tree of
     -- Life, so those forms must NOT be gated (this is the regression pinned).
@@ -256,15 +283,23 @@ test("middleware party dispel: refused in the feral forms ONLY", function()
     assert_true(dispel_did_run(), "unshifted control actually dispatched")
 end)
 
-test("middleware ThreatDrop/Cower: blocked in a positive non-feral form, fail-open when unknown", function()
-    local find = load_middleware({ GetPartyMembers = function() return { {} } end })
-    local threat = find("ThreatDrop")
-    assert_true(threat.matches({ in_combat = true, me = mock_me, settings = {}, stance = 3 }),
-        "cat/bear grouped -> Cower allowed")
-    assert_false(threat.matches({ in_combat = true, me = mock_me, settings = {}, stance = 5 }),
-        "moonkin -> Cower refused")
-    assert_true(threat.matches({ in_combat = true, me = mock_me, settings = {} }),
-        "unknown form -> fail OPEN (previous behavior kept)")
+test("middleware ThreatDrop/Cower: refused in a named non-feral form, fail-open when unnamed", function()
+    local grouped = function() return { {} } end
+    local find = load_middleware({ GetPartyMembers = grouped, has_form = function(n) return n == "cat" end })
+    assert_true(find("ThreatDrop").matches({ in_combat = true, me = mock_me, settings = {} }),
+        "aura cat grouped -> Cower allowed")
+    local bear = load_middleware({ GetPartyMembers = grouped, has_form = function(n) return n == "bear" end })
+    assert_true(bear("ThreatDrop").matches({ in_combat = true, me = mock_me, settings = {} }),
+        "aura bear grouped -> Cower allowed")
+    local moonkin = load_middleware({ GetPartyMembers = grouped, has_form = function(n) return n == "moonkin" end })
+    assert_false(moonkin("ThreatDrop").matches({ in_combat = true, me = mock_me, settings = {} }),
+        "aura moonkin -> Cower refused")
+    local unnamed = load_middleware({ GetPartyMembers = grouped, has_form = function() return false end })
+    assert_false(unnamed("ThreatDrop").matches({ in_combat = true, me = mock_me, settings = {}, stance = 3 }),
+        "unnamed form (stance only) -> refused (positive non-feral evidence)")
+    local nosource = load_middleware({ GetPartyMembers = grouped })
+    assert_true(nosource("ThreatDrop").matches({ in_combat = true, me = mock_me, settings = {} }),
+        "no form source -> fail OPEN (previous behavior kept)")
 end)
 
 -- ============================================================================
@@ -309,16 +344,17 @@ test("ooc_manager: a shifted druid runs no OOC work at all", function()
     assert_true(ooc.on_update(caster_ctx), "caster form -> OOC maintenance fires")
     assert_true(#casts > 0, "caster form -> a cast actually happened")
 
-    -- The regression: in cat form per the bar index nothing fires (before the fix
+    -- The regression: while shifted nothing fires (before the fix
     -- try_buff_upgrades and food/flask were reachable here even though
-    -- try_self_buffs held).
+    -- try_self_buffs held). The stance number alone is enough for this gate:
+    -- it only has to prove SOME form, never name one.
     local before = #casts
     clock = clock + 5
     assert_false(ooc.on_update({ me = me, in_combat = false, settings = { use_ooc_manager = true }, stance = 3 }),
         "cat form -> OOC manager holds")
     clock = clock + 5
     assert_false(ooc.on_update({ me = me, in_combat = false, settings = { use_ooc_manager = true }, stance = 1 }),
-        "bear form -> OOC manager holds")
+        "some form (stance 1) -> OOC manager holds")
     assert_eq(#casts, before, "no cast happened while shifted")
 
     -- Aura-only detection behaves the same way.
@@ -338,11 +374,11 @@ test("ooc_manager: the gate is druid-only", function()
     assert_true(#casts > 0, "warrior cast happened")
 end)
 
-test("cat spec: the required_form guard reads the bar index too", function()
+test("cat spec: the required_form guard reads the detector's aura name", function()
     local ns = {
         DruidSpells = { Shred = 5221 },
-        get_player_stance = function() return 3 end,   -- shapeshift bar: cat
-        has_form = function() return false end,        -- aura API lies
+        get_player_stance = function() return 1 end,   -- live: class-global form id (cat)
+        has_form = function(name) return name == "cat" end,  -- the source that names it
         debuff_remains = function() return 0 end,
         buff_up = function() return false end,
         is_spell_learned = function() return true end,
@@ -373,18 +409,24 @@ test("cat spec: the required_form guard reads the bar index too", function()
     end
     assert_true(track ~= nil, "TrackHumanoids exists")
     assert_true(track.matches({ energy = 100, me = {}, target = {}, is_pvp = true }),
-        "a cat-only action is available from the bar index while the aura lies")
+        "a cat-only action is available from the live aura + stance number")
+
+    -- Control: without the aura name the same lane holds, so the assertion
+    -- above is not passing on a guard that always says cat.
+    ns.has_form = function() return false end
+    assert_false(track.matches({ energy = 100, me = {}, target = {}, is_pvp = true, stance = 1 }),
+        "stance number alone -> the cat-only lane holds")
 end)
 
 -- ============================================================================
 -- PHASE D: the feral cat spec reads the same detector
 -- ============================================================================
 
-test("cat spec: build_state sees cat form from the bar index while the aura lies", function()
+test("cat spec: build_state sees the live aura, not the stance number", function()
     local ns = {
         DruidSpells = { Shred = 5221 },
-        get_player_stance = function() return 3 end,   -- shapeshift bar: cat
-        has_form = function() return false end,        -- aura API lies
+        get_player_stance = function() return 1 end,   -- live: class-global form id (cat)
+        has_form = function(name) return name == "cat" end,  -- the source that names it
         debuff_remains = function() return 0 end,
         buff_up = function() return false end,
         is_spell_learned = function() return true end,
@@ -406,13 +448,17 @@ test("cat spec: build_state sees cat form from the bar index while the aura lies
     reset_shared_modules()
     local spec = dofile("EaxRotations/classes/druid/cat_sylvanas.lua")
     local state = spec.build_state({ me = {}, target = {} })
-    assert_true(state.is_cat, "bar index cat + lying aura -> is_cat (never re-shift Cat Form)")
+    assert_true(state.is_cat, "live aura cat + stance 1 -> is_cat (never re-shift Cat Form)")
 
-    -- Control: when both sources agree there is no form, the spec says caster,
-    -- so the assertion above is not passing on a detector that always says cat.
+    -- Control 1: the stance number alone must not carry is_cat.
+    ns.has_form = function() return false end
+    local unnamed = spec.build_state({ me = {}, target = {}, now = math.huge })
+    assert_false(unnamed.is_cat, "stance-only unnamed form -> not cat")
+
+    -- Control 2: with no form at all the spec says caster.
     ns.get_player_stance = function() return 0 end
     local caster = spec.build_state({ me = {}, target = {}, now = math.huge })
-    assert_false(caster.is_cat, "bar index caster + aura silent -> not cat")
+    assert_false(caster.is_cat, "no form at all -> not cat")
 end)
 
 print(string.format("\n=== Druid stay-in-cat-form regression suite: %d passed, %d failed ===\n", passed, failed))

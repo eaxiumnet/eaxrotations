@@ -576,7 +576,7 @@ local function base_matches(context, action)
         -- lying aura must not make a cat action look unavailable, and a real
         -- cat form must never be traded for a re-shift (casting Cat Form while
         -- already in it toggles the form OFF).
-        if not (druid_form.is_cat(context) or context.stance == STANCE_CAT or context.is_cat == true) then
+        if not (druid_form.is_cat(context) or context.is_cat == true) then
             return false
         end
     end
@@ -685,7 +685,7 @@ build_state = function(context)
     -- One detector (bar index + aura): a lying aura read must not make the
     -- spec think it is standing in caster form, because the CatForm lane would
     -- then cast Cat Form while already in it -- which TOGGLES THE FORM OFF.
-    state.is_cat = druid_form.is_cat(context) or context.stance == STANCE_CAT
+    state.is_cat = druid_form.is_cat(context)
     state.is_behind = is_behind_target(target, context)
     state.level = context.level or context.player_level or 70
     state.target_is_boss = context.target_is_boss == true or safe_method(target, "is_boss", false) == true
