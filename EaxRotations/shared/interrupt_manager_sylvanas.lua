@@ -57,6 +57,7 @@ local INTERRUPT_SCHOOL_MAP = {
     [19647] = "shadow",    -- Spell Lock
     [34490] = "physical",  -- Silencing Shot
     [31661] = "fire",      -- Dragon's Breath (Mage)
+    [410176] = "physical", -- Skull Bash (SoD druid rune)
 }
 
 local INTERRUPT_LOCK_DURATION = {
@@ -68,6 +69,7 @@ local INTERRUPT_LOCK_DURATION = {
     [19647] = 3,
     [34490] = 3,
     [31661] = 3,
+    [410176] = 2,
 }
 
 -- Counterspell (2139) locks whatever school the target is currently casting.

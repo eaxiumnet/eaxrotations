@@ -12,9 +12,9 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 |---|---|
 | Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |
 | Specs rated | 132 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 2616 |
+| Decision rules exercised by the test rig | 2620 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
-| Rules the rig never triggers, each with a filed written reason | 20 |
+| Rules the rig never triggers, each with a filed written reason | 22 |
 | Behavioral test battery | 564 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
 | Cast order machine-checked against simulators | 50 of 50 pinned specs (where a simulator exists) |
 | Unreachable-rule gate | strict in all 4 eras — an unexplained unreachable rule fails the release |
@@ -169,9 +169,9 @@ A rating below S is never silent: every non-firing rule is individually document
 | Spec | Rating | Rules the rig never triggers | Sim-checked |
 |---|---|---|---|
 | druid/balance | S | 0 |  |
-| druid/feral | S | 0 |  |
+| druid/feral | A | 1 |  |
 | druid/restoration | S | 0 |  |
-| druid/tank | S | 0 |  |
+| druid/tank | A | 1 |  |
 | hunter/dps_hunter | S | 0 |  |
 | mage/dps_mage | S | 0 |  |
 | paladin/protection | S | 0 |  |

@@ -282,4 +282,46 @@ do
     party = {}
 end
 
+-- ============================================================================
+-- BarkskinSelfPreservation (2026-09-14): own-HP self-preservation lane,
+-- same setting key (barkskin_hp, default 55) and 60s CD as the TBC sibling.
+-- ============================================================================
+local function barkskin_scenario(hp, overrides)
+    local ctx = {
+        in_combat = true,
+        mana_pct = mana,
+        party_injured_count = 0,
+        lowest = { unit = {}, hp = 100 },
+        lowest_hp = 100,
+        target = { get_health_percentage = function() return 100 end },
+        settings = {},
+        hp = hp,
+    }
+    if overrides then for k, v in pairs(overrides) do ctx[k] = v end end
+    return find_strategy("BarkskinSelfPreservation").matches(ctx, result.build_state(ctx))
+end
+assert_true(barkskin_scenario(40), "Barkskin fires at 40% own hp (default 55 band)")
+assert_false(barkskin_scenario(80), "Barkskin held above the 55% own-hp band")
+assert_false(barkskin_scenario(40, { in_combat = false }),
+    "Barkskin held out of combat")
+do
+    reset_env()
+    not_ready[22812] = true
+    assert_false(barkskin_scenario(40), "Barkskin held while on cooldown")
+    not_ready[22812] = nil
+end
+assert_false(barkskin_scenario(40, { settings = { barkskin_hp = 30 } }),
+    "Barkskin held at 40% when the barkskin_hp knob tightens the band to 30")
+assert_true(barkskin_scenario(25, { settings = { barkskin_hp = 30 } }),
+    "Barkskin fires inside the tightened 30% band")
+do
+    local idx_bark, idx_wg
+    for i, s in ipairs(strategies) do
+        if s.name == "BarkskinSelfPreservation" then idx_bark = i end
+        if s.name == "WildGrowth" then idx_wg = i end
+    end
+    assert_true(idx_bark and idx_wg and idx_bark < idx_wg,
+        "BarkskinSelfPreservation sits before WildGrowth (defensive utility first)")
+end
+
 print("PASS test_druid_resto_wotlk_strategies")

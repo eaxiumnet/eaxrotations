@@ -1338,8 +1338,9 @@ local function run_self_tests()
         end
         cov_ladders, cov_ids, cov_named = cov.ladders or 0, cov.ids or 0, cov.named or 0
     end
-    expect(cov_ladders, 523, "name-agreement coverage: labelled ladders compared")
-    expect(cov_ids, 2207, "name-agreement coverage: ids compared")
+    -- +1 (2026-09-14): resto_wotlk BarkskinSelfPreservation
+    expect(cov_ladders, 524, "name-agreement coverage: labelled ladders compared")
+    expect(cov_ids, 2208, "name-agreement coverage: ids compared")
     expect(cov_named, 1753, "name-agreement coverage: ids the bridge names")
     -- Pin-name agreement: coverage is pinned, because the check's value is the
     -- number of pins it actually compared.  A WotLK-only lookup compared 2 of 260;

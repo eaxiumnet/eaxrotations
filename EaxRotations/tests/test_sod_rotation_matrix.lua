@@ -51,15 +51,15 @@ local roles = {
     { class = "druid", key = "sod_druid_balance", path = "classes/druid/balance_sod",
         order = { "Starsurge", "Moonfire", "Sunfire", "Starfall", "InsectSwarm", "Starfire", "Wrath" },
         context = { in_combat = true, target = target, sod_runes = { [417157] = true } } },
-    { class = "druid", key = "sod_druid_feral", path = "classes/druid/feral_sod",
-        order = { "CatForm", "TigersFury", "Berserk", "OmenShred", "SavageRoar", "Mangle", "Rip", "Rake", "Shred", "Swipe" },
+    { class = "druid", key = "sod_druid_feral", path = "classes/druid/feral_sod", first_index = 2,
+        order = { "Interrupt", "CatForm", "TigersFury", "Berserk", "OmenShred", "SavageRoar", "Mangle", "Rip", "Rake", "Shred", "Swipe", "FaerieFireFeral" },
         context = { in_combat = true, target = target, me = me, in_cat_form = false } },
     { class = "druid", key = "sod_druid_restoration", path = "classes/druid/restoration_sod",
         order = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Innervate", "WildGrowth", "SurvivalInstincts", "Nourish", "Swiftmend", "Lifebloom", "Rejuvenation", "HealingTouch" },
         context = { heal_target = heal_target, heal_target_hp_pct = 70, injured_count = 3,
             player_hp = 20, sod_runes = { [408120] = true, [17116] = true, [18562] = true, [29166] = true, [20748] = true } } },
-    { class = "druid", key = "sod_druid_tank", path = "classes/druid/tank_sod",
-        order = { "Barkskin", "SurvivalInstincts", "DemoralizingRoar", "BearForm", "Growl", "LacerateRefresh", "Mangle", "Lacerate", "Berserk", "Swipe", "Maul", "Enrage" },
+    { class = "druid", key = "sod_druid_tank", path = "classes/druid/tank_sod", first_index = 2,
+        order = { "Interrupt", "Barkskin", "SurvivalInstincts", "DemoralizingRoar", "BearForm", "Growl", "LacerateRefresh", "Mangle", "Lacerate", "Berserk", "Swipe", "Maul", "Enrage" },
         context = { in_combat = true, target = target, me = me, hp_pct = 15, in_bear_form = true, threat_pct = 0 } },
     { class = "hunter", key = "sod_hunter_dps", path = "classes/hunter/dps_hunter_sod",
         order = { "MendPet", "CallPet", "RevivePet", "AspectHawk", "HuntersMark", "SerpentSting", "ChimeraShot", "KillShot", "MultiShot", "Volley", "ArcaneShot", "RapidFire" },
@@ -149,7 +149,10 @@ for _, role in ipairs(roles) do
 
     local context = with_sod_context(role.context)
     local state = rotation.build_state(context)
-    assert_true(rotation.strategies[1].matches(context, state), role.key .. " first source priority")
+    -- first_index: the manager Interrupt lane (strategy 1) holds without
+    -- interrupt APIs in this harness; the first SPEC lane leads instead.
+    local first_idx = role.first_index or 1
+    assert_true(rotation.strategies[first_idx].matches(context, state), role.key .. " first source priority")
 
     local nil_state = rotation.build_state(nil)
     assert_eq(type(nil_state), "table", role.key .. " nil state table")
