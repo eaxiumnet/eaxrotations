@@ -118,6 +118,36 @@ end
 -- Each component: label, shell command, and a check(content) that returns a
 -- list of { description, passed } assertions.
 local components = {
+    -- Doc suite-count drift: tools/update_badges.lua REPAIRS the badge-shaped counts
+    -- it knows; this gate FAILS CLOSED on EVERY suite-count mention in the
+    -- current-state docs (README, the generated ACCURACY/scorecard, the PVP footer,
+    -- the research dossier). It exists because the 2026-09-13 count bump was
+    -- hand-edited and left two stale 563s: a "563-suite release battery" phrasing the
+    -- badge tool's substitution list did not know, and a hardcoded literal in the
+    -- ACCURACY generator. An unclassified phrasing fails by design and the per-file
+    -- mention inventory is pinned, so the gate cannot pass vacuously.
+    {
+        label = "doc suite-count drift",
+        cmd = "lua tools/doc_suite_count_check.lua",
+        check = function(c)
+            return { { "in-sync marker present (every suite-count mention matches the registry)",
+                       c:find("in sync", 1, true) ~= nil },
+                     { "no wrong-count / unclassified / inventory markers",
+                       c:find("wrong count", 1, true) == nil
+                       and c:find("unclassified", 1, true) == nil
+                       and c:find("inventory changed", 1, true) == nil } }
+        end,
+    },
+    -- Its self-test: pins the fail-closed classifier (a NEW phrasing fails), the
+    -- residual scan's precision, the historical-line exemption, and that the
+    -- comparison follows the injected registry counts rather than today's numbers.
+    {
+        label = "doc suite-count self-test",
+        cmd = "lua tools/doc_suite_count_check.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present", c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
     {
         label = "rotation suite",
         cmd = "lua " .. R .. "/run_rotation_tests.lua",

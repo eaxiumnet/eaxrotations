@@ -895,11 +895,20 @@ local A = {}
 local function aadd(s) A[#A + 1] = s end
 
 local era_groups = {
-    { name = 'Burning Crusade (Project Sylvanas)', rows = rows, t = totals },
-    { name = 'Wrath of the Lich King', rows = wotlk_rows, t = wotlk_totals },
-    { name = 'Vanilla (Classic)', rows = vanilla_rows, t = vanilla_totals },
-    { name = 'Season of Discovery', rows = sod_rows, t = sod_totals },
+    { name = 'Burning Crusade (Project Sylvanas)', label = 'TBC', rows = rows, t = totals },
+    { name = 'Wrath of the Lich King', label = 'WotLK', rows = wotlk_rows, t = wotlk_totals },
+    { name = 'Vanilla (Classic)', label = 'Vanilla', rows = vanilla_rows, t = vanilla_totals },
+    { name = 'Season of Discovery', label = 'Season of Discovery', rows = sod_rows, t = sod_totals },
 }
+-- The era count and the era name list are DERIVED from the table above: this
+-- table is the only owner of "how many eras, and which", so the emitted
+-- headline cannot keep saying 4 (2026-09-13: it was a hardcoded
+-- 'Game eras covered | 4 -- TBC . WotLK . Vanilla . Season of Discovery').
+local era_labels = {}
+for i = 1, #era_groups do era_labels[i] = era_groups[i].label end
+local ERA_SEP = string.char(0xC2, 0xB7)  -- U+00B7 MIDDLE DOT, built from bytes so the source stays pure ASCII
+local era_list = table.concat(era_labels, ' ' .. ERA_SEP .. ' ')
+local era_count = #era_groups
 local total_specs = #rows + #wotlk_rows + #vanilla_rows + #sod_rows
 local total_strategies = totals.strategies + wotlk_totals.strategies
     + vanilla_totals.strategies + sod_totals.strategies
@@ -930,7 +939,7 @@ aadd('## The headline numbers (live)')
 aadd('')
 aadd('| Claim | Value |')
 aadd('|---|---|')
-aadd('| Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |')
+aadd('| Game eras covered | ' .. era_count .. ' ' .. string.char(0xE2, 0x80, 0x94) .. ' ' .. era_list .. ' |')
 aadd('| Specs rated | ' .. total_specs .. ' (' .. #rows .. ' TBC · ' .. #wotlk_rows .. ' WotLK · '
     .. #vanilla_rows .. ' Vanilla · ' .. #sod_rows .. ' SoD) |')
 aadd('| Decision rules exercised by the test rig | ' .. total_strategies .. ' |')
@@ -938,7 +947,7 @@ aadd('| Rules that could never fire in live play (dead code) | ' .. total_dead .
 aadd('| Rules the rig never triggers, each with a filed written reason | ' .. total_never .. ' |')
 aadd('| Behavioral test battery | ' .. #all_test_names .. ' rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |')
 aadd('| Cast order machine-checked against simulators | ' .. apl_pass_count .. ' of ' .. apl_total .. ' pinned specs (where a simulator exists) |')
-aadd('| Unreachable-rule gate | strict in all 4 eras — an unexplained unreachable rule fails the release |')
+aadd('| Unreachable-rule gate | strict in all ' .. era_count .. ' eras — an unexplained unreachable rule fails the release |')
 aadd('')
 aadd('Every era’s battery is **strict**: if a decision rule ever becomes unreachable '
     .. 'without a filed reason, `run_verify_all` fails. That is why “0 dead code” and '
@@ -1017,11 +1026,136 @@ local accuracy_md = table.concat(A, '\n') .. '\n'
 -- ---------------------------------------------------------------------------
 -- Drift gate.
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- Derived-claim pass for the hand-maintained pages (2026-09-13).
+-- ---------------------------------------------------------------------------
+-- The numbers this tool computes have five homes: the two pages it GENERATES
+-- (written below) and three HAND-MAINTAINED ones -- EaxRotations/README.md,
+-- docs/PER_CLASS_RESEARCH.md and docs/SOD_ROTATIONS.md -- which used to carry
+-- hand-typed copies of them (the README specs badge and its alt text, the "132
+-- rated spec rotations (31 TBC ...)" intro, the features row, the era never-split
+-- line, the APL 50/50 claims, the SoD manifest entry count). Nothing checked
+-- those copies, so adding a spec to a battery could leave the README advertising
+-- a stale total. Each claim below is now rewritten from the live aggregates, and
+-- a claim whose pattern no longer matches is a HARD FAIL: a number that leaves
+-- the pattern is a number that left the gate.
+local function fmt_thousands(n)
+    local rev = tostring(n):reverse():gsub('(%d%d%d)', '%1,'):reverse()
+    return (rev:gsub('^,', ''))
+end
+local wotlk_apl_pass, tbc_apl_pass = 0, 0
+for k, v in pairs(APL_STATUS) do
+    if v == 'pass' then
+        if k:match('^wotlk/') then wotlk_apl_pass = wotlk_apl_pass + 1
+        else tbc_apl_pass = tbc_apl_pass + 1 end
+    end
+end
+
+local README_CLAIMS = {
+    { label = 'specs badge URL',
+      pat = 'badge/specs%-%d+%%20rated%%20%(%d+%%20eras%)%-brightgreen',
+      repl = 'badge/specs-' .. total_specs .. '%%20rated%%20(' .. era_count .. '%%20eras)-brightgreen' },
+    { label = 'specs badge alt',
+      pat = 'alt="%d+ Specs Rated Across %d+ Eras',
+      repl = 'alt="' .. total_specs .. ' Specs Rated Across ' .. era_count .. ' Eras' },
+    -- [%a%d]+ matches both the old word form ("four") and the derived digits, so
+    -- the claim survives its own first rewording.
+    { label = 'intro era count + spec split',
+      pat = 'Across the [%a%d]+ eras it ships %*%*(%d+) rated spec rotations%*%* %((%d+) TBC ' .. ERA_SEP
+            .. ' (%d+) WotLK ' .. ERA_SEP .. ' (%d+) Vanilla ' .. ERA_SEP .. ' (%d+) SoD%)',
+      repl = 'Across the ' .. era_count .. ' eras it ships **' .. total_specs .. ' rated spec rotations** ('
+            .. #rows .. ' TBC ' .. ERA_SEP .. ' ' .. #wotlk_rows .. ' WotLK ' .. ERA_SEP .. ' '
+            .. #vanilla_rows .. ' Vanilla ' .. ERA_SEP .. ' ' .. #sod_rows .. ' SoD)' },
+    { label = 'features row spec total + era count',
+      pat = '%*%*(%d+) Rated Spec Rotations%*%* %| (%d+) eras,',
+      repl = '**' .. total_specs .. ' Rated Spec Rotations** | ' .. era_count .. ' eras,' },
+    { label = 'pinned-specs claim',
+      pat = '%*%*(%d+)/(%d+)%*%* pinned specs pass',
+      repl = '**' .. apl_pass_count .. '/' .. apl_total .. '** pinned specs pass' },
+}
+
+local PCR_CLAIMS = {
+    { label = 'conformance manifest line',
+      pat = '| (%d+)/(%d+) specs pass;',
+      repl = '| ' .. apl_pass_count .. '/' .. apl_total .. ' specs pass;' },
+    { label = 'decision-rule total',
+      pat = '~?[%d,]+ decision rules across %d+ specs',
+      repl = fmt_thousands(total_strategies) .. ' decision rules across ' .. total_specs .. ' specs' },
+    { label = 'era never-split',
+      pat = 'tbc %d+ ' .. ERA_SEP .. ' wotlk %d+ ' .. ERA_SEP .. ' vanilla %d+ ' .. ERA_SEP .. ' sod %d+',
+      repl = 'tbc ' .. totals.never .. ' ' .. ERA_SEP .. ' wotlk ' .. wotlk_totals.never .. ' ' .. ERA_SEP
+            .. ' vanilla ' .. vanilla_totals.never .. ' ' .. ERA_SEP .. ' sod ' .. sod_totals.never },
+    { label = 'strict-across-eras word count',
+      pat = 'strict across all [%a%d]+ eras',
+      repl = 'strict across all ' .. era_count .. ' eras' },
+    { label = 'APL era split',
+      pat = '(%d+)/(%d+) APL conformance, WotLK (%d+) specs pinned to `wowsims/wotlk` %+ (%d+) TBC',
+      repl = apl_pass_count .. '/' .. apl_total .. ' APL conformance, WotLK ' .. wotlk_apl_pass
+            .. ' specs pinned to `wowsims/wotlk` + ' .. tbc_apl_pass .. ' TBC' },
+    { label = 'WotLK spec count',
+      pat = 'across all %d+ WotLK specs',
+      repl = 'across all ' .. #wotlk_rows .. ' WotLK specs' },
+    { label = 'rated-spec total in prose',
+      pat = 'So the honest ranking of the %d+ rated specs',
+      repl = 'So the honest ranking of the ' .. total_specs .. ' rated specs' },
+}
+
+local SOD_CLAIMS = {
+    { label = 'SoD manifest entry count',
+      pat = 'contains exactly (%d+) entries across nine classes',
+      repl = 'contains exactly ' .. #sod_rows .. ' entries across nine classes' },
+    { label = 'SoD files-above count',
+      pat = 'the (%d+) files above own rotation priorities',
+      repl = 'the ' .. #sod_rows .. ' files above own rotation priorities' },
+}
+local function claim_pass(path, claims)
+    local text = read_file(path)
+    if not text then return nil, false, { path .. ': missing file' } end
+    local changed, missing = {}, {}
+    for _, c in ipairs(claims) do
+        local hits = 0
+        for _ in text:gmatch(c.pat) do hits = hits + 1 end
+        if hits == 0 then
+            missing[#missing + 1] = c.label .. ' (pattern no longer matches)'
+        elseif hits > 1 then
+            missing[#missing + 1] = c.label .. ' (ambiguous: ' .. hits .. ' matches)'
+        else
+            local new = text:gsub(c.pat, c.repl, 1)
+            if new ~= text then changed[#changed + 1] = c.label; text = new end
+        end
+    end
+    return text, changed, missing
+end
+
+local claim_readme_path = ROOT .. '/EaxRotations/README.md'
+local claim_pcr_path = ROOT .. '/EaxRotations/docs/PER_CLASS_RESEARCH.md'
+local claim_readme_new, readme_claim_changes, readme_missing = claim_pass(claim_readme_path, README_CLAIMS)
+local claim_pcr_new, pcr_claim_changes, pcr_missing = claim_pass(claim_pcr_path, PCR_CLAIMS)
+local claim_readme_drift = #readme_claim_changes > 0
+local claim_pcr_drift = #pcr_claim_changes > 0
+local claim_missing = {}
+for _, m in ipairs(readme_missing) do claim_missing[#claim_missing + 1] = 'README.md: ' .. m end
+for _, m in ipairs(pcr_missing) do claim_missing[#claim_missing + 1] = 'PER_CLASS_RESEARCH.md: ' .. m end
+local claim_sod_path = ROOT .. '/EaxRotations/docs/SOD_ROTATIONS.md'
+local claim_sod_new, sod_claim_changes, sod_missing = claim_pass(claim_sod_path, SOD_CLAIMS)
+local claim_sod_drift = #sod_claim_changes > 0
+for _, m in ipairs(sod_missing) do claim_missing[#claim_missing + 1] = 'SOD_ROTATIONS.md: ' .. m end
+-- The doc's own inventory table is the other half of this claim: if the derived
+-- SoD spec count and the rows the doc prints disagree, a rewrite would state a
+-- number the table beside it contradicts, so refuse rather than write.
+local sod_doc_rows = 0
+if claim_sod_new then for _ in claim_sod_new:gmatch('\n| %d+ |') do sod_doc_rows = sod_doc_rows + 1 end end
+if sod_doc_rows ~= #sod_rows then
+    claim_missing[#claim_missing + 1] = 'SOD_ROTATIONS.md: inventory table has ' .. sod_doc_rows
+        .. ' numbered row(s), the SoD battery reports ' .. #sod_rows
+end
+
 local scorecard_path = ROOT .. '/EaxRotations/docs/scorecard.md'
 local accuracy_path = ROOT .. '/EaxRotations/docs/ACCURACY.md'
 local old = read_file(scorecard_path)
 local old_acc = read_file(accuracy_path)
 local doc_drift = (old ~= markdown) or (old_acc ~= accuracy_md)
+    or claim_readme_drift or claim_pcr_drift or claim_sod_drift
 local hard_fail = false
 
     local apl_fail = false
@@ -1044,6 +1178,14 @@ end
 if sod_totals.d > 0 then
     hard_fail = true
     problems[#problems + 1] = { kind = 'dead', msg = 'SoD dead lanes must stay 0 (got ' .. sod_totals.d .. ')' }
+end
+
+if #claim_missing > 0 then
+    io.stderr:write('spec_scorecard: HARD FAIL - derived-claim anchors are out of date:\n')
+    for _, m in ipairs(claim_missing) do io.stderr:write('  - ' .. m .. '\n') end
+    io.stderr:write('  A claim that no longer matches means that number left the gate. Update the\n')
+    io.stderr:write('  claim pattern in tools/spec_scorecard.lua to the new wording (or restore it).\n')
+    os.exit(3)
 end
 
 if hard_fail then
@@ -1069,7 +1211,12 @@ if CHECK_ONLY then
     if doc_drift or stale then
         io.stderr:write('\nERROR: spec-scorecard drift detected.\n')
         if doc_drift then
-            io.stderr:write('  docs/scorecard.md / docs/ACCURACY.md is stale (recompute differs from disk).\n')
+            io.stderr:write('  docs/scorecard.md / docs/ACCURACY.md and/or the derived claims in\n')
+            io.stderr:write('  EaxRotations/README.md, docs/PER_CLASS_RESEARCH.md and docs/SOD_ROTATIONS.md\n')
+            io.stderr:write('  are stale. A claim anchor that no longer matches is reported as a HARD FAIL.\n')
+            for _, c in ipairs(readme_claim_changes) do io.stderr:write('    - README.md: ' .. c .. '\n') end
+            for _, c in ipairs(pcr_claim_changes) do io.stderr:write('    - PER_CLASS_RESEARCH.md: ' .. c .. '\n') end
+            for _, c in ipairs(sod_claim_changes) do io.stderr:write('    - SOD_ROTATIONS.md: ' .. c .. '\n') end
         end
         if stale then io.stderr:write('  stale lane pins above (lanes now fire; remove them).\n') end
         io.stderr:write('  Fix: lua tools/spec_scorecard.lua && commit the diff.\n')
@@ -1095,6 +1242,24 @@ for _, p in ipairs(problems) do
     if p.kind == 'stale' then
         stale_count = stale_count + 1
         print('  warning (stale pin): ' .. p.msg)
+    end
+end
+if claim_readme_drift and claim_readme_new then
+    if write_file(claim_readme_path, claim_readme_new) then
+        print('  wrote ' .. claim_readme_path)
+        for _, c in ipairs(readme_claim_changes) do print('    - ' .. c) end
+    end
+end
+if claim_pcr_drift and claim_pcr_new then
+    if write_file(claim_pcr_path, claim_pcr_new) then
+        print('  wrote ' .. claim_pcr_path)
+        for _, c in ipairs(pcr_claim_changes) do print('    - ' .. c) end
+    end
+end
+if claim_sod_drift and claim_sod_new then
+    if write_file(claim_sod_path, claim_sod_new) then
+        print('  wrote ' .. claim_sod_path)
+        for _, c in ipairs(sod_claim_changes) do print('    - ' .. c) end
     end
 end
 local acc_ok = write_file(accuracy_path, accuracy_md)

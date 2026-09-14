@@ -137,6 +137,19 @@ local NO_WRITER_ALLOWLIST = {
         is_target_player = "legacy alias with target:is_player() method terminal",
         cp = "legacy alias for combo_points (produced sibling read first)",
 
+        -- is_cat (cat sylvanas required_form guard): MOCK-ONLY legacy read.
+        -- The engine never sets context.is_cat -- the two suites that
+        -- exercise the guard (test_cat_custom_matches, test_cat_low_level_
+        -- rip_ttd) inject it in their own ctx tables, which the writer scan
+        -- does not treat as engine producers. What used to satisfy this
+        -- read was the produced SIBLING context.stance on the same `or`
+        -- chain; that sibling was removed on 2026-09-13 because a raw
+        -- stance number is not a form name (a live TBC cat druid reports
+        -- 1, not the bar index 3). The form authority is
+        -- shared/druid_form_sylvanas (aura-named), and this branch is the
+        -- harness hook only.
+        is_cat = "mock-only legacy read (engine never sets it); form authority is shared/druid_form_sylvanas",
+
         -- pyroblast_ready (fire): legacy fallback — state.pyroblast_ready is
         -- always computed (fire_sylvanas:146); the context read sits mid-chain
         -- and is unreachable live.

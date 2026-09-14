@@ -15,7 +15,7 @@
 
 ## What Is This?
 
-**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)** and **Season of Discovery**. Across the four eras it ships **132 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **564-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
+**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)** and **Season of Discovery**. Across the 4 eras it ships **132 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **564-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
 
 Every action passes shared safety gates before casting:
 - ✅ Player exists, is alive, and can act
