@@ -10,7 +10,9 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class(NS.RogueSpells or {})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 local ACTION = {
+    Kick = define("Kick", { 1769, 1768, 1767, 1766 }, {}, "Kick"),
     TankGate = define("JustAFleshWound", 400014, { rune_id = 400014 }, "JustAFleshWound"),
     BladeDance = define("BladeDance", 400012, { rune_id = 400012 }, "BladeDance"),
     MainGauche = define("MainGauche", 424919, { rune_id = 424919 }, "MainGauche"),
@@ -43,6 +45,10 @@ local function cast(descriptor, label)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("rogue", "Kick", { Kick = ACTION.Kick.action }))
+        or { name = "KickSkip", matches = function() return false end, execute = function() return false end },
     { name = "BladeDance", matches = function(context, state)
         return available(context, ACTION.BladeDance) and state.combo_points >= 1 and state.blade_dance_remains < 2
     end, execute = cast(ACTION.BladeDance, "[SOD TANK] BladeDance") },

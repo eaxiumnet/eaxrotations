@@ -17,8 +17,10 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 
 local ACTION = {
+    HammerOfJustice = define("HammerOfJustice", { 10308, 5589, 5588, 853 }, {}, "HammerOfJustice"),
     DivineStorm = define("SodDivineStorm", 407778, { rune_id = 407778 }, "DivineStorm"),
     Exorcism = define("SodExorcism", 415073, { min_phase = 2 }, "Exorcism"),
     CrusaderStrike = define("SodCrusaderStrike", 407676, { rune_id = 407676 }, "CrusaderStrike"),
@@ -85,6 +87,10 @@ local function target_strategy(name, descriptor)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("paladin", "HammerOfJustice", { HammerOfJustice = ACTION.HammerOfJustice.action }))
+        or { name = "HammerOfJusticeSkip", matches = function() return false end, execute = function() return false end },
     -- Emergency defensives (guide Cooldowns: Lay on Hands is the absolute
     -- emergency heal; Divine Shield the full-immunity save). Forbearance
     -- exclusivity: DS holds while LoH is up (both apply the debuff).

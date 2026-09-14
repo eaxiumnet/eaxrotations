@@ -600,6 +600,7 @@ local tests = {
   "test_sod_rogue_shaman_rotations.lua",
   "test_sod_rogue_shaman_adversarial.lua",
   "test_sod_warlock_warrior_rotations.lua",
+  "test_sod_interrupt_lanes.lua",
   "test_sod_warlock_warrior_adversarial.lua",
   "test_spell_validation_talent_inference_health.lua",
   "test_ttd_normalization.lua",

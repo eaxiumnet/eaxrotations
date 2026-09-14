@@ -607,7 +607,10 @@ local components = {
                 -- druid/feral + druid/tank Interrupt lanes hold under the
                 -- battery (no interrupt-API stubs); both firing paths are
                 -- pinned in test_sod_druid_hunter.lua.
-                { "never-firing " .. never .. " (expected 2 baseline, classified)", never == 2 },
+                -- 2026-09-14 SoD interrupt wave: 2 -> 14 classified — the
+                -- 12 new per-class Interrupt lanes hold identically (same
+                -- manager contract, same bucket-c classification).
+                { "never-firing " .. never .. " (expected 14 baseline, classified)", never == 14 },
             }
         end,
     },

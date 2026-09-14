@@ -56,7 +56,7 @@ for _, entry in pairs(modules) do
         entry.registry .. " registers")
 end
 
-assert_eq(modules.mage.rotation.strategies[1].name, "Evocation", "Mage source priority starts with mana recovery")
+assert_eq(modules.mage.rotation.strategies[2].name, "Evocation", "Mage source priority starts with mana recovery")
 context.mana_pct = 10
 assert_eq(strategy(modules.mage.rotation, "Evocation").matches(context, modules.mage.rotation.build_state(context)), true,
     "Mage Evocation at low mana")
@@ -71,7 +71,7 @@ assert_eq(strategy(modules.mage.rotation, "FrozenOrb").matches(context, modules.
 -- 15 percent martyr floor, so the LoH emergency gate needs a safe-HP context.
 context.hp = 100
 context.hp_pct = 100
-assert_eq(modules.protection.rotation.strategies[1].name, "SealMartyr", "tank seal upkeep is first")
+assert_eq(modules.protection.rotation.strategies[2].name, "SealMartyr", "tank seal upkeep is first")
 assert_eq(strategy(modules.protection.rotation, "SealMartyr").matches(context,
     modules.protection.rotation.build_state(context)), true, "tank seal lane fires with the seal down")
 context.hp = 8
@@ -80,7 +80,7 @@ assert_eq(strategy(modules.protection.rotation, "SealMartyr").matches(context,
     modules.protection.rotation.build_state(context)), false, "seal refresh held below the martyr HP floor")
 context.hp = 100
 context.hp_pct = 100
-assert_eq(modules.protection.rotation.strategies[2].name, "LayOnHands", "tank emergency is second")
+assert_eq(modules.protection.rotation.strategies[3].name, "LayOnHands", "tank emergency is second")
 context.hp = 8
 context.hp_pct = 8
 assert_eq(strategy(modules.protection.rotation, "LayOnHands").matches(context,
@@ -100,7 +100,7 @@ assert_eq(strategy(modules.protection.rotation, "HolyShield").matches(context,
     modules.protection.rotation.build_state(context)), false, "tank preserves healthy Holy Shield charges")
 NS.buff_points = original_buff_points
 
-assert_eq(modules.retribution.rotation.strategies[1].name, "LayOnHands", "Retribution emergency heal leads the p8 defensive band")
+assert_eq(modules.retribution.rotation.strategies[2].name, "LayOnHands", "Retribution emergency heal leads the p8 defensive band")
 assert_eq(strategy(modules.retribution.rotation, "SealMartyr").matches(context,
     modules.retribution.rotation.build_state(context)), true, "Retribution refreshes the down seal")
 assert_eq(strategy(modules.retribution.rotation, "Judgement").matches(context,
@@ -141,7 +141,7 @@ assert_eq(modules.protection.rotation.actions.DivineProtection.rune_id, 458318,
 
 context.void_plague_remains = 0
 context.shadow_word_pain_remains = 0
-assert_eq(modules.shadow.rotation.strategies[1].name, "VoidPlague", "Shadow phase 6 DoT priority")
+assert_eq(modules.shadow.rotation.strategies[2].name, "VoidPlague", "Shadow phase 6 DoT priority")
 assert_eq(strategy(modules.shadow.rotation, "VoidPlague").matches(context,
     modules.shadow.rotation.build_state(context)), true, "Shadow applies Void Plague")
 local original_debuff_remains = NS.debuff_remains

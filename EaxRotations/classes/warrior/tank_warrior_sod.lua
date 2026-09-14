@@ -4,7 +4,9 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 local ACTION = {
+    ShieldBash = define("ShieldBash", { 1672, 1671, 72 }, {}, "ShieldBash"),
     DefensiveStance = define("SodDefensiveStance", 71, {}, "DefensiveStance"),
     Rampage = define("SodRampage", 426940, { rune_id = 426940, min_phase = 4 }, "Rampage"),
     SweepingStrikes = define("SodSweepingStrikes", 12328, {}, "SweepingStrikes"),
@@ -66,6 +68,25 @@ local function cast(descriptor, target, label)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    -- Shield Bash is Battle/Defensive only; the manager's single-value
+    -- `required` gate cannot express that, so exclude Berserker here.
+    (function()
+        local lane = interrupt_manager and interrupt_manager.register_interrupt_spell
+            and interrupt_manager.register_interrupt_spell("warrior", "ShieldBash",
+                { ShieldBash = ACTION.ShieldBash.action })
+        if not lane then
+            return { name = "ShieldBashSkip", matches = function() return false end,
+                execute = function() return false end }
+        end
+        local inner_matches = lane.matches
+        lane.matches = function(context, state)
+            local st = context and context.stance
+            if st == 3 or st == "berserker" then return false end
+            return inner_matches(context, state)
+        end
+        return lane
+    end)(),
     { name = "LastStand", matches = function(c, s)
         return available(c, ACTION.LastStand, false) and s.hp_pct <= 50 and ready(ACTION.LastStand, c.me)
     end, execute = function(c) return cast(ACTION.LastStand, c.me, "LastStand") end },

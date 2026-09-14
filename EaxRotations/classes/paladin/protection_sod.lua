@@ -10,8 +10,10 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 
 local ACTION = {
+    HammerOfJustice = define("HammerOfJustice", { 10308, 5589, 5588, 853 }, {}, "HammerOfJustice"),
     LayOnHands = define("SodLayOnHands", 10310, {}, "LayOnHands"),
     DivineProtection = define("SodDivineProtection", 458371, { rune_id = 458318, min_phase = 4 }, "DivineProtection"),
     HolyShield = define("SodHolyShield", 20928, {}, "HolyShield"),
@@ -72,6 +74,10 @@ local function target_strategy(name, descriptor)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("paladin", "HammerOfJustice", { HammerOfJustice = ACTION.HammerOfJustice.action }))
+        or { name = "HammerOfJusticeSkip", matches = function() return false end, execute = function() return false end },
     -- Seal upkeep (guide: keep Martyrdom up for holy procs + mana return).
     -- No target needed; fails safe at the martyr HP floor.
     { name = "SealMartyr", matches = function(context, state)
