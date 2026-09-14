@@ -10,8 +10,10 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 
 local ACTION = {
+    Counterspell = define("Counterspell", 2139, {}, "Counterspell"),
     Evocation = define("SodEvocation", 12051, {}, "Evocation"),
     FrozenOrb = define("SodFrozenOrb", 440802, { rune_id = 440802, min_phase = 4 }, "FrozenOrb"),
     BalefireBolt = define("SodBalefireBolt", 428878, { rune_id = 428878, min_phase = 3 }, "BalefireBolt"),
@@ -59,6 +61,10 @@ local function action_strategy(name, descriptor)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("mage", "Counterspell", { Counterspell = ACTION.Counterspell.action }))
+        or { name = "CounterspellSkip", matches = function() return false end, execute = function() return false end },
     {
         name = "Evocation",
         matches = function(context, state)

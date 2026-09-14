@@ -10,8 +10,10 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 
 local ACTION = {
+    Silence = define("Silence", 15487, {}, "Silence"),
     VoidPlague = define("SodVoidPlague", 425204, { rune_id = 425204, min_phase = 2 }, "VoidPlague"),
     ShadowWordPain = define("SodShadowWordPain", 10894, {}, "ShadowWordPain"),
     VampiricTouch = define("SodVampiricTouch", 402668, { rune_id = 402668, min_phase = 4 }, "VampiricTouch"),
@@ -70,6 +72,10 @@ local function action_strategy(name, descriptor, remains_field)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("priest", "Silence", { Silence = ACTION.Silence.action }))
+        or { name = "SilenceSkip", matches = function() return false end, execute = function() return false end },
     action_strategy("VoidPlague", ACTION.VoidPlague, "void_plague_remains"),
     action_strategy("ShadowWordPain", ACTION.ShadowWordPain, "shadow_word_pain_remains"),
     action_strategy("VampiricTouch", ACTION.VampiricTouch, "vampiric_touch_remains"),

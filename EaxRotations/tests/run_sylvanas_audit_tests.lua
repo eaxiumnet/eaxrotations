@@ -742,11 +742,14 @@ local function run_self_tests()
     end
     expect(live_sod_names, 0, "no live SoD ladder label disagreements")
     -- +3 (2026-09-14): SkullBash x2 (feral_sod/tank_sod) + FaerieFireFeral
-    expect(sod_cov.ladders or 0, 202, "SoD name-agreement coverage: labelled ladders compared")
-    expect(sod_cov.ids or 0, 392, "SoD name-agreement coverage: ids compared")
-    expect(sod_cov.named or 0, 313, "SoD name-agreement coverage: ids the bridge names")
+    -- +9/+30/+30 (2026-09-14 SoD interrupt wave): Counterspell, Kick x2,
+    -- Pummel, ShieldBash, EarthShock (resto), Silence, HammerOfJustice x2
+    -- (ids = 1+8+2+3+7+1+8 = 30, all classic-bridge-named)
+    expect(sod_cov.ladders or 0, 211, "SoD name-agreement coverage: labelled ladders compared")
+    expect(sod_cov.ids or 0, 422, "SoD name-agreement coverage: ids compared")
+    expect(sod_cov.named or 0, 343, "SoD name-agreement coverage: ids the bridge names")
 
-    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (12 rule cases + SoD ladder probe + four exception gates + live SoD AND live TBC class inventories, coverage pinned 717/2974 TBC and 199/385 SoD), masking-gap helper resolves")
+    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, SoD tier (58 pinned rune ids / single-numeric define scan / unpinned rune fails / WotLK leak fires), name agreement (12 rule cases + SoD ladder probe + four exception gates + live SoD AND live TBC class inventories, coverage pinned 717/2974 TBC and 211/422 SoD), masking-gap helper resolves")
 end
 
 local function run_name_probe()

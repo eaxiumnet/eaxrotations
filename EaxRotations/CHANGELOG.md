@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Every SoD spec can interrupt**: the 12 remaining SoD rotations
+  (mage, rogue x2, warrior x2, shaman x4, priest shadow, paladin x2)
+  gain a shared-interrupt-manager lane at strategy #1, using the
+  repo's classic ladders (Counterspell 2139, Kick 1766-1769, Pummel
+  6552/6554 Berserker-gated, Shield Bash 72-1672 Battle/Defensive-
+  gated, Earth Shock 8042-10414, Silence 15487, Hammer of Justice
+  853-10308), with school-lock tracking for every rank. Deliberately
+  unwired: SoD hunters (Silencing Shot 34490 is TBC-only, refuted by
+  Wowhead) and both warlock specs (Spell Lock 19647 is the pet's
+  cast, not the player's). Fire/hold/inert/identity/stance pins in
+  test_sod_interrupt_lanes.lua; both load-bearing injections fire.
+
 ## 2.26.1 — 2026-09-14
 
 ### Customer Changelog

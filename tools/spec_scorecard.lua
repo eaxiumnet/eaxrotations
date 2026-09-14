@@ -304,6 +304,13 @@ local SOD_LANE_CLASS = {
         feral = { Interrupt = 'c' },
         tank  = { Interrupt = 'c' },
     },
+    mage = { ["dps_mage"] = { Interrupt = 'c' } },
+    rogue = { combat = { Interrupt = 'c' }, tank = { Interrupt = 'c' } },
+    warrior = { ["dps_warrior"] = { Interrupt = 'c' }, ["tank_warrior"] = { Interrupt = 'c' } },
+    shaman = { elemental = { Interrupt = 'c' }, enhancement = { Interrupt = 'c' },
+        restoration = { Interrupt = 'c' }, warden = { Interrupt = 'c' } },
+    priest = { shadow = { Interrupt = 'c' } },
+    paladin = { protection = { Interrupt = 'c' }, retribution = { Interrupt = 'c' } },
 }
 
 -- ---------------------------------------------------------------------------

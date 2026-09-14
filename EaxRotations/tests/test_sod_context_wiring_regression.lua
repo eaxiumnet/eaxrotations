@@ -310,10 +310,10 @@ local function warden_ctx(with_imbue)
 end
 local wc_w = warden_ctx(true)
 local ws_w = warden.build_state(wc_w)
-assert_true(warden.strategies[1].matches(wc_w, ws_w), "warden ShamanisticRage FIRES with rockbiter imbue")
+assert_true(warden.strategies[2].matches(wc_w, ws_w), "warden ShamanisticRage FIRES with rockbiter imbue")
 local wc_wo = warden_ctx(false)
 local ws_wo = warden.build_state(wc_wo)
-assert_eq(warden.strategies[1].matches(wc_wo, ws_wo), false, "warden SILENT without imbue (whole rotation gated)")
+assert_eq(warden.strategies[2].matches(wc_wo, ws_wo), false, "warden SILENT without imbue (whole rotation gated)")
 
 package.loaded["classes/warlock/tank_sod"] = nil
 local wtank = require("classes/warlock/tank_sod")

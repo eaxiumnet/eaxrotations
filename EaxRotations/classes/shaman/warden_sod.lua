@@ -10,6 +10,7 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class(NS.ShamanSpells or {})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 local ACTION = {
     WardenGate = define("WayOfEarth", 408531, { rune_id = 408531 }, "WayOfEarth"),
     ShamanisticRage = define("ShamanisticRage", 425336, nil, "ShamanisticRage"),
@@ -56,6 +57,10 @@ local function cast_self(descriptor, label)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("shaman", "EarthShock", { EarthShock = ACTION.EarthShock.action }))
+        or { name = "EarthShockSkip", matches = function() return false end, execute = function() return false end },
     { name = "ShamanisticRage", matches = function(context, state)
         return available(context, state, ACTION.ShamanisticRage, false) and state.mana_pct <= 65
     end, execute = cast_self(ACTION.ShamanisticRage, "[SOD WARDEN] ShamanisticRage") },

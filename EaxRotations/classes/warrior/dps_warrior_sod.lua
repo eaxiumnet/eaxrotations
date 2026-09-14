@@ -4,7 +4,9 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 local ACTION = {
+    Pummel = define("Pummel", { 6554, 6552 }, {}, "Pummel"),
     Bloodrage = define("SodBloodrage", 2687, {}, "Bloodrage"),
     BerserkerRage = define("SodBerserkerRage", 18499, {}, "BerserkerRage"),
     SweepingStrikes = define("SodSweepingStrikes", 12328, {}, "SweepingStrikes"),
@@ -52,6 +54,10 @@ local function cast(descriptor, target, label)
 end
 
 local strategies = {
+    -- Shared interrupt-manager lane (strategy #1 -- must beat casts).
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("warrior", "Pummel", { Pummel = ACTION.Pummel.action }, 3))
+        or { name = "PummelSkip", matches = function() return false end, execute = function() return false end },
     { name = "Bloodrage", matches = function(c, s)
         return available(c, ACTION.Bloodrage, false) and s.rage < 20 and ready(ACTION.Bloodrage, c.me)
     end, execute = function(c) return cast(ACTION.Bloodrage, c.me, "Bloodrage") end },
