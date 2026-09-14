@@ -650,6 +650,9 @@ local tests = {
  "test_paladin_live_fixes.lua",
  "test_priest_dps_live_fixes.lua",
  "test_priest_healer_live_fixes.lua",
+ 
+ -- 2026-09-14 heal-value wave (PhDamage-harvested per-rank data)
+ "test_heal_value_ranks.lua",
  "test_rogue_live_fixes.lua",
  "test_shaman_live_fixes.lua",
  "test_warlock_live_fixes.lua",

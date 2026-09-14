@@ -938,7 +938,16 @@ local strategies = {
   end,
   execute = function(context, state)
    local target = state.lowest.unit
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Clearcasting GH")
+   -- Mana-tier ceiling (same tiers the matches() gate computes): the tier
+   -- spell_id that fed the gate now also caps the cast, fixing the
+   -- documented no-op downrank. The deficit-fit pick never goes below the
+   -- ceiling's rank and stays within it.
+   local mana_pct = state.mana_pct or context.mana_pct or 100
+   local tier_id = (mana_pct > 30) and GREATER_HEAL_MAX
+       or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+   local ceiling = NS.HealValue and NS.HealValue.find_rank_by_id
+       and NS.HealValue.find_rank_by_id(tier_id) or nil
+   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Clearcasting GH", { ceiling = ceiling })
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
   end,

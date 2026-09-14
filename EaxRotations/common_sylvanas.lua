@@ -92,6 +92,8 @@ function NS.common_predictive_healing_section()
         { type = "slider", key = "healer_predict_safety_pct", default = 5, min = 0, max = 20, label = "Safety Margin (% max HP)", tooltip = "Extra predicted deficit buffer as % of max HP" },
         { type = "slider", key = "healer_predict_min_rate", default = 1, min = 0, max = 10, label = "Min Damage Rate (%/s)", tooltip = "Ignore damage slower than this threshold to avoid reacting to noise" },
         { type = "slider", key = "healer_predict_max_mult", default = 15, min = 10, max = 30, label = "Max Deficit Multiplier (0.1x)", tooltip = "Cap predicted extra deficit at this multiple of current deficit. 15 = 1.5x" },
+        { type = "slider", key = "heal_bonus_healing", default = 0, min = 0, max = 2000, label = "Player Bonus Healing (+heal)", tooltip = "Your current +healing from gear/buffs (0 = off). When > 0 the deficit-fit rank selector computes true expected heals (base + coeff * bonus, with the downrank penalty) instead of base averages, so small deficits pick genuinely small ranks. Default 0 keeps prior behavior." },
+        checkbox("healer_rank_fit_enabled", true, "Deficit-Fit Heal Ranks", "Heal lanes cast the smallest rank whose expected heal covers the target's deficit (with a 30% headroom) instead of always max rank. Turn off to restore first-ready/max-rank casting."),
     }, "Estimates future health deficit from recent damage intake to stop healers from overhealing.")
 end
 

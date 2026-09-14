@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **Healers cast deficit-fit ranks** (TBC holy priest + paladin): a new
+  shared heal-value module (shared/heal_value_sylvanas.lua) carries
+  per-rank base values, coefficients and verified mana costs for Holy
+  Light (11 ranks), Flash of Light (7), Greater Heal (3) and Flash Heal
+  (3); data harvested from PhDamage (Xerrion/PhDamage @ 22b8ed92, MIT)
+  and spot-verified against Wowhead TBC description text, including the
+  FoL R7 base correction (458-513, was 448-502). cast_best_heal_rank now
+  picks the smallest castable rank whose expected heal covers the
+  target's deficit (with the LibHealComm-lineage downrank penalty), so
+  small deficits stop costing max-rank mana; a healer_rank_fit_enabled=false
+  kill switch and a heal_bonus_healing slider (spell power, default 0)
+  restore/tune the behavior. The priest mana-tier ids (GH R7/R6/R5) now
+  also cap the actual cast instead of only gating it, fixing the
+  documented no-op downrank. Pins: math, deficit-fit mid-rank
+  discriminator, ceiling, kill switch, bonus-healing knob; both
+  load-bearing injections fire (fit disabled; tier ceiling dropped).
 - **Every SoD spec can interrupt**: the 12 remaining SoD rotations
   (mage, rogue x2, warrior x2, shaman x4, priest shadow, paladin x2)
   gain a shared-interrupt-manager lane at strategy #1, using the

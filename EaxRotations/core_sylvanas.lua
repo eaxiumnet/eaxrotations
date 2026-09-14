@@ -199,6 +199,14 @@ if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
+-- heal_value: per-rank TBC heal math + deficit-fit rank selection. Installed
+-- here so NS.cast_best_heal_rank's deficit-fit hook is live even before any
+-- class file loads; class files re-require it harmlessly (cached).
+local _hv_ok, _heal_value = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_heal_value) == "table" then
+    NS.HealValue = NS.HealValue or _heal_value
+end
+
 -- Settings: logic lives in EaxRotations/core/settings.lua (now uses settings_manager primary).
 -- _settings_cache_time retained only to pass to the domain installer.
 local _settings_cache_time
@@ -4816,9 +4824,61 @@ function NS.healing_count_below_hp(entries, count, threshold)
 
 end
 
-function NS.cast_best_heal_rank(ranks, target, context, label)
+function NS.cast_best_heal_rank(ranks, target, context, label, opts)
 
     if type(ranks) ~= "table" then return nil end
+
+    -- 2026-09-14 deficit-fit upgrade (NS.HealValue): ladders built by
+    -- HealValue.build_ladder carry per-rank base data, so the smallest
+    -- castable rank whose expected heal covers the deficit is chosen instead
+    -- of blindly casting the first (max) rank. Plain ladders (no per-rank
+    -- data) and the healer_rank_fit_enabled=false kill switch keep the
+    -- legacy first-ready walk below. The 5th arg is optional and backward
+    -- compatible with the documented 4-arg contract.
+    local settings = context and context.settings or nil
+    if not (settings and settings.healer_rank_fit_enabled == false) then
+        local hv = NS.HealValue
+        -- Resolve the unit + deficit: callers pass either a heal entry
+        -- (with .unit / .effective_deficit) or a raw unit object.
+        local unit, entry_deficit
+        if type(target) == "table" or type(target) == "userdata" then
+            if type(target.unit) ~= "function" and target.unit then
+                unit = target.unit
+                entry_deficit = target.effective_deficit or target.deficit
+            else
+                unit = target
+            end
+        end
+        local deficit = nil
+        if type(entry_deficit) == "number" and entry_deficit > 0 then
+            deficit = entry_deficit
+        elseif unit then
+            deficit = hv and hv.unit_deficit and hv.unit_deficit(unit) or nil
+        end
+        if hv and type(deficit) == "number" and deficit > 0 then
+            local bonus = opts and opts.bonus_healing or nil
+            if type(bonus) ~= "number" then
+                bonus = hv.get_bonus_healing and hv.get_bonus_healing(nil, settings) or nil
+            end
+            local fit = hv.pick_castable(ranks, deficit, bonus, {
+                is_ready = NS.spell_ready,
+                unit = unit,
+                ceiling = opts and opts.ceiling or nil,
+            })
+            if fit then
+                local fit_spell = type(fit.entry) == "table"
+                    and (fit.entry.spell or fit.entry[1]) or fit.entry
+                if fit_spell then
+                    local tag = type(fit.entry) == "table"
+                        and (fit.entry.label or fit.entry.rank) or "?"
+                    return fit_spell, (label or "Heal") .. " " .. tostring(tag), fit.expected
+                end
+            end
+            -- fit == nil: ladder has no per-rank data (legacy shape) or
+            -- nothing castable -- fall through to the legacy walk so the
+            -- caller gets the same result as before the upgrade.
+        end
+    end
 
     for i = 1, #ranks do
 

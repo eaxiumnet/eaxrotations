@@ -475,7 +475,29 @@ local SPELLS = {
 NS.PriestSpells = SPELLS
 
 NS.PriestFLASH_HEAL_RANKS = { { spell = SPELLS.FlashHeal, label = "R9" } }
-NS.PriestGREATER_HEAL_RANKS = { { spell = SPELLS.GreaterHeal, label = "R7" } }
+-- 2026-09-14: GH/FH ladders now carry full per-rank data from NS.HealValue
+-- (Wowhead-verified bases/costs; learn levels = this class table's audited
+-- values), each rank as its own spell_action. PoH/BindingHeal stay single-
+-- rank (no per-rank data harvested for them yet). The deficit-fit hook in
+-- cast_best_heal_rank uses the data; the legacy walk still terminates on
+-- this class action for PoH/Binding.
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_gh(id)
+        return NS.spell_action({ name = "GreaterHeal", ids = { id } })
+    end
+    local function _mk_fh(id)
+        return NS.spell_action({ name = "FlashHeal", ids = { id } })
+    end
+    NS.PriestGREATER_HEAL_RANKS = _HealValue.build_ladder("priest", "GreaterHeal", _mk_gh) or NS.PriestGREATER_HEAL_RANKS
+    NS.PriestFLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh) or NS.PriestFLASH_HEAL_RANKS
+else
+    -- Module unavailable (should not happen): keep the legacy ladders so
+    -- behavior is unchanged.
+    NS.PriestGREATER_HEAL_RANKS = { { spell = SPELLS.GreaterHeal, label = "R7" } }
+    NS.PriestFLASH_HEAL_RANKS = { { spell = SPELLS.FlashHeal, label = "R9" } }
+end
 NS.PriestPRAYER_OF_HEALING_RANKS = { { spell = SPELLS.PrayerOfHealing, label = "R6" } }
 NS.PriestBINDING_HEAL_RANKS = { { spell = SPELLS.BindingHeal, label = "R1" } }
 
