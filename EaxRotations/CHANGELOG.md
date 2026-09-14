@@ -1,5 +1,74 @@
 # Changelog
 
+## Unreleased
+
+### Tooling - the other generator-owned doc counts are derived, not hand-typed
+
+- **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +
+  `docs/ACCURACY.md`, but the same figures sat hand-typed in two hand-maintained
+  pages.** `EaxRotations/README.md` carried the specs badge and its alt text, the
+  "Across the four eras it ships **132 rated spec rotations** (31 TBC ...)" intro,
+  the features row and the "**50/50** pinned specs pass" claim;
+  `docs/PER_CLASS_RESEARCH.md` carried the 50/50 manifest row, "~2,500 decision
+  rules across 132 specs", the era never-split ("tbc 11 . wotlk 0 . vanilla 9 .
+  sod 0"), "strict across all four eras", the APL era split and two more prose
+  totals. Each of those is now REWRITTEN from the aggregates the tool already
+  computes (spec totals 31/41/40/20, era count, strategy total, never/dead buckets,
+  APL pass split), and `docs/SOD_ROTATIONS.md`'s SoD manifest count ("contains
+  exactly 20 entries", "the 20 files above") is derived from the SoD battery's own
+  report list.
+- **A claim that stops matching is a HARD FAIL, not a silent drop.** Both
+  `--check` and write mode exit 3 when an anchor pattern no longer matches (a
+  rewording that takes a number out of the pattern) or matches more than once, so a
+  number that leaves the pattern is a number that left the gate.
+- **The SoD page is checked against its own table.** The derived count is compared
+  with the numbered rows of the doc's inventory table; if they disagree the rewrite
+  is refused, so the prose cannot state a count the table beside it contradicts.
+- **Proven load-bearing by injection** on the real docs, each restored
+  byte-identical: a stale README spec total (132 -> 999) fails `--check` and is
+  repaired by the writer; a stale rule total (2,616 -> 1,234) likewise; rewording
+  the APL anchor hard-fails; a stale SoD entry count (20 -> 21) is repaired;
+  dropping one numbered inventory row hard-fails naming the row count.
+- **What this changed on disk:** README "Across the four eras" -> "Across the 4
+  eras"; PER_CLASS_RESEARCH "~2,500 decision rules" -> the exact derived 2,616 and
+  "strict across all four eras" -> "all 4 eras"; the era list/headline in the two
+  generated pages regenerate byte-identical (they are now derived from the era
+  table rather than a literal).
+### Tooling - a doc suite count can no longer be hand-typed wrong
+
+- **New gate: `tools/doc_suite_count_check.lua` fails when any suite count in a
+  current-state doc disagrees with the registry the runners actually execute**
+  (rotation / leveling / total). It exists because the previous delivery's count
+  bump was hand-edited and left two stale 563s behind: `README.md`'s "563-suite
+  release battery" (a phrasing `tools/update_badges.lua`'s substitution list did
+  not know) and the generated `docs/ACCURACY.md` (a hardcoded literal in its
+  generator, since derived from the registry). `update_badges` stays the REPAIR
+  tool; this is the fail-closed GATE.
+- **An unclassified mention fails, including a phrasing that does not exist yet.**
+  Every count-shaped number must be anchored in the classifier -- per sentence, so
+  a bare "603 suites" cannot be read as the rotation or the total count -- and is
+  then compared. A number whose suite wording follows it ("557 suites", "557-suite
+  battery", "557/557 Tests Passing") or that sits in the badge path shape is caught
+  with no classifier entry at all; metric comparisons ("never=0") and ordinary
+  nearby figures ("~2,500 decision rules") are not mistaken for suite counts.
+- **Non-vacuity pinned both ways.** Per-file mention inventories (README 11,
+  ACCURACY 2, PVP 3, scorecard 2, PER_CLASS_RESEARCH 2 + 1 historical) fail if a doc
+  gains or loses one; the tracked doc set is discovered from `git ls-files`, so a new
+  doc must be classified (or be a dated snapshot) instead of silently skipped; and a
+  line that marks its own counts as a past snapshot ("at record time") is exempt with
+  its exempt-mention count pinned too.
+- **Wired into `tools/pre-commit` step 4** (beside the badge repair it complements)
+  **and `tests/run_verify_all.lua`** (the check and its `--self-test`); `tools/` is a
+  strict gitignore allowlist, so the tool is registered there as well.
+- **The stale counts the gate proved are fixed:** `docs/PER_CLASS_RESEARCH.md`
+  (564 -> 566, both the battery table and the "564-suite battery" line); its line 110
+  is a dated "record time" paragraph and stays exactly as written.
+- **Proven load-bearing by injection** on the real docs, each restored
+  byte-identical: a stale "563-suite" count fails as a wrong count; a NEW phrasing
+  carrying the right number fails as unclassified; a newly staged doc fails as
+  unclassified until it is classified. `--self-test` is 14/14 checks.
+
+
 ## 2.26.2 — 2026-09-14
 
 ### Customer Changelog

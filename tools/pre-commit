@@ -6,7 +6,14 @@
 #   1. luac -p on all .lua files (syntax check)
 #   2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
 #   3. Sylvanas spell ID audit (positive: every ID exists in DBC)
-#   4. Badge drift check (README.md + AGENTS.md test counts match runners)
+#   4. Doc count drift check -- two halves of one concern:
+#      a) badge drift (tools/update_badges.lua --check) REPAIRS the badge-shaped
+#         counts it knows in README/AGENTS/PVP
+#      b) doc suite-count drift (tools/doc_suite_count_check.lua) FAILS CLOSED
+#         on every suite-count mention in the current-state docs, so a phrasing
+#         the repair list does not know (the hand-typed "563-suite release
+#         battery", the stale generated ACCURACY line) is a failure instead of
+#         a silent pass; its --self-test runs here too
 #   5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)
 #   6. Rotation test suite (full run, quiet mode)
 #   7. Leveling test suite (full run, quiet mode)
@@ -129,7 +136,7 @@ echo "[pre-commit] Sylvanas spell ID audit passed."
 # ---------------------------------------------------------------------------
 # 4. Badge drift check (README.md + AGENTS.md test counts match runners)
 # ---------------------------------------------------------------------------
-echo "[pre-commit] [4/19] Checking badge counts are in sync..."
+echo "[pre-commit] [4/19] Checking test-count docs are in sync..."
 
 if ! "$LUA" tools/update_badges.lua --check 2>&1; then
     echo "[pre-commit] Badge count drift detected. Commit aborted."
@@ -139,6 +146,24 @@ if ! "$LUA" tools/update_badges.lua --check 2>&1; then
 fi
 
 echo "[pre-commit] Badge counts are in sync."
+# The repair tool above only knows the phrasings on its substitution list. This gate
+# compares EVERY suite-count mention in the current-state docs against the registry
+# the runners execute, and fails on an unclassified phrasing, a wrong number, or a
+# changed per-file mention inventory.
+if ! "$LUA" tools/doc_suite_count_check.lua 2>&1; then
+    echo "[pre-commit] Doc suite-count drift detected. Commit aborted."
+    echo "[pre-commit] Fix: correct the count in the named doc (or run lua tools/update_badges.lua),"
+    echo "[pre-commit] then anchor any new phrasing in doc_suite_count_check.lua CLASSIFIED_MENTIONS."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+if ! "$LUA" tools/doc_suite_count_check.lua --self-test 2>&1; then
+    echo "[pre-commit] Doc suite-count check self-test FAILED. Commit aborted."
+    exit 1
+fi
+
+echo "[pre-commit] Doc suite counts are in sync."
 
 # ---------------------------------------------------------------------------
 # 5. Spec scorecard drift check (live battery lanes + docs/scorecard.md)

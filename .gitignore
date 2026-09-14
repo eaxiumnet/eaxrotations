@@ -19,4 +19,8 @@
 !/tools/perf_cost_gate.lua
 !/tools/release_zip_audit.py
 !/tools/run_release_zip_audit_selftest.lua
+# Doc suite-count gate: run by tools/pre-commit step 4 and by
+# EaxRotations/tests/run_verify_all.lua, so it must be tracked on a clean
+# checkout too (the /tools/* rule above ignores it otherwise).
+!/tools/doc_suite_count_check.lua
 EaxRotations/.omo/
