@@ -182,8 +182,13 @@ def write_bridge(spells):
         "-- WHY:   run_forever_audit_tests.lua flips from scaffold to LIVE mode the",
         "--        moment this file carries a real index (no __forever_stub flag):",
         "--        every spell ID in a _forever spec file must resolve here.",
+        "--        _forever spec files resolve Forever-new spells BY NAME through",
+        "--        spell_index_by_name_forever (zero numeric literals in code --",
+        "--        the DBC is the only source of an ID). A nil lookup must leave",
+        "--        the calling lane dormant, never guess.",
         "-- SAFETY: generated file — do not hand-edit; regenerate from the DBC.",
-        "-- FORMAT: positional fields 1-10 (same shape as the tbc/vanilla indexes).",
+        "-- FORMAT: spell_index_forever: positional fields 1-10 (tbc/vanilla shape).",
+        "--        spell_index_by_name_forever: exact client name -> rank-1 spell id.",
         "",
         "local M = {}",
         "",
@@ -206,7 +211,14 @@ def write_bridge(spells):
         lines.append("    [%d] = {%s}," % (e["spell_id"], ", ".join(fields)))
     lines.append("}")
     lines.append("")
-    lines.append("return M.spell_index_forever")
+    lines.append("-- Exact client name -> rank-1 spell id (rank ladders share one name; the")
+    lines.append("-- entries above already dedupe to the rank-1 baseline per (class, name).")
+    lines.append("M.spell_index_by_name_forever = {")
+    for e in entries:
+        lines.append("    [%s] = %d," % (lua_escape(e["name"]), e["spell_id"]))
+    lines.append("}")
+    lines.append("")
+    lines.append("return M")
     lines.append("")
     with open(OUTPUT, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))

@@ -13,6 +13,7 @@
 | 2. Bridge builder | `tools/build_forever_bridge.py` | **DONE — proven end-to-end on a synthetic DBC** |
 | 2b. Fixture (offline proof) | `tools/build_forever_bridge_fixture.py` | **DONE — synthetic DB local-only, never committed** |
 | 3. Audit live-mode switch | `EaxRotations/tests/run_forever_audit_tests.lua` | **DONE — automatic** the moment the bridge stops carrying `__forever_stub`; `--check-bridge` mode added |
+| 3b. By-name spell resolution | `spell_index_by_name_forever` (bridge) | **DONE — zero-literal spec design**: `_forever` files resolve Forever-new spells BY NAME; a nil lookup leaves the lane dormant (never a guessed ID). Generator emits the mirror; audit self-test pins its presence |
 | 4. Lexxer cross-check | `GET https://lexxer.org/api/v1/spells/{id}?game=forever` | Blocked on lexxer gaining the flavor |
 | 5. Version-string tighten | `core_sylvanas.lua::_resolve_expansion_key()` | Blocked on real `get_game_version()` output |
 | 6. Full matrix re-run | gate + verify_all | Wired |

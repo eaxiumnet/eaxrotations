@@ -30,6 +30,11 @@ end
 -- generated bridge returns the bare table (same shape as the tbc/vanilla
 -- spell-index modules). Accept both.
 local forever_index = bridge.spell_index_forever or bridge
+-- _forever spec files resolve Forever-new spells BY NAME through this mirror
+-- (zero numeric literals in code). The audit pins its presence: spec files
+-- require it, so a generator regression that drops it would break lanes at
+-- runtime, not at audit time.
+local forever_by_name = (type(bridge) == "table" and bridge.spell_index_by_name_forever) or {}
 local STUB_MODE = bridge.__forever_stub == true
 
 local bridge_entry_count = 0
@@ -198,6 +203,12 @@ local function run_self_tests()
     -- (bridge tables are data, and data tables are scanned only in real
     -- _forever files; the scanner itself just classifies).
     expect(classify_id(25898), "VANILLA_ID_IN_FOREVER", "vanilla id leaks precise verdict (25898 = Seal of Righteousness r1)")
+
+    -- By-name resolution contract (zero-literal spec design): the bridge
+    -- module MUST expose the name mirror (spec files require it), and the
+    -- audit's lane-dormancy rule -- a nil name lookup never fabricates an ID.
+    expect(type(bridge.spell_index_by_name_forever), "table", "bridge exposes spell_index_by_name_forever (spec files require it)")
+    expect(forever_by_name["__NonexistentSpell__"], nil, "missing name resolves nil (lane stays dormant)")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")
 end
