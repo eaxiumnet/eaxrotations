@@ -15,6 +15,12 @@
   #49 wave's TBC-page adoption was era-safe). With the shaman ladders
   (HW/LHW, 3 divergences) every SoD-reachable id in the four
   value-consuming ladders is now verified agreeing or overridden.
+- **Shaman overrides verified across the whole ladder.** Every
+  SoD-reachable HW/LHW id was checked against Wowhead's classic pages:
+  HW 25357 (1620-1850 vs TBC 1647-1878), HW 10396 (1389-1583 vs 1394-1589)
+  and LHW 10468 (832-928 vs 853-949) diverge and are overridden -- 10468's
+  cost (380, nil in the TBC row) also filled in; all eight remaining HW
+  and five LHW ids agree exactly and stay untouched.
 - **No lane behaviour changes at any probed deficit (400-1600):** both new
   divergences are ~0.4% of row size, too small to flip any rank pick
   (unlike the shaman R10 knife-edge), so the override corrects the stored

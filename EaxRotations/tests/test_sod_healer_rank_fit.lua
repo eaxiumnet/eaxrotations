@@ -316,6 +316,37 @@ local spell_sod, lab_sod = CAST_HOOK(HT_SOD, unit(2000), { settings = {}, player
 assert_eq(lab_sod, "T R11", "SoD HT deficit 2000 still fits the corrected R11")
 assert_true(spell_sod ~= nil and spell_sod == r11.spell, "returned action is the corrected R11 entry's spell")
 
+local HW_SOD = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"), nil, "sod")
+local LHW_SOD = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"), nil, "sod")
+local function row_of(ladder, id)
+    for _, e in ipairs(ladder) do if e.id == id then return e end end
+end
+-- HW R10 (25357): classic 1620-1850 vs TBC 1647-1878.
+assert_eq(row_of(HW_SOD, 25357).base_min, 1620, "SoD HW R10 base_min is the classic 1620")
+assert_eq(row_of(HW_SOD, 25357).base_max, 1850, "SoD HW R10 base_max is the classic 1850")
+-- HW R9 (10396): classic 1389-1583 vs TBC 1394-1589 (divergence found in the 2026-09-15 sweep).
+assert_eq(row_of(HW_SOD, 10396).base_min, 1389, "SoD HW R9 base_min is the classic 1389")
+-- LHW R6 (10468): classic 832-928 vs TBC 853-949; cost 380 was nil in the TBC row.
+assert_eq(row_of(LHW_SOD, 10468).base_min, 832, "SoD LHW R6 base_min is the classic 832")
+assert_eq(row_of(LHW_SOD, 10468).base_max, 928, "SoD LHW R6 base_max is the classic 928")
+assert_eq(row_of(LHW_SOD, 10468).cost, 380, "SoD LHW R6 cost filled from the classic page (380)")
+-- Agreeing ids stay untouched by the override (spot: HW R8 10395, LHW R5 10467).
+assert_eq(row_of(HW_SOD, 10395).base_min, 1040, "HW R8 10395 keeps the agreed base (1040)")
+assert_eq(row_of(LHW_SOD, 10467).base_min, 649, "LHW R5 10467 keeps the agreed base (649)")
+-- TBC table isolation: no-era ladder keeps the TBC values for all three ids.
+assert_eq(row_of(HW, 25357).base_min, 1647, "no-era HW keeps TBC 1647 for 25357")
+assert_eq(row_of(LHW, 10468).base_min, 853, "no-era LHW keeps TBC 853 for 10468")
+-- Lane pick changes where the corrected size matters: at deficit 1350 the
+-- corrected R10 (mid 1735 <= 1350 x 1.3 = 1755) now fits where the TBC-sized
+-- R10 (mid 1762.5 > 1755) overshoots and the uncorrected ladder stays on R9.
+local spell_hw, lab_hw = CAST_HOOK(HW_SOD, unit(1350), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
+assert_eq(lab_hw, "T R10", "SoD HW deficit 1350 fits the corrected R10")
+assert_true(spell_hw ~= nil and spell_hw == row_of(HW_SOD, 25357).spell, "HW action is the corrected R10 entry's spell")
+-- Non-vacuity (the other direction): the same deficit on a no-era ladder
+-- keeps the TBC-sized R10 overshooting and still picks R9.
+local _, lab_tbc = CAST_HOOK(HW, unit(1350), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
+assert_eq(lab_tbc, "T R9", "no-era HW at deficit 1350 still picks R9 (override is load-bearing)")
+
 -- Full-ladder audit (2026-09-15): the two further divergences found by
 -- sweeping every SoD-reachable id - HT 9889 (classic 1916-2257 vs TBC
 -- 1923-2263) and FH 10917 (classic 828-975 vs TBC 833-979) - plus
@@ -346,7 +377,6 @@ for _, e in ipairs(HT_SOD) do if e.id == 9758 then ht_r8 = e end end
 for _, e in ipairs(FH_SOD) do if e.id == 9474 then fh_r4 = e end end
 assert_eq(ht_r8.base_min, 1225, "HT R8 9758 (verified agreeing) untouched")
 assert_eq(fh_r4.base_min, 414, "FH R4 9474 (verified agreeing) untouched")
-
 
 -- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
