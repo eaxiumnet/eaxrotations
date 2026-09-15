@@ -12,7 +12,7 @@
 | **ClassResearchTBC corpus** | `scripts-backup-20250630/ClassResearchTBC/` (backup tree, *outside* the live repo) | Per-class/per-spec research for all 9 TBC classes × every spec — DPS, tanking, AND healing — source-linked to Wowhead / Icy Veins / Warcraft Tavern and the wowsims Go source (coefficients checked at `sim/druid/starfire.go`, `sim/druid/mangle.go`, etc.). Includes niche-mechanic timing docs (seal twisting, totem twisting, powershifting, slam/swing-timer, downrank healing, threat playbooks), `ACTIONABLE_GAPS.md`, `VERIFY_LIST.md`, `S_PLUS_COVERAGE_TRACKER.csv`, and `VETTING_LOG.md`. |
 | **wowsims/wotlk APL fixtures** | `tools/evidence/apl/*.apl.json` + `SOURCES.md` | 27 WotLK specs pinned against the simulator's own published APL rotations at commit `563e4a08cb15729f1fdcbcf68e6d68224553bfef`, each fixture's upstream path recorded in the provenance manifest. |
 | **Conformance manifest** | `tools/apl_status.lua` | 50/50 specs pass; a `verify_all` component that auto-fills the scorecard's APL column — machine-checked, cannot rot silently. |
-| **Behavioral battery** | `EaxRotations/tests/` (569 suites) | 2,632 decision rules across 132 specs prove every rule *fires* in some state; never-triage gates strict across all 4 eras (scorecard: tbc 11 · wotlk 0 · vanilla 9 · sod 14). |
+| **Behavioral battery** | `EaxRotations/tests/` (571 suites) | 3,550 decision rules across 172 specs prove every rule *fires* in some state; never-triage gates strict across all 5 eras (scorecard: tbc 11 · wotlk 0 · vanilla 9 · sod 14 · forever 9). |
 
 > ⚠️ **Structural note:** the research corpus sits in a **backup tree**, so no CI can re-verify a researched mechanic against the code that ships. The reconciliation below was done by hand on 2026-09-06; the drift it caught (the imp-machine-gun "MISSING" item — see §2) is the proof that this link needs a gate of its own.
 
@@ -70,7 +70,7 @@ All eight items from the corpus' `VERIFY_LIST.md` require **wowsims execution or
 
 **No — and anyone who says yes is lying.** What is proven and what is not:
 
-**Proven:** cast *order* per spec against the sims' published rotations (50/50 APL conformance, WotLK 27 specs pinned to `wowsims/wotlk` + 23 TBC against reference orders), and rule *reachability* (0 dead lanes in every era, 569-suite battery). That is the bulk of what a rotation is.
+**Proven:** cast *order* per spec against the sims' published rotations (50/50 APL conformance, WotLK 27 specs pinned to `wowsims/wotlk` + 23 TBC against reference orders), and rule *reachability* (0 dead lanes in every era, 571-suite battery). That is the bulk of what a rotation is.
 
 **The five gaps between "conformant" and "flawless":**
 
@@ -105,6 +105,6 @@ Same-day companion to the WotLK re-rate: the two SoD healer files were the era's
 
 Both fire in the battery's SoD-scoped `sod_ns_burst` scenario, never-fires=0; new rune ids pinned in SOD_RUNE_IDS (65). Same honest ceiling as the WotLK wave — guide-conformance is not sim-conformance, and no SoD sim project exists (gap 4 above).
 
-So the honest ranking of the 132 rated specs: ~27 are order-pinned to a real sim **and** behavior-pinned; ~50 more are behavior-pinned against references; healers beyond WotLK priest, vanilla, and SoD are behavior-pinned with no external benchmark. That is a very high floor — and exactly why "flawless" is refused.
+So the honest ranking of the 172 rated specs: ~27 are order-pinned to a real sim **and** behavior-pinned; ~50 more are behavior-pinned against references; healers beyond WotLK priest, vanilla, and SoD are behavior-pinned with no external benchmark. That is a very high floor — and exactly why "flawless" is refused.
 
 *Gates at record time: 563/563 suites green, verify_all exit 0, luac clean, scorecard in sync. Rotation wave + healer expansion shipped via PR #14; holy-priest guide-gap lanes via PR #15 (both merged 2026-09-09); SoD healer pass + TBC druid/caster completion committed locally as `3205ca00` (not yet merged). This page updated 2026-09-09.*

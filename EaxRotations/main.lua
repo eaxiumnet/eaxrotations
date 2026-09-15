@@ -304,6 +304,28 @@ if NS and type(NS.is_sod) == "function" and NS.is_sod() and type(class_schema) =
     end
 end
 
+-- Forever (World of Warcraft: Forever, beta 2026-09-17 / launch 2026-11-04):
+-- era settings section, mirroring the SoD hook above. The phase slider follows
+-- the SoD phase contract (Forever content ships in unlock waves — raids Dec 9);
+-- forever_phase defaults to the highest shipped wave and is consumed by future
+-- _forever spec files via context.forever_phase. The idempotence flag keeps
+-- the on_update retry path from double-appending the section.
+if NS and type(NS.is_forever) == "function" and NS.is_forever() and type(class_schema) == "table" then
+    if not class_schema.__eax_forever_settings_added then
+        local forever_settings = {
+            { key = "forever_phase", type = "slider", label = "Forever Phase", min = 1, max = 8, default = 1 },
+        }
+        if type(class_schema[1]) == "table" and class_schema[1].sections then
+            class_schema[1].sections[#class_schema[1].sections + 1] = {
+                header = "WoW Forever", settings = forever_settings,
+            }
+        else
+            for _, setting in ipairs(forever_settings) do class_schema[#class_schema + 1] = setting end
+        end
+        class_schema.__eax_forever_settings_added = true
+    end
+end
+
 -- Inject shared quick-win schema sections into every class schema.
 -- This adds Auto-AoE and Force Command toggles without touching individual class files.
 if class_schema and NS and NS.common_auto_aoe_section then

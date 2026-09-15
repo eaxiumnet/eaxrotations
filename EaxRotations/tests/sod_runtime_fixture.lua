@@ -214,10 +214,32 @@ function M.production_boot(version, settings, current_settings)
         end
         if path:match("^classes/rogue/combat_") then
             attempts[#attempts + 1] = path
+            -- Mirror the LOADER's decision surface: the real class loader
+            -- consults the NS era flags (version detection + settings override),
+            -- not raw settings, so the stub must too — otherwise a version-
+            -- detected Forever boot diverges from its own loader.
+            local ns_now = _G.EaxRotations
+            local ns_is_sod = type(ns_now) == "table" and type(ns_now.is_sod) == "function" and ns_now.is_sod()
+            local ns_is_forever = type(ns_now) == "table" and type(ns_now.is_forever) == "function" and ns_now.is_forever()
             local configured_mode = active_settings.runtime_mode
             if configured_mode == nil then configured_mode = persisted.runtime_mode end
-            local is_sod = type(configured_mode) == "string"
-                and configured_mode:lower() == "sod"
+            local mode_lower = type(configured_mode) == "string" and configured_mode:lower() or nil
+            local is_sod = ns_is_sod or mode_lower == "sod"
+            -- Forever (2026-09-14): _forever -> _vanilla fallback chain. The
+            -- rogue stub has no combat_forever module, so a Forever boot must
+            -- surface combat_forever as a NOT-FOUND error (the exact message
+            -- shape the loader matches) and then resolve combat_vanilla —
+            -- exercising the real production fallback semantics.
+            local is_forever = ns_is_forever or mode_lower == "forever"
+            if is_forever then
+                if path == "classes/rogue/combat_forever" then
+                    error("module 'classes/rogue/combat_forever' not found", 0)
+                end
+                if path == "classes/rogue/combat_vanilla" then
+                    return { runtime = "vanilla" }
+                end
+                error("unexpected rotation path: " .. path, 0)
+            end
             local expected = is_sod and "classes/rogue/combat_sod" or "classes/rogue/combat_vanilla"
             if path == expected then return { runtime = path:match("combat_(.+)") } end
             error("unexpected rotation path: " .. path, 0)

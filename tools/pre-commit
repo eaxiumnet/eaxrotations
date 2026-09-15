@@ -313,6 +313,27 @@ done
 echo "[pre-commit] Spell-audit self-tests passed."
 
 # ---------------------------------------------------------------------------
+# 12b. Forever spell audit (scaffold mode until the beta DBC lands,
+#      docs/forever/dbc_runbook.md) + self-test. The scanner self-probes run
+#      in BOTH modes, so a broken scanner fails here before it can silently
+#      pass once the real bridge lands.
+# ---------------------------------------------------------------------------
+echo "[pre-commit] Running Forever spell audit (scaffold mode)..."
+
+if ! "$LUA" EaxRotations/tests/run_forever_audit_tests.lua 2>&1; then
+    echo "[pre-commit] Forever spell audit FAILED. Commit aborted."
+    echo "[pre-commit] Fix the invalid _forever spell IDs above or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+if ! "$LUA" EaxRotations/tests/run_forever_audit_tests.lua --self-test 2>&1; then
+    echo "[pre-commit] Forever audit self-test FAILED. Commit aborted."
+    exit 1
+fi
+
+echo "[pre-commit] Forever spell audit passed."
+
+# ---------------------------------------------------------------------------
 # 12. Clean-checkout dependency probe + self-test. Every io.open/read_file
 #     literal in tests/ must resolve to a git-tracked file or a
 #     self-provisioning artifact (.omo/evidence regenerated per run) — a

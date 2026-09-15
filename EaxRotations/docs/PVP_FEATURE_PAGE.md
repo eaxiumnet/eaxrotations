@@ -177,7 +177,7 @@ Verified PvP-related test files:
 | `test_interrupt_spec_integration.lua` | Per-spec interrupt wiring |
 | `test_shadow_silence_interrupt.lua` | Priest Silence interrupt |
 
-Total: 569 rotation suites + 39 leveling suites registered (569/569 rotation passing at runtime — incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator).
+Total: 571 rotation suites + 39 leveling suites registered (571/571 rotation passing at runtime — incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator).
 ---
 
 ### Data provenance: buff/debuff verification pipeline

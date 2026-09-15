@@ -132,7 +132,8 @@ function class_loader.create_loader(class_key, class_display_name)
 end
 
 --- Create an expansion-aware load_child function.
---- Resolves only <name>_sod.lua for SoD clients; otherwise resolves
+--- Resolves only <name>_sod.lua for SoD clients; <name>_forever -> <name>_vanilla
+--- for Forever clients; otherwise resolves
 --- cata -> sylvanas -> wotlk -> vanilla for Cata clients,
 --- wotlk -> sylvanas -> vanilla for WotLK clients, vanilla -> sylvanas -> wotlk for Vanilla clients,
 --- and sylvanas -> vanilla -> wotlk otherwise.
@@ -144,6 +145,7 @@ function class_loader.create_expansion_loader(class_key, class_display_name)
     return function(name_base, optional)
         local current_ns = _G.EaxRotations or NS
         local is_sod = current_ns.is_sod and current_ns.is_sod()
+        local is_forever = current_ns.is_forever and current_ns.is_forever()
         local is_cata = current_ns.is_cata and current_ns.is_cata()
         local is_wotlk = current_ns.is_wotlk and current_ns.is_wotlk()
         local is_vanilla = current_ns.is_vanilla and current_ns.is_vanilla()
@@ -151,6 +153,15 @@ function class_loader.create_expansion_loader(class_key, class_display_name)
         local suffixes
         if is_sod then
             suffixes = { "_sod" }
+        elseif is_forever then
+            -- Forever (2026-09-14): _forever deltas are optional overlays on the
+            -- vanilla-superset baseline — a spec without a _forever file falls
+            -- back to _vanilla (which stays correct-until-proven-otherwise),
+            -- never onward to _sylvanas/_wotlk (TBC/WotLK semantics are wrong
+            -- for a level-60 Forever client). NOTE: is_vanilla() is TRUE on a
+            -- Forever client, so this branch must be tested BEFORE the vanilla
+            -- branch below.
+            suffixes = { "_forever", "_vanilla" }
         elseif is_cata then
             suffixes = { "_cata", "_sylvanas", "_wotlk", "_vanilla" }
         elseif is_wotlk then
