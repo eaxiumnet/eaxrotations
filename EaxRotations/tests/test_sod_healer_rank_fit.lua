@@ -378,6 +378,62 @@ for _, e in ipairs(FH_SOD) do if e.id == 9474 then fh_r4 = e end end
 assert_eq(ht_r8.base_min, 1225, "HT R8 9758 (verified agreeing) untouched")
 assert_eq(fh_r4.base_min, 414, "FH R4 9474 (verified agreeing) untouched")
 
+
+-- ---------------------------------------------------------------------------
+-- 7. Vanilla-era heal-value wiring: the era alias, the level-60 learn
+--    ceiling, and the era-less TBC calls staying byte-identical. Evidence:
+--    GH 25314 classic 1966-2194 vs TBC 2006-2235 @710 (Wowhead classic page
+--    read 2026-09-15); GH R6/R7 (25210 L63, 25213 L68) and FH R8/R9
+--    (25233 L61, 25235 L67) are TBC tails a level-60 vanilla client cannot
+--    learn, so the vanilla build drops them at build time.
+-- ---------------------------------------------------------------------------
+do
+    local GH_VAN = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, "vanilla", 60)
+    assert_true(GH_VAN ~= nil, "vanilla GH ladder constructs")
+    assert_eq(#GH_VAN, 1, "vanilla GH ladder carries only the level-60 row (R6/R7 tail dropped)")
+    assert_eq(GH_VAN[1].id, 25314, "vanilla GH ladder's row is 25314")
+    assert_eq(GH_VAN[1].base_min, 1966, "vanilla GH R5 base_min is the classic 1966 (25314 override applied)")
+    assert_eq(GH_VAN[1].base_max, 2194, "vanilla GH R5 base_max is the classic 2194")
+    assert_eq(GH_VAN[1].cost, 710, "vanilla GH R5 cost 710 (verified identical both eras)")
+    assert_eq(GH_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+
+    local FH_VAN = HV.build_ladder("priest", "FlashHeal", mk_action("FlashHeal"), nil, "vanilla", 60)
+    assert_true(FH_VAN ~= nil, "vanilla FH ladder constructs")
+    assert_eq(#FH_VAN, 7, "vanilla FH ladder keeps R1-R7 (R8/R9 tail dropped)")
+    local van_ranks = {}
+    for _, e in ipairs(FH_VAN) do van_ranks[e.id] = e.rank end
+    assert_eq(van_ranks[25235], nil, "FH R9 25235 (level 67) dropped at ceiling 60")
+    assert_eq(van_ranks[25233], nil, "FH R8 25233 (level 61) dropped at ceiling 60")
+    assert_eq(van_ranks[2061], 1, "FH R1 2061 survives the ceiling")
+    assert_eq(van_ranks[10917], 7, "FH R7 10917 survives the ceiling")
+    local r7v = nil
+    for _, e in ipairs(FH_VAN) do if e.id == 10917 then r7v = e end end
+    assert_eq(r7v.base_min, 828, "vanilla FH R7 keeps the corrected classic 828")
+
+    -- TBC (era-less, unlimited) stays byte-identical, including the
+    -- vanilla-divergent 25314 keeping its TBC values.
+    local GH_TBC = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#GH_TBC, 3, "era-less GH ladder keeps R5-R7")
+    local r5 = nil
+    for _, e in ipairs(GH_TBC) do if e.id == 25314 then r5 = e end end
+    assert_eq(r5.base_min, 2006, "era-less GH R5 keeps the TBC 2006")
+    assert_eq(r5.base_max, 2235, "era-less GH R5 keeps the TBC 2235")
+    assert_eq(HV.find_rank_by_id(25314).base_min, 2006, "find_rank_by_id(25314) stays TBC-authoritative")
+
+    -- Alias is fail-closed: an unknown era name applies nothing.
+    local GH_BOGUS = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, "vanilla_classic")
+    local r5b = nil
+    for _, e in ipairs(GH_BOGUS) do if e.id == 25314 then r5b = e end end
+    assert_eq(r5b.base_min, 2006, "unknown era applies no override (fail-closed alias)")
+
+    -- max_level boundary at the row level: level 63 kept, 68 dropped; nil
+    -- ceiling (TBC call shape) keeps every row.
+    local GH_M63 = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, nil, 63)
+    assert_eq(#GH_M63, 2, "max_level 63 keeps levels 60+63, drops 68")
+    local GH_M68 = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, nil, 68)
+    assert_eq(#GH_M68, 3, "max_level 68 keeps every GH row")
+end
+
 -- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end

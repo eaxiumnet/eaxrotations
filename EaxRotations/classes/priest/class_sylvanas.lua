@@ -490,8 +490,17 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_fh(id)
         return NS.spell_action({ name = "FlashHeal", ids = { id } })
     end
-    NS.PriestGREATER_HEAL_RANKS = _HealValue.build_ladder("priest", "GreaterHeal", _mk_gh) or NS.PriestGREATER_HEAL_RANKS
-    NS.PriestFLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh) or NS.PriestFLASH_HEAL_RANKS
+    -- Era wiring: vanilla clients load this TBC class module (no class_vanilla
+    -- exists), so the ladders must be built for the vanilla client: classic-
+    -- dataset values via the build_ladder era alias and the level-60 learn
+    -- ceiling (the TBC-tail GH R6/R7 and FH R8/R9 rows are unlearnable there).
+    -- TBC eras build era-less and unlimited, byte-identical to before.
+    local _hv_era, _hv_max = nil, nil
+    if NS.is_vanilla and NS.is_vanilla() then
+        _hv_era, _hv_max = "vanilla", 60
+    end
+    NS.PriestGREATER_HEAL_RANKS = _HealValue.build_ladder("priest", "GreaterHeal", _mk_gh, nil, _hv_era, _hv_max) or NS.PriestGREATER_HEAL_RANKS
+    NS.PriestFLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh, nil, _hv_era, _hv_max) or NS.PriestFLASH_HEAL_RANKS
 else
     -- Module unavailable (should not happen): keep the legacy ladders so
     -- behavior is unchanged.
