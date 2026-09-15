@@ -229,6 +229,13 @@ M.RANKS = {
 -- 9889 diverge, R1-R9 agree exactly. FlashHeal: 10917 diverges, R1-R6 agree
 -- exactly. The TBC-only tails (HT R12/R13, FH R8/R9) are level 61+ and
 -- unreachable in SoD.
+--   priest GreaterHeal 25314 (R5): classic 1966-2194 vs TBC 2006-2235 @710
+--   (classic page read 2026-09-15; the only vanilla-reachable GH row).
+-- Vanilla note: vanilla clients run the same classic dataset as SoD and
+-- load this module era-less through class_sylvanas (no class_vanilla
+-- exists); build_ladder therefore aliases era "vanilla" onto the sod
+-- bucket (fail-closed for anything else) and takes an optional max_level
+-- ceiling so unlearnable TBC-tail ranks are excluded at build time.
 M.ERA_OVERRIDES = {
     sod = {
         druid = {
@@ -240,6 +247,9 @@ M.ERA_OVERRIDES = {
         priest = {
             FlashHeal = {
                 [10917] = { base_min =  828, base_max =  975 },
+            },
+            GreaterHeal = {
+                [25314] = { base_min = 1966, base_max = 2194 },
             },
         },
         shaman = {
@@ -475,28 +485,36 @@ end
 -- make_action(id) is supplied by the caller so this module never depends on
 -- core load order at require time.
 -- ---------------------------------------------------------------------------
-function M.build_ladder(class_key, spell_key, make_action, talent_mult, era)
+function M.build_ladder(class_key, spell_key, make_action, talent_mult, era, max_level)
     local family = M.RANKS[class_key] and M.RANKS[class_key][spell_key]
     if not family then return nil end
+    -- Era alias: 'vanilla' runs the same classic dataset as 'sod' (both are
+    -- the 1.12-class engine), so the override bucket is shared. Fail-closed:
+    -- any other era name applies nothing. max_level (optional 6th arg, nil =
+    -- unchanged) drops ranks the client cannot learn, instead of relying on
+    -- pick_castable's is_ready skip.
+    if era == "vanilla" then era = "sod" end
     local out = {}
     for i = 1, #family do
         local e = family[i]
-        local ov = (era and M.ERA_OVERRIDES[era] and M.ERA_OVERRIDES[era][class_key]
-            and M.ERA_OVERRIDES[era][class_key][spell_key]
-            and M.ERA_OVERRIDES[era][class_key][spell_key][e.id]) or nil
-        out[i] = {
-            spell = make_action(e.id),
-            label = "R" .. tostring(e.rank),
-            id = e.id,
-            rank = e.rank,
-            level = e.level,
-            base_min = ov and ov.base_min or e.base_min,
-            base_max = ov and ov.base_max or e.base_max,
-            cost = ov and ov.cost or e.cost,
-            coeff = family.coeff,
-            cast_time = family.cast_time,
-            talent_mult = talent_mult,
-        }
+        if not (max_level and type(e.level) == "number" and e.level > max_level) then
+            local ov = (era and M.ERA_OVERRIDES[era] and M.ERA_OVERRIDES[era][class_key]
+                and M.ERA_OVERRIDES[era][class_key][spell_key]
+                and M.ERA_OVERRIDES[era][class_key][spell_key][e.id]) or nil
+            out[#out + 1] = {
+                spell = make_action(e.id),
+                label = "R" .. tostring(e.rank),
+                id = e.id,
+                rank = e.rank,
+                level = e.level,
+                base_min = ov and ov.base_min or e.base_min,
+                base_max = ov and ov.base_max or e.base_max,
+                cost = ov and ov.cost or e.cost,
+                coeff = family.coeff,
+                cast_time = family.cast_time,
+                talent_mult = talent_mult,
+            }
+        end
     end
     return out
 end

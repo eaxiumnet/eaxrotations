@@ -90,11 +90,11 @@ end
 
 -- [PRE-ALLOC] Heal rank option tables ? created once at load time, not per-frame in execute().
 -- Avoids Lua 5.1 GC pressure from repeated inline table creation in combat path.
-local HOLY_OPTS_EMERGENCY_FH = { prioritize_speed = true, cast_time = 1.5, overheal_threshold = 1.4 }
-local HOLY_OPTS_BH = { bh_coefficient = true, cast_time = 2.0, overheal_threshold = 1.3 }
-local HOLY_OPTS_GH = { gh_coefficient = true, cast_time = 2.5, overheal_threshold = 1.3 }
-local HOLY_OPTS_FH = { cast_time = 1.5, overheal_threshold = 1.3 }
-local HOLY_OPTS_POH = { poh_coefficient = true, cast_time = 3.0, overheal_threshold = 1.3 }
+local HOLY_OPTS_EMERGENCY_FH = { prioritize_speed = true, cast_time = 1.5, overheal_threshold = 1.4, player_level = 60 }
+local HOLY_OPTS_BH = { bh_coefficient = true, cast_time = 2.0, overheal_threshold = 1.3, player_level = 60 }
+local HOLY_OPTS_GH = { gh_coefficient = true, cast_time = 2.5, overheal_threshold = 1.3, player_level = 60 }
+local HOLY_OPTS_FH = { cast_time = 1.5, overheal_threshold = 1.3, player_level = 60 }
+local HOLY_OPTS_POH = { poh_coefficient = true, cast_time = 3.0, overheal_threshold = 1.3, player_level = 60 }
 
 local holy_state = {
     lowest = nil,

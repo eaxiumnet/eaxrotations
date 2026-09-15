@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Healers - vanilla-era priest heal values corrected and ladders level-capped
+
+- **Vanilla Greater Heal 25314 (R5) era-corrected.** The classic page (read
+  2026-09-15) shows 1966-2194 vs the TBC row's 2006-2235 (cost 710
+  identical); 25314 is the only Greater Heal rank a level-60 vanilla client
+  can learn, so the correction is load-bearing for vanilla's GH deficit
+  fit. It joins `M.ERA_OVERRIDES.sod.priest` as the seventh verified
+  divergence.
+- **Era alias fail-closed:** `build_ladder` now maps era `vanilla` onto the
+  `sod` override bucket (both eras run the 1.12-class classic dataset);
+  any other era name still applies nothing. `find_rank_by_id` and the
+  era-less TBC ladders stay TBC-authoritative and byte-unchanged.
+- **Vanilla ladders learn-capped at build time.** `build_ladder` takes an
+  optional 6th `max_level` argument dropping ranks above the learn level;
+  the priest class wiring passes 60 when `NS.is_vanilla()`, so the TBC-tail
+  GH R6/R7 and FH R8/R9 rows are excluded outright instead of relying on
+  `pick_castable`'s `is_ready` skip. Vanilla heal options now thread
+  `player_level = 60` so the downrank penalty divisor is era-correct.
+- **Pinned:** 21 new checks (vanilla GH/FH ladder values and ceilings, TBC
+  isolation, fail-closed alias, max_level boundary rows) in
+  `test_sod_healer_rank_fit.lua` (84 -> 105 checks); the load-bearing
+  injection (25314 override row removed) fails exactly the two value pins
+  and restores byte-identical. No TBC or SoD behaviour changes.
+# Changelog
+
 ## 2.27.1 — 2026-09-15
 
 ### Customer Changelog
