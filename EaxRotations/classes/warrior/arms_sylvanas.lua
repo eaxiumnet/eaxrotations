@@ -26,6 +26,7 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
+local stance_manager = require("shared/warrior_stance_sylvanas")
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
 local SPELLS = NS.WarriorSpells or {}
@@ -337,7 +338,7 @@ local function build_state(context)
     arms_state.rage = context.rage or 0
     arms_state.hp = context.hp or 100
     arms_state.target_hp = context.target_hp or 100
-    arms_state.stance = context.stance or STANCE.BATTLE
+    arms_state.stance = stance_manager.current_id(context) or context.stance or STANCE.BATTLE
     arms_state.enemy_count = context.enemy_count or context.enemies_count or 1
     arms_state.is_pvp = context.is_pvp or spec_kit.setting_bool(context, "pvp_mode", false)
     arms_state.in_combat = context.in_combat or false
@@ -440,7 +441,12 @@ end
 
 local function commanding_shout_matches(context, state)
     if not spec_kit.setting_bool(context, "use_commanding_shout", false) then return false end
-    if state.has_commanding_shout then return false end
+    -- Refresh window: re-cast while the buff approaches its end (default 15s)
+    -- instead of waiting for it to fall off; a fallen buff reads remains 0.
+    if state.has_commanding_shout then
+        local remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), COMMANDING_SHOUT_BUFF) or 0
+        if remains > spec_kit.setting_number(context, "shout_refresh_window", 15) then return false end
+    end
     if state.rage < 10 then return false end
     return action(context, build_action("CommandingShout", ACTION.CommandingShout, { target = "self", kind = "buff", buff = COMMANDING_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
 end
@@ -598,9 +604,8 @@ local function pummel_matches(context, state)
 end
 
 local function battle_stance_matches(context, state)
-    if state.stance == STANCE.BATTLE then return false end
+    if stance_manager.is_stance(context, "battle") then return false end
     if stance_lockout_active() then return false end
-    if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, OVERPOWER_RAGE) then return action(context, battle_stance_action()) end
     if state.ms_cd <= 0.3 and stance_swap_safe(state, MORTAL_STRIKE_RAGE) then return action(context, battle_stance_action()) end
@@ -613,9 +618,8 @@ local function battle_stance_matches(context, state)
 end
 
 local function berserker_stance_matches(context, state)
-    if state.stance == STANCE.BERSERKER then return false end
+    if stance_manager.is_stance(context, "berserker") then return false end
     if stance_lockout_active() then return false end
-    if NS.has_form and NS.has_form("berserker") then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance in TBC — swap if execute is ready and we have rage to use it
     if state.execute_phase and state.rage >= 15 and stance_swap_safe(state, 15) then
@@ -633,9 +637,8 @@ local function berserker_stance_matches(context, state)
 end
 
 local function defensive_stance_matches(context, state)
-    if state.stance == STANCE.DEFENSIVE then return false end
+    if stance_manager.is_stance(context, "defensive") then return false end
     if stance_lockout_active() then return false end
-    if NS.has_form and NS.has_form("defensive") then return false end
     if desired_stance(context) == STANCE.DEFENSIVE then return action(context, defensive_stance_action()) end
     if state.hp <= 30 and stance_swap_safe(state, 0) then return action(context, defensive_stance_action()) end
     if state.is_pvp and state.target_is_casting and stance_swap_safe(state, 15) then return action(context, defensive_stance_action()) end
@@ -726,10 +729,16 @@ local DSL_DEFS = {
         name = "BattleShout",
         conditions = {
             { type = "custom", fn = function(context, state)
+                -- Refresh window (default 15s) replacing the presence-only
+                -- falsy checks; a fallen buff reads remains 0 <= window.
+                -- Commanding Shout still suppresses this lane outright.
+                if state.has_commanding_shout then return false end
+                if state.has_battle_shout then
+                    local remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), BATTLE_SHOUT_BUFF) or 0
+                    if remains > spec_kit.setting_number(context, "shout_refresh_window", 15) then return false end
+                end
                 return true
             end },
-            { type = "state", field = "has_battle_shout", op = "falsy" },
-            { type = "state", field = "has_commanding_shout", op = "falsy" },
             { type = "state", field = "rage", op = ">=", value = 10 },
         },
         action = { type = "custom", fn = function(context, state)

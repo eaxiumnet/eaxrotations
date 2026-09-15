@@ -34,6 +34,7 @@ return {
                     { key = "use_shield_wall", type = "checkbox", label = "Shield Wall", default = true },
                     { key = "use_self_buffs", type = "checkbox", label = "Self Buffs", default = true },
                     { key = "use_battle_shout", type = "checkbox", label = "Battle Shout", default = true },
+                    { key = "shout_refresh_window", type = "slider", label = "Shout Refresh Window (s)", min = 0, max = 60, default = 15, description = "Re-cast Battle/Commanding Shout when its remaining duration drops below this many seconds (0 = only when the buff is fully gone)" },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Cleave/Whirlwind/Sweeping Strikes when a nearby enemy is Polymorphed/Sapped/etc." },
                     { key = "use_shield_slam_purge", type = "checkbox", label = "Shield Slam Purge (PvP)", default = true, tooltip = "Shield Slam dispels 1 magic buff on enemy players (BoP, PW:S, Ice Barrier, etc.). Requires Defensive Stance." },
                     { key = "shield_slam_purge_pvp_only", type = "checkbox", label = "Shield Slam Purge — Players Only", default = true, tooltip = "Only purge buffs from enemy players (safer for PvE dungeons with CC'd mobs)." },

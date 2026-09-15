@@ -39,6 +39,23 @@
 --         via opts.skip_reject_hold (the name carried over from the module this
 --         one supersedes -- shared/cast_reject_guard_sylvanas.lua).
 --
+-- RESOURCE CHANNEL (UI_ERROR_MESSAGE) -- added 2026-09-14: the FAILED family
+--         covers the client refusing a queued cast, but the other refusal class
+--         arrives as a bare UI error with NO spell id: "Not enough rage",
+--         "Ability is not ready yet", "Spell not learned". No handler was ever
+--         registered for that event (live: the message repeated in the log
+--         while Battle Shout re-queued every ~0.5s at 0 rage), so these
+--         refusals never held anything. The error string is a Lua 5.1 vararg
+--         and never carries the spell, so attribution goes through the
+--         outstanding offer (_pending_id): an error arriving while WE have an
+--         unresolved cast in flight holds THAT cast for RESOURCE_HOLD_SEC (1.5s
+--         -- the 0.6s default just re-attempts an impossible cast at every GCD
+--         boundary). Every UI error is treated as player-scoped; engine-event
+--         attribution (SENT/START/SUCCEEDED) still wins on the spell id. This
+--         channel is NOT an acknowledgement: it must never clear the pending
+--         offer, and it does not arm the never-confirmed hold (an error alone
+--         is not proof the client reports cast events).
+--
 -- EVENT CONTRACT (.api/core.lua, UNIT_SPELLCAST_* family):
 --   { unit, cast_guid, spell_id }               START, SUCCEEDED, INTERRUPTED,
 --                                               CHANNEL_START, FAILED, _QUIET
@@ -64,6 +81,11 @@ M.HOLD_SEC = 0.6
 -- the fast one.
 M.CONFIRM_SEC = 1.6
 
+-- Public read for diagnostics/tests: the resource-class hold duration. Longer
+-- than HOLD_SEC because a 0.6s hold on "Not enough rage" just re-attempts the
+-- same impossible cast at every GCD boundary (the live Battle Shout spam).
+M.RESOURCE_HOLD_SEC = 1.5
+
 -- Safety valve: verdicts are pruned as they expire, but a pathological burst of
 -- distinct refused ids must not grow the table without bound.
 M.MAX_TRACKED = 256
@@ -79,6 +101,7 @@ local REGISTERED = {
     "UNIT_SPELLCAST_CHANNEL_START",  -- channel began
     "UNIT_SPELLCAST_FAILED",         -- the client refused it
     "UNIT_SPELLCAST_FAILED_QUIET",   -- the client refused it, quietly
+    "UI_ERROR_MESSAGE",              -- resource-class refusal, NO spell id
 }
 
 local REFUSALS = {
@@ -104,7 +127,7 @@ local TIME_EPS = 1e-9
 -- Injected by M.install -- never captured at require time (the battery's
 -- shared-virgin guard forbids require-time binding to the live namespace).
 local _NS = nil
-local _held = {}        -- spell_id -> verdict time
+local _held = {}        -- spell_id -> verdict EXPIRY time
 local _size = 0
 local _writes = 0
 local _pending_id = nil -- the most recent cast we issued and have not resolved
@@ -128,8 +151,8 @@ end
 -- Iterating with pairs() while clearing the current key is legal in Lua 5.1.
 local function prune(t)
     local live = 0
-    for id, ts in pairs(_held) do
-        if (t - ts) >= M.HOLD_SEC then
+    for id, expire in pairs(_held) do
+        if expire <= t then
             _held[id] = nil
         else
             live = live + 1
@@ -141,15 +164,16 @@ end
 --- Record an engine verdict against a spell id (refusal or never-confirmed).
 -- @param spell_id number
 -- @param t number|nil  Verdict time; defaults to the injected clock.
+-- @param hold number|nil  Hold duration override (resource refusals hold longer).
 -- @return boolean true when the verdict was recorded.
-local function remember_hold(spell_id, t)
+local function remember_hold(spell_id, t, hold)
     if type(spell_id) ~= "number" or spell_id <= 0 then return false end
     if t == nil then t = current_time() end
     if type(t) ~= "number" then return false end
     if _held[spell_id] == nil then
         _size = _size + 1
     end
-    _held[spell_id] = t
+    _held[spell_id] = t + (hold or M.HOLD_SEC)
     _writes = _writes + 1
     if _writes >= PRUNE_EVERY or _size > M.MAX_TRACKED then
         _writes = 0
@@ -183,9 +207,9 @@ function M.remaining(spell_id, t)
     if t == nil then t = current_time() end
     if type(t) ~= "number" then return 0 end
     expire_pending(t)
-    local ts = _held[spell_id]
-    if not ts then return 0 end
-    local left = M.HOLD_SEC - (t - ts)
+    local expire = _held[spell_id]
+    if not expire then return 0 end
+    local left = expire - t
     if left > 0 then return left end
     return 0
 end
@@ -234,7 +258,8 @@ end
 
 --- Clear every verdict and the outstanding offer (tests and per-generation
 --- reset). Disarms the machine, since the evidence that the engine speaks is
---- per-session too.
+--- per-session too. RESOURCE_HOLD_SEC (module constant, not per-session state)
+--- deliberately survives.
 function M.reset()
     _held = {}
     _size = 0
@@ -250,6 +275,19 @@ end
 -- load-bearing rather than defensive: another unit's cast must never resolve or
 -- hold OUR offers.
 local function on_game_event(event_name, args)
+    -- UI_ERROR_MESSAGE arrives first: it is the one event whose payload is NOT
+    -- a player-scoped cast record (Lua 5.1 varargs of error strings, no spell
+    -- id, no unit token), so none of the machinery below applies to it. The
+    -- only fact it carries is "a cast was just refused"; attribute it to the
+    -- outstanding offer and return. It must not arm the machine (an error alone
+    -- is not proof the client reports cast events) and must never clear the
+    -- pending offer (a resource refusal is not an acknowledgement).
+    if event_name == "UI_ERROR_MESSAGE" then
+        if _pending_id ~= nil then
+            remember_hold(_pending_id, nil, M.RESOURCE_HOLD_SEC)
+        end
+        return
+    end
     if type(args) ~= "table" then return end
     if args[1] ~= "player" then return end
     _armed = true

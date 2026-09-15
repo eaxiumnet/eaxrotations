@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Warrior - cast-failure feedback, unified stance truth, shout refresh window
+
+- **Per-spell refuse hold in the cast guard (root cause of the live Battle Shout
+  spam).** `UI_ERROR_MESSAGE` (the channel the client uses for "Not enough rage"
+  class refusals) was registered by no handler, so a refused cast re-attempted
+  every ~0.5s forever. `shared/cast_confirm_sylvanas.lua` now also registers the
+  channel and attributes a spell-less error to its outstanding cast offer:
+  resource-class refusals hold that spell id for a short resource window
+  (1.5s) so the rotation does not re-offer what the client just refused;
+  hard refusals keep the existing engine-verdict hold. Fail-open: if the
+  module is missing the guard behaves exactly as before.
+- **Unified warrior form-truth stance detection** (`shared/warrior_stance_sylvanas.lua`).
+  Before this the stance question was answered three ways that can disagree
+  (engine number defaulted by the spec, inline aura checks in fury/arms only,
+  and a builder that only repairs a zero reading) -- the Battle/Berserker
+  ping-pong in the live logs. Aura first (the druid-wave precedent proved the
+  aura names the form truthfully), number only as existence proof; unknown
+  fails open per-lane. Consumed by fury, arms, protection and leveling.
+- **Shout refresh window.** Battle Shout / Commanding Shout lanes recast when
+  the buff remains under the refresh window (schema slider, default 3s)
+  instead of only when fully lapsed, closing the no-buff gaps mid-combat;
+  Commanding Shout still suppresses Battle Shout as before.
+- **Pins:** test_warrior_stance_detector.lua (16 checks incl. aura/number
+  disagreement resolved in favour of the aura), test_cast_confirm_resource_channel.lua
+  (hold + expiry + attribution), refresh-window assertions re-pinned in the fury
+  DSL suite; three load-bearing injections (UI-error hold, aura-wins-over-number,
+  refresh-window lane) all fired on throwaway copies and restored byte-identical.
+
 ### Tooling - the other generator-owned doc counts are derived, not hand-typed
 
 - **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +

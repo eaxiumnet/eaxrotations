@@ -31,6 +31,7 @@ end
 
 -- Minimal NS namespace so fury_sylvanas.lua loads without the engine.
 local mock_rampage_remains = 0
+local mock_shout_remains = 0
 _G.EaxRotations = {
     WarriorConstants = {
         STANCE = { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 },
@@ -39,7 +40,12 @@ _G.EaxRotations = {
     log_warning = function() end,
     GetPlayer = function() return {} end,
     get_setting = function(_, default) return default end,
-    buff_remains = function() return mock_rampage_remains end,
+    buff_remains = function(unit, ids)
+        -- BATTLE_SHOUT_BUFF head is 25289 (TBC rank); the rampage mock keeps
+        -- working through the fallback return.
+        if type(ids) == "table" and ids[1] == 25289 then return mock_shout_remains end
+        return mock_rampage_remains
+    end,
     rotation_registry = { register = function() end },
 }
 
@@ -92,16 +98,23 @@ end
 -- DSL condition equivalence checks (explicit state → no build_state needed)
 -- ============================================================================
 
--- BattleShout: missing both shouts + rage >= 10
+-- BattleShout: refresh-window lane (re-cast as the buff approaches its end;
+-- Commanding Shout still suppresses outright) + rage >= 10
 local battle_shout = find_strategy("BattleShout")
 assert_true(battle_shout.matches({}, { has_battle_shout = false, has_commanding_shout = false, rage = 50 }),
     "BattleShout matches when no shout buff and rage >= 10")
-assert_false(battle_shout.matches({}, { has_battle_shout = true, has_commanding_shout = false, rage = 50 }),
-    "BattleShout does not match when Battle Shout already up")
+mock_shout_remains = 60
+assert_false(battle_shout.matches({ me = {} }, { has_battle_shout = true, has_commanding_shout = false, rage = 50 }),
+    "BattleShout does not match while Battle Shout is fresh (60s > 15s window)")
+mock_shout_remains = 10
+assert_true(battle_shout.matches({ me = {} }, { has_battle_shout = true, has_commanding_shout = false, rage = 50 }),
+    "BattleShout matches inside the refresh window (10s <= 15s)")
+mock_shout_remains = 0
 assert_false(battle_shout.matches({}, { has_battle_shout = false, has_commanding_shout = true, rage = 50 }),
     "BattleShout does not match when Commanding Shout already up")
 assert_false(battle_shout.matches({}, { has_battle_shout = false, has_commanding_shout = false, rage = 5 }),
     "BattleShout does not match below 10 rage")
+mock_shout_remains = 0
 
 -- VictoryRush: proc buff required
 local victory_rush = find_strategy("VictoryRush")

@@ -51,6 +51,7 @@ local tests = {
 
  -- Supremacy Phase 1 tests
  "test_stopcast_engine.lua",
+ "test_cast_confirm_resource_channel.lua",
  "test_pet_heal.lua",
  "test_triage_tank_bias.lua",
  "test_snap_threat.lua",
@@ -87,6 +88,7 @@ local tests = {
 
   -- Supremacy Phase 4 tests
   "test_stance_manager.lua",
+  "test_warrior_stance_detector.lua",
   "test_rage_manager.lua",
   "test_dispel_manager.lua",
 
