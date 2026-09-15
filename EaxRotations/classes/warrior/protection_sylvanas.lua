@@ -35,6 +35,7 @@ local merge_state = spec_kit.merge_state or function(build_state, context, state
 end
 local dsl = require("shared/strategy_dsl_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local stance_manager = require("shared/warrior_stance_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -318,7 +319,7 @@ local function build_state(context)
  prot_state.has_valid_target = context.has_valid_enemy_target ~= false and context.target ~= nil
  prot_state.hp = context.hp or 100
  prot_state.rage = context.rage or 0
- prot_state.stance = context.stance or 2
+ prot_state.stance = stance_manager.current_id(context) or context.stance or 2
  prot_state.enemy_count = context.enemy_count or 1
  prot_state.is_pvp = context.is_pvp or false
  prot_state.in_combat = context.in_combat or false
@@ -508,8 +509,14 @@ end
 -- Matches helpers
 -- ============================================================================
 
-local function is_defensive_stance(stance)
- return stance == STANCE.DEFENSIVE
+local function is_defensive_stance(stance_id)
+    -- Aura-first (warrior_stance module): the live aura answer wins when the
+    -- engine can name one; the engine NUMBER is only the pre-module fallback
+    -- for environments where no aura source is available (tests, degraded
+    -- clients). File-scope so lanes resolve without a prior build_state.
+    local current = stance_manager.current(nil)
+    if current ~= nil then return current == "defensive" end
+    return stance_id == 2
 end
 
 local function swing_timer_gate(context, state)
@@ -1255,7 +1262,7 @@ local strategies = {
    -- try_cast fails silently every frame. Gate on stance so the lane only
    -- fires when a cast can actually succeed (stance_mode = berserker, or the
    -- execute-phase / StanceSwitch dance has landed in Berserker).
-   if state.stance ~= STANCE.BERSERKER then return false end
+   if not stance_manager.is_stance(context, "berserker") then return false end
    if not NS.spell_ready or not NS.spell_ready(ACTION.Whirlwind, context.me, { skip_range = true }) then return false end
    return true
   end,

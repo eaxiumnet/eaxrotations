@@ -20,6 +20,7 @@ end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local L = require("shared/leveling_helpers_sylvanas")
+local stance_manager = require("shared/warrior_stance_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
@@ -64,7 +65,11 @@ local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Str
 -- pass nil/0 to always swap (for critical abilities like interrupts).
 local function dance_to_stance(context, target_stance, stance_spell, rage_floor)
     if not context then return false end
-    if context.stance == target_stance then return false end  -- already there
+    -- Aura-first "already there": the named stance aura is authoritative
+    -- (the engine number is unreliable -- see shared/warrior_stance_sylvanas).
+    local target_name = ({ [1] = "battle", [2] = "defensive", [3] = "berserker" })[target_stance]
+    if stance_manager.is_stance(context, target_name) then return false end  -- already there (aura)
+    if context.stance == target_stance then return false end  -- already there (number)
     if rage_floor and (context.rage or 0) > rage_floor then return false end  -- too much rage to lose
     if not L.spell_ready(stance_spell) then return false end  -- stance not learned
     return L.try_cast(stance_spell, context.me or L.get_player(), "[LEVELING] Stance dance", { skip_range = true })

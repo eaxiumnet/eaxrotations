@@ -121,6 +121,7 @@ package.loaded["shared/spec_kit_sylvanas"] = {
     end,
 }
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
+package.loaded["shared/warrior_stance_sylvanas"] = dofile("EaxRotations/shared/warrior_stance_sylvanas.lua")
 package.loaded["shared/potion_helper_sylvanas"] = {
     try_use_potion = function() return false end,
     MANA_POTION_IDS = { 28100 },

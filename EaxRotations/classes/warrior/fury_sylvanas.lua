@@ -28,6 +28,7 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
+local stance_manager = require("shared/warrior_stance_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
@@ -338,7 +339,7 @@ local function build_state(context)
     fury_state.rage = context.rage or 0
     fury_state.hp = context.hp or 100
     fury_state.target_hp = context.target_hp or 100
-    fury_state.stance = context.stance or STANCE.BERSERKER
+    fury_state.stance = stance_manager.current_id(context) or context.stance or STANCE.BERSERKER
     fury_state.enemy_count = context.enemy_count or context.enemies_count or 1
     fury_state.is_pvp = context.is_pvp or spec_kit.setting_bool(context, "pvp_mode", false)
     fury_state.in_combat = context.in_combat or false
@@ -369,13 +370,9 @@ local function build_state(context)
     fury_state.bt_ready = NS.spell_ready(ACTION.Bloodthirst, target, { expected_cooldown = 6 }) or false
     fury_state.ww_ready = NS.spell_ready(ACTION.Whirlwind, target, { expected_cooldown = 10 }) or false
 
-    -- Stance fallback: engine may return 0 intermittently; trust buff detection
-    if fury_state.stance == 0 and NS.has_form then
-        if NS.has_form("berserker") then fury_state.stance = STANCE.BERSERKER
-        elseif NS.has_form("battle") then fury_state.stance = STANCE.BATTLE
-        elseif NS.has_form("defensive") then fury_state.stance = STANCE.DEFENSIVE
-        end
-    end
+    -- Stance fallback removed: stance_manager.current_id already corrects a
+    -- missing/wrong engine number from the aura table (aura-first, the source
+    -- the druid form wave proved truthful on live clients).
     fury_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
     fury_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
     fury_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
@@ -800,9 +797,8 @@ end
 
 -- Berserker Stance: preferred DPS stance
 local function berserker_stance_matches(context, state)
-    if state.stance == STANCE.BERSERKER then return false end
+    if stance_manager.is_stance(context, "berserker") then return false end
     if stance_lockout_active() then return false end
-    if NS.has_form and NS.has_form("berserker") then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance
     if state.execute_phase and (state.rage or 0) >= 15 and stance_swap_safe(state, 15) then
@@ -819,9 +815,8 @@ end
 
 -- Battle Stance: for Charge, Overpower, Thunder Clap
 local function battle_stance_matches(context, state)
-    if state.stance == STANCE.BATTLE then return false end
+    if stance_manager.is_stance(context, "battle") then return false end
     if stance_lockout_active() then return false end
-    if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, 5) then return action(context, battle_stance_action()) end
     local ss_count = spec_kit.setting_number(context, "sweeping_strikes_count", 2)
@@ -846,8 +841,23 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 return true
             end },
-            { type = "state", field = "has_battle_shout", op = "falsy" },
-            { type = "state", field = "has_commanding_shout", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                -- Refresh window: re-cast while Battle Shout is close to
+                -- falling off instead of waiting for it to be fully gone
+                -- (presence-only gating left shoutless windows mid-combat;
+                -- kebab already refreshed at 30s, Rampage at 3s). Commanding
+                -- Shout still suppresses this lane outright (preserved from
+                -- the old falsy check -- fury never overwrites a live
+                -- commanding shout). The window setting (default 15s) also
+                -- covers the old falsy checks: a fallen buff reads remains
+                -- 0 <= window.
+                if state.has_commanding_shout then return false end
+                if state.has_battle_shout then
+                    local remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), BATTLE_SHOUT_BUFF) or 0
+                    if remains > spec_kit.setting_number(context, "shout_refresh_window", 15) then return false end
+                end
+                return true
+            end },
             { type = "state", field = "rage", op = ">=", value = 10 },
         },
         action = { type = "custom", fn = function(context, state)
