@@ -94,6 +94,12 @@ M.RACE_VARIANTS_VANILLA = { smite = { 5 } }
 -- test_race_override_regression.lua can pin the era-scoping.
 function M.race_maps_for(era)
     if era == "vanilla" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
+    -- Forever (2026-09-14): vanilla-superset battery — same files, same race
+    -- variants, so the variant-merged never-set matches vanilla's exactly
+    -- until _forever delta files land. Forever's NEW combos/racials
+    -- (Undead Paladin, Skyborne, reworked actives) extend these maps in the
+    -- post-beta battery wave, deliberately, with their own scenarios.
+    if era == "forever" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
     if era == "sylvanas" then return M.RACE_OVERRIDES, M.RACE_VARIANTS end
     return nil, nil
 end
@@ -158,6 +164,24 @@ M.SPEC_FILES_SOD = {
 }
 
 M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA, sod = M.SPEC_FILES_SOD }
+
+-- Forever era (World of Warcraft: Forever, 2026-09-14 pre-beta): the vanilla
+-- MANIFEST under the Forever HARNESS. Production resolves _forever -> _vanilla
+-- (class_loader_sylvanas.lua), and no _forever spec files exist yet, so the
+-- battery loads the same 40 vanilla files with ns.is_forever() true and
+-- ns.is_vanilla() true (the superset contract in core_sylvanas.lua). When the
+-- first _forever file lands, its manifest replaces this alias and the battery
+-- covers it the same way — STRICT, never=0 from day 1 (no SoD-style retrofit).
+-- load_spec/drift map the era suffix: see M.ERA_FILE_SUFFIX below.
+M.SPEC_FILES_FOREVER = M.SPEC_FILES_VANILLA
+M.ERA_MANIFESTS.forever = M.SPEC_FILES_FOREVER
+
+-- Battery era -> spec-file suffix. Forever reuses the _vanilla files (fallback
+-- semantics made observable); every other era uses its own suffix.
+function M.era_file_suffix(era)
+    if era == "forever" then return "vanilla" end
+    return era
+end
 
 -- Class profiles used to build representative contexts.
 M.CLASS_PROFILE = {
@@ -718,6 +742,10 @@ function M.build_ns(class_key, era)
     -- so era="sod" must provide the callable form exactly like is_wotlk; the
     -- boolean false keeps every other era's load guard short-circuiting.
     ns.is_sod = (era == "sod") and function() return true end or false
+    -- Forever era flag (2026-09-14): mirrors is_sod's callable contract. The
+    -- vanilla-superset rule also applies here: ns.is_vanilla() stays TRUE on
+    -- forever (below), exactly like production core_sylvanas.is_vanilla().
+    ns.is_forever = (era == "forever") and function() return true end or false
     ns.should_kite = function() return false end
     ns.has_player_buff = function() return false end
     ns.has_player_debuff = function() return false end
@@ -4150,7 +4178,8 @@ end
 -- ---------------------------------------------------------------------------
 function M.load_spec(class_key, spec_key, era, race_override)
     era = era or "sylvanas"
-    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_" .. era .. ".lua"
+    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_"
+        .. M.era_file_suffix(era) .. ".lua"
     local f = io.open(path, "rb")
     if not f then return nil, "missing file " .. path end
     f:close()
@@ -4460,7 +4489,12 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
         -- context, and a missing seed lane skips silently (no fabricated fire,
         -- no cross-spec behavior change).
         local cap = sc.capture
-        if cap and era == cap.era then
+        -- Forever runs the _vanilla files (fallback semantics), so vanilla
+        -- capture scenarios are the FOREVER proofs of the same lanes —
+        -- without this, enh FireNovaReplacement/GraceOfAirTotemTwist report
+        -- never in the forever battery purely because their capture is
+        -- era-locked to vanilla.
+        if cap and (era == cap.era or (era == "forever" and cap.era == "vanilla")) then
             local seed = nil
             for _, s in ipairs(strategies) do
                 if type(s) == "table" and s.name == cap.seed_lane
@@ -4749,9 +4783,10 @@ function M.check_manifest_drift(era)
     era = era or "sylvanas"
     local manifest = M.ERA_MANIFESTS[era] or M.SPEC_FILES
     local expected = {}
+    local file_suffix = M.era_file_suffix(era)
     for class_key, specs in pairs(manifest) do
         for _, spec_key in ipairs(specs) do
-            expected[class_key .. "/" .. spec_key .. "_" .. era .. ".lua"] = true
+            expected[class_key .. "/" .. spec_key .. "_" .. file_suffix .. ".lua"] = true
         end
     end
     local non_spec = {
@@ -4783,7 +4818,7 @@ function M.check_manifest_drift(era)
             local attrs = lfs.attributes(dir)
             if attrs and attrs.mode == "directory" then
                 for fname in lfs.dir(dir) do
-                    if fname:match("^.*_" .. era .. "%.lua$") then
+                    if fname:match("^.*_" .. file_suffix .. "%.lua$") then
                         local is_non_spec = false
                         -- Prefix match against the FULL filename (stem drops the
                         -- trailing _<era>, so a stem-based match would never see
@@ -4858,14 +4893,15 @@ end
 -- out with usage instead of silently producing no report.
 if arg and arg[0] and arg[0]:find("behavioral_audit", 1, true) then
     local cli_era = arg[1]
-    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" and cli_era ~= "sod" then
+    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" and cli_era ~= "sod" and cli_era ~= "forever" then
         io.stderr:write("behavioral_audit: unknown era '" .. tostring(cli_era)
-            .. "' — expected 'wotlk', 'vanilla', 'sod' or no argument (default sylvanas)\n")
+            .. "' — expected 'wotlk', 'vanilla', 'sod', 'forever' or no argument (default sylvanas)\n")
         os.exit(1)
     end
     local era = (cli_era == "wotlk") and "wotlk"
         or ((cli_era == "vanilla") and "vanilla"
-        or ((cli_era == "sod") and "sod" or "sylvanas"))
+        or ((cli_era == "sod") and "sod"
+        or ((cli_era == "forever") and "forever" or "sylvanas")))
     local agg = M.run_all(era)
     M.print_report(agg)
 end

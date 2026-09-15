@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+### Era: WoW Forever — day-1 era support (pre-beta)
+
+- **New era: World of Warcraft: Forever** (BlizzCon 2026 Classic+; beta
+  2026-09-17, launch 2026-11-04, level-60 cap). Era plumbing is live so the
+  rotations light up on day 1 of the beta, before any Forever-specific tuning:
+  `runtime_mode = "forever"` + version-string detection in
+  `core_sylvanas.lua::_resolve_expansion_key()` (noncanonical labels fail
+  closed, mirroring the SoD bootstrap contract), `NS.is_forever()`, max level 60.
+- **Vanilla-superset semantics.** `NS.is_vanilla()` stays TRUE on a Forever
+  client: the class loader resolves `_forever -> _vanilla` (never falling
+  through to TBC/WotLK semantics) and the 40 `NS.is_vanilla()` gates in the
+  `_vanilla` fallback spec files are production lanes. Every existing rotation
+  is therefore correct-until-proven-otherwise the moment the era resolves;
+  `_forever` delta files are added only where the kit actually changed
+  (Paladin first — the only fully-revealed kit).
+- **Dispatcher + schema hooks.** `main.lua` injects a Forever settings section
+  (era phase slider, waves 1–8) mirroring the SoD hook;
+  `main_sylvanas.lua` publishes `context.is_forever` + `context.forever_phase`
+  (helpers ride the `_api` cache — `build_context` is at the Lua 5.1
+  60-upvalue cap).
+- **Behavioral battery (forever).** `tests/behavioral_audit.lua forever` runs
+  the 40 vanilla specs under the Forever harness; its never-inventory is
+  lane-for-lane identical to vanilla's (9 classified lanes, mirrored pins in
+  `tools/spec_scorecard.lua FOREVER_LANE_CLASS`), and vanilla's execute-capture
+  scenarios count as Forever proofs. The era is STRICT from day 1 (never=0
+  unclassified) — new Forever lanes must be battery-observable, per the
+  Pattern-17 doctrine.
+- **Forever spell audit (scaffold).** `tests/run_forever_audit_tests.lua` +
+  the stub bridge `shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua`
+  enforce repo law (DBC = source of truth) before any guessed spell ID can
+  enter a `_forever` file: scaffold mode until the beta client's DBC is
+  extracted (docs/forever/dbc_runbook.md), scanner self-probes in both modes,
+  wired into the pre-commit gate + verify_all.
+- **Research corpus.** `docs/forever/`: era overview with sources, the
+  beta-day DBC extraction runbook, and per-class kit docs — paladin fully
+  transcribed from the 2026-09-13 Deep Dive (Holy Strike, non-consuming
+  Judgment, Seal of Fury taunt seal, baseline Consecration, spec talents),
+  the other 8 classes seeded as awaiting-reveal skeletons, plus era-wide
+  racial/talent research (2 active + 2 passive racials, six new race/class
+  combos, Skyborne, 16-point talent milestone, baseline Kings/Divine
+  Spirit/Imp MoW).
+- **Scorecard/badges.** The spec scorecard is now 5-era (172 rated specs);
+  suite registry 571 rotation suites (+2 forever suites). README/ACCURACY/
+  scorecard/PER_CLASS_RESEARCH regenerated through the generator tools.
+
 ### Warrior - cast-failure feedback, unified stance truth, shout refresh window
 
 - **Per-spell refuse hold in the cast guard (root cause of the live Battle Shout
