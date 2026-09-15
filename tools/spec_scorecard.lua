@@ -1170,8 +1170,14 @@ end
 
 local scorecard_path = ROOT .. '/EaxRotations/docs/scorecard.md'
 local accuracy_path = ROOT .. '/EaxRotations/docs/ACCURACY.md'
+-- EOL-insensitive reads: with core.autocrlf a fresh Windows checkout renders
+-- the tracked LF blobs as CRLF on disk, and a raw byte compare failed the
+-- drift check on every such checkout while CI (Linux) stayed green. The
+-- generated side is always LF, so normalize before comparing.
 local old = read_file(scorecard_path)
+if old then old = old:gsub(string.char(13, 10), string.char(10)) end
 local old_acc = read_file(accuracy_path)
+if old_acc then old_acc = old_acc:gsub(string.char(13, 10), string.char(10)) end
 local doc_drift = (old ~= markdown) or (old_acc ~= accuracy_md)
     or claim_readme_drift or claim_pcr_drift or claim_sod_drift
 local hard_fail = false

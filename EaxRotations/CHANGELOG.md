@@ -54,9 +54,13 @@
   module's TBC 2303-2714 (cost 800 identical). `build_ladder` now takes an
   era key and applies partial rows from `M.ERA_OVERRIDES` (fail-closed:
   nil/unknown era applies nothing); the SoD specs build their ladders with
-  era = "sod", TBC consumers and `find_rank_by_id` stay untouched. Known
-  remaining divergences (shaman HW 25357, LHW 10468) are recorded in the
-  module and deliberately left for their own verified pass.
+  era = "sod", TBC consumers and `find_rank_by_id` stay untouched.
+- **Shaman overrides verified across the whole ladder.** Every
+  SoD-reachable HW/LHW id was checked against Wowhead's classic pages:
+  HW 25357 (1620-1850 vs TBC 1647-1878), HW 10396 (1389-1583 vs 1394-1589)
+  and LHW 10468 (832-928 vs 853-949) diverge and are overridden -- 10468's
+  cost (380, nil in the TBC row) also filled in; all eight remaining HW
+  and five LHW ids agree exactly and stay untouched.
 ### Tooling - the other generator-owned doc counts are derived, not hand-typed
 
 - **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +

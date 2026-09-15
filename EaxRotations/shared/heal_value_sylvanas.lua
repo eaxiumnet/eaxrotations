@@ -213,15 +213,26 @@ M.RANKS = {
 -- client runs):
 --   druid HealingTouch 25297: classic 2267-2677 @800 mana vs TBC 2303-2714
 --   @800 (cost verified identical on both pages).
--- Known remaining divergences (spotted in the same pass, deliberately NOT
--- applied until their own verified pass): shaman HealingWave 25357
--- (classic 1620-1850 vs TBC 1647-1878) and LHW 10468 (classic 832-928 vs
--- TBC 853-949).
+-- Shaman (2026-09-15, own verified pass: every SoD-reachable HW/LHW id
+-- checked against Wowhead's classic pages): HW 25357 1620-1850, HW
+-- 10396 1389-1583 and LHW 10468 832-928 diverge; all other HW (10395,
+-- 8005, 959, 939, 913, 547, 332, 331) and LHW (10467, 10466, 8010, 8008,
+-- 8004) ids agree exactly. 10468's cost (380, nil in the TBC row) was
+-- also read off the classic page.
 M.ERA_OVERRIDES = {
     sod = {
         druid = {
             HealingTouch = {
                 [25297] = { base_min = 2267, base_max = 2677 },
+            },
+        },
+        shaman = {
+            HealingWave = {
+                [25357] = { base_min = 1620, base_max = 1850 },
+                [10396] = { base_min = 1389, base_max = 1583 },
+            },
+            LesserHealingWave = {
+                [10468] = { base_min = 832, base_max = 928, cost = 380 },
             },
         },
     },
