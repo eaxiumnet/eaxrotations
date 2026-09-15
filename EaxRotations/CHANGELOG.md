@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 2.27.1 — 2026-09-15
+
+### Customer Changelog
+- **SoD healers get era-correct heal values.** All 36 SoD-reachable spell ids
+  in the heal-rank tables were verified against the classic client, and the
+  six that differ from the TBC-era values are now corrected for SoD (druid
+  Healing Touch, priest Flash Heal, shaman Healing Wave / Lesser Healing
+  Wave). Rank choices themselves are unchanged - a verification-and-
+  correction release, not a rotation change.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #52 (squash 41c7c276a: the
+  full-ladder era audit for Healing Touch and Flash Heal) and PR #51 (squash
+  cd223e230: the shaman era overrides, verified across the whole ladder)
+  converted to the release entry. This commit changes only this conversion
+  and the four version pins (header.lua, the README badge, the PvP footer,
+  this top entry).
 
 ### Healers - every SoD-reachable id in the heal-value ladders is era-verified
 
@@ -29,7 +45,8 @@
 - **Pins:** era-built values for both rows, both-direction TBC isolation
   (no-era ladders + `find_rank_by_id`), agreeing-id isolation, and a
   load-bearing injection (both rows removed fires exactly the 4 new value
-  pins) restored byte-identical. 71 checks in `test_sod_healer_rank_fit.lua`.
+  pins) restored byte-identical. 84 checks in `test_sod_healer_rank_fit.lua`
+  (71 from the audit plus the 13 shaman checks that joined from PR #51).
 
 ## 2.27.0 — 2026-09-15
 
