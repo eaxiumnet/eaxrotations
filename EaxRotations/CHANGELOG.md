@@ -1,6 +1,30 @@
 # Changelog
 
-## Unreleased
+## 2.27.0 — 2026-09-15
+
+### Customer Changelog
+- **Warriors stop spam-casting refused spells**: the Battle Shout spam where a
+  cast the client refused (not enough rage) was re-attempted every half second
+  is fixed; warrior stances are now detected from the aura itself, and shouts
+  refresh on a window instead of waiting to fully lapse.
+- **SoD healers cast smarter ranks** (resto shaman, resto druid, healing
+  priest): heals pick the smallest rank that still covers the target's missing
+  health, with era-correct spell values verified against the classic client.
+- **TBC healers cast smarter ranks too** (resto shaman, resto druid,
+  discipline): the deficit-fit rank selection extends to their heal families,
+  with mana-tier lanes capping the fit.
+- **Doc counts can no longer be hand-typed wrong**: every suite and spec count
+  in the current-state docs is derived from the runner registries, and a claim
+  that stops matching is a hard gate failure, not a silent edit.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #46 (squash e7b60b6cf: the
+  fail-closed doc suite-count gate), PR #47 (squash d70013125: the TBC
+  heal-fit extension), PR #48 (squash cbbf855ad: the warrior cast-failure
+  feedback wave) and PR #49 (squash 6c7f7817e: the SoD healer heal-fit wave)
+  converted to the release entry. This commit changes only this conversion and
+  the four version pins (header.lua, the README badge, the PvP footer, this
+  top entry).
 
 ### Warrior - cast-failure feedback, unified stance truth, shout refresh window
 
