@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### Healers - every SoD-reachable id in the heal-value ladders is era-verified
+
+- **Full-ladder audit completed (2026-09-15).** Sweeping all 15 previously
+  unverified SoD-reachable ids across the Healing Touch and Flash Heal
+  ladders against Wowhead's classic pages found two further divergences,
+  both with identical cost: druid Healing Touch 9889 (R10; classic
+  1916-2257 vs the TBC row 1923-2263) and priest Flash Heal 10917 (R7;
+  classic 828-975 vs TBC 833-979). Both are now in `M.ERA_OVERRIDES.sod`;
+  the other 13 ids agree exactly and are pinned as untouched (HT
+  5186-5189/6778/8903/9758, FH 2061/9472/9473/9474/10915/10916 - the PR
+  #49 wave's TBC-page adoption was era-safe). With the shaman ladders
+  (HW/LHW, 3 divergences) every SoD-reachable id in the four
+  value-consuming ladders is now verified agreeing or overridden.
+- **Shaman overrides verified across the whole ladder.** Every
+  SoD-reachable HW/LHW id was checked against Wowhead's classic pages:
+  HW 25357 (1620-1850 vs TBC 1647-1878), HW 10396 (1389-1583 vs 1394-1589)
+  and LHW 10468 (832-928 vs 853-949) diverge and are overridden -- 10468's
+  cost (380, nil in the TBC row) also filled in; all eight remaining HW
+  and five LHW ids agree exactly and stay untouched.
+- **No lane behaviour changes at any probed deficit (400-1600):** both new
+  divergences are ~0.4% of row size, too small to flip any rank pick
+  (unlike the shaman R10 knife-edge), so the override corrects the stored
+  values and the fit picks the same ranks; the pins prove the corrected
+  values land and the TBC table stays authoritative.
+- **Pins:** era-built values for both rows, both-direction TBC isolation
+  (no-era ladders + `find_rank_by_id`), agreeing-id isolation, and a
+  load-bearing injection (both rows removed fires exactly the 4 new value
+  pins) restored byte-identical. 71 checks in `test_sod_healer_rank_fit.lua`.
+
+## 2.27.0 — 2026-09-15
+
+### Customer Changelog
+- **Warriors stop spam-casting refused spells**: the Battle Shout spam where a
+  cast the client refused (not enough rage) was re-attempted every half second
+  is fixed; warrior stances are now detected from the aura itself, and shouts
+  refresh on a window instead of waiting to fully lapse.
+- **SoD healers cast smarter ranks** (resto shaman, resto druid, healing
+  priest): heals pick the smallest rank that still covers the target's missing
+  health, with era-correct spell values verified against the classic client.
+- **TBC healers cast smarter ranks too** (resto shaman, resto druid,
+  discipline): the deficit-fit rank selection extends to their heal families,
+  with mana-tier lanes capping the fit.
+- **Doc counts can no longer be hand-typed wrong**: every suite and spec count
+  in the current-state docs is derived from the runner registries, and a claim
+  that stops matching is a hard gate failure, not a silent edit.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #46 (squash e7b60b6cf: the
+  fail-closed doc suite-count gate), PR #47 (squash d70013125: the TBC
+  heal-fit extension), PR #48 (squash cbbf855ad: the warrior cast-failure
+  feedback wave) and PR #49 (squash 6c7f7817e: the SoD healer heal-fit wave)
+  converted to the release entry. This commit changes only this conversion and
+  the four version pins (header.lua, the README badge, the PvP footer, this
+  top entry).
+
 ### Warrior - cast-failure feedback, unified stance truth, shout refresh window
 
 - **Per-spell refuse hold in the cast guard (root cause of the live Battle Shout
@@ -54,13 +109,9 @@
   module's TBC 2303-2714 (cost 800 identical). `build_ladder` now takes an
   era key and applies partial rows from `M.ERA_OVERRIDES` (fail-closed:
   nil/unknown era applies nothing); the SoD specs build their ladders with
-  era = "sod", TBC consumers and `find_rank_by_id` stay untouched.
-- **Shaman overrides verified across the whole ladder.** Every
-  SoD-reachable HW/LHW id was checked against Wowhead's classic pages:
-  HW 25357 (1620-1850 vs TBC 1647-1878), HW 10396 (1389-1583 vs 1394-1589)
-  and LHW 10468 (832-928 vs 853-949) diverge and are overridden -- 10468's
-  cost (380, nil in the TBC row) also filled in; all eight remaining HW
-  and five LHW ids agree exactly and stay untouched.
+  era = "sod", TBC consumers and `find_rank_by_id` stay untouched. Known
+  remaining divergences (shaman HW 25357, LHW 10468) are recorded in the
+  module and deliberately left for their own verified pass.
 ### Tooling - the other generator-owned doc counts are derived, not hand-typed
 
 - **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +

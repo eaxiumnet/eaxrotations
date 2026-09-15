@@ -347,6 +347,37 @@ assert_true(spell_hw ~= nil and spell_hw == row_of(HW_SOD, 25357).spell, "HW act
 local _, lab_tbc = CAST_HOOK(HW, unit(1350), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
 assert_eq(lab_tbc, "T R9", "no-era HW at deficit 1350 still picks R9 (override is load-bearing)")
 
+-- Full-ladder audit (2026-09-15): the two further divergences found by
+-- sweeping every SoD-reachable id - HT 9889 (classic 1916-2257 vs TBC
+-- 1923-2263) and FH 10917 (classic 828-975 vs TBC 833-979) - plus
+-- agreeing-id isolation proving the sweep did not overreach.
+local FH_SOD = HV.build_ladder("priest", "FlashHeal", mk_action("FlashHeal"), nil, "sod")
+assert_true(FH_SOD ~= nil, "era-built SoD FH ladder constructs")
+local r10, r10_tbc = nil, nil
+for _, e in ipairs(HT_SOD) do if e.id == 9889 then r10 = e end end
+for _, e in ipairs(HT) do if e.id == 9889 then r10_tbc = e end end
+assert_true(r10 ~= nil and r10_tbc ~= nil, "both HT ladders carry 9889")
+assert_eq(r10.base_min, 1916, "SoD-built HT R10 base_min is the classic 1916")
+assert_eq(r10.base_max, 2257, "SoD-built HT R10 base_max is the classic 2257")
+assert_eq(r10.cost, 720, "SoD-built HT R10 cost 720 (verified identical both eras)")
+assert_eq(r10_tbc.base_min, 1923, "no-era HT ladder keeps the TBC 1923")
+assert_eq(HV.find_rank_by_id(9889).base_min, 1923, "find_rank_by_id(9889) stays TBC-authoritative")
+local r7f, r7f_tbc = nil, nil
+for _, e in ipairs(FH_SOD) do if e.id == 10917 then r7f = e end end
+for _, e in ipairs(FH) do if e.id == 10917 then r7f_tbc = e end end
+assert_true(r7f ~= nil and r7f_tbc ~= nil, "both FH ladders carry 10917")
+assert_eq(r7f.base_min, 828, "SoD-built FH R7 base_min is the classic 828")
+assert_eq(r7f.base_max, 975, "SoD-built FH R7 base_max is the classic 975")
+assert_eq(r7f.cost, 380, "SoD-built FH R7 cost 380 (verified identical both eras)")
+assert_eq(r7f_tbc.base_min, 833, "no-era FH ladder keeps the TBC 833")
+assert_eq(HV.find_rank_by_id(10917).base_min, 833, "find_rank_by_id(10917) stays TBC-authoritative")
+-- Agreeing-id isolation, both directions.
+local ht_r8, fh_r4 = nil, nil
+for _, e in ipairs(HT_SOD) do if e.id == 9758 then ht_r8 = e end end
+for _, e in ipairs(FH_SOD) do if e.id == 9474 then fh_r4 = e end end
+assert_eq(ht_r8.base_min, 1225, "HT R8 9758 (verified agreeing) untouched")
+assert_eq(fh_r4.base_min, 414, "FH R4 9474 (verified agreeing) untouched")
+
 -- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end

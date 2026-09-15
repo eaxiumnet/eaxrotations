@@ -213,17 +213,33 @@ M.RANKS = {
 -- client runs):
 --   druid HealingTouch 25297: classic 2267-2677 @800 mana vs TBC 2303-2714
 --   @800 (cost verified identical on both pages).
+--   druid HealingTouch 9889 (R10): classic 1916-2257 vs TBC 1923-2263 @720.
+--   priest FlashHeal 10917 (R7): classic 828-975 vs TBC 833-979 @380
+--   (costs verified identical on both pages for both rows).
 -- Shaman (2026-09-15, own verified pass: every SoD-reachable HW/LHW id
 -- checked against Wowhead's classic pages): HW 25357 1620-1850, HW
 -- 10396 1389-1583 and LHW 10468 832-928 diverge; all other HW (10395,
 -- 8005, 959, 939, 913, 547, 332, 331) and LHW (10467, 10466, 8010, 8008,
 -- 8004) ids agree exactly. 10468's cost (380, nil in the TBC row) was
 -- also read off the classic page.
+-- Full-ladder audit (2026-09-15): every SoD-reachable id in the four
+-- value-consuming ladders is now verified against Wowhead's classic pages.
+-- HealingWave/LesserHealingWave: 25357, 10396 and 10468 diverge (applied by
+-- the shaman-override change), the other 11 agree. HealingTouch: 25297 and
+-- 9889 diverge, R1-R9 agree exactly. FlashHeal: 10917 diverges, R1-R6 agree
+-- exactly. The TBC-only tails (HT R12/R13, FH R8/R9) are level 61+ and
+-- unreachable in SoD.
 M.ERA_OVERRIDES = {
     sod = {
         druid = {
             HealingTouch = {
                 [25297] = { base_min = 2267, base_max = 2677 },
+                [ 9889] = { base_min = 1916, base_max = 2257 },
+            },
+        },
+        priest = {
+            FlashHeal = {
+                [10917] = { base_min =  828, base_max =  975 },
             },
         },
         shaman = {
