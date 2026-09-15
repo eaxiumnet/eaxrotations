@@ -56,8 +56,8 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_lhw(id)
         return NS.spell_action(id, "LesserHealingWave")
     end
-    HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw)
-    LESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw)
+    HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw, nil, "sod")
+    LESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw, nil, "sod")
 end
 
 local NATURES_SWIFTNESS_BUFF = { 16188 }

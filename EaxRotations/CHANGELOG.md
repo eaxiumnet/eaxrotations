@@ -48,6 +48,15 @@
   hardcoded the TBC level-70 divisor; the core hook threads `player_level`
   from context so SoD (level 60) divides by 60. Backward compatible: absent
   an explicit level the behaviour is unchanged.
+- **Era-keyed row overrides.** The SoD client runs the classic dataset,
+  and ids the TBC client reuses can differ there -- verified 2026-09-15:
+  Healing Touch 25297 reads 2267-2677 on Wowhead's classic page vs the
+  module's TBC 2303-2714 (cost 800 identical). `build_ladder` now takes an
+  era key and applies partial rows from `M.ERA_OVERRIDES` (fail-closed:
+  nil/unknown era applies nothing); the SoD specs build their ladders with
+  era = "sod", TBC consumers and `find_rank_by_id` stay untouched. Known
+  remaining divergences (shaman HW 25357, LHW 10468) are recorded in the
+  module and deliberately left for their own verified pass.
 ### Tooling - the other generator-owned doc counts are derived, not hand-typed
 
 - **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +

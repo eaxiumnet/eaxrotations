@@ -45,6 +45,7 @@ end
 NS.spell_id_is_known = function() return true end
 dofile("EaxRotations/core_sylvanas.lua")
 assert_true(type(NS.cast_best_heal_rank) == "function", "core hook loads")
+local CAST_HOOK = NS.cast_best_heal_rank
 local HV = NS.HealValue
 assert_true(HV and type(HV.build_ladder) == "function", "heal_value module installed")
 
@@ -281,6 +282,39 @@ do
         "no module: FH lane falls back to the legacy single R7 action (got " .. tostring(legacy_id) .. ")")
     for k in pairs(common) do NS[k] = nil end
 end
+
+-- ---------------------------------------------------------------------------
+-- 6. Era-keyed overrides: the SoD client (classic dataset) yields different
+--    values for ids the TBC client reuses. Verified 2026-09-15 on Wowhead:
+--    HT 25297 classic 2267-2677 vs TBC row 2303-2714 (cost 800 both sides).
+--    The override must reach era-built ladders, must NOT touch the TBC table
+--    (find_rank_by_id / TBC consumers), and must fail closed.
+-- ---------------------------------------------------------------------------
+local HT_SOD = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"), nil, "sod")
+assert_true(HT_SOD ~= nil, "era-built SoD HT ladder constructs")
+local r11, r11_tbc = nil, nil
+for _, e in ipairs(HT_SOD) do if e.id == 25297 then r11 = e end end
+for _, e in ipairs(HT) do if e.id == 25297 then r11_tbc = e end end
+assert_true(r11 ~= nil and r11_tbc ~= nil, "both ladders carry 25297")
+assert_eq(r11.base_min, 2267, "SoD-built HT R11 base_min is the classic 2267")
+assert_eq(r11.base_max, 2677, "SoD-built HT R11 base_max is the classic 2677")
+assert_eq(r11.cost, 800, "SoD-built HT R11 cost 800 (verified identical both eras)")
+assert_eq(r11.rank, 11, "override preserves the rank label")
+-- The TBC table itself stays untouched: same call without the era arg.
+assert_eq(r11_tbc.base_min, 2303, "no-era ladder keeps the TBC 2303 (TBC consumers unaffected)")
+assert_eq(r11_tbc.base_max, 2714, "no-era ladder keeps the TBC 2714")
+-- find_rank_by_id remains the TBC-table authority (its consumers are TBC).
+assert_eq(HV.find_rank_by_id(25297).base_min, 2303, "find_rank_by_id stays TBC-authoritative")
+-- Unknown era key: applies nothing (fail-closed), same shape as no era.
+local HT_BOGUS = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"), nil, "wotlk")
+for _, e in ipairs(HT_BOGUS) do
+    if e.id == 25297 then assert_eq(e.base_min, 2303, "unknown era key applies no override") end
+end
+-- The SoD core hook still refines deficit 2000 to 25297 under the override
+-- (mid 2472 <= 2000 x 1.3): the corrected values do not change the lane pick.
+local spell_sod, lab_sod = CAST_HOOK(HT_SOD, unit(2000), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
+assert_eq(lab_sod, "T R11", "SoD HT deficit 2000 still fits the corrected R11")
+assert_true(spell_sod ~= nil and spell_sod == r11.spell, "returned action is the corrected R11 entry's spell")
 
 -- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))

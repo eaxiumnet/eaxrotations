@@ -77,6 +77,12 @@ end
 --  * FoL 27137: PhDamage + Wowhead description say 458-513; the pre-existing
 --    in-repo table carried 448-502 (the effect-line variant). Description
 --    text wins (consistent with every other rank checked).
+--  * Era divergence (2026-09-15 SoD verification): spell ids the TBC client
+--    reuses from classic can carry different classic-client values -- most
+--    notably Healing Touch 25297, whose classic tooltip reads 2267-2677
+--    (TBC row: 2303-2714; both pages read 2026-09-15). M.ERA_OVERRIDES below
+--    corrects such rows for era-built ladders; the TBC rows stay
+--    authoritative for TBC consumers and find_rank_by_id.
 -- ---------------------------------------------------------------------------
 M.RANKS = {
     paladin = {
@@ -194,6 +200,29 @@ M.RANKS = {
             { id =  5187, rank =  3, level = 14, base_min =  204, base_max =  253 },
             { id =  5186, rank =  2, level =  8, base_min =   94, base_max =  119 },
             { id =  5185, rank =  1, level =  1, base_min =   40, base_max =   55 },
+        },
+    },
+}
+
+-- Era-keyed row overrides for ids a non-TBC client reuses with different
+-- values. Shape: M.ERA_OVERRIDES[era][class_key][spell_key][id] = partial
+-- row (only the differing fields need to be present). Applied exclusively
+-- by M.build_ladder when the caller passes an era; nil/unknown era applies
+-- nothing (fail-closed), and M.find_rank_by_id stays the TBC-table answer.
+-- Verified 2026-09-15 against Wowhead's classic pages (the dataset a SoD
+-- client runs):
+--   druid HealingTouch 25297: classic 2267-2677 @800 mana vs TBC 2303-2714
+--   @800 (cost verified identical on both pages).
+-- Known remaining divergences (spotted in the same pass, deliberately NOT
+-- applied until their own verified pass): shaman HealingWave 25357
+-- (classic 1620-1850 vs TBC 1647-1878) and LHW 10468 (classic 832-928 vs
+-- TBC 853-949).
+M.ERA_OVERRIDES = {
+    sod = {
+        druid = {
+            HealingTouch = {
+                [25297] = { base_min = 2267, base_max = 2677 },
+            },
         },
     },
 }
@@ -419,21 +448,24 @@ end
 -- make_action(id) is supplied by the caller so this module never depends on
 -- core load order at require time.
 -- ---------------------------------------------------------------------------
-function M.build_ladder(class_key, spell_key, make_action, talent_mult)
+function M.build_ladder(class_key, spell_key, make_action, talent_mult, era)
     local family = M.RANKS[class_key] and M.RANKS[class_key][spell_key]
     if not family then return nil end
     local out = {}
     for i = 1, #family do
         local e = family[i]
+        local ov = (era and M.ERA_OVERRIDES[era] and M.ERA_OVERRIDES[era][class_key]
+            and M.ERA_OVERRIDES[era][class_key][spell_key]
+            and M.ERA_OVERRIDES[era][class_key][spell_key][e.id]) or nil
         out[i] = {
             spell = make_action(e.id),
             label = "R" .. tostring(e.rank),
             id = e.id,
             rank = e.rank,
             level = e.level,
-            base_min = e.base_min,
-            base_max = e.base_max,
-            cost = e.cost,
+            base_min = ov and ov.base_min or e.base_min,
+            base_max = ov and ov.base_max or e.base_max,
+            cost = ov and ov.cost or e.cost,
             coeff = family.coeff,
             cast_time = family.cast_time,
             talent_mult = talent_mult,
@@ -443,6 +475,7 @@ function M.build_ladder(class_key, spell_key, make_action, talent_mult)
 end
 
 -- Map a concrete spell id back to its rank entry (any class/family). Lets
+-- (TBC-table authority: era overrides apply in build_ladder only.)
 -- HealerDeficit-style gates use the verified per-rank base instead of a
 -- max-rank ballpark when the caller knows the exact rank being cast.
 function M.find_rank_by_id(spell_id)

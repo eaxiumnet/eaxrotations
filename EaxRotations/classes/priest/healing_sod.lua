@@ -26,7 +26,7 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_fh(id)
         return NS.spell_action(id, "FlashHeal")
     end
-    FLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh)
+    FLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh, nil, "sod")
 end
 local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
 

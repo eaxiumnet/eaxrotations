@@ -29,7 +29,7 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_ht(id)
         return NS.spell_action(id, "HealingTouch")
     end
-    HEALING_TOUCH_RANKS = _HealValue.build_ladder("druid", "HealingTouch", _mk_ht)
+    HEALING_TOUCH_RANKS = _HealValue.build_ladder("druid", "HealingTouch", _mk_ht, nil, "sod")
 end
 local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
 local ACTION = {
