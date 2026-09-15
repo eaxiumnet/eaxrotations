@@ -81,6 +81,14 @@ Swift Judgment, Shield Specialization, Iron Creed. Retribution: Twist of Light
 redesign, Champion of the Light, Instrument of the Law.
 **Preserved weaknesses**: no interrupt, no slows, Seal/Judgment-mediated taunt.
 
+### Legacy system (account perk tree — see `legacy_perks.md`)
+16-point account-wide perk tree (21 perks, beta-captured tooltips). Mostly
+economy/XP QoL, but **three perks touch our code paths** and are flagged for
+beta verification: **Reagent Economy** (class abilities reagent-free → cast
+guard's reagent lane), **Field Medicine** (Recently Bandaged −5s → bandage
+cadence), **Permanence** (extends eligible long class buffs → refresh
+thresholds). No runtime wiring until beta data confirms the effects.
+
 ### Camping (future rotation-relevant note)
 Campsite objects grant 1-hour buffs that are **variants of class buffs and do
 not stack with them** — buff-allowlisting logic must account for them post-launch.
@@ -92,8 +100,9 @@ not stack with them** — buff-allowlisting logic must account for them post-lau
 | Blizzard "What's Next" panel recap | https://news.blizzard.com/en-us/article/24303862/world-of-warcraft-forever-whats-next-panel-recap | 2026-09-15 |
 | Blizzard "Deep Dive" panel recap (combat/classes/stats/racials) | https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap | 2026-09-15 |
 | Wowhead Forever hub (dedicated subdomain; liveblog + database) | https://www.wowhead.com/forever/ | 2026-09-15 |
-| Massively Overpowered Deep-Dive report | https://massivelyop.com/2026/09/13/blizzcon-2026-world-of-warcraft-forevers-deep-dive-panel-talks-group-play-progression-and-item-updates/ | 2026-09-15 |
+| Massively Overpowered Deep-Dive report | https://massivelyop.com/2026/09/13/blizzcon-2026-world-of-warfores-deep-dive-panel-talks-group-play-progression-and-item-updates/ | 2026-09-15 |
 | Windows Central overview | https://www.windowscentral.com/gaming/blizzard/world-of-warcraft-forever-is-blizzards-take-on-classic-revamping-vanilla-azeroth | 2026-09-15 |
+| Classic WoW Forever — Legacy perk reference (community; beta-captured tooltips) | https://classicwowforever.com/legacy/ | 2026-09-15 |
 
 Scrape targets as content lands (mirror per the wowheadScrape pipeline):
 `wowhead.com/forever/spell={id}`, Icy Veins Forever class guides
@@ -106,11 +115,15 @@ videos and articles").
 | Phase | Deliverable | Status |
 |---|---|---|
 | 1 | Era plumbing: expansion key, `is_forever`, superset `is_vanilla`, loader chain, schema/context hook, bootstrap + loader suites | **DONE (pre-beta)** |
-| 2 | Research corpus (this dir) + DBC runbook + forever spell audit scaffold | **IN PROGRESS** |
+| 2 | Research corpus (this dir, incl. `legacy_perks.md`) + DBC runbook + forever spell audit scaffold | **IN PROGRESS** |
 | 3 | Beta-day: DBC extraction → `wowhead_data_bridge_spell_index_forever_sylvanas.lua` → audit goes live | Blocked on 2026-09-17 |
 | 4 | `_forever` spec deltas: paladin (ret/prot/holy/leveling) first, then other classes as kits are revealed | Blocked on reveals + DBC |
 | 5 | Racial manager Forever tables (new actives/passives + race/class combos incl. Skyborne), merged hit/crit, ⅓ healing→damage, talent baseline | Post-beta, per-domain commits |
 
 ## Out of scope until launch data exists
-New dungeon/raid encounter logic, camping-buff stacking rules, Legacy-system
-integration, Darkspear Islands BG logic, Skyborne starting-zone automation.
+New dungeon/raid encounter logic, camping-buff stacking rules, Darkspear Islands BG
+logic, Skyborne starting-zone automation. Legacy-system RUNTIME integration also
+stays out of scope until beta data exists — the perk reference (`legacy_perks.md`)
+flags the three perks that touch our code paths for beta verification: Reagent
+Economy (cast-guard reagent lane), Field Medicine (bandage cadence), Permanence
+(long-buff refresh thresholds).
