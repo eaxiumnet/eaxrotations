@@ -123,6 +123,17 @@ M.RANKS = {
             { id = 25235, rank = 9, level = 67, base_min = 1116, base_max = 1295, cost = 470 },
             { id = 25233, rank = 8, level = 61, base_min =  931, base_max = 1078, cost = 400 },
             { id = 10917, rank = 7, level = 56, base_min =  833, base_max =  979, cost = 380 },
+            -- Classic ranks R1-R6 (2026-09-15 SoD healer wave): the SoD client
+            -- (level 60) learns these, so the SoD priest FH lane needs them
+            -- for a meaningful deficit fit. Bases from Wowhead description
+            -- text per page (spell=2061/9472/9473/9474/10915/10916, TBC db);
+            -- levels per the class table; costs from the same pages.
+            { id = 10916, rank = 6, level = 51, base_min =  662, base_max =  783, cost = 315 },
+            { id = 10915, rank = 5, level = 43, base_min =  534, base_max =  633, cost = 265 },
+            { id =  9474, rank = 4, level = 35, base_min =  414, base_max =  492, cost = 215 },
+            { id =  9473, rank = 3, level = 27, base_min =  339, base_max =  406, cost = 185 },
+            { id =  9472, rank = 2, level = 19, base_min =  269, base_max =  325, cost = 155 },
+            { id =  2061, rank = 1, level =  1, base_min =  202, base_max =  247, cost = 125 },
         },
     },
     shaman = {
@@ -207,7 +218,12 @@ function M.expected_heal(entry, bonus_healing, opts)
     local pre = PreemptiveHeal
     if pre and type(pre.downrank_penalty) == "function"
         and type(entry.level) == "number" then
-        local ok, p = pcall(pre.downrank_penalty, entry.level, 70)
+        -- player_level opt (2026-09-15 SoD healer wave): the classic penalty
+        -- divisor is the CASTER level, 70 on TBC and 60 on SoD. Default 70
+        -- keeps every existing caller numbers byte-identical.
+        local player_level = (opts and type(opts.player_level) == "number"
+            and opts.player_level > 0) and opts.player_level or 70
+        local ok, p = pcall(pre.downrank_penalty, entry.level, player_level)
         if ok and type(p) == "number" then penalty = p end
     end
 
@@ -218,10 +234,13 @@ end
 
 -- Expected heal for a ladder entry built by build_ladder (carries its own
 -- coeff and talent_mult).
-function M.expected_heal_ladder(entry, bonus_healing)
+function M.expected_heal_ladder(entry, bonus_healing, opts)
     if type(entry) ~= "table" or type(entry.base_min) ~= "number" then return 0 end
-    return M.expected_heal(entry, bonus_healing,
-        { talent_mult = entry.talent_mult })
+    local o = { talent_mult = entry.talent_mult }
+    if type(opts) == "table" then
+        for k, v in pairs(opts) do o[k] = v end
+    end
+    return M.expected_heal(entry, bonus_healing, o)
 end
 
 -- ---------------------------------------------------------------------------
@@ -326,7 +345,8 @@ function M.pick_castable(ranks, deficit, bonus_healing, opts)
                 ready = (ok and r == true)
             end
             if ready then
-                local expected = M.expected_heal_ladder(e, bonus_healing)
+                local expected = M.expected_heal_ladder(e, bonus_healing, 
+                    { player_level = opts.player_level })
                 if expected > 0 and expected <= deficit * tol then
                     return { entry = e, expected = expected }
                 end

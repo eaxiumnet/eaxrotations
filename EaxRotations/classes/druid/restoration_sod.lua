@@ -17,6 +17,21 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
+
+-- 2026-09-15 SoD healer wave: deficit-fit HT ladder from the shared
+-- heal-value module (SoD HT ids are a subset of its 13-rank table).
+-- Fail-closed: without the module the HT lane keeps the single action.
+-- The NS+HT emergency pair deliberately stays max-rank single-action.
+local HEALING_TOUCH_RANKS
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_ht(id)
+        return NS.spell_action(id, "HealingTouch")
+    end
+    HEALING_TOUCH_RANKS = _HealValue.build_ladder("druid", "HealingTouch", _mk_ht)
+end
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
 local ACTION = {
     WildGrowth = define("WildGrowth", 408120, { rune_id = 408120 }, "WildGrowth"),
     Nourish = define("Nourish", 408247, { rune_id = 408247, min_phase = 2 }, "Nourish"),
@@ -123,7 +138,19 @@ local strategies = {
     { name = "Rejuvenation", matches = function(c, s) return base(c, s, ACTION.Rejuvenation) and s.heal_target_hp_pct <= 75 and not s.has_rejuvenation and ready(ACTION.Rejuvenation, s.heal_target) end,
       execute = function(c) return cast(ACTION.Rejuvenation, c, "Rejuvenation") end },
     { name = "HealingTouch", matches = function(c, s) return base(c, s, ACTION.HealingTouch) and s.heal_target_hp_pct <= 50 and ready(ACTION.HealingTouch, s.heal_target) end,
-      execute = function(c) return cast(ACTION.HealingTouch, c, "Healing Touch") end },
+      execute = function(c)
+        -- deficit-fit rank over the ladder (SoD penalty divisor 60);
+        -- the single-action path is the fail-closed fallback.
+        if HEALING_TOUCH_RANKS then
+            local s = build_state(c)
+            if s.heal_target then
+                local chosen, rank_label = cast_best_heal_rank(HEALING_TOUCH_RANKS,
+                    s.heal_target, c, "[SOD RESTORATION] Healing Touch", { player_level = 60 })
+                if chosen then return NS.try_cast(chosen, s.heal_target, rank_label) end
+            end
+        end
+        return cast(ACTION.HealingTouch, c, "Healing Touch")
+      end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

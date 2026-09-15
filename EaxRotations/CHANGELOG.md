@@ -30,6 +30,24 @@
   DSL suite; three load-bearing injections (UI-error hold, aura-wins-over-number,
   refresh-window lane) all fired on throwaway copies and restored byte-identical.
 
+### Healers - SoD shaman, druid and priest heal lanes now deficit-fit ranks
+
+- **Same deficit-fit treatment as the TBC healers (PRs #45/#47), extended to
+  the three SoD healer specs.** Resto shaman Healing Wave / Lesser Healing
+  Wave, resto druid Healing Touch (the <=50% HT lane) and healing priest
+  Flash Heal now build fail-closed ladders from `shared/heal_value_sylvanas.lua`
+  and pick the cheapest rank under the deficit x 1.3 bar instead of always
+  casting max rank; the druid Natures Swiftness emergency lane deliberately
+  stays max-rank. Zero new era data was needed: every SoD ladder id was
+  already in the provenance-pinned module tables (proved by overlap probe in
+  the scoping pass).
+- **Priest Flash Heal family extended** with the six classic ranks R1-R6
+  (Wowhead-verified 2026-09-15: 202-247 ... 662-783) alongside the existing
+  TBC tail, so a SoD FH fit has real rungs instead of a single-rank no-op.
+- **`expected_heal` is now level-aware.** The classic downrank penalty
+  hardcoded the TBC level-70 divisor; the core hook threads `player_level`
+  from context so SoD (level 60) divides by 60. Backward compatible: absent
+  an explicit level the behaviour is unchanged.
 ### Tooling - the other generator-owned doc counts are derived, not hand-typed
 
 - **`tools/spec_scorecard.lua` already GENERATED `docs/scorecard.md` +

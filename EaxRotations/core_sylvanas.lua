@@ -4864,6 +4864,9 @@ function NS.cast_best_heal_rank(ranks, target, context, label, opts)
                 is_ready = NS.spell_ready,
                 unit = unit,
                 ceiling = opts and opts.ceiling or nil,
+                -- 2026-09-15 SoD healer wave: caster level drives the
+                -- classic downrank penalty divisor (60 on SoD, 70 on TBC).
+                player_level = opts and opts.player_level or nil,
             })
             if fit then
                 local fit_spell = type(fit.entry) == "table"
