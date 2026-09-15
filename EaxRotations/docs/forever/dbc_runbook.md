@@ -5,6 +5,102 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
+## Status (updated 2026-09-15: pipeline built and proven offline)
+
+| Step | Tool | Status |
+|---|---|---|
+| 1. DBC extraction from beta client | `tbc-new/tools/DB2ToSqlite` (backup copy at `C:\newbot\scripts-backup-20260630-095300\tbc-new\tools\DB2ToSqlite\`, .NET 9 SDK present) | **BLOCKED — beta client not installable before 2026-09-17** (Battle.net registers no `wow_forever` product yet) |
+| 2. Bridge builder | `tools/build_forever_bridge.py` | **DONE — proven end-to-end on a synthetic DBC** |
+| 2b. Fixture (offline proof) | `tools/build_forever_bridge_fixture.py` | **DONE — synthetic DB local-only, never committed** |
+| 3. Audit live-mode switch | `EaxRotations/tests/run_forever_audit_tests.lua` | **DONE — automatic** the moment the bridge stops carrying `__forever_stub`; `--check-bridge` mode added |
+| 4. Lexxer cross-check | `GET https://lexxer.org/api/v1/spells/{id}?game=forever` | Blocked on lexxer gaining the flavor |
+| 5. Version-string tighten | `core_sylvanas.lua::_resolve_expansion_key()` | Blocked on real `get_game_version()` output |
+| 6. Full matrix re-run | gate + verify_all | Wired |
+
+## Beta-day execution (exact commands)
+
+Run from the repo root (or the forever worktree):
+
+```bash
+# 0. Install the Forever beta via Battle.net, then locate the client:
+#    expect "C:\Program Files (x86)\World of Warcraft\_forever_\" (folder
+#    name unconfirmed) and a new product line in .build.info.
+
+# 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9 required):
+cd tbc-new/tools/DB2ToSqlite && dotnet run -- -o ../../wowheadScrape/dbc_extract/wowsims_forever.db
+#    Target DB2s at minimum: Spell*, Talent, TalentTab, Item* (the tool's
+#    manifest names what it found on the new client).
+
+# 2. Build the bridge (replaces the tracked stub; audit flips to live):
+python tools/build_forever_bridge.py
+
+# 3. Verify the bridge + audit are live:
+lua EaxRotations/tests/run_forever_audit_tests.lua --check-bridge
+#    exit 0  = real bridge (>=1000 entries); exit 1 = still fixture-sized.
+
+# 4. Re-run the full matrix:
+python -m json.tool /dev/null 2>/dev/null || true   # (noop placeholder)
+luac -p EaxRotations/core_sylvanas.lua
+lua EaxRotations/tests/run_forever_audit_tests.lua
+lua EaxRotations/tests/run_forever_audit_tests.lua --self-test
+lua EaxRotations/tests/run_rotation_tests.lua --quiet
+lua EaxRotations/tests/run_verify_all.lua
+
+# 5. Cross-check first kit IDs against lexxer once it gains the flavor
+#    (cross-check only — the DBC is the authority):
+#    curl -s "https://lexxer.org/api/v1/spells/<id>?game=forever"
+```
+
+## What the builder extracts (calibrated on the 2.5.5 DBC)
+
+- **Player filter**: `SpellClassOptions.SpellClassSet ∈ {1..9,11}` (class map in
+  the script), name non-empty and non-degenerate (QA/DEBUG/PLACEHOLDER/TEST…),
+  `BaseLevel/SpellLevel ∈ [0,255]`, `RecoveryTime ≤ 20min`, `StartRecoveryTime ≤ 60s`.
+- **Per (class, name) rank-1 baseline**: lowest spell ID wins (rank ladders share a name).
+- **Fields**: name, class, level (BaseLevel), school (SchoolMask→physical/holy/
+  fire/nature/frost/shadow/arcane), `is_heal` (Effect ∈ {2,10,62,77} — 2.5.5
+  client uses 10 for Flash Heal, 77 for Holy Light), `aoe` (Effect ∈ {27,124} or
+  area ImplicitTarget buckets), cast-time index, gcd (StartRecoveryTime/1000),
+  cooldown (RecoveryTime/1000).
+- **Known calibration cases**: Consecration r1 → aoe ✓, Arcane Explosion r1 →
+  aoe ✓, Flash Heal r1 → is_heal ✓ (effect 10), Holy Light r2 → is_heal ✓
+  (effect 77), Fireball/Holy Strike-style weapon strikes → neither ✓.
+- **ID threshold**: spell IDs `< 100` are never emitted (rank-literal guard,
+  repo-wide audit convention — e.g. Heroic Strike 78 stays out).
+
+## Synthetic-DBC proof (offline, no beta needed)
+
+```bash
+# Copy the tracked-at-source 2.5.5 DBC next to the fixture first (it is
+# gitignored):  cp <main-checkout>/wowheadScrape/dbc_extract/wowsims.db wowheadScrape/dbc_extract/
+python tools/build_forever_bridge_fixture.py   # writes wowsims_forever.db (SYNTHETIC)
+python tools/build_forever_bridge.py           # extracts from the synthetic DB
+lua EaxRotations/tests/run_forever_audit_tests.lua --check-bridge   # exit 1 = fixture-sized (expected)
+```
+
+The fixture proves: 6 real 2.5.5 grounding rows extract with correct
+fields, 4 synthetic Forever-new rows (Holy Strike/Seal of Fury/Skyfury/
+Molten Blast) extract, and all negative cases are filtered (QA DEBUG,
+PLACEHOLDER, BaseLevel 300, NPC spell, 25-min cooldown). The audit's
+negative-scan test (a scratch `_forever` file with invalid IDs must exit 1)
+was run and passed during the 2026-09-15 proof.
+
+**The synthetic bridge must NEVER be committed**: regenerate the DB from the
+real client on beta day and rebuild before the first `_forever` spec PR.
+
+## Live-mode audit behavior (from 2026-09-15)
+
+- The audit now counts bridge entries and reports them on every run.
+- `--check-bridge`: exit 0 = live+populated (≥1000), exit 1 = fixture-sized
+  (warning printed), exit 2 = stub remains.
+- File discovery: GNU `find` primary; `git ls-files EaxRotations/classes`
+  filtered in Lua as the Windows fallback (cmd.exe has no GNU find). **Commit
+  before auditing** — the fallback only sees tracked files (deliberate,
+  mirroring the clean-checkout probe's contract).
+- Enforcement stays fail-closed in every mode: with the fixture bridge loaded,
+  real-era IDs in a `_forever` file still flag `INVALID` /
+  `VANILLA_ID_IN_FOREVER`.
+
 ## Why this gate exists
 
 Forever launches with new spells (Holy Strike, Seal of Fury, reworked racial
@@ -14,52 +110,20 @@ footage, Wowhead previews, or datamined rumors are not verifiable and the
 audit would (correctly) reject them. Pre-beta work is therefore limited to
 era plumbing, research docs, and this pipeline.
 
-## Pipeline (mirrors AGENTS.md "Refresh pipeline", Forever flavor)
-
-1. **DBC extraction from the beta client** (requires the Forever beta install):
-   ```bash
-   cd tbc-new/tools/DB2ToSqlite && dotnet run -- -o wowheadScrape/dbc_extract/wowsims_forever.db
-   ```
-   Target DB2s at minimum: Spell*, Talent, TalentTab, Item* (names/dbcs may
-   differ on the new client — the tool's manifest will say).
-
-2. **Convert DBC to Lua** (adapt `convert_db_to_lua_v4.py` with a
-   `--flavor forever` mode; keep the TBC output untouched):
-   ```bash
-   python wowheadScrape/convert_db_to_lua_v4.py --flavor forever
-   ```
-
-3. **Build the bridge** (extend `build_tools/json_to_lua_data.py` with a
-   forever mode merging the Forever DBC names/schools with scraped detail):
-   emits `EaxRotations/shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua`
-   exposing `spell_index_forever` (id → { name, ... }), matching the shape the
-   wotlk/vanilla bridge files use (`tests/run_wotlk_audit_tests.lua:19-26`
-   documents the two shapes in the wild — named-key and returned-map).
-
-4. **Verify against lexxer** once it gains the flavor:
-   `GET https://lexxer.org/api/v1/spells/{id}?game=forever` — cross-check, not
-   authority.
-
-5. **Wire the audit**: `EaxRotations/tests/run_forever_audit_tests.lua`
-   (shipped pre-beta as a scaffold that exits 0 while the bridge is a stub)
-   starts enforcing the moment the bridge lands. Gate + verify_all steps for it
-   are already wired (tools/pre-commit, run_verify_all.lua).
-
-6. **Re-run the full matrix**: `luac -p` on changed files,
-   `run_rotation_tests.lua`, `run_leveling_tests.lua`, `run_wotlk_tests.lua`,
-   `behavioral_audit.lua forever`, `run_verify_all.lua`.
-
 ## First-day checklist (beta)
 
-- [ ] Extract DBC → commit `wowsims_forever.db` (or the Lua tables if the DB
-      is too large for git — AGENTS.md tolerates 36 MB, follow precedent).
+- [ ] Install beta → extract DBC → commit `wowsims_forever.db` (or the Lua
+      tables if the DB is too large for git — AGENTS.md tolerates 36 MB,
+      follow precedent).
 - [ ] Confirm exact version string (`get_game_version()` output) → tighten the
       `s:find("forever")` branch in `core_sylvanas.lua::_resolve_expansion_key()`
       and update `test_forever_runtime_bootstrap.lua`.
-- [ ] Generate + commit the Forever bridge; verify `run_forever_audit_tests.lua`
-      still exits 0 with the real index loaded.
+- [ ] `python tools/build_forever_bridge.py` + commit the real bridge;
+      verify `run_forever_audit_tests.lua --check-bridge` exits 0.
 - [ ] Verify Holy Strike / Seal of Fury / reworked racial IDs exist; record
       them in `kits/paladin.md` and `kits/racials.md` **with DBC evidence**.
+- [ ] Legacy-perk spell IDs (docs/forever/legacy_perks.md checklist) → add to
+      the bridge scope + audit scope once identified.
 - [ ] Confirm talent-table shape (16-point milestone) if the Talent DB2 exposes
       it; note in `kits/talents.md`.
 - [ ] Only then open the first `_forever` spec PR (paladin, per the plan).
