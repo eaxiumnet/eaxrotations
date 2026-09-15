@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Healers - every SoD-reachable id in the heal-value ladders is era-verified
+
+- **Full-ladder audit completed (2026-09-15).** Sweeping all 15 previously
+  unverified SoD-reachable ids across the Healing Touch and Flash Heal
+  ladders against Wowhead's classic pages found two further divergences,
+  both with identical cost: druid Healing Touch 9889 (R10; classic
+  1916-2257 vs the TBC row 1923-2263) and priest Flash Heal 10917 (R7;
+  classic 828-975 vs TBC 833-979). Both are now in `M.ERA_OVERRIDES.sod`;
+  the other 13 ids agree exactly and are pinned as untouched (HT
+  5186-5189/6778/8903/9758, FH 2061/9472/9473/9474/10915/10916 - the PR
+  #49 wave's TBC-page adoption was era-safe). With the shaman ladders
+  (HW/LHW, 3 divergences) every SoD-reachable id in the four
+  value-consuming ladders is now verified agreeing or overridden.
+- **No lane behaviour changes at any probed deficit (400-1600):** both new
+  divergences are ~0.4% of row size, too small to flip any rank pick
+  (unlike the shaman R10 knife-edge), so the override corrects the stored
+  values and the fit picks the same ranks; the pins prove the corrected
+  values land and the TBC table stays authoritative.
+- **Pins:** era-built values for both rows, both-direction TBC isolation
+  (no-era ladders + `find_rank_by_id`), agreeing-id isolation, and a
+  load-bearing injection (both rows removed fires exactly the 4 new value
+  pins) restored byte-identical. 71 checks in `test_sod_healer_rank_fit.lua`.
+
 ## 2.27.0 — 2026-09-15
 
 ### Customer Changelog
