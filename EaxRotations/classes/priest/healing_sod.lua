@@ -16,6 +16,20 @@ if type(NS.is_sod) == "function" and not NS.is_sod() then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_sod_action_for_class({})
 
+-- 2026-09-15 SoD healer wave: deficit-fit FH ladder. The module FH family
+-- now carries the six classic ranks the SoD client learns (Wowhead-verified
+-- bases). Fail-closed: without the module the lane keeps the R7 action.
+local FLASH_HEAL_RANKS
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    local function _mk_fh(id)
+        return NS.spell_action(id, "FlashHeal")
+    end
+    FLASH_HEAL_RANKS = _HealValue.build_ladder("priest", "FlashHeal", _mk_fh, nil, "sod")
+end
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+
 local ACTION = {
     Penance = define("SodPenance", 402284, { rune_id = 402174 }, "Penance"),
     -- Wowhead-verified SoD rune spells (Legs / Gloves). No rune_id gate: the
@@ -47,7 +61,7 @@ local function heal_matches(context, state, descriptor, threshold)
         and spec_kit.sod_action_available(context, descriptor)
 end
 
-local function heal_strategy(name, descriptor, threshold, extra_gate)
+local function heal_strategy(name, descriptor, threshold, extra_gate, ranks)
     return {
         name = name,
         matches = function(context, state)
@@ -58,6 +72,14 @@ local function heal_strategy(name, descriptor, threshold, extra_gate)
             local lowest = context and context.lowest or nil
             local target = lowest and lowest.unit or nil
             if not target then return false end
+            -- ranked lane (2026-09-15 SoD healer wave): deficit-fit over the
+            -- module ladder (SoD penalty divisor 60); the single-action cast
+            -- is the fail-closed fallback when no ladder exists.
+            if ranks then
+                local chosen, rank_label = cast_best_heal_rank(ranks, target,
+                    context, "[SOD HEALING] " .. name, { player_level = 60 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) end
+            end
             return NS.try_cast(descriptor.action, target, "[SOD HEALING] " .. name)
         end,
     }
@@ -78,7 +100,7 @@ local strategies = {
     -- Prayer of Mending: efficient bounce heal filling the band above the PWS
     -- threshold, before raw FlashHeal throughput.
     heal_strategy("PrayerOfMending", ACTION.PrayerOfMending, 60),
-    heal_strategy("FlashHeal", ACTION.FlashHeal, 70),
+    heal_strategy("FlashHeal", ACTION.FlashHeal, 70, nil, FLASH_HEAL_RANKS),
     heal_strategy("Renew", ACTION.Renew, 90),
 }
 

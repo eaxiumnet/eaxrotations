@@ -38,6 +38,28 @@ local ACTION = {
     ManaTideTotem = define("ManaTideTotem", { 16190, 16191 }, nil, "ManaTideTotem"),
 }
 
+-- 2026-09-15 SoD healer wave: deficit-fit rank ladders from the shared
+-- heal-value module (full SoD HW/LHW id overlap proved in scoping).
+-- Fail-closed: without the module the lanes keep the single max-rank
+-- action exactly as before; Chain Heal stays single-action (its rank
+-- choice needs a group-deficit aggregate, same reason as TBC pass 1).
+local HEALING_WAVE_RANKS, LESSER_HEALING_WAVE_RANKS
+local _hv_ok, _HealValue = pcall(require, "shared/heal_value_sylvanas")
+if _hv_ok and type(_HealValue) == "table" then
+    NS.HealValue = NS.HealValue or _HealValue
+    -- Positional spell_action calls: the SoD action-map generator's capture
+    -- mock reads ids[1] positionally (rich-format tables would assert as
+    -- "invalid action id"). The real engine handles a plain number id.
+    local function _mk_hw(id)
+        return NS.spell_action(id, "HealingWave")
+    end
+    local function _mk_lhw(id)
+        return NS.spell_action(id, "LesserHealingWave")
+    end
+    HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw, nil, "sod")
+    LESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw, nil, "sod")
+end
+
 local NATURES_SWIFTNESS_BUFF = { 16188 }
 
 local function build_state(context)
@@ -64,6 +86,8 @@ local function available(context, descriptor)
     return type(context) == "table" and context.is_sod == true
         and spec_kit.sod_action_available(context, descriptor)
 end
+
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
 
 local function cast_heal(descriptor, label)
     return function(context, state)
@@ -118,10 +142,24 @@ local strategies = {
     end, execute = cast_heal(ACTION.ChainHeal, "[SOD RESTORATION] ChainHeal") },
     { name = "LesserHealingWave", matches = function(context, state)
         return available(context, ACTION.LesserHealingWave) and state.heal_target ~= nil and state.lowest_hp < 35
-    end, execute = cast_heal(ACTION.LesserHealingWave, "[SOD RESTORATION] LesserHealingWave") },
+    end, execute = function(context, state)
+        if LESSER_HEALING_WAVE_RANKS and state.heal_target then
+            local chosen, rank_label = cast_best_heal_rank(LESSER_HEALING_WAVE_RANKS,
+                state.heal_target, context, "[SOD RESTORATION] LesserHealingWave", { player_level = 60 })
+            if chosen then return NS.try_cast(chosen, state.heal_target, rank_label) end
+        end
+        return NS.try_cast(ACTION.LesserHealingWave.action, state.heal_target, "[SOD RESTORATION] LesserHealingWave")
+    end },
     { name = "HealingWave", matches = function(context, state)
         return available(context, ACTION.HealingWave) and state.heal_target ~= nil and state.lowest_hp < 70
-    end, execute = cast_heal(ACTION.HealingWave, "[SOD RESTORATION] HealingWave") },
+    end, execute = function(context, state)
+        if HEALING_WAVE_RANKS and state.heal_target then
+            local chosen, rank_label = cast_best_heal_rank(HEALING_WAVE_RANKS,
+                state.heal_target, context, "[SOD RESTORATION] HealingWave", { player_level = 60 })
+            if chosen then return NS.try_cast(chosen, state.heal_target, rank_label) end
+        end
+        return NS.try_cast(ACTION.HealingWave.action, state.heal_target, "[SOD RESTORATION] HealingWave")
+    end },
     { name = "HealingStreamTotem", matches = function(context, state)
         return available(context, ACTION.HealingStreamTotem) and state.injured_count >= 2
             and not state.water_totem_active

@@ -77,6 +77,12 @@ end
 --  * FoL 27137: PhDamage + Wowhead description say 458-513; the pre-existing
 --    in-repo table carried 448-502 (the effect-line variant). Description
 --    text wins (consistent with every other rank checked).
+--  * Era divergence (2026-09-15 SoD verification): spell ids the TBC client
+--    reuses from classic can carry different classic-client values -- most
+--    notably Healing Touch 25297, whose classic tooltip reads 2267-2677
+--    (TBC row: 2303-2714; both pages read 2026-09-15). M.ERA_OVERRIDES below
+--    corrects such rows for era-built ladders; the TBC rows stay
+--    authoritative for TBC consumers and find_rank_by_id.
 -- ---------------------------------------------------------------------------
 M.RANKS = {
     paladin = {
@@ -123,6 +129,17 @@ M.RANKS = {
             { id = 25235, rank = 9, level = 67, base_min = 1116, base_max = 1295, cost = 470 },
             { id = 25233, rank = 8, level = 61, base_min =  931, base_max = 1078, cost = 400 },
             { id = 10917, rank = 7, level = 56, base_min =  833, base_max =  979, cost = 380 },
+            -- Classic ranks R1-R6 (2026-09-15 SoD healer wave): the SoD client
+            -- (level 60) learns these, so the SoD priest FH lane needs them
+            -- for a meaningful deficit fit. Bases from Wowhead description
+            -- text per page (spell=2061/9472/9473/9474/10915/10916, TBC db);
+            -- levels per the class table; costs from the same pages.
+            { id = 10916, rank = 6, level = 51, base_min =  662, base_max =  783, cost = 315 },
+            { id = 10915, rank = 5, level = 43, base_min =  534, base_max =  633, cost = 265 },
+            { id =  9474, rank = 4, level = 35, base_min =  414, base_max =  492, cost = 215 },
+            { id =  9473, rank = 3, level = 27, base_min =  339, base_max =  406, cost = 185 },
+            { id =  9472, rank = 2, level = 19, base_min =  269, base_max =  325, cost = 155 },
+            { id =  2061, rank = 1, level =  1, base_min =  202, base_max =  247, cost = 125 },
         },
     },
     shaman = {
@@ -187,6 +204,29 @@ M.RANKS = {
     },
 }
 
+-- Era-keyed row overrides for ids a non-TBC client reuses with different
+-- values. Shape: M.ERA_OVERRIDES[era][class_key][spell_key][id] = partial
+-- row (only the differing fields need to be present). Applied exclusively
+-- by M.build_ladder when the caller passes an era; nil/unknown era applies
+-- nothing (fail-closed), and M.find_rank_by_id stays the TBC-table answer.
+-- Verified 2026-09-15 against Wowhead's classic pages (the dataset a SoD
+-- client runs):
+--   druid HealingTouch 25297: classic 2267-2677 @800 mana vs TBC 2303-2714
+--   @800 (cost verified identical on both pages).
+-- Known remaining divergences (spotted in the same pass, deliberately NOT
+-- applied until their own verified pass): shaman HealingWave 25357
+-- (classic 1620-1850 vs TBC 1647-1878) and LHW 10468 (classic 832-928 vs
+-- TBC 853-949).
+M.ERA_OVERRIDES = {
+    sod = {
+        druid = {
+            HealingTouch = {
+                [25297] = { base_min = 2267, base_max = 2677 },
+            },
+        },
+    },
+}
+
 -- ---------------------------------------------------------------------------
 -- Expected heal for one rank entry.
 -- avg(base) + bonus * coeff, with the TBC downrank penalty from
@@ -207,7 +247,12 @@ function M.expected_heal(entry, bonus_healing, opts)
     local pre = PreemptiveHeal
     if pre and type(pre.downrank_penalty) == "function"
         and type(entry.level) == "number" then
-        local ok, p = pcall(pre.downrank_penalty, entry.level, 70)
+        -- player_level opt (2026-09-15 SoD healer wave): the classic penalty
+        -- divisor is the CASTER level, 70 on TBC and 60 on SoD. Default 70
+        -- keeps every existing caller numbers byte-identical.
+        local player_level = (opts and type(opts.player_level) == "number"
+            and opts.player_level > 0) and opts.player_level or 70
+        local ok, p = pcall(pre.downrank_penalty, entry.level, player_level)
         if ok and type(p) == "number" then penalty = p end
     end
 
@@ -218,10 +263,13 @@ end
 
 -- Expected heal for a ladder entry built by build_ladder (carries its own
 -- coeff and talent_mult).
-function M.expected_heal_ladder(entry, bonus_healing)
+function M.expected_heal_ladder(entry, bonus_healing, opts)
     if type(entry) ~= "table" or type(entry.base_min) ~= "number" then return 0 end
-    return M.expected_heal(entry, bonus_healing,
-        { talent_mult = entry.talent_mult })
+    local o = { talent_mult = entry.talent_mult }
+    if type(opts) == "table" then
+        for k, v in pairs(opts) do o[k] = v end
+    end
+    return M.expected_heal(entry, bonus_healing, o)
 end
 
 -- ---------------------------------------------------------------------------
@@ -326,7 +374,8 @@ function M.pick_castable(ranks, deficit, bonus_healing, opts)
                 ready = (ok and r == true)
             end
             if ready then
-                local expected = M.expected_heal_ladder(e, bonus_healing)
+                local expected = M.expected_heal_ladder(e, bonus_healing, 
+                    { player_level = opts.player_level })
                 if expected > 0 and expected <= deficit * tol then
                     return { entry = e, expected = expected }
                 end
@@ -399,21 +448,24 @@ end
 -- make_action(id) is supplied by the caller so this module never depends on
 -- core load order at require time.
 -- ---------------------------------------------------------------------------
-function M.build_ladder(class_key, spell_key, make_action, talent_mult)
+function M.build_ladder(class_key, spell_key, make_action, talent_mult, era)
     local family = M.RANKS[class_key] and M.RANKS[class_key][spell_key]
     if not family then return nil end
     local out = {}
     for i = 1, #family do
         local e = family[i]
+        local ov = (era and M.ERA_OVERRIDES[era] and M.ERA_OVERRIDES[era][class_key]
+            and M.ERA_OVERRIDES[era][class_key][spell_key]
+            and M.ERA_OVERRIDES[era][class_key][spell_key][e.id]) or nil
         out[i] = {
             spell = make_action(e.id),
             label = "R" .. tostring(e.rank),
             id = e.id,
             rank = e.rank,
             level = e.level,
-            base_min = e.base_min,
-            base_max = e.base_max,
-            cost = e.cost,
+            base_min = ov and ov.base_min or e.base_min,
+            base_max = ov and ov.base_max or e.base_max,
+            cost = ov and ov.cost or e.cost,
             coeff = family.coeff,
             cast_time = family.cast_time,
             talent_mult = talent_mult,
@@ -423,6 +475,7 @@ function M.build_ladder(class_key, spell_key, make_action, talent_mult)
 end
 
 -- Map a concrete spell id back to its rank entry (any class/family). Lets
+-- (TBC-table authority: era overrides apply in build_ladder only.)
 -- HealerDeficit-style gates use the verified per-rank base instead of a
 -- max-rank ballpark when the caller knows the exact rank being cast.
 function M.find_rank_by_id(spell_id)

@@ -655,6 +655,8 @@ local tests = {
  
  -- 2026-09-14 heal-value wave (PhDamage-harvested per-rank data)
  "test_heal_value_ranks.lua",
+ -- 2026-09-15 SoD healer rank-fit wave
+ "test_sod_healer_rank_fit.lua",
  "test_rogue_live_fixes.lua",
  "test_shaman_live_fixes.lua",
  "test_warlock_live_fixes.lua",
