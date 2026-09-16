@@ -19,8 +19,8 @@ VERIFY = transcribed, awaiting beta-DBC verification checklist run.
 | Paladin (official Deep Dive) | VERIFY | kits/paladin.md |
 | Hunter | VERIFY | kits/hunter.md |
 | Shaman | VERIFY | kits/shaman.md |
-| Warrior | QUEUE | kits/warrior.md |
-| Mage | QUEUE | kits/mage.md |
+| Warrior | VERIFY | kits/warrior.md |
+| Mage | VERIFY | kits/mage.md |
 | Priest | QUEUE | kits/priest.md |
 | Warlock | QUEUE | kits/warlock.md |
 | Druid | QUEUE | kits/druid.md |
