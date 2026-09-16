@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Developer Notes
+- WotLK priest deficit-fit wave (branch feat/wotlk-priest-fit-2026-09-16):
+  Flash Heal and Greater Heal WotLK rank families added to the heal-value
+  module (all 18 rows Wowhead wotlk-verified 2026-09-16; two era retunes
+  found and kept era-distinct: FH 25235 1121-1300, GH 25213 2433-2822; the
+  four classic GH ranks the TBC ladder replaced are members again; both
+  heads exact-match wowsims/wotlk@563e4a08). The go/no-go record held: the
+  module's +11 downrank divisor is TBC-only by LibHealComm-4.0's own era
+  gating, so `downrank_penalty` gains an explicit wrath branch
+  (player_level > 70) with the classic/TBC paths byte-unchanged; DBC
+  SpellLevel 80 on every rank means no coefficient penalty at 80 and
+  WotLK's %-of-base-mana costs make the fit pure overheal avoidance.
+  holy_wotlk and discipline_wotlk GreaterHeal/FlashHeal lanes thread
+  `player_level = 80` through the deficit fit; lane conditions are
+  untouched, and without the fit ladder or with the kill-switch off both
+  lanes cast the exact legacy max-rank actions (fail-closed).
+
+### Fixed
+- **`find_rank_by_id` era precedence made deterministic.** 25213 now lives
+  in both the TBC GreaterHeal family (2414) and WotlkGreaterHeal (2433);
+  the old single-pass `pairs()` walk could return either depending on
+  table order. Era-suffixed families now resolve after the canonical
+  TBC/classic families, so the documented TBC-table answer always wins.
+
+### Tests
+- Rank-fit suite section 8 (139 checks): wotlk ladders (10 FH / 8 GH, head
+  ids, era-distinct values), the wrath penalty branch, real-hook pick
+  boundaries at 80, and both spec lanes fitting mid ranks with the legacy
+  max-rank fallback; two load-bearing injections fired and restored
+  byte-identical. The holy WotLK DSL priority suite's mock gained the
+  `action.fn`/`try_cast` branches its real counterpart uses.
+
 ## 2.27.2 — 2026-09-15
 
 ### Customer Changelog

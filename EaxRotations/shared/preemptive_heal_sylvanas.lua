@@ -41,6 +41,15 @@ M.DEFAULT_THRESHOLD = 75  -- HP% below which to preemptively heal
 -- @param playerLevel caster level
 -- @return penalty multiplier (0-1)
 function M.downrank_penalty(level, playerLevel)
+    -- WotLK 3.0+ (2026-09-16 wave): the isWrath branch from LibHealComm-4.0
+    -- calculateGeneralAmount -- (22 + (level + 5) - playerLevel) / 20,
+    -- clamped -- REPLACES the classic/TBC factors entirely (LHC gates the
+    -- two shapes by client era; the +11 divisor is TBC-only). Callers with
+    -- playerLevel <= 70 (classic/TBC/SoD/vanilla) are byte-identical to the
+    -- previous formula.
+    if playerLevel and playerLevel > 70 then
+        return math.min(1, math.max(0, (22 + (level + 5) - playerLevel) / 20))
+    end
     local classic = level > 20 and 1 or (1 - ((20 - level) * 0.0375))
     return classic * math.min(1, (level + 11) / playerLevel)
 end

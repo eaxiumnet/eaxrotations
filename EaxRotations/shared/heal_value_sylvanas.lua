@@ -141,6 +141,56 @@ M.RANKS = {
             { id =  9472, rank = 2, level = 19, base_min =  269, base_max =  325, cost = 155 },
             { id =  2061, rank = 1, level =  1, base_min =  202, base_max =  247, cost = 125 },
         },
+        -- WotLK (3.3.5) priest families (2026-09-16 wave): era-distinct
+        -- datasets kept SEPARATE from the TBC families because the eras
+        -- disagree on both membership and values -- WotLK adds FH R10 48071
+        -- (req 79) / GH R8 48063 (req 78), resurrects the four classic GH
+        -- ranks the TBC ladder had replaced (2060/10963/10964/10965), and
+        -- retunes two shared rows (FH 25235 1121-1300 vs TBC 1116-1295; GH
+        -- 25213 2433-2822 vs TBC 2414-2803). Every row verified 2026-09-16
+        -- against the wotlk-client tooltips (nether.wowhead.com
+        -- /wotlk/tooltip/spell/<id>: heal range + Requires level + DBC
+        -- SpellLevel); the two heads exact-match wowsims/wotlk@563e4a08
+        -- (sim/priest/flash_heal.go Roll(1896,2203), greater_heal.go
+        -- Roll(3980,4621)). Learn levels: the WotLK bridge
+        -- (wowhead_data_bridge_spell_index_wotlk) where present, the tooltip
+        -- Requires-level otherwise (the heads); the two sources agree
+        -- wherever both exist. Coefficients are the WotLK ones (wowsims
+        -- 0.8057 / 1.6114 = the 1.88 wrath healing multiplier on the TBC
+        -- 1.5/3.5 ratios). WotLK costs are %-of-base-mana (18% / 32% at
+        -- EVERY rank), so cost stays nil and HPM is correctly no-signal --
+        -- downranking saves no mana in WotLK; the fit is pure overheal
+        -- avoidance. DBC SpellLevel is 80 for every rank on the 3.3.5
+        -- client, so the wrath penalty branch (downrank_penalty,
+        -- player_level > 70) never scales these rows' bonus term below 1.0
+        -- at any caster level <= 82 -- at bonus 0 the fit runs on raw base
+        -- averages. Era arg: none of these rows carry era-divergent values,
+        -- so build_ladder is called era-less; an era arg would apply
+        -- nothing (fail-closed).
+        WotlkFlashHeal = {
+            coeff = 0.8057, cast_time = 1.5,
+            { id = 48071, rank = 10, level = 79, base_min = 1896, base_max = 2203 },
+            { id = 25235, rank =  9, level = 67, base_min = 1121, base_max = 1300 },
+            { id = 25233, rank =  8, level = 61, base_min =  931, base_max = 1078 },
+            { id = 10917, rank =  7, level = 56, base_min =  833, base_max =  979 },
+            { id = 10916, rank =  6, level = 50, base_min =  662, base_max =  783 },
+            { id = 10915, rank =  5, level = 44, base_min =  534, base_max =  633 },
+            { id =  9474, rank =  4, level = 38, base_min =  414, base_max =  492 },
+            { id =  9473, rank =  3, level = 32, base_min =  339, base_max =  406 },
+            { id =  9472, rank =  2, level = 26, base_min =  269, base_max =  325 },
+            { id =  2061, rank =  1, level = 20, base_min =  202, base_max =  247 },
+        },
+        WotlkGreaterHeal = {
+            coeff = 1.6114, cast_time = 3.0,
+            { id = 48063, rank = 8, level = 78, base_min = 3980, base_max = 4621 },
+            { id = 25213, rank = 7, level = 68, base_min = 2433, base_max = 2822 },
+            { id = 25210, rank = 6, level = 63, base_min = 2107, base_max = 2444 },
+            { id = 25314, rank = 5, level = 60, base_min = 2006, base_max = 2235 },
+            { id = 10965, rank = 4, level = 58, base_min = 1835, base_max = 2044 },
+            { id = 10964, rank = 3, level = 52, base_min = 1470, base_max = 1642 },
+            { id = 10963, rank = 2, level = 46, base_min = 1178, base_max = 1318 },
+            { id =  2060, rank = 1, level = 40, base_min =  924, base_max = 1039 },
+        },
     },
     shaman = {
         -- Healing Wave / Lesser Healing Wave: full per-rank data from
@@ -280,20 +330,34 @@ function M.expected_heal(entry, bonus_healing, opts)
     local coeff = type(entry.coeff) == "number" and entry.coeff or 0
     local base = (entry.base_min + entry.base_max) / 2
 
+    -- player_level opt (2026-09-15 SoD healer wave): the classic penalty
+    -- divisor is the CASTER level, 70 on TBC and 60 on SoD. Default 70
+    -- keeps every existing caller numbers byte-identical. Hoisted above the
+    -- penalty lookup by the 2026-09-16 WotLK wave: the application shape
+    -- below branches on it too.
+    local player_level = (opts and type(opts.player_level) == "number"
+        and opts.player_level > 0) and opts.player_level or 70
     local penalty = 1.0
     local pre = PreemptiveHeal
     if pre and type(pre.downrank_penalty) == "function"
         and type(entry.level) == "number" then
-        -- player_level opt (2026-09-15 SoD healer wave): the classic penalty
-        -- divisor is the CASTER level, 70 on TBC and 60 on SoD. Default 70
-        -- keeps every existing caller numbers byte-identical.
-        local player_level = (opts and type(opts.player_level) == "number"
-            and opts.player_level > 0) and opts.player_level or 70
         local ok, p = pcall(pre.downrank_penalty, entry.level, player_level)
         if ok and type(p) == "number" then penalty = p end
     end
 
-    local heal = (base + bonus * coeff) * penalty
+    local heal
+    if player_level > 70 then
+        -- WotLK 3.0+ (wrath): the level factor scales the BONUS-healing
+        -- term only -- LibHealComm-4.0's isWrath branch multiplies the
+        -- spell-power portion, and TrinityCore 3.3.5
+        -- (Unit::CalculateSpellpowerCoefficientLevelPenalty) scales the
+        -- coefficient factor; base heals are never level-penalized in
+        -- WotLK. Classic/TBC eras (player_level <= 70) keep the historical
+        -- whole-sum shape unchanged.
+        heal = base + bonus * coeff * penalty
+    else
+        heal = (base + bonus * coeff) * penalty
+    end
     if opts and opts.talent_mult then heal = heal * opts.talent_mult end
     return math_floor(heal + 0.5), penalty
 end
@@ -523,12 +587,21 @@ end
 -- (TBC-table authority: era overrides apply in build_ladder only.)
 -- HealerDeficit-style gates use the verified per-rank base instead of a
 -- max-rank ballpark when the caller knows the exact rank being cast.
+-- Deterministic precedence (2026-09-16 WotLK wave): era-suffixed families
+-- (Wotlk*) resolve AFTER the canonical TBC/classic families, so an id that
+-- exists in both keeps the documented TBC-table answer no matter what order
+-- pairs() visits the tables in (25213: TBC 2414 wins over wrath 2433).
 function M.find_rank_by_id(spell_id)
     if type(spell_id) ~= "number" then return nil end
-    for _class_key, families in pairs(M.RANKS) do
-        for _spell_key, family in pairs(families) do
-            for i = 1, #family do
-                if family[i].id == spell_id then return family[i] end
+    for pass = 1, 2 do
+        for _class_key, families in pairs(M.RANKS) do
+            for _spell_key, family in pairs(families) do
+                local is_era = type(_spell_key) == "string" and _spell_key:sub(1, 5) == "Wotlk"
+                if (pass == 1) ~= is_era then
+                    for i = 1, #family do
+                        if family[i].id == spell_id then return family[i] end
+                    end
+                end
             end
         end
     end
