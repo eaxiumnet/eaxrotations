@@ -345,6 +345,71 @@ adds `FallbackHealingTouch` mirroring the TBC gate (lowest ≤ 80, mana ≥
 after Nourish. The fit is built into the new lane; fail-closed to the
 legacy 48378 max-rank cast.
 
+### Harvest record (WotLK shaman, 2026-09-16): the WotLK HW/LHW rows
+
+Final spec of the wave; same method (nether.wowhead.com/wotlk/tooltip/
+spell/\<id\>: heal range + Requires level, all 23 rows read). WotLK adds
+two ranks per ladder and retunes two shared rows; every other shared row
+agrees exactly.
+
+**Rank-number provenance.** 49273 = HW Rank 14 (req 80) and 49272 = HW
+Rank 13 (req 75); 49276 = LHW Rank 9 (req 77) and 49275 = LHW Rank 8 (req
+72) — confirmed 2026-09-16 via the wowclassicdb / wowhead indexed pages
+(49273 "Healing Wave Rank 14", 49276 "Lesser Healing Wave Rank 9").
+Learn levels: the WotLK bridge where present (all 12 HW + 7 LHW
+classic/TBC ids agree with the tooltips), the tooltip Requires-level
+otherwise (the four new heads). Costs are %-of-base-mana, so `cost` stays
+nil. Coefficients: no dedicated shaman heal file at
+wowsims/wotlk@563e4a08, so the coeff reuses the priest-proven 1.88 wrath
+multiplier on the TBC ratios (3.0/3.5 → 1.6114, 1.5/3.5 → 0.8057);
+bonus-0 coeff-insensitive as throughout.
+
+**Healing Wave (coeff 1.6114, 3.0s)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R14 | 49273 | 80 | 3034–3466 | 3250 |
+| R13 | 49272 | 75 | 2656–3028 | 2842 |
+| R12 | 25396 † | 70 | 2162–2465 | 2314 |
+| R11 | 25391 | 63 | 1756–2001 | 1879 |
+| R10 | 25357 | 60 | 1647–1878 | 1763 |
+| R9 | 10396 | 56 | 1394–1589 | 1492 |
+| R8 | 10395 | 48 | 1040–1191 | 1116 |
+| R7 | 8005 | 40 | 759–874 | 817 |
+| R6 | 959 | 32 | 552–639 | 596 |
+| R5 | 939 | 24 | 389–454 | 422 |
+| R4 | 913 | 18 | 279–328 | 304 |
+| R3 | 547 | 12 | 136–163 | 150 |
+| R2 | 332 | 6 | 69–83 | 76 |
+| R1 | 331 | 1 | 36–47 | 42 |
+
+**Lesser Healing Wave (coeff 0.8057, 1.5s)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R9 | 49276 | 77 | 1624–1852 | 1738 |
+| R8 | 49275 | 72 | 1402–1598 | 1500 |
+| R7 | 25420 † | 66 | 1055–1202 | 1129 |
+| R6 | 10468 | 60 | 853–949 | 901 |
+| R5 | 10467 | 52 | 649–723 | 686 |
+| R4 | 10466 | 44 | 473–529 | 501 |
+| R3 | 8010 | 36 | 349–394 | 372 |
+| R2 | 8008 | 28 | 257–292 | 275 |
+| R1 | 8004 | 20 | 170–195 | 183 |
+
+† era-divergent row (wotlk values shown; the TBC table keeps its own).
+
+**Pick zones at 80, bonus 0:** HW — 3000→R14, 2200→R13, 2000→R12,
+1500→R11, 1200→R9, 800→R7, 350→R5, 120→R3, below ~32→overshoot R14.
+LHW — 1500→R9, 1200→R8, 700→R6, 400→R4, 200→R1, below ~141→overshoot R9.
+
+**Lane note.** Three lanes draw the fit: `HealingWave` (49273 fallback),
+`TidalWavesHealingWave` (casts the same HW ladder; the TW mechanic changes
+cast speed, not rank identity — 49273 fallback), and `LesserHealingWave`
+(49276 fallback). The NS+HealingWave lane stays max-rank (instant-cast
+emergency identity), Chain Heal stays a group-aggregate lane, and Riptide
+stays refresh-gated — all per the wave contract.
+
 ---
 
 ## Reporting a failure

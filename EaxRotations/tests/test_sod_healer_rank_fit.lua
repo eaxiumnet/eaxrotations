@@ -930,6 +930,114 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- 14. WotLK resto shaman fit (2026-09-16 wave, final spec): the era-distinct
+--    HW/LHW families, the real hook picking mid ranks at player_level 80, and
+--    the real HealingWave / TidalWavesHealingWave / LesserHealingWave lanes
+--    answering mid ranks on deficits and the legacy 49273/49276 max on
+--    unreadable deficits. WotLK adds two ranks per ladder (HW R14 49273 req
+--    80 / R13 49272 req 75; LHW R9 49276 req 77 / R8 49275 req 72 -- rank
+--    numbers confirmed via wowclassicdb/wowhead indexed pages) and retunes
+--    two shared rows (HW R12 2162-2465 vs TBC 2134-2436; LHW R7 1055-1202 vs
+--    TBC 1051-1198); every other shared row agrees exactly. Costs stay nil
+--    (%-of-base-mana).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local whw = HV.build_ladder("shaman", "WotlkHealingWave", mk_action("HealingWave"))
+    local wlhw = HV.build_ladder("shaman", "WotlkLesserHealingWave", mk_action("LesserHealingWave"))
+    assert_true(whw ~= nil, "WotLK HW ladder constructs")
+    assert_true(wlhw ~= nil, "WotLK LHW ladder constructs")
+    assert_eq(#whw, 14, "WotLK HW ladder carries 14 ranks (R1-R14)")
+    assert_eq(#wlhw, 9, "WotLK LHW ladder carries 9 ranks (R1-R9)")
+    assert_eq(whw[1].id, 49273, "WotLK HW head is 49273 (R14)")
+    assert_eq(wlhw[1].id, 49276, "WotLK LHW head is 49276 (R9)")
+    assert_eq(whw[1].level, 80, "WotLK HW head learn level 80 (tooltip Requires)")
+    assert_eq(whw[1].base_min, 3034, "WotLK HW head base_min 3034 (wotlk-client tooltip)")
+    assert_eq(whw[1].base_max, 3466, "WotLK HW head base_max 3466")
+    assert_eq(whw[2].id, 49272, "WotLK HW R13 49272 present")
+    assert_eq(wlhw[1].base_min, 1624, "WotLK LHW head base_min 1624")
+    assert_eq(wlhw[1].base_max, 1852, "WotLK LHW head base_max 1852")
+    local whw_ids = {}
+    for _, e in ipairs(whw) do whw_ids[e.id] = e.rank end
+    assert_eq(whw_ids[331], 1, "WotLK HW R1 331 present")
+    -- Era isolation: the TBC families and find_rank_by_id keep TBC values.
+    local tbc_hw = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"))
+    assert_eq(#tbc_hw, 12, "TBC HW family unchanged (12 rows)")
+    assert_eq(HV.find_rank_by_id(25396).base_min, 2134, "find_rank_by_id(25396) stays the TBC 2134")
+    assert_eq(HV.find_rank_by_id(25420).base_min, 1051, "find_rank_by_id(25420) stays the TBC 1051")
+    local r49273 = HV.find_rank_by_id(49273)
+    assert_true(r49273 ~= nil and r49273.base_min == 3034, "find_rank_by_id resolves corpus-wide (49273 -> wotlk row 3034)")
+
+    -- Real hook at 80, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HW expected at 80: R14 3250 R13 2842 R12 2314 R11 1879 R10 1763 R9 1492
+    -- R8 1116 R7 817 R6 596 R5 422 R4 304 R3 150 R2 76 R1 42.
+    assert_eq(pick80(whw, 3000), "T R14", "HW deficit 3000 -> R14 head (3250 <= bar 3900)")
+    assert_eq(pick80(whw, 2200), "T R13", "HW deficit 2200 -> R13 (2842 <= bar 2860 < R14 3250)")
+    assert_eq(pick80(whw, 2000), "T R12", "HW deficit 2000 -> R12 (2314 <= bar 2600)")
+    assert_eq(pick80(whw, 1500), "T R11", "HW deficit 1500 -> R11 (bar 1950 < R12 2314)")
+    assert_eq(pick80(whw, 1200), "T R9", "HW deficit 1200 -> R9 (bar 1560 < R10 1763)")
+    assert_eq(pick80(whw, 800), "T R7", "HW deficit 800 -> R7 (bar 1040 < R8 1116)")
+    assert_eq(pick80(whw, 350), "T R5", "HW deficit 350 -> R5 (bar 455 < R6 596)")
+    assert_eq(pick80(whw, 120), "T R3", "HW deficit 120 -> R3 (150 <= bar 156)")
+    assert_eq(pick80(whw, 20), "T R14", "HW deficit 20 -> nothing fits -> overshoot head R14")
+    -- LHW expected at 80: R9 1738 R8 1500 R7 1129 R6 901 R5 686 R4 501
+    -- R3 372 R2 275 R1 183.
+    assert_eq(pick80(wlhw, 1500), "T R9", "LHW deficit 1500 -> R9 head (1738 <= bar 1950)")
+    assert_eq(pick80(wlhw, 1200), "T R8", "LHW deficit 1200 -> R8 (bar 1560 < R9 1738)")
+    assert_eq(pick80(wlhw, 700), "T R6", "LHW deficit 700 -> R6 (bar 910 < R7 1129)")
+    assert_eq(pick80(wlhw, 400), "T R4", "LHW deficit 400 -> R4 (bar 520 < R5 686)")
+    assert_eq(pick80(wlhw, 200), "T R1", "LHW deficit 200 -> R1 (183 <= bar 260)")
+    assert_eq(pick80(wlhw, 100), "T R9", "LHW deficit 100 -> nothing fits -> overshoot head R9")
+
+    -- Spec lanes through the real module: deficits pick mid ranks; the
+    -- full-health shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local resto_registry = { playstyles = {} }
+    function resto_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = resto_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local resto = load_spec("classes/shaman/restoration_wotlk")
+    local rlanes = {}
+    for _, s in ipairs(resto.playstyles and resto.playstyles.restoration or resto_registry.playstyles.restoration or {}) do rlanes[s.name] = s end
+    assert_true(rlanes.HealingWave ~= nil and rlanes.LesserHealingWave ~= nil and rlanes.TidalWavesHealingWave ~= nil,
+        "fitted shaman lanes present")
+    local hw_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    rlanes.HealingWave.execute({ lowest = { unit = hw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25396, "HW lane deficit 2000 fits R12 (25396), not the 49273 head")
+    local lhw_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11600 end } -- deficit 400
+    rlanes.LesserHealingWave.execute({ lowest = { unit = lhw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 10466, "LHW lane deficit 400 fits R4 (10466), not the 49276 head")
+    rlanes.TidalWavesHealingWave.execute({ lowest = { unit = hw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 25396, "TW lane deficit 2000 fits the same HW R12 (25396)")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    rlanes.HealingWave.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[4].spell) == 49273, "HW lane nil deficit -> legacy max-rank 49273")
+    rlanes.LesserHealingWave.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[5].spell) == 49276, "LHW lane nil deficit -> legacy max-rank 49276")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end
 print("PASS test_sod_healer_rank_fit")

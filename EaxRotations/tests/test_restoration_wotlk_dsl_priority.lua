@@ -226,6 +226,106 @@ test("WaterShield: does not match at full mana", function()
     assert_false(lane("WaterShield").matches(ctx, state), "WaterShield should not match at full mana")
 end)
 
+-- ============================================================================
+-- Deficit-fit pins (2026-09-16): live NS lookup over the file-local WotLK
+-- HW/LHW ladders, level-80 divisor threaded, fail-closed to the legacy
+-- max-rank casts (HW 49273 / LHW 49276). Conditions above are untouched --
+-- the fit changes WHICH rank casts, never whether the lane fires. The mock's
+-- spell_action lets the real heal-value module build the ladders.
+-- ============================================================================
+local FIT_HW = { id = 25396, name = "HW_FIT" }
+local FIT_LHW = { id = 25420, name = "LHW_FIT" }
+local hook_log = {}
+local FIT_HOOK = function(ranks, target, context, label, opts)
+    hook_log[#hook_log + 1] = { ranks = ranks, target = target, label = label, opts = opts }
+    if label == "[RESTO] LesserHealingWave" then return FIT_LHW, "LesserHealingWave R8" end
+    if label == "[RESTO] HealingWave" or label == "[RESTO] TidalWavesHealingWave" then return FIT_HW, "HealingWave R10" end
+    return nil
+end
+_G.EaxRotations.cast_best_heal_rank = FIT_HOOK
+local cast_log = {}
+_G.EaxRotations.try_cast = function(spell, target, reason, opts)
+    cast_log[#cast_log + 1] = { spell = spell, target = target, reason = reason }
+    return true
+end
+
+local function fit_ctx(hp)
+    local unit = { get_health_percentage = function() return hp end }
+    local c = { in_combat = true, target = {}, settings = {}, lowest = { unit = unit, hp = hp } }
+    return c, unit
+end
+
+test("HealingWave fit: hook rank replaces max, level-80 divisor threaded", function()
+    local c, unit = fit_ctx(60)
+    local state = resto.build_state(c)
+    assert_true(lane("HealingWave").matches(c, state), "HealingWave should match at hp 60")
+    hook_log, cast_log = {}, {}
+    assert_true(lane("HealingWave").execute(c, state), "HealingWave should execute")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell == FIT_HW,
+        "deficit-fit rank replaces the 49273 max")
+    assert_true(cast_log[1].target == unit, "fit cast targets the lowest friendly")
+    assert_true(cast_log[1].reason == "HealingWave R10", "fit label threads through")
+    assert_true(type(hook_log[1].ranks) == "table" and hook_log[1].ranks[1].id == 49273,
+        "fit receives the built WotLK HW ladder headed by 49273")
+    assert_true(hook_log[1].opts and hook_log[1].opts.player_level == 80, "level-80 wrath divisor threaded")
+end)
+
+test("HealingWave fallback: hook miss casts the legacy 49273 max", function()
+    local c = fit_ctx(60)
+    local state = resto.build_state(c)
+    _G.EaxRotations.cast_best_heal_rank = function() return nil end
+    hook_log, cast_log = {}, {}
+    assert_true(lane("HealingWave").execute(c, state), "HealingWave should execute on fit miss")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell.id == 49273,
+        "fit miss falls back to the legacy max-rank action (49273)")
+    _G.EaxRotations.cast_best_heal_rank = FIT_HOOK
+end)
+
+test("HealingWave fallback: absent hook casts the legacy max (guard load-bearing)", function()
+    local c = fit_ctx(60)
+    local state = resto.build_state(c)
+    _G.EaxRotations.cast_best_heal_rank = nil
+    hook_log, cast_log = {}, {}
+    assert_true(lane("HealingWave").execute(c, state), "HealingWave should execute without a hook")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell.id == 49273,
+        "absent hook falls back to the legacy max-rank action (49273)")
+    _G.EaxRotations.cast_best_heal_rank = FIT_HOOK
+end)
+
+test("LesserHealingWave fit: hook rank replaces max", function()
+    local c, unit = fit_ctx(80)
+    local state = resto.build_state(c)
+    hook_log, cast_log = {}, {}
+    assert_true(lane("LesserHealingWave").execute(c, state), "LesserHealingWave should execute")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell == FIT_LHW,
+        "deficit-fit rank replaces the 49276 max")
+    assert_true(cast_log[1].target == unit, "fit cast targets the lowest friendly")
+    assert_true(hook_log[1].opts and hook_log[1].opts.player_level == 80, "level-80 wrath divisor threaded")
+end)
+
+test("LesserHealingWave fallback: hook miss casts the legacy 49276 max", function()
+    local c = fit_ctx(80)
+    local state = resto.build_state(c)
+    _G.EaxRotations.cast_best_heal_rank = function() return nil end
+    hook_log, cast_log = {}, {}
+    assert_true(lane("LesserHealingWave").execute(c, state), "LesserHealingWave should execute on fit miss")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell.id == 49276,
+        "fit miss falls back to the legacy max-rank action (49276)")
+    _G.EaxRotations.cast_best_heal_rank = FIT_HOOK
+end)
+
+test("TidalWavesHealingWave draws from the same HW ladder", function()
+    local c = fit_ctx(60)
+    local state = resto.build_state(c)
+    state.tidal_waves_stacks = 2
+    hook_log, cast_log = {}, {}
+    assert_true(lane("TidalWavesHealingWave").execute(c, state), "TW lane should execute")
+    assert_true(cast_log[1] ~= nil and cast_log[1].spell == FIT_HW, "TW lane casts the fitted HW rank")
+    assert_true(hook_log[1].label == "[RESTO] TidalWavesHealingWave", "TW lane keeps its own label")
+    assert_true(type(hook_log[1].ranks) == "table" and hook_log[1].ranks[1].id == 49273,
+        "TW lane draws the built WotLK HW ladder")
+end)
+
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))
 if #failures > 0 then
     print("FAILURES:")

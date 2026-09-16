@@ -16,6 +16,28 @@ local dsl      = require("shared/strategy_dsl_sylvanas")
 
 local define = spec_kit.define_action
 
+-- 2026-09-16 WotLK deficit-fit wave: per-rank HW/LHW ladders from the
+-- heal-value module's WotLK families (era-less build_ladder -- already
+-- era-distinct). Fail-closed: without the module the ladders stay nil and
+-- every fitted lane below casts the exact legacy max-rank action. Live NS
+-- lookup for the hook so tests can inject post-load (priest/paladin/druid
+-- WotLK precedent).
+local WOTLK_HW_RANKS, WOTLK_LHW_RANKS
+local _HealValue = NS.HealValue
+if not _HealValue then
+    local _hv_ok, _mod = pcall(require, "shared/heal_value_sylvanas")
+    if _hv_ok and type(_mod) == "table" then
+        _HealValue = _mod
+        NS.HealValue = NS.HealValue or _mod
+    end
+end
+if type(_HealValue) == "table" and type(NS.spell_action) == "function" then
+    WOTLK_HW_RANKS = _HealValue.build_ladder("shaman", "WotlkHealingWave",
+        function(id) return NS.spell_action(id, "HealingWave") end)
+    WOTLK_LHW_RANKS = _HealValue.build_ladder("shaman", "WotlkLesserHealingWave",
+        function(id) return NS.spell_action(id, "LesserHealingWave") end)
+end
+
 local ACTION = {
     ManaTideTotem = define("ManaTideTotem", 16190, "ManaTideTotem"),
     EarthShield = define("EarthShield", 49284, "EarthShield"),
@@ -67,6 +89,20 @@ local restoration_state = {
     friendly_has_dispellable = false,
     earthliving_up = false,
 }
+
+-- Deficit-fit cast attempt over a WotLK rank ladder (2026-09-16 wave).
+-- Live NS lookup so tests inject the hook post-load. Returns true when the
+-- hook cast an action; nil when the fit is unavailable (no ladder / no hook)
+-- so the caller falls back to the exact legacy max-rank cast. No explicit
+-- deficit guard: the raw unit goes to the hook, whose legacy walk lands on
+-- the ladder head -- the legacy max by construction (priest 2.28.0
+-- precedent).
+local function try_fit_cast(context, ladder, target, label)
+    if type(ladder) ~= "table" or type(NS.cast_best_heal_rank) ~= "function" then return nil end
+    local chosen, rank_label = NS.cast_best_heal_rank(ladder, target, context, label, { player_level = 80 })
+    if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+    return nil
+end
 
 local function build_state(context)
     local state = spec_kit.safe_state(restoration_state)
@@ -172,7 +208,15 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 90 },
             { type = "state", field = "mana_pct", op = ">=", value = 10 },
         },
-        action = { type = "cast", spell = ACTION.LesserHealingWave, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: the fit changes WHICH LHW rank casts
+        -- (overheal avoidance), never whether the lane fires -- the
+        -- conditions above are untouched. Fail-closed to the legacy 49276.
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if try_fit_cast(context, WOTLK_LHW_RANKS, target, "[RESTO] LesserHealingWave") then return true end
+            return NS.try_cast(ACTION.LesserHealingWave, target, "[RESTO] LesserHealingWave") == true
+        end },
     },
     {
         name = "HealingWave",
@@ -180,7 +224,16 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 70 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.HealingWave, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: same shape as the LHW lane above
+        -- (conditions untouched, legacy max-rank 49273 fallback). The
+        -- NS+HealingWave lane below stays max-rank (instant-cast emergency
+        -- identity) and Chain Heal stays a group-aggregate lane.
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if try_fit_cast(context, WOTLK_HW_RANKS, target, "[RESTO] HealingWave") then return true end
+            return NS.try_cast(ACTION.HealingWave, target, "[RESTO] HealingWave") == true
+        end },
     },
     -- Tidal Waves exploitation (WotLK resto mechanic the header already
     -- tracks): with 2 TW stacks after Riptide/Crit, the BIG nuke is the fast
@@ -194,7 +247,15 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 65 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.HealingWave, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: this lane casts Healing Wave too, so
+        -- it draws from the same HW ladder (the TW mechanic changes the cast
+        -- SPEED, not the rank identity); same fail-closed 49273 fallback.
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if try_fit_cast(context, WOTLK_HW_RANKS, target, "[RESTO] TidalWavesHealingWave") then return true end
+            return NS.try_cast(ACTION.HealingWave, target, "[RESTO] TidalWavesHealingWave") == true
+        end },
     },
     -- Water Shield mana sustain (WotLK resto mechanic): re-apply at low mana
     -- when the shield is down.

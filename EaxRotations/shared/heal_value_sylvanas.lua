@@ -275,6 +275,55 @@ M.RANKS = {
             { id =  8008, rank =  2, level = 28, base_min =  257, base_max =  292 },
             { id =  8004, rank =  1, level = 20, base_min =  170, base_max =  195 },
         },
+        -- WotLK (3.3.5) shaman families (2026-09-16 wave): era-distinct from
+        -- the TBC ranks because WotLK adds two ranks to each ladder and
+        -- retunes two shared rows (HW R12 25396 2162-2465 vs TBC 2134-2436;
+        -- LHW R7 25420 1055-1202 vs TBC 1051-1198); every other shared row
+        -- agrees exactly. Every row verified 2026-09-16 against the
+        -- wotlk-client tooltips (nether.wowhead.com/wotlk/tooltip/spell/<id>:
+        -- heal range + Requires level). New heads: HW R14 49273 (req 80) /
+        -- R13 49272 (req 75); LHW R9 49276 (req 77) / R8 49275 (req 72) --
+        -- rank numbers confirmed via wowclassicdb/wowhead indexed pages
+        -- (49273 = HW Rank 14, 49276 = LHW Rank 9). Learn levels: the WotLK
+        -- bridge where present (all 12 HW + 7 LHW classic/TBC ids agree with
+        -- the tooltips), the tooltip Requires-level otherwise (the four new
+        -- heads). Coefficients: no dedicated shaman heal file at
+        -- wowsims/wotlk@563e4a08, so the coeff reuses the priest-proven 1.88
+        -- wrath multiplier on the TBC ratios (3.0/3.5 -> 1.6114,
+        -- 1.5/3.5 -> 0.8057); at the default bonus 0 the fit runs on raw
+        -- base averages and is coeff-insensitive. WotLK costs are
+        -- %-of-base-mana, so cost stays nil. Built era-less (already
+        -- era-distinct); find_rank_by_id resolves Wotlk* after the canonical
+        -- families, so shared ids keep the TBC-table answer.
+        WotlkHealingWave = {
+            coeff = 1.6114, cast_time = 3.0,
+            { id = 49273, rank = 14, level = 80, base_min = 3034, base_max = 3466 },
+            { id = 49272, rank = 13, level = 75, base_min = 2656, base_max = 3028 },
+            { id = 25396, rank = 12, level = 70, base_min = 2162, base_max = 2465 },
+            { id = 25391, rank = 11, level = 63, base_min = 1756, base_max = 2001 },
+            { id = 25357, rank = 10, level = 60, base_min = 1647, base_max = 1878 },
+            { id = 10396, rank =  9, level = 56, base_min = 1394, base_max = 1589 },
+            { id = 10395, rank =  8, level = 48, base_min = 1040, base_max = 1191 },
+            { id =  8005, rank =  7, level = 40, base_min =  759, base_max =  874 },
+            { id =   959, rank =  6, level = 32, base_min =  552, base_max =  639 },
+            { id =   939, rank =  5, level = 24, base_min =  389, base_max =  454 },
+            { id =   913, rank =  4, level = 18, base_min =  279, base_max =  328 },
+            { id =   547, rank =  3, level = 12, base_min =  136, base_max =  163 },
+            { id =   332, rank =  2, level =  6, base_min =   69, base_max =   83 },
+            { id =   331, rank =  1, level =  1, base_min =   36, base_max =   47 },
+        },
+        WotlkLesserHealingWave = {
+            coeff = 0.8057, cast_time = 1.5,
+            { id = 49276, rank = 9, level = 77, base_min = 1624, base_max = 1852 },
+            { id = 49275, rank = 8, level = 72, base_min = 1402, base_max = 1598 },
+            { id = 25420, rank = 7, level = 66, base_min = 1055, base_max = 1202 },
+            { id = 10468, rank = 6, level = 60, base_min =  853, base_max =  949 },
+            { id = 10467, rank = 5, level = 52, base_min =  649, base_max =  723 },
+            { id = 10466, rank = 4, level = 44, base_min =  473, base_max =  529 },
+            { id =  8010, rank = 3, level = 36, base_min =  349, base_max =  394 },
+            { id =  8008, rank = 2, level = 28, base_min =  257, base_max =  292 },
+            { id =  8004, rank = 1, level = 20, base_min =  170, base_max =  195 },
+        },
     },
     druid = {
         -- WotLK (3.3.5) druid family (2026-09-16 wave): era-distinct from the
