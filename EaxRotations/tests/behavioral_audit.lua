@@ -3463,12 +3463,36 @@ for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1
 -- JudgementSolo/SealOfWisdom read state fields the deltas never touch.
 -- HolyLightEmergency stays quiet (lowest 65/75 > 55) so the IoL weave owns
 -- Holy Light in its window.
+-- Wave-1 scaffolding gates (2026-09-17): enh MW weave needs buff 90004 +
+-- mana >= 30; enh SS core always matches with a valid enemy target (splices
+-- above the baseline Stormstrike lane); ele Lava Burst needs the FS debuff
+-- on the primary target (debuff_remains_map [25457]) + mana >= 25; ele Fire
+-- Nova needs 90005 + mana >= 30 (splices above the baseline ChainLightning
+-- nuke); fire Hot Streak needs buff 90007 + mana >= 20 (above baseline
+-- Pyroblast, whose PoM gate stays false); arcane AB spam needs buff 90008 +
+-- mana >= 30 + AM on_cd (the cusp window; block sits BELOW ArcaneMissiles
+-- whose can_cast veto skips it); arcane Missile Barrage needs buff 90009 +
+-- mana >= 20 (ABOVE ArcaneMissiles so the proc beats the channel).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_iol_weave",
     overrides = { buff_remains_map = { [90003] = 8 }, friends_hp = { 65, 100, 100 }, mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_burst",
     overrides = { friends_hp = { 60, 100, 100 }, mana_pct = 90, on_cd = { [27180] = 5 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shock_cd",
     overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 60, on_cd = { [27180] = 5 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_mw_weave",
+    overrides = { buff_remains_map = { [90004] = 8 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_stormstrike_core",
+    overrides = { mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_lava_burst",
+    overrides = { debuff_remains_map = { [25457] = 10 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_fire_nova",
+    overrides = { mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fire_hot_streak",
+    overrides = { buff_remains_map = { [90007] = 8 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_blast_spam",
+    overrides = { buff_remains_map = { [90008] = 8 }, mana_pct = 80, on_cd = { [38699] = 3 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_missile_barrage",
+    overrides = { buff_remains_map = { [90009] = 8 }, mana_pct = 80 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4284,6 +4308,13 @@ function M.load_spec(class_key, spec_key, era, race_override)
             if by_name["Holy Strike"] == nil then by_name["Holy Strike"] = 90001 end
             if by_name["Light's Vigil"] == nil then by_name["Light's Vigil"] = 90002 end
             if by_name["Infusion of Light"] == nil then by_name["Infusion of Light"] = 90003 end
+            -- Wave-1 scaffolding (2026-09-17): shaman + mage delta names.
+            if by_name["Maelstrom Weapon"] == nil then by_name["Maelstrom Weapon"] = 90004 end
+            if by_name["Fire Nova"] == nil then by_name["Fire Nova"] = 90005 end
+            if by_name["Lava Burst"] == nil then by_name["Lava Burst"] = 90006 end
+            if by_name["Hot Streak"] == nil then by_name["Hot Streak"] = 90007 end
+            if by_name["Arcane Blast"] == nil then by_name["Arcane Blast"] = 90008 end
+            if by_name["Missile Barrage"] == nil then by_name["Missile Barrage"] = 90009 end
         end
     end
     -- Item presence: seed the REAL read the class files use (NS.has_item,
