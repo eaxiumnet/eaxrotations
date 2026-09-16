@@ -281,6 +281,14 @@ M.RANKS = {
 -- unreachable in SoD.
 --   priest GreaterHeal 25314 (R5): classic 1966-2194 vs TBC 2006-2235 @710
 --   (classic page read 2026-09-15; the only vanilla-reachable GH row).
+-- Paladin (2026-09-16 vanilla holy wave, nether.wowhead.com classic tooltips):
+--   every vanilla-reachable HL/FoL id checked; only two diverge. HL R9 25292
+--   classic 1590-1770 vs TBC 1619-1799 @660; FoL R6 19943 classic 348-389 vs
+--   TBC 356-396. All others agree exactly: HL R8 10329 1272-1414, R7 10328
+--   968-1076, R6 3472 717-799, R5 1042 506-569, R4 1026 322-368; FoL R5 19942
+--   278-310, R4 19941 206-231, R3 19940 153-171, R2 19939 102-117. HL R1-R3
+--   (635/639/647) and FoL R1 (19750) have no TBC base rows, so no override is
+--   recorded for them (adding rows would break the era-less TBC ladder shape).
 -- Vanilla note: vanilla clients run the same classic dataset as SoD and
 -- load this module era-less through class_sylvanas (no class_vanilla
 -- exists); build_ladder therefore aliases era "vanilla" onto the sod
@@ -309,6 +317,14 @@ M.ERA_OVERRIDES = {
             },
             LesserHealingWave = {
                 [10468] = { base_min = 832, base_max = 928, cost = 380 },
+            },
+        },
+        paladin = {
+            HolyLight = {
+                [25292] = { base_min = 1590, base_max = 1770 },
+            },
+            FlashOfLight = {
+                [19943] = { base_min = 348, base_max = 389 },
             },
         },
     },

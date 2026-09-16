@@ -521,8 +521,18 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_fol(id)
         return NS.spell_action({ name = "FlashOfLight", ids = { id } })
     end
-    NS.HOLY_LIGHT_RANKS = _HealValue.build_ladder("paladin", "HolyLight", _mk_hl, 1.12) or NS.HOLY_LIGHT_RANKS
-    NS.FLASH_OF_LIGHT_RANKS = _HealValue.build_ladder("paladin", "FlashOfLight", _mk_fol, 1.12) or NS.FLASH_OF_LIGHT_RANKS
+    -- Era wiring (priest 2.27.2 / druid+shaman 2026-09-16 precedent): vanilla
+    -- clients load this TBC class module, so both ladders build for the
+    -- vanilla client: classic-dataset values via the build_ladder era alias
+    -- and the level-60 learn ceiling (HL R10/R11 + FoL R7 are TBC tails
+    -- unlearnable at 60). Other eras build era-less and unlimited,
+    -- byte-identical to before.
+    local _hv_era, _hv_max = nil, nil
+    if NS.is_vanilla and NS.is_vanilla() then
+        _hv_era, _hv_max = "vanilla", 60
+    end
+    NS.HOLY_LIGHT_RANKS = _HealValue.build_ladder("paladin", "HolyLight", _mk_hl, 1.12, _hv_era, _hv_max) or NS.HOLY_LIGHT_RANKS
+    NS.FLASH_OF_LIGHT_RANKS = _HealValue.build_ladder("paladin", "FlashOfLight", _mk_fol, 1.12, _hv_era, _hv_max) or NS.FLASH_OF_LIGHT_RANKS
 else
     -- Module unavailable (should not happen): keep the legacy single-rank
     -- ladders so behavior is unchanged.

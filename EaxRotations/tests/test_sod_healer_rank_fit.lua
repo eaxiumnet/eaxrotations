@@ -556,6 +556,196 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- 9. Vanilla resto druid fit (2026-09-16 wave): the learn-capped classic HT
+--    ladder (era vanilla + max 60, the priest section-7 precedent) and the
+--    real hook picking mid ranks at the level-60 divisor. Evidence: HT R13
+--    25297 classic 2267-2677 vs TBC 2303-2714 and R10 9889 classic 1916-2257
+--    vs TBC 1923-2263 (Wowhead classic pages read 2026-09-15); R12/R13
+--    (levels 62/69) unlearnable at 60. TBC practice mirror: Warcraft Tavern
+--    ("experiment with different ranks ... do just enough healing").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HT_VAN = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"), nil, "vanilla", 60)
+    assert_true(HT_VAN ~= nil, "vanilla HT ladder constructs")
+    assert_eq(#HT_VAN, 11, "vanilla HT ladder carries R1-R11 (R12/R13 tail dropped)")
+    assert_eq(HT_VAN[1].id, 25297, "vanilla HT head is R11 25297")
+    assert_eq(HT_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HT_VAN[1].base_min, 2267, "vanilla HT R11 base_min is the classic 2267 (override applied)")
+    assert_eq(HT_VAN[1].base_max, 2677, "vanilla HT R11 base_max is the classic 2677")
+    local van_ranks = {}
+    for _, e in ipairs(HT_VAN) do van_ranks[e.id] = e.rank end
+    assert_eq(van_ranks[26979], nil, "HT R13 26979 (level 69) dropped at ceiling 60")
+    assert_eq(van_ranks[26978], nil, "HT R12 26978 (level 62) dropped at ceiling 60")
+    assert_eq(van_ranks[5185], 1, "HT R1 5185 survives the ceiling")
+    local r10v = nil
+    for _, e in ipairs(HT_VAN) do if e.id == 9889 then r10v = e end end
+    assert_eq(r10v.base_min, 1916, "vanilla HT R10 keeps the corrected classic 1916")
+    assert_eq(r10v.base_max, 2257, "vanilla HT R10 keeps the corrected classic 2257")
+
+    -- TBC era-less ladder stays byte-identical (13 ranks, TBC values).
+    local HT_TBC = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"))
+    assert_eq(#HT_TBC, 13, "era-less HT ladder keeps R1-R13")
+    assert_eq(HT_TBC[1].id, 26979, "era-less HT head stays R13 26979")
+    assert_eq(HV.find_rank_by_id(25297).base_min, 2303, "find_rank_by_id(25297) stays TBC-authoritative")
+
+    -- Real hook at the level-60 divisor, bonus 0 (classic penalty applied).
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    assert_eq(pick60(HT_VAN, 2000), "T R11", "HT deficit 2000 -> R11 head (2472 <= bar 2600)")
+    assert_eq(pick60(HT_VAN, 1500), "T R9", "HT deficit 1500 -> R9 (bar 1950 < R10 2086.5)")
+    assert_eq(pick60(HT_VAN, 800), "T R7", "HT deficit 800 -> R7 (858 <= bar 1040)")
+    assert_eq(pick60(HT_VAN, 400), "T R5", "HT deficit 400 -> R5 (bar 520 < R6 ~600)")
+    assert_eq(pick60(HT_VAN, 150), "T R3", "HT deficit 150 -> R3 (bar 195 < R4 ~215)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
+-- 10. Vanilla resto shaman fit (2026-09-16 wave): the learn-capped classic
+--    HW/LHW ladders (era vanilla + max 60, the priest/druid precedent) and
+--    the real hook picking mid ranks at the level-60 divisor. Evidence: HW
+--    R10 25357 classic 1620-1850 vs TBC 1647-1878, HW R9 10396 classic
+--    1389-1583 vs TBC 1394-1589, LHW R6 10468 classic 832-928 @380 vs TBC
+--    853-949 (cost nil) -- Wowhead classic pages read 2026-09-15; every
+--    other HW/LHW id agrees exactly. HW R11/R12 (levels 63/70) and LHW R7
+--    (level 66) unlearnable at 60. TBC practice mirror: Warcraft Tavern
+--    ("experiment with different ranks ... do just enough healing").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HW_VAN = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"), nil, "vanilla", 60)
+    assert_true(HW_VAN ~= nil, "vanilla HW ladder constructs")
+    assert_eq(#HW_VAN, 10, "vanilla HW ladder carries R1-R10 (R11/R12 tail dropped)")
+    assert_eq(HW_VAN[1].id, 25357, "vanilla HW head is R10 25357")
+    assert_eq(HW_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HW_VAN[1].base_min, 1620, "vanilla HW R10 base_min is the classic 1620 (override applied)")
+    assert_eq(HW_VAN[1].base_max, 1850, "vanilla HW R10 base_max is the classic 1850")
+    local hw_ranks = {}
+    for _, e in ipairs(HW_VAN) do hw_ranks[e.id] = e.rank end
+    assert_eq(hw_ranks[25396], nil, "HW R12 25396 (level 70) dropped at ceiling 60")
+    assert_eq(hw_ranks[25391], nil, "HW R11 25391 (level 63) dropped at ceiling 60")
+    assert_eq(hw_ranks[331], 1, "HW R1 331 survives the ceiling")
+    local r9v = nil
+    for _, e in ipairs(HW_VAN) do if e.id == 10396 then r9v = e end end
+    assert_eq(r9v.base_min, 1389, "vanilla HW R9 keeps the corrected classic 1389")
+    assert_eq(r9v.base_max, 1583, "vanilla HW R9 keeps the corrected classic 1583")
+
+    local LHW_VAN = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"), nil, "vanilla", 60)
+    assert_true(LHW_VAN ~= nil, "vanilla LHW ladder constructs")
+    assert_eq(#LHW_VAN, 6, "vanilla LHW ladder carries R1-R6 (R7 tail dropped)")
+    assert_eq(LHW_VAN[1].id, 10468, "vanilla LHW head is R6 10468")
+    assert_eq(LHW_VAN[1].base_min, 832, "vanilla LHW R6 base_min is the classic 832 (override applied)")
+    assert_eq(LHW_VAN[1].base_max, 928, "vanilla LHW R6 base_max is the classic 928")
+    assert_eq(LHW_VAN[1].cost, 380, "vanilla LHW R6 cost 380 (read off the classic page)")
+    local lhw_ranks = {}
+    for _, e in ipairs(LHW_VAN) do lhw_ranks[e.id] = e.rank end
+    assert_eq(lhw_ranks[25420], nil, "LHW R7 25420 (level 66) dropped at ceiling 60")
+    assert_eq(lhw_ranks[8004], 1, "LHW R1 8004 survives the ceiling")
+
+    -- TBC era-less ladders stay byte-identical (12 + 7 ranks, TBC values).
+    local HW_TBC = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"))
+    assert_eq(#HW_TBC, 12, "era-less HW ladder keeps R1-R12")
+    assert_eq(HW_TBC[1].id, 25396, "era-less HW head stays R12 25396")
+    assert_eq(HV.find_rank_by_id(25357).base_min, 1647, "find_rank_by_id(25357) stays TBC-authoritative")
+    local LHW_TBC = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"))
+    assert_eq(#LHW_TBC, 7, "era-less LHW ladder keeps R1-R7")
+    assert_eq(LHW_TBC[1].id, 25420, "era-less LHW head stays R7 25420")
+
+    -- Real hook at the level-60 divisor, bonus 0 (classic penalty applied).
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    assert_eq(pick60(HW_VAN, 1500), "T R10", "HW deficit 1500 -> R10 head (1735 <= bar 1950)")
+    assert_eq(pick60(HW_VAN, 1000), "T R8", "HW deficit 1000 -> R8 (bar 1300 < R9 1486)")
+    assert_eq(pick60(HW_VAN, 500), "T R6", "HW deficit 500 -> R6 (bar 650 < R7 ~694)")
+    assert_eq(pick60(HW_VAN, 250), "T R5", "HW deficit 250 -> R5 (bar 325 < R6 ~427)")
+    assert_eq(pick60(HW_VAN, 100), "T R3", "HW deficit 100 -> R3 (bar 130 < R4 ~136)")
+    assert_eq(pick60(LHW_VAN, 700), "T R6", "LHW deficit 700 -> R6 head (880 <= bar 910)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
+-- 11. Vanilla holy paladin fit (2026-09-16 wave): the learn-capped classic
+--    HL/FoL ladders (era vanilla + max 60, the priest/druid/shaman precedent)
+--    and the real hook picking mid ranks at the level-60 divisor with the
+--    1.12 Healing Light talent mult. Evidence: nether.wowhead.com classic
+--    tooltips read 2026-09-16 — every vanilla-reachable HL/FoL id checked;
+--    only HL R9 25292 (classic 1590-1770 vs TBC 1619-1799) and FoL R6 19943
+--    (classic 348-389 vs TBC 356-396) diverge. All others agree exactly
+--    (HL R8 1272-1414, R7 968-1076, R6 717-799, R5 506-569, R4 322-368;
+--    FoL R5 278-310, R4 206-231, R3 153-171, R2 102-117). HL R1-R3 and FoL
+--    R1 carry no TBC base rows, so no override is recorded (the era-less TBC
+--    ladder shape stays byte-identical). TBC practice mirror: wowhead classic
+--    holy guide ("If your target is missing 200 health, you should not cast
+--    a max rank Holy Light ... cast a lower rank of Flash of Light").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HL_VAN = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12, "vanilla", 60)
+    assert_true(HL_VAN ~= nil, "vanilla HL ladder constructs")
+    assert_eq(#HL_VAN, 6, "vanilla HL ladder carries R4-R9 (R10/R11 tail dropped, R1-R3 never in family)")
+    assert_eq(HL_VAN[1].id, 25292, "vanilla HL head is R9 25292")
+    assert_eq(HL_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HL_VAN[1].base_min, 1590, "vanilla HL R9 base_min is the classic 1590 (override applied)")
+    assert_eq(HL_VAN[1].base_max, 1770, "vanilla HL R9 base_max is the classic 1770")
+    local hl_ranks = {}
+    for _, e in ipairs(HL_VAN) do hl_ranks[e.id] = e.rank end
+    assert_eq(hl_ranks[27136], nil, "HL R11 27136 (level 70) dropped at ceiling 60")
+    assert_eq(hl_ranks[27135], nil, "HL R10 27135 (level 62) dropped at ceiling 60")
+    assert_eq(hl_ranks[1026], 4, "HL R4 1026 survives the ceiling")
+    local r8v = nil
+    for _, e in ipairs(HL_VAN) do if e.id == 10329 then r8v = e end end
+    assert_eq(r8v.base_min, 1272, "vanilla HL R8 keeps the agreeing 1272 (no override)")
+
+    local FOL_VAN = HV.build_ladder("paladin", "FlashOfLight", mk_action("FlashOfLight"), 1.12, "vanilla", 60)
+    assert_true(FOL_VAN ~= nil, "vanilla FoL ladder constructs")
+    assert_eq(#FOL_VAN, 5, "vanilla FoL ladder carries R2-R6 (R7 tail dropped, R1 never in family)")
+    assert_eq(FOL_VAN[1].id, 19943, "vanilla FoL head is R6 19943")
+    assert_eq(FOL_VAN[1].base_min, 348, "vanilla FoL R6 base_min is the classic 348 (override applied)")
+    assert_eq(FOL_VAN[1].base_max, 389, "vanilla FoL R6 base_max is the classic 389")
+    local fol_ranks = {}
+    for _, e in ipairs(FOL_VAN) do fol_ranks[e.id] = e.rank end
+    assert_eq(fol_ranks[27137], nil, "FoL R7 27137 (level 66) dropped at ceiling 60")
+    assert_eq(fol_ranks[19939], 2, "FoL R2 19939 survives the ceiling")
+
+    -- TBC era-less ladders stay byte-identical (8 + 6 ranks, TBC values).
+    local HL_TBC = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12)
+    assert_eq(#HL_TBC, 8, "era-less HL ladder keeps R4-R11")
+    assert_eq(HL_TBC[1].id, 27136, "era-less HL head stays R11 27136")
+    assert_eq(HV.find_rank_by_id(25292).base_min, 1619, "find_rank_by_id(25292) stays TBC-authoritative")
+    local FOL_TBC = HV.build_ladder("paladin", "FlashOfLight", mk_action("FlashOfLight"), 1.12)
+    assert_eq(#FOL_TBC, 6, "era-less FoL ladder keeps R2-R7")
+    assert_eq(FOL_TBC[1].id, 27137, "era-less FoL head stays R7 27137")
+    assert_eq(HV.find_rank_by_id(19943).base_min, 356, "find_rank_by_id(19943) stays TBC-authoritative")
+
+    -- Real hook at the level-60 divisor with the 1.12 talent mult, bonus 0.
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- NOTE: build_ladder entries carry talent_mult, but the hook resolves
+    -- bonus/penalty through expected_heal_ladder which reads entry fields —
+    -- the 1.12 mult is baked into the entries above, so plain pick60 applies.
+    assert_eq(pick60(HL_VAN, 1500), "T R9", "HL deficit 1500 -> R9 head (1882 <= bar 1950)")
+    assert_eq(pick60(HL_VAN, 1000), "T R7", "HL deficit 1000 -> R7 (bar 1300 < R8 1504)")
+    assert_eq(pick60(HL_VAN, 500), "T R5", "HL deficit 500 -> R5 (bar 650 < R6 693)")
+    assert_eq(pick60(HL_VAN, 250), "T R4", "HL deficit 250 -> R4 tail (213 <= bar 325)")
+    assert_eq(pick60(FOL_VAN, 700), "T R6", "FoL deficit 700 -> R6 head (413 <= bar 910)")
+    assert_eq(pick60(FOL_VAN, 300), "T R5", "FoL deficit 300 -> R5 (bar 390 < R6 413)")
+    assert_eq(pick60(FOL_VAN, 150), "T R3", "FoL deficit 150 -> R3 (bar 195 < R4 216)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end
 print("PASS test_sod_healer_rank_fit")
