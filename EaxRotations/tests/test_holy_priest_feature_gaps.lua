@@ -7,7 +7,10 @@
 -- Feature audit for holy_sylvanas: documents parity gaps vs present strategies.
 -- Verifies all 22 strategies (16 existing + 6 parity)
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;../?.lua;../EaxRotations/?.lua;../EaxRotations/?/?.lua;" .. package.path
+-- ../ patterns removed (cross-worktree leak fix, 2026-09-17): they resolved
+-- the PARENT directory -- inside a worktree, ANOTHER checkout. The EaxRotations-
+-- relative patterns resolve every module this suite needs from this tree.
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local assert_true, assert_eq, assert_false
 

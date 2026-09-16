@@ -24,10 +24,36 @@
 local M = {}
 
 function M.prepare_module_path()
-    local parent_pattern = "../?.lua;../?/init.lua;"
-    if not package.path:find("%.%./%?%.lua", 1, false) then
-        package.path = parent_pattern .. package.path
+    -- Context-aware module paths (fixes the cross-worktree leak, 2026-09-17):
+    -- the old unconditional '../?.lua' prepend resolved the PARENT directory,
+    -- which inside a git worktree is ANOTHER checkout -- an uncommitted edit
+    -- there silently shadowed this tree's modules (suite gate false-failed).
+    -- The parent-relative pattern is only CORRECT when CWD is <root>/EaxRotations
+    -- (runner invoked from inside the tree); from the repo root, Lua's default
+    -- './?.lua' pattern already resolves EaxRotations/... modules.
+    -- Intentionally a no-op: path setup is runner-owned and context-aware
+    -- (arg[0]-based detection, see run_rotation_tests.lua / run_leveling_tests.lua).
+end
+
+--- Remove the parent-relative patterns ('../?.lua', '../?/init.lua') from
+--- package.path. The repair half of the context-aware path contract: after the
+--- runner's chdir fallback normalizes CWD to the repo root, '../' points OUTSIDE
+--- this tree (inside a git worktree, into ANOTHER checkout), so leftover parent
+--- patterns must not survive.
+function M.relax_parent_pattern()
+    local paths = {}
+    local removed = 0
+    for entry in package.path:gmatch("[^;]+") do
+        if entry == "../?.lua" or entry == "../?/init.lua" then
+            removed = removed + 1
+        else
+            paths[#paths + 1] = entry
+        end
     end
+    if removed > 0 then
+        package.path = table.concat(paths, ";") .. ";"
+    end
+    return removed
 end
 
 -- ---------------------------------------------------------------------------

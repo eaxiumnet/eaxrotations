@@ -4,8 +4,31 @@
 -- WHY:   single entry point for WotLK rotation validations; ensures no regressions.
 -- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
 
+-- Context-aware module paths (same contract as run_rotation_tests.lua, 2026-09-17):
+-- the parent pattern is only added when CWD is NOT the repo root (in-tree or
+-- from-parent invocation); there '../' is this tree, so no cross-worktree leak.
+-- relax_parent_pattern() then strips it once root normalization has run.
+local function repo_root_here()
+    local f = io.open("EaxRotations/tests/test_runner_lib.lua", "rb")
+    if f then f:close() return true end
+    return false
+end
+if not repo_root_here() then
+    package.path = "../?.lua;../?/init.lua;" .. package.path
+end
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
+-- In-tree/from-parent invocation: normalize CWD to the repo root (the other
+-- runners have this fallback; this one was repo-root-only before).
+if not runner.file_exists(root .. "/tests/run_wotlk_tests.lua") then
+    local ok, lfs = pcall(require, "lfs")
+    if ok and lfs.chdir("..") then
+        root = "EaxRotations"
+    end
+end
+-- Root resolved; all downstream resolution is CWD-relative. Strip parent
+-- patterns so a worktree never resolves another checkout.
+runner.relax_parent_pattern()
 
 local tests = {
     "test_warrior_arms_wotlk.lua",

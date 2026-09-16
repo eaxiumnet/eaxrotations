@@ -4,15 +4,44 @@
 -- WHY:   single entry point for 13 leveling-suite validations; ensures no regressions.
 -- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
 
-local module_path = package.path
-if not module_path:find("%.%./%?%.lua", 1, false) then
-    package.path = "../?.lua;../?/init.lua;" .. module_path
+-- Context-aware module paths (cross-worktree leak fix, 2026-09-17): the old
+-- unconditional '../?.lua' prepend resolved the PARENT directory, which inside
+-- a git worktree is ANOTHER checkout -- an uncommitted edit there shadowed this
+-- tree's modules (the pre-commit gate false-failed). The parent pattern is only
+-- correct when CWD is <root>/EaxRotations (runner invoked from inside the tree,
+-- detected via arg[0] lacking the 'EaxRotations/' prefix) -- and there '../' is
+-- this tree itself, so no leak is possible. From the repo root, Lua's default
+-- './?.lua' already resolves EaxRotations/... modules. The runner strips the
+-- prepended pattern after its chdir fallback (runner.relax_parent_pattern).
+-- Context is detected by PROBING THE FILESYSTEM, not arg[0] (some Lua
+-- builds normalize arg[0] to an absolute path, which misfires the check).
+--   Repo-root context (gate/CI): ./EaxRotations/tests/test_runner_lib.lua
+--   exists -> default './?.lua' resolves every module; NO parent pattern.
+--   In-tree context (cd EaxRotations && lua tests/...): only ../ has the
+--   tree -> prepend; there '../' IS this tree, so no leak is possible.
+-- The unconditional runner.relax_parent_pattern() below strips the parent
+-- pattern once the chdir fallback has normalized CWD to the repo root.
+local function repo_root_here()
+    local f = io.open("EaxRotations/tests/test_runner_lib.lua", "rb")
+    if f then f:close() return true end
+    return false
+end
+if not repo_root_here() then
+    package.path = "../?.lua;../?/init.lua;" .. package.path
 end
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
+-- Root is now resolved and all downstream resolution is CWD-relative: no
+-- invocation context (repo root, in-tree, or from-parent) still needs a
+-- parent pattern. Strip it unconditionally so a worktree never resolves
+-- the main checkout (or vice versa).
+runner.relax_parent_pattern()
 if not runner.file_exists(root .. "/tests/run_leveling_tests.lua") then
     local ok, lfs = pcall(require, "lfs")
-    if ok and lfs.chdir("..") then root = "EaxRotations" end
+    if ok and lfs.chdir("..") then
+        root = "EaxRotations"
+        runner.relax_parent_pattern() -- CWD is the repo root now; '../' must not leak
+    end
 end
 
 local tests = {
