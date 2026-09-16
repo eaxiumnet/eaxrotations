@@ -132,6 +132,9 @@ era plumbing, research docs, and this pipeline.
 - [ ] Install beta → extract DBC → commit `wowsims_forever.db` (or the Lua
       tables if the DB is too large for git — AGENTS.md tolerates 36 MB,
       follow precedent).
+- [ ] **Probe checklist**: run docs/forever/beta_day1_probes.md (P0-P3 same
+      day; it consolidates every flagged claim across the nine kit docs
+       into one execution-ordered pass).
 - [ ] **Addon-policy recon (MMORPG.com interview 2026-09-16): the client
       "takes cues from modern WoW" on add-ons — on first beta login check for
       any new client integrity/error-reporting surface before running ANY
