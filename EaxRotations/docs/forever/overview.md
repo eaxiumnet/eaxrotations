@@ -81,6 +81,24 @@ Swift Judgment, Shield Specialization, Iron Creed. Retribution: Twist of Light
 redesign, Champion of the Light, Instrument of the Law.
 **Preserved weaknesses**: no interrupt, no slows, Seal/Judgment-mediated taunt.
 
+### Addons & data visibility (MMORPG.com BlizzCon interview, 2026-09-16)
+- **Addon policy**: "broadly takes cues from modern WoW, with adjustments
+  based on feedback" — i.e., Retail-style combat-add-on restrictions are the
+  stated direction, but not itemized yet. **For EAX this is a launch-risk
+  register entry, not a code change**: Project Sylvanas reads game memory
+  directly (no WoW add-on API), so a client add-on crackdown does not
+  constrain the runtime — the open question is whether Forever clients ship
+  new integrity checks that affect any external tooling. Watch on beta day.
+- **First-seen item stat hiding**: item stats hidden until discovered on the
+  realm; no Dungeon Journal at first; secrets scattered in the world. Docs/
+  data pipeline impact only: the `wowhead_data/` mirror may lag launch
+  discovery; never treat scraped item stats as pre-verified — DBC rules.
+- **Built-in damage meter + planned cooldown manager**: neutral-to-good —
+  validates our CD-tracking lane shapes; no EAX action required.
+- **Bank ~96 slots** (tentative), class quests ported/expanded from SoD,
+  camping fixtures ~10 min (tentative), campfire-nearby buff (see Camping
+  below).
+
 ### Legacy system (account perk tree — see `legacy_perks.md`)
 16-point account-wide perk tree (21 perks, beta-captured tooltips). Mostly
 economy/XP QoL, but **three perks touch our code paths** and are flagged for
@@ -104,6 +122,7 @@ not stack with them** — buff-allowlisting logic must account for them post-lau
 | Windows Central overview | https://www.windowscentral.com/gaming/blizzard/world-of-warcraft-forever-is-blizzards-take-on-classic-revamping-vanilla-azeroth | 2026-09-15 |
 | Classic WoW Forever — Legacy perk reference (community; beta-captured tooltips) | https://classicwowforever.com/legacy/ | 2026-09-15 |
 | Icy Veins — Forever talent calculator (7-row trees, 51 points, Zierhut: 4th gold-medal slot at 16 points; beta "Thursday") | https://www.icy-veins.com/wow-forever/news/start-planning-your-wow-forever-character-with-our-new-talent-calculator/ | 2026-09-16 |
+| MMORPG.com BlizzCon interview via Icy Veins (Greenfield/Parrott: addon policy, hidden item stats, damage meter, bank ~96, class quests) | https://www.icy-veins.com/wow-forever/news/brand-new-interview-reveals-strict-addon-policy-hidden-item-stats-and-new-camping-details/ | 2026-09-16 |
 
 Scrape targets as content lands (mirror per the wowheadScrape pipeline):
 `wowhead.com/forever/spell={id}`, Icy Veins Forever class guides

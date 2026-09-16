@@ -116,6 +116,11 @@ era plumbing, research docs, and this pipeline.
 - [ ] Install beta → extract DBC → commit `wowsims_forever.db` (or the Lua
       tables if the DB is too large for git — AGENTS.md tolerates 36 MB,
       follow precedent).
+- [ ] **Addon-policy recon (MMORPG.com interview 2026-09-16): the client
+      "takes cues from modern WoW" on add-ons — on first beta login check for
+      any new client integrity/error-reporting surface before running ANY
+      external tooling** (the DBC extraction reads files only; verify before
+      anything that touches a live client process).
 - [ ] Confirm exact version string (`get_game_version()` output) → tighten the
       `s:find("forever")` branch in `core_sylvanas.lua::_resolve_expansion_key()`
       and update `test_forever_runtime_bootstrap.lua`.
