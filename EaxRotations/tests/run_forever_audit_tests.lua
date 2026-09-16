@@ -71,10 +71,20 @@ local function extract_ids_from_line(line)
             end
         end
     end
-    -- Pure numeric table literals.
-    for table_part in line:gmatch("(%b{})") do
-        local inner = table_part:sub(2, -2)
-        if inner:match("^[%s,,%d]*$") then collect(inner) end
+    -- Pure numeric table literals. NOTE: gmatch with (%b{}) matches only the
+    -- outermost balanced group at each position and resumes AFTER it, so
+    -- NESTED numeric tables (e.g. `return { spell_ids = { 123 } }`) would be
+    -- invisible to the scanner. Enumerate every balanced group instead.
+    local opens = {}
+    for i = 1, #line do
+        local c = line:sub(i, i)
+        if c == "{" then
+            opens[#opens + 1] = i
+        elseif c == "}" and #opens > 0 then
+            local start = table.remove(opens)
+            local inner = line:sub(start + 1, i - 1)
+            if inner:match("^[%s,,%d]*$") then collect(inner) end
+        end
     end
     -- define("X", 123, ...) single-numeric-arg form.
     for _, arg in ipairs({ line:match('define%s*%(%s*"[^"]*"%s*,%s*(%d+)') }) do
@@ -197,6 +207,16 @@ local function run_self_tests()
 
     -- A sub-100 number is not a spell id (rank literals etc.).
     local small = scan_content('local rank = 42')
+    -- Nested numeric tables MUST be scanned: gmatch(%b{}) only ever sees
+    -- the outermost balanced group, so a return-shape table hides its ids
+    -- from a naive scanner (found live during the 2026-09-16 beta-day
+    -- rehearsal -- a scratch file with a nested bogus id passed silently).
+    local nested = scan_content('return { spell_ids = { 432100, 99999999 } }')
+    expect(#nested.hits, 1, "nested numeric table is scanned (99999999 sits above the plausibility ceiling)")
+    expect(nested.hits[1].id, 432100, "nested hit id")
+    local nested2 = scan_content('local T = { a = { 24601 } }')
+    expect(#nested2.hits, 1, "doubly-nested numeric table is scanned")
+
     expect(#small.hits, 0, "small numerics exempt")
 
     -- Vanilla-known IDs still report the precise era-leak verdict in code
