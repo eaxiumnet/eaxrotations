@@ -18,6 +18,10 @@ local mock_ns = {
     buff_up = function() return false end,
     buff_remains = function() return 0 end,
     spell_ready = function(id) return true end,
+    try_cast = function(spell, target, reason)
+        last_execute_target = target
+        return true
+    end,
     PriestSpells = {
         Renew = 139,
         PrayerofMending = 33076,
@@ -76,7 +80,18 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                     end
                     return true
                 end,
-                execute = function(ctx)
+                execute = function(ctx, state)
+                    -- 2026-09-16 deficit-fit lanes: action.fn resolves the
+                    -- target itself and casts via NS.try_cast (mocked below),
+                    -- mirroring the real strategy_dsl cast handler's label
+                    -- convention; the legacy spell branch is unchanged.
+                    if defn.action and defn.action.fn then
+                        if defn.action.fn(ctx, state) then
+                            last_execute_target = ctx.lowest and ctx.lowest.unit or nil
+                            return true
+                        end
+                        return false
+                    end
                     local spell = defn.action and defn.action.spell
                     if defn.action and defn.action.target == "friendly" then
                         last_execute_target = ctx.lowest and ctx.lowest.unit or nil

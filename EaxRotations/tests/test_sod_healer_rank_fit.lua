@@ -435,6 +435,127 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- 8. WotLK priest fit (2026-09-16 wave): era-distinct FH/GH families, the
+--    wrath penalty branch, and the real hook + real spec lanes at
+--    player_level 80.
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local wfh = HV.build_ladder("priest", "WotlkFlashHeal", mk_action("FlashHeal"))
+    local wgh = HV.build_ladder("priest", "WotlkGreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#wfh, 10, "WotLK FH ladder carries 10 ranks (R1-R10)")
+    assert_eq(#wgh, 8, "WotLK GH ladder carries 8 ranks (R1-R8)")
+    assert_eq(wfh[1].id, 48071, "WotLK FH head is 48071")
+    assert_eq(wgh[1].id, 48063, "WotLK GH head is 48063")
+    assert_eq(wgh[4].base_min, 2006, "WotLK GH R5 25314 keeps the TBC-agreeing 2006 (ladder index 4, newest-first)")
+    assert_eq(wgh[2].base_min, 2433, "WotLK GH R7 25213 carries the wrath 2433 (ladder index 2)")
+    assert_eq(wfh[2].base_min, 1121, "WotLK FH R9 25235 carries the wrath 1121")
+    -- Era isolation both directions: the TBC families and find_rank_by_id
+    -- keep their TBC-authoritative values (no sod/wotlk bucket was needed --
+    -- the wotlk rows agree with TBC wherever both eras have the id, except
+    -- the two retunes which live only in the wotlk families).
+    local tbc_gh = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#tbc_gh, 3, "TBC GH family unchanged (3 rows)")
+    local r48071 = HV.find_rank_by_id(48071)
+    assert_true(r48071 ~= nil and r48071.base_min == 1896, "find_rank_by_id resolves corpus-wide (48071 -> wotlk row 1896)")
+    assert_eq(HV.find_rank_by_id(25213).base_min, 2414, "find_rank_by_id(25213) stays the TBC 2414")
+
+    -- Wrath penalty branch (downrank_penalty, playerLevel > 70): the LHC-4.0
+    -- isWrath factor REPLACES the classic/TBC factors entirely.
+    local PRE = NS.PreemptiveHeal
+    assert_true(PRE and type(PRE.downrank_penalty) == "function", "preemptive heal module loaded")
+    assert_eq(PRE.downrank_penalty(79, 80), 1.0, "wrath: level 79 rank at 80 -> 1.0")
+    assert_eq(PRE.downrank_penalty(60, 80), 0.35, "wrath: level 60 rank at 80 -> 0.35 (22+65-80)/20")
+    assert_eq(PRE.downrank_penalty(20, 80), 0.0, "wrath: level 20 rank at 80 clamps to 0")
+    assert_eq(PRE.downrank_penalty(56, 70), (56 + 11) / 70, "classic/TBC path unchanged at 70 ((56+11)/70)")
+    assert_true(PRE.downrank_penalty(10, 60) < 1.0, "classic/TBC path keeps the sub-20 factor at 60")
+
+    -- Real hook at 80 (spell_ready restored to all-true via common).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- GH expected at 80, bonus 0: R1 981.5 R2 1248 R3 1395 R5 2120.5
+    -- R6 2275.5 R7 2627.5 R8 4300.5; the walk is newest-first with the
+    -- 1.3 tolerance bar (deficit * 1.3).
+    assert_eq(pick80(wgh, 500), "T R8", "GH deficit 500 -> no rank fits (smallest 981.5 > bar 650) -> overshoot fallback head R8")
+    assert_eq(pick80(wgh, 900), "T R1", "GH deficit 900 -> R1 (981.5 <= 1170)")
+    assert_eq(pick80(wgh, 1000), "T R2", "GH deficit 1000 -> R2")
+    assert_eq(pick80(wgh, 1700), "T R5", "GH deficit 1700 -> R5 (bar 2210 < R6 2275.5)")
+    assert_eq(pick80(wgh, 2000), "T R6", "GH deficit 2000 -> R6")
+    assert_eq(pick80(wgh, 2350), "T R7", "GH deficit 2350 -> R7 (wrath 2433-2822)")
+    assert_eq(pick80(wgh, 3800), "T R8", "GH deficit 3800 -> R8 head")
+    -- FH expected at 80: R4 453 R5 583.5 R6 722.5 R7 906 R8 1004.5
+    -- R9 1210.5 R10 2049.5.
+    assert_eq(pick80(wfh, 440), "T R4", "FH deficit 440 -> R4")
+    assert_eq(pick80(wfh, 600), "T R6", "FH deficit 600 -> R6 (722.5 <= bar 780, newest-first beats R5)")
+    assert_eq(pick80(wfh, 900), "T R8", "FH deficit 900 -> R8 (bar 1170 < R9 1210.5)")
+    assert_eq(pick80(wfh, 1500), "T R9", "FH deficit 1500 -> R9 (wrath 1121-1300)")
+    assert_eq(pick80(wfh, 2500), "T R10", "FH deficit 2500 -> R10 head")
+    -- Default-divisor isolation: WITHOUT the opt the hook defaults to 70;
+    -- the wrath application is chosen by that divisor, and since every
+    -- wotlk row carries DBC SpellLevel 80 (factor 1.0 at any caster <= 82)
+    -- the base-only math is identical either way.
+    assert_eq(pick80(wgh, 1700, {}), "T R5", "deficit fit stable across the default-divisor path")
+
+    -- Spec lanes through the real modules: deficits pick mid ranks; the
+    -- nil-deficit shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local holy_registry = { playstyles = {} }
+    function holy_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = holy_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local holy = load_spec("classes/priest/holy_wotlk")
+    local hlanes = {}
+    for _, s in ipairs(holy.playstyles and holy.playstyles.holy or holy_registry.playstyles.holy or {}) do hlanes[s.name] = s end
+    local gh_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10300 end } -- deficit 1700
+    local fh_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11100 end } -- deficit 900
+    hlanes.GreaterHeal.execute({ lowest = { unit = gh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25314, "holy GH lane deficit 1700 fits R5 (25314), not the 48063 head")
+    hlanes.FlashHeal.execute({ lowest = { unit = fh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 25233, "holy FH lane deficit 900 fits R8 (25233), not the 48071 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    hlanes.GreaterHeal.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 48063, "holy GH lane nil deficit -> legacy max-rank 48063")
+
+    local disc_registry = { playstyles = {} }
+    function disc_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = disc_registry
+    local dlog = {}
+    NS.try_cast = function(spell, target, reason)
+        dlog[#dlog + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local disc = load_spec("classes/priest/discipline_wotlk")
+    local dlanes = {}
+    for _, s in ipairs(disc.playstyles and disc.playstyles.discipline or disc_registry.playstyles.discipline or {}) do dlanes[s.name] = s end
+    dlanes.GreaterHeal.execute({ lowest = { unit = gh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(dlog[1].spell) == 25314, "disc GH lane deficit 1700 fits R5 (25314)")
+    dlanes.FlashHeal.execute({ lowest = { unit = fh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(dlog[2].spell) == 25233, "disc FH lane deficit 900 fits R8 (25233)")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end
 print("PASS test_sod_healer_rank_fit")
