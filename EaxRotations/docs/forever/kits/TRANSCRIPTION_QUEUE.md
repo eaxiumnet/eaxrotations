@@ -21,14 +21,16 @@ VERIFY = transcribed, awaiting beta-DBC verification checklist run.
 | Shaman | VERIFY | kits/shaman.md |
 | Warrior | VERIFY | kits/warrior.md |
 | Mage | VERIFY | kits/mage.md |
-| Priest | QUEUE | kits/priest.md |
-| Warlock | QUEUE | kits/warlock.md |
+| Priest | VERIFY | kits/priest.md (NOTE: no Icy Veins priest overview exists yet — demo-derived Zockify source; refresh when IV lands) |
+| Warlock | VERIFY | kits/warlock.md |
 | Druid | QUEUE | kits/druid.md |
 | Rogue | QUEUE | kits/rogue.md |
 | Racial & talent framework | VERIFY | kits/racials-and-talents.md (refresh pass after all 9 classes: fold any per-class-page racial detail not yet recorded) |
 
 Source series: Icy Veins Forever class overviews
 (`https://www.icy-veins.com/wow-forever/<class>-class-overview`), updated
+(EXCEPTION: the priest page does not exist on Icy Veins — priest.md is
+transcribed from Zockify's demo-derived page; refresh when IV adds it)
 2026-09-15 (spell + talent pass); Blizzard's official per-class dumps remain
 paladin-only so far — if Blizzard publishes an official kit for a queued
 class, it supersedes the series page and the doc's source line is updated.
