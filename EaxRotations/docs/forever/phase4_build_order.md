@@ -47,34 +47,44 @@ miss downgrades the lane to dormant, never a guessed ID.
 
 | # | Delta | Why / dependency |
 |---|---|---|
-| 5 | `warrior/fury_forever.lua` | GATED on the day-1 rage-formula probe (kit doc): if rage-from-damage really shifts, every rage lane re-derives; CD split + ambient Enrage + both-weapon Whirlwind land regardless. |
-| 6 | `hunter/survival_forever.lua` | Near-total spec reshaper (melee weave, Mongoose core, trap spam) — biggest single-spec rewrite in the queue; needs the pet-present context field. |
-| 7 | `hunter/beast_mastery_forever.lua` | 2-hawk maintenance loop (Summon Hawk CD-shared with Arcane Shot); shares the pet context field from #6. |
-| 8 | `hunter/marksmanship_forever.lua` | Lone Wolf petless branch (same context field); Sniper Shot context-gated burst. |
-| 9 | `warrior/protection_forever.lua` | Shield-gated structural check, TC-in-defensive AoE loop, independent defensive thresholds. |
-| 10 | `warrior/arms_forever.lua` | Rend-proc Overpower, Improved Slam weave, Spearing Strike encounter gate. |
-| 11 | `mage/frost_forever.lua` | FoF→Ice Lance burst lane, cheaper Shatter, Blizzard retiming — smallest of the wave-1-class deltas. |
+| 5 | `druid/cat_forever.lua` | PROMOTED (re-rank 2026-09-16): destructive delta — Powershifting dies (Furor rework) so existing cat lanes are REMOVED, plus Berserk-cat burst + Tiger's Fury opener + critting bleeds. Furor verdict is a day-1 DBC probe, same gate class as fury but with the bigger delta. |
+| 6 | `druid/bear_forever.lua` | PROMOTED (re-rank 2026-09-16): whole new rotation (Mangle / Lacerate stacks / Maul demoted to dump) replacing Maul-spam; shares Berserk + Furor resolution with #5. |
+| 7 | `warrior/fury_forever.lua` | GATED on the day-1 rage-formula probe (kit doc): if rage-from-damage really shifts, every rage lane re-derives; CD split + ambient Enrage + both-weapon Whirlwind land regardless. Demoted one slot by cat's destructive delta. |
+| 8 | `hunter/survival_forever.lua` | Near-total spec reshaper (melee weave, Mongoose core, trap spam); needs the pet-present context field. |
+| 9 | `hunter/beast_mastery_forever.lua` | 2-hawk maintenance loop (Summon Hawk CD-shared with Arcane Shot); shares the pet context field from #8. |
+| 10 | `warlock/affliction_forever.lua` | PROMOTED (re-rank 2026-09-16): dot-maintenance + Drain Hope amplify windows + critting-dot tables — the repo's dot tables are audit-gated (WotLK-rank IDs), highest repo impact of the wave-3 kits. |
+| 11 | `warrior/protection_forever.lua` | Shield-gated structural check, TC-in-defensive AoE loop, independent defensive thresholds. |
+| 12 | `hunter/marksmanship_forever.lua` | Lone Wolf petless branch (same context field); Sniper Shot context-gated burst. |
+| 13 | `warrior/arms_forever.lua` | Rend-proc Overpower, Improved Slam weave, Spearing Strike encounter gate. |
+| 14 | `mage/frost_forever.lua` | FoF→Ice Lance burst lane, cheaper Shatter, Blizzard retiming — smallest DPS delta in the build order. |
 
-## Wave 3 — after the remaining kits are transcribed
+## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
-Priest, warlock, druid, rogue deltas are UNRANKED until their kit docs land
-(TRANSCRIPTION_QUEUE.md: priest, warlock, druid, rogue QUEUE) — a delta
-cannot be justified without knowing what changed. Pre-staged expectations
-from era-wide notes:
+Ranked from the completed kits; priest deltas carry a one-notch risk
+downgrade (lowest source tier — demo-derived Zockify page, no Icy Veins
+priest overview exists). All rogue deltas are gated on the day-1
+constant-regen-energy probe (kit doc), all warlock deltas on the
+haste-not-affecting-dots re-check.
 
-- `priest/*` — Spirit/FSR rules + PW:S absorb semantics (Patterns 12/13).
-- `warlock/*` — dot-table rewrites; WotLK-rank audit gates apply.
-- `druid/*` — form-switch gating; largest file count (cat/bear/balance/
-  caster/resto) — expect the most deltas if forms change.
-- `rogue/*` — combo-point builder/finisher retunes.
-- `*/leveling_forever.lua` for every class — low-risk fillers between waves;
-  only where the kit changes early-level rotation (Holy Strike-style
-  level-gated buttons).
+| # | Delta | Why here |
+|---|---|---|
+| 15 | `druid/balance_forever.lua` | Eclipse alternation loop (stacks to 4) — a new stack mechanic on an existing file; Nature's Grace GCD-reduction lane; moonkin/LotP buff accounting. |
+| 16 | `druid/resto_forever.lua` | Wild Growth CD lane + non-consuming Swiftmend spot-heal + GotE 1s-GCD blanket priority — additive healer reshaper. |
+| 17 | `warlock/demonology_forever.lua` | Demonic Pact sacrifice-and-resummon buff juggling (school-choice lane); pet-handler dependency makes it framework-heavier than its population justifies on day 1. |
+| 18 | `warlock/destruction_forever.lua` | Incinerate's Immolate dependency + Shadow and Flame cross-school windows + Bane of Havoc cleave. |
+| 19 | `priest/discipline_forever.lua` | Penance dual-mode + Divine Aegis on top of PW:S absorb accounting (Pattern 12 interplay) + Soul Warding loop. Source-tier downgrade. |
+| 20 | `rogue/assassination_forever.lua` | Mutilate fast-CP + Venom spendable burst window (CP-scaled duration) + Expose Armor cheap maintenance. Gated on the energy-model probe. |
+| 21 | `priest/shadow_forever.lua` | Universal Devouring Plague, extended Mind Flay (range+slow), Contagion spread-on-death chaining. Source-tier downgrade. |
+| 22 | `rogue/subtlety_forever.lua` | Hemorrhage→Rupture amplifier loop + Thousand Cuts stack engine + Cutthroat free-Ambush bursts. Energy-probe gated. |
+| 23 | `rogue/combat_forever.lua` | Restless Blades couples CD lanes to CP spending (infra change in CD handling); Puncturing Wounds weapon flexibility. Energy-probe gated. |
+| 24 | `priest/holy_forever.lua` | PoM placement/jump lane + Binding Heal pair-heal + Litany of Light cast-variability engine. Source-tier downgrade. |
+| 25 | `priest/smite_forever.lua` | Power in Light makes the dedicated smite file real: Holy Fire upkeep + Penance/Smite core. Source-tier downgrade. |
+| 26 | `*/leveling_forever.lua` fillers | Per class where the kit changes early rotation (druid form-energy model, rogue energy pace, warlock Bane-slot math, paladin Holy Strike from 6). |
 
 ## Re-rank triggers
 
-1. Kit transcription completes for a queued class → rank its deltas.
-2. Beta DBC lands → bridge name-resolve pass over all wave lists; a kit
+1. Kit transcription completes for a queued class → rank its deltas
+   (DONE 2026-09-16 — all 9 kits transcribed; waves re-ranked below).2. Beta DBC lands → bridge name-resolve pass over all wave lists; a kit
    claim that fails downgrades its delta's rank.
 3. Rage-formula probe verdict → fury/arms ranks move.
 4. Beta patch notes touch a transcribed kit → re-verify affected lanes.
