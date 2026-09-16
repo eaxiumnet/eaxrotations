@@ -28,6 +28,28 @@ apply the listed build-order consequence.
 - [ ] **Client install drive**: confirm the real `_forever_` folder
       location vs DB2ToSqlite's appsettings `BaseDir: F:\World of Warcraft`.
 
+### P0 verdict — 2026-09-17 (beta-day execution attempt)
+
+- **Client NOT installed.** Battle.net registers no forever product
+  (agent product.db + Battle.net.config: wow / wow_classic /
+  wow_classic_era / wow_classic_anniversary / wow_anniversary only); no
+  `_forever_` folder in the install root; zero product markers in
+  WowClassic.exe 2.5.6.69795 (both "forever" strings are engine noise).
+- **Surprise surface**: the anniversary client self-updated to
+  **2.5.6.69795 on 2026-09-13** (beta eve; live realms still serve
+  2.5.6.68184 per the 09-15 login log). Forever may arrive either as a
+  new product/folder OR as an anniversary line update — the detection
+  script watches both surfaces.
+- **Tooling**: `EaxRotations/tools/check_forever_client.py` re-runs the full P0 scan +
+  runbook prereq report; exit 0 = install detected, JSON via --json.
+- Addon-policy recon: **pre-covered** by the MMORPG.com interview entry
+  in overview.md (Project Sylvanas reads memory, not the addon API; the
+  beta-day integrity-check watch still requires the client).
+- Version string + install-drive items: **blocked on client** (no
+  get_game_version() surface exists until the beta binary runs).
+- Runbook prereqs all green (DB2ToSqlite backup, dotnet 9, TBC
+  calibration DBC); steps 1-3 + probes P1/P2 remain client-gated.
+
 ## P1 — wave-1 name resolution (unlocks days 1–3 authoring)
 
 Every wave-1 lane resolves by name or goes dormant. One pass:

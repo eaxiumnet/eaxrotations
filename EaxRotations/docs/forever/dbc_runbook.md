@@ -7,6 +7,11 @@
 
 ## Status (updated 2026-09-16: beta-day dress rehearsal PASSED)
 
+**2026-09-17 beta-day attempt:** client not yet installed on the ops
+machine (anniversary client self-updated to 2.5.6.69795 on 09-13, no
+forever product on any Battle.net surface); `EaxRotations/tools/check_forever_client.py`
+added as the re-runnable step-0 gate. Steps 1-4 unexecuted until install.
+
 **Rehearsal 2026-09-16 (synthetic DBC, fresh worktree):** fixture build, bridge
 build, `--check-bridge` exit 1 (fixture-sized), fail-closed negative scan, and
 the full step-4 matrix all behave exactly as documented. Two corrections landed
