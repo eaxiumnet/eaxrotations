@@ -5,7 +5,7 @@
   <strong>TBC Classic Anniversary rotation framework for <a href="https://github.com/aicore/sylvanas">Project Sylvanas</a></strong>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.27.1-blue" alt="Version 2.27.1">
+  <img src="https://img.shields.io/badge/version-2.27.2-blue" alt="Version 2.27.2">
   <img src="https://img.shields.io/badge/specs-132%20rated%20(4%20eras)-brightgreen" alt="132 Specs Rated Across 4 Eras (live-gated)">
   <img src="https://img.shields.io/badge/tests-569%2F569%20passing-brightgreen" alt="569/569 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">

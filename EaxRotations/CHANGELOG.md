@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased
+## 2.27.2 — 2026-09-15
+
+### Customer Changelog
+- **Vanilla healers cast with era-correct heal values.** The vanilla priest's
+  Greater Heal and Flash Heal rank tables now carry classic-era numbers and
+  only ranks a level-60 character can actually learn. Rank choices themselves
+  are unchanged - a verification-and-correction release, not a rotation
+  change.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #53 (squash 0569b866a: the
+  vanilla-era priest heal values and learn-capped ladders) converted to the
+  release entry. This commit also removes a duplicated `# Changelog` heading
+  that PR's insertion left behind, and bumps the four version pins
+  (header.lua, the README badge, the PvP footer, this top entry).
 
 ### Healers - vanilla-era priest heal values corrected and ladders level-capped
 
@@ -25,8 +39,6 @@
   `test_sod_healer_rank_fit.lua` (84 -> 105 checks); the load-bearing
   injection (25314 override row removed) fails exactly the two value pins
   and restores byte-identical. No TBC or SoD behaviour changes.
-# Changelog
-
 ## 2.27.1 — 2026-09-15
 
 ### Customer Changelog
