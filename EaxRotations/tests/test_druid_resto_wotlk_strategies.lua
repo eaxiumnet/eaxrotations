@@ -202,6 +202,61 @@ assert_lane("Innervate blocked while on cooldown", "Innervate",
     function() mana = 20; not_ready[29166] = true end, false)
 
 -- ============================================================================
+-- FallbackHealingTouch (2026-09-16 deficit-fit wave): TBC-parity direct HT
+-- fallback after Nourish. Smallest covering rank at 80 via the shared hook;
+-- legacy 48382 max when the hook misses (this mock loads without
+-- NS.spell_action, so the ladder stays nil and every execute here takes
+-- the legacy path -- the fit path is pinned in test_sod_healer_rank_fit).
+-- ============================================================================
+assert_lane("FallbackHealingTouch fires on a hurt ally with mana", "FallbackHealingTouch",
+    function() lowest_hp = 80; mana = 25 end, true)
+assert_lane("FallbackHealingTouch blocked on a healthy ally", "FallbackHealingTouch",
+    function() lowest_hp = 81; mana = 100 end, false)
+assert_lane("FallbackHealingTouch blocked below 25% mana", "FallbackHealingTouch",
+    function() lowest_hp = 70; mana = 24 end, false)
+assert_lane("FallbackHealingTouch blocked while on cooldown", "FallbackHealingTouch",
+    function() lowest_hp = 70; mana = 100; not_ready[48378] = true end, false)
+do
+    reset_env()
+    local ctx = {
+        in_combat = true, mana_pct = 100, is_moving = true,
+        party_injured_count = 0,
+        lowest = { unit = {}, hp = 70 }, lowest_hp = 70,
+        target = { get_health_percentage = function() return 100 end },
+        settings = {},
+    }
+    assert_false(find_strategy("FallbackHealingTouch").matches(ctx, result.build_state(ctx)),
+        "FallbackHealingTouch held while moving")
+end
+do
+    -- Legacy fallback execute: no ladder in this mock, so the 48382 max-rank
+    -- cast answers on the lowest unit with the legacy label.
+    reset_env()
+    local low_unit = {}
+    local ctx = {
+        in_combat = true, mana_pct = 100,
+        party_injured_count = 0,
+        lowest = { unit = low_unit, hp = 70 }, lowest_hp = 70,
+        target = { get_health_percentage = function() return 100 end },
+        settings = {},
+    }
+    local state = result.build_state(ctx)
+    assert_true(find_strategy("FallbackHealingTouch").matches(ctx, state),
+        "FallbackHealingTouch matches before the legacy execute")
+    local cast_log = {}
+    _G.EaxRotations.try_cast = function(spell, target, reason)
+        cast_log[#cast_log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    assert_true(find_strategy("FallbackHealingTouch").execute(ctx, state),
+        "FallbackHealingTouch executes")
+    assert_true(cast_log[1] ~= nil, "legacy cast attempted")
+    assert_true(cast_log[1].target == low_unit, "legacy cast targets the lowest unit")
+    assert_true(cast_log[1].reason == "[RESTO] HealingTouch", "legacy label answers on hook miss")
+    _G.EaxRotations.try_cast = nil
+end
+
+-- ============================================================================
 -- Friendly multi-HoT cycling (2026-09-13, shared/periodic_cycler_sylvanas).
 -- The pre-cycling lane always refreshed the single lowest ally, so when that
 -- ally already carried a fresh Rejuvenation a second injured ally was never

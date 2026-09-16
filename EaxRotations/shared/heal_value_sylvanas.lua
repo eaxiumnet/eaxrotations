@@ -277,6 +277,41 @@ M.RANKS = {
         },
     },
     druid = {
+        -- WotLK (3.3.5) druid family (2026-09-16 wave): era-distinct from the
+        -- TBC HealingTouch because WotLK retuned every shared row (R13
+        -- 2349-2767 vs TBC 2715-3206; only R1-R4 agree exactly) and adds one
+        -- head (R14 48378, req 79). Every row verified 2026-09-16 against the
+        -- wotlk-client tooltips (nether.wowhead.com/wotlk/tooltip/spell/<id>:
+        -- heal range + Requires level). Learn levels: the WotLK bridge where
+        -- present (5185/9889/25297/26978/26979 agree with the tooltips), the
+        -- tooltip Requires-level otherwise (incl. the 48378 head). Like the
+        -- paladin wave, druid heals have no dedicated sim file at
+        -- wowsims/wotlk@563e4a08 (sim/druid carries no healing_touch; the
+        -- restoration/ dir holds only the spec scaffold), so no sim
+        -- exact-match is claimed; the coeff reuses the priest-proven 1.88
+        -- wrath multiplier on the TBC 3.5/3.5 ratio (1.0 -> 1.88). At the
+        -- default bonus 0 the fit runs on raw base averages and is
+        -- coeff-insensitive. WotLK HT costs are %-of-base-mana (33% down to
+        -- 17% by rank), so cost stays nil. Built era-less (already
+        -- era-distinct); find_rank_by_id resolves Wotlk* after the canonical
+        -- families, so shared ids keep the TBC-table answer.
+        WotlkHealingTouch = {
+            coeff = 1.88, cast_time = 3.5,
+            { id = 48378, rank = 14, level = 79, base_min = 3761, base_max = 4440 },
+            { id = 26979, rank = 13, level = 69, base_min = 2349, base_max = 2767 },
+            { id = 26978, rank = 12, level = 62, base_min = 2057, base_max = 2424 },
+            { id = 25297, rank = 11, level = 60, base_min = 1975, base_max = 2325 },
+            { id =  9889, rank = 10, level = 56, base_min = 1648, base_max = 1941 },
+            { id =  9888, rank =  9, level = 50, base_min = 1324, base_max = 1565 },
+            { id =  9758, rank =  8, level = 44, base_min = 1221, base_max = 1450 },
+            { id =  8903, rank =  7, level = 38, base_min =  821, base_max =  980 },
+            { id =  6778, rank =  6, level = 32, base_min =  653, base_max =  783 },
+            { id =  5189, rank =  5, level = 26, base_min =  505, base_max =  609 },
+            { id =  5188, rank =  4, level = 20, base_min =  376, base_max =  459 },
+            { id =  5187, rank =  3, level = 14, base_min =  204, base_max =  253 },
+            { id =  5186, rank =  2, level =  8, base_min =   94, base_max =  119 },
+            { id =  5185, rank =  1, level =  1, base_min =   40, base_max =   55 },
+        },
         -- Healing Touch direct ranks. PhDamage SpellData_Druid
         -- (SpellData[5185].ranks @ 22b8ed92) with three TBC-tail corrections:
         -- Wowhead's TBC description (2.4.3 client, which a 2.5.5 realm runs)

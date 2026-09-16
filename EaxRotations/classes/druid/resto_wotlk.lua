@@ -31,6 +31,26 @@ if not _cyc_ok or type(periodic_cycler) ~= "table" then periodic_cycler = nil en
 -- TBC-capped DruidSpells class table (precedent: mage/fire_wotlk.lua:20).
 local define = spec_kit.define_action
 
+-- 2026-09-16 WotLK deficit-fit wave: per-rank HT ladder from the heal-value
+-- module's WotLK family (era-less build_ladder -- already era-distinct).
+-- Fail-closed: without the module the ladder stays nil and the fallback
+-- lane below casts the exact legacy max-rank action. Lean-embedder guard
+-- mirrors the priest/paladin WotLK precedent (NS.spell_action may be
+-- stubbed in standalone dofile suites).
+local WOTLK_HT_RANKS
+local _HealValue = NS.HealValue
+if not _HealValue then
+    local _hv_ok, _mod = pcall(require, "shared/heal_value_sylvanas")
+    if _hv_ok and type(_mod) == "table" then
+        _HealValue = _mod
+        NS.HealValue = NS.HealValue or _mod
+    end
+end
+if type(_HealValue) == "table" and type(NS.spell_action) == "function" then
+    WOTLK_HT_RANKS = _HealValue.build_ladder("druid", "WotlkHealingTouch",
+        function(id) return NS.spell_action(id, "HealingTouch") end)
+end
+
 local ACTION = {
     Rejuvenation = define("Rejuvenation", { 48441, 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
     WildGrowth = define("WildGrowth", { 53251, 48438 }, "WildGrowth"),
@@ -234,6 +254,43 @@ local DSL_DEFS = {
         action = { type = "cast", spell = ACTION.Nourish, target = "friendly" },
     },
     {
+        -- 2026-09-16 WotLK deficit-fit wave: the TBC sibling's
+        -- FallbackHealingTouch has no WotLK counterpart -- every other
+        -- direct lane is single-rank (Nourish), refresh-gated (Regrowth),
+        -- instant (Swiftmend, NS+HT) or group-aggregate (Wild Growth), so a
+        -- deficit-fit HT fallback is the only fittable direct single-target
+        -- heal in the spec. It sits AFTER Nourish (fallback position: fires
+        -- only when no HoT/direct lane above matches) and mirrors the TBC
+        -- gate (lowest <= 80, HT ready, standing still, no predicted
+        -- overheal). The fit picks the smallest HT rank covering the
+        -- deficit at player_level 80; fail-closed to the legacy 48382 max.
+        -- No explicit deficit guard: the raw unit goes to the hook, whose
+        -- legacy walk lands on the ladder head -- the legacy max by
+        -- construction (priest 2.28.0 precedent).
+        name = "FallbackHealingTouch",
+        conditions = {
+            { type = "state", field = "lowest_hp_pct", op = "<=", value = 80 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+            { type = "custom", fn = function(context, state)
+                if context and context.is_moving then return false end
+                local unit = context and context.lowest and context.lowest.unit or nil
+                if not unit then return false end
+                return not overheal_blocked("HealingTouch", unit, 3.0, context)
+            end },
+            { type = "spell_ready", spell = ACTION.HealingTouch, target = "self" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if type(WOTLK_HT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+                local chosen, rank_label = NS.cast_best_heal_rank(WOTLK_HT_RANKS, target,
+                    context, "[RESTO] HealingTouch", { player_level = 80 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+            end
+            return NS.try_cast(ACTION.HealingTouch, target, "[RESTO] HealingTouch") == true
+        end },
+    },
+    {
         name = "Innervate",
         conditions = {
             { type = "state", field = "mana_pct", op = "<=", value = 30 },
@@ -338,6 +395,7 @@ local strategies = {
     { name = "Rejuvenation" },
     { name = "Regrowth" },
     { name = "Nourish" },
+    { name = "FallbackHealingTouch" },
     { name = "Innervate" },
 }
 

@@ -113,7 +113,9 @@ function tests.priority_order()
     -- Tranquility) leads the guide priority, HoT core unchanged behind it.
     -- 2026-09-14: BarkskinSelfPreservation added between Tranquility and
     -- WildGrowth (TBC-sibling parity; own-HP self-preservation band).
-    local expected = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Tranquility", "BarkskinSelfPreservation", "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "Innervate" }
+    -- 2026-09-16: FallbackHealingTouch appended after Nourish (TBC-parity
+    -- direct HT fallback with deficit-fit; Innervate stays last).
+    local expected = { "NaturesSwiftness", "NaturesSwiftnessHealingTouch", "Rebirth", "Tranquility", "BarkskinSelfPreservation", "WildGrowth", "Swiftmend", "Lifebloom", "Rejuvenation", "Regrowth", "Nourish", "FallbackHealingTouch", "Innervate" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -122,8 +124,9 @@ function tests.priority_order()
     return true
 end
 
-local function make_state(overrides)
-    local ctx = { in_combat = true, target = {}, enemy_count = 1 }
+local function make_state(overrides, ctx_overrides)
+    local ctx = { in_combat = true, target = {}, enemy_count = 1, lowest = { unit = {}, hp = 55 } }
+    for k, v in pairs(ctx_overrides or {}) do ctx[k] = v end
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
         lowest_hp_pct = 55, party_injured_count = 0,
@@ -208,6 +211,27 @@ tests.test_Nourish_does_not_match_when_group_healthy = test_match("Nourish", { l
 -- Innervate (W3.3 addition): self mana regen at mana <= 30
 tests.test_Innervate_matches_when_low_mana = test_match("Innervate", { mana_pct = 25 }, true)
 tests.test_Innervate_does_not_match_when_high_mana = test_match("Innervate", { mana_pct = 80 }, false)
+
+-- FallbackHealingTouch (2026-09-16 deficit-fit wave): TBC-parity direct HT
+-- fallback after Nourish (lowest <= 80, mana >= 25, standing still, HT
+-- ready, no predicted overheal). Smallest covering rank at 80, legacy
+-- 48382 max when the hook misses.
+tests.test_FallbackHealingTouch_matches_when_injured = test_match("FallbackHealingTouch", { lowest_hp_pct = 80, mana_pct = 25 }, true)
+tests.test_FallbackHealingTouch_does_not_match_when_healthy = test_match("FallbackHealingTouch", { lowest_hp_pct = 81, mana_pct = 100 }, false)
+tests.test_FallbackHealingTouch_does_not_match_when_low_mana = test_match("FallbackHealingTouch", { lowest_hp_pct = 70, mana_pct = 24 }, false)
+tests.test_FallbackHealingTouch_holds_while_moving = function()
+    local ctx, raw = make_state({ lowest_hp_pct = 70, mana_pct = 100 }, { is_moving = true })
+    for _, s in ipairs(strategies) do
+        if s.name == "FallbackHealingTouch" then
+            local result = s.matches(ctx, raw)
+            if result ~= false then
+                return false, "FallbackHealingTouch: expected hold while moving but matched"
+            end
+            return true
+        end
+    end
+    return false, "strategy FallbackHealingTouch not found"
+end
 
 for name, fn in pairs(tests) do
     local ok, err, msg = pcall(fn)

@@ -300,6 +300,51 @@ bonus 0:
 R12. FoL — 800→R8, 700→R7, 400→R5, 200→R3, 100→R1; below ~80→overshoot
 R8.
 
+### Harvest record (WotLK druid, 2026-09-16): the WotLK HT rows
+
+Same wave, same method (nether.wowhead.com/wotlk/tooltip/spell/\<id\>:
+heal range + Requires level, all 14 rows read). WotLK retuned every shared
+row except R1–R4 (which agree exactly: R4 376–459, R3 204–253, R2 94–119,
+R1 40–55) and adds one head (R14 48378, req 79). Learn levels: the WotLK
+bridge where present (5185/9889/25297/26978/26979 — all agree with the
+tooltips), the tooltip Requires-level otherwise. Costs are %-of-base-mana
+(33% down to 17% by rank), so `cost` stays nil. Coefficient: no dedicated
+druid heal file at wowsims/wotlk@563e4a08 either (sim/druid carries no
+healing_touch; restoration/ holds only the spec scaffold), so the coeff
+reuses the same derived 1.88 wrath multiplier (1.0 → 1.88); bonus-0
+coeff-insensitive as throughout.
+
+**Healing Touch (coeff 1.88, 3.0s)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R14 | 48378 | 79 | 3761–4440 | 4100.5 |
+| R13 | 26979 | 69 | 2349–2767 | 2558 |
+| R12 | 26978 | 62 | 2057–2424 | 2240.5 |
+| R11 | 25297 | 60 | 1975–2325 | 2150 |
+| R10 | 9889 | 56 | 1648–1941 | 1794.5 |
+| R9 | 9888 | 50 | 1324–1565 | 1444.5 |
+| R8 | 9758 | 44 | 1221–1450 | 1335.5 |
+| R7 | 8903 | 38 | 821–980 | 900.5 |
+| R6 | 6778 | 32 | 653–783 | 718 |
+| R5 | 5189 | 26 | 505–609 | 557 |
+| R4 | 5188 | 20 | 376–459 | 417.5 |
+| R3 | 5187 | 14 | 204–253 | 228.5 |
+| R2 | 5186 | 8 | 94–119 | 106.5 |
+| R1 | 5185 | 1 | 40–55 | 47.5 |
+
+**Pick zones at 80, bonus 0:** 3500→R14, 2000→R13, 1700→R11,
+1300→R9, 1000→R7, 600→R6, 400→R4, 150→R2, 40→R1; below ~37→overshoot
+R14.
+
+**Lane note.** The WotLK spec previously had no non-emergency direct HT
+lane to fit (Nourish is single-rank, Regrowth is refresh-gated, NS+HT is
+the instant emergency — all excluded by the wave contract), so this wave
+adds `FallbackHealingTouch` mirroring the TBC gate (lowest ≤ 80, mana ≥
+25, standing still, HT ready, no predicted overheal) in fallback position
+after Nourish. The fit is built into the new lane; fail-closed to the
+legacy 48378 max-rank cast.
+
 ---
 
 ## Reporting a failure

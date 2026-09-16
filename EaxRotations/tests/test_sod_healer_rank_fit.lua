@@ -845,6 +845,91 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- 13. WotLK resto druid fit (2026-09-16 wave): the era-distinct HT family,
+--    the real hook picking mid ranks at player_level 80, and the real
+--    FallbackHealingTouch lane answering mid ranks on deficits and the
+--    legacy 48378 max on unreadable deficits. The spec previously had no
+--    non-emergency direct HT lane (Nourish is single-rank, Regrowth is
+--    refresh-gated, NS+HT is the instant emergency) -- the lane mirrors the
+--    TBC FallbackHealingTouch gate (lowest <= 80, mana >= 25, standing
+--    still, HT ready, no predicted overheal) in fallback position after
+--    Nourish. WotLK retuned every shared row except R1-R4 (which agree
+--    exactly); costs stay nil (%-of-base-mana).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local wht = HV.build_ladder("druid", "WotlkHealingTouch", mk_action("HealingTouch"))
+    assert_true(wht ~= nil, "WotLK HT ladder constructs")
+    assert_eq(#wht, 14, "WotLK HT ladder carries 14 ranks (R1-R14)")
+    assert_eq(wht[1].id, 48378, "WotLK HT head is 48378")
+    assert_eq(wht[1].level, 79, "WotLK HT head learn level 79 (tooltip Requires)")
+    assert_eq(wht[1].base_min, 3761, "WotLK HT head base_min 3761 (wotlk-client tooltip)")
+    assert_eq(wht[1].base_max, 4440, "WotLK HT head base_max 4440")
+    local wht_ids = {}
+    for _, e in ipairs(wht) do wht_ids[e.id] = e.rank end
+    assert_eq(wht_ids[5185], 1, "WotLK HT R1 5185 present")
+    -- Era isolation: the TBC family and find_rank_by_id keep TBC values
+    -- (R1-R4 agree exactly, so isolation is pinned on a divergent row).
+    local tbc_ht = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"))
+    assert_eq(#tbc_ht, 13, "TBC HT family unchanged (13 rows)")
+    assert_eq(HV.find_rank_by_id(26979).base_min, 2715, "find_rank_by_id(26979) stays the TBC 2715")
+    local r48378 = HV.find_rank_by_id(48378)
+    assert_true(r48378 ~= nil and r48378.base_min == 3761, "find_rank_by_id resolves corpus-wide (48378 -> wotlk row 3761)")
+
+    -- Real hook at 80, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HT expected at 80: R14 4100.5 R13 2558 R12 2240.5 R11 2150 R10 1794.5
+    -- R9 1444.5 R8 1335.5 R7 900.5 R6 718 R5 557 R4 417.5 R3 228.5 R2 106.5
+    -- R1 47.5.
+    assert_eq(pick80(wht, 3500), "T R14", "HT deficit 3500 -> R14 head (4100.5 <= bar 4550)")
+    assert_eq(pick80(wht, 2000), "T R13", "HT deficit 2000 -> R13 (bar 2600 < R14 4100.5)")
+    assert_eq(pick80(wht, 1700), "T R11", "HT deficit 1700 -> R11 (bar 2210 < R12 2240.5)")
+    assert_eq(pick80(wht, 1300), "T R9", "HT deficit 1300 -> R9 (bar 1690 < R10 1794.5)")
+    assert_eq(pick80(wht, 1000), "T R7", "HT deficit 1000 -> R7 (bar 1300 < R8 1335.5)")
+    assert_eq(pick80(wht, 600), "T R6", "HT deficit 600 -> R6 (718 <= bar 780)")
+    assert_eq(pick80(wht, 400), "T R4", "HT deficit 400 -> R4 (bar 520 < R5 557)")
+    assert_eq(pick80(wht, 150), "T R2", "HT deficit 150 -> R2 (bar 195 < R3 228.5)")
+    assert_eq(pick80(wht, 40), "T R1", "HT deficit 40 -> R1 tail (47.5 <= bar 52)")
+
+    -- Spec lane through the real module: deficit picks a mid rank; the
+    -- full-health shape falls back to the exact legacy max-rank cast.
+    local resto_registry = { playstyles = {} }
+    function resto_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = resto_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local resto = load_spec("classes/druid/resto_wotlk")
+    local rlanes = {}
+    for _, s in ipairs(resto.playstyles and resto.playstyles.resto or resto_registry.playstyles.resto or {}) do rlanes[s.name] = s end
+    assert_true(rlanes.FallbackHealingTouch ~= nil, "FallbackHealingTouch lane present")
+    local ht_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    rlanes.FallbackHealingTouch.execute({ lowest = { unit = ht_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 26979, "fallback HT lane deficit 2000 fits R13 (26979), not the 48378 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    rlanes.FallbackHealingTouch.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 48378, "fallback HT lane nil deficit -> legacy max-rank 48378")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end
 print("PASS test_sod_healer_rank_fit")
