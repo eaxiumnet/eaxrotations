@@ -5,6 +5,15 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
+## Status (updated 2026-09-16: beta-day dress rehearsal PASSED)
+
+**Rehearsal 2026-09-16 (synthetic DBC, fresh worktree):** fixture build, bridge
+build, `--check-bridge` exit 1 (fixture-sized), fail-closed negative scan, and
+the full step-4 matrix all behave exactly as documented. Two corrections landed
+from it: the forever audit now scans NESTED numeric tables (`b5116fdca` -- a
+scratch file with a nested bogus ID previously passed silently), and step 1
+below was corrected -- the DB2ToSqlite source tree exists only in the
+2026-06-30 backup, not in the checkout.
 ## Status (updated 2026-09-15: pipeline built and proven offline)
 
 | Step | Tool | Status |
@@ -28,7 +37,12 @@ Run from the repo root (or the forever worktree):
 #    name unconfirmed) and a new product line in .build.info.
 
 # 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9 required):
-cd tbc-new/tools/DB2ToSqlite && dotnet run -- -o ../../wowheadScrape/dbc_extract/wowsims_forever.db
+cd ../scripts-backup-20260630-095300/tbc-new/tools/DB2ToSqlite && dotnet run --
+    -o /c/newbot/scripts/wowheadScrape/dbc_extract/wowsims_forever.db
+#    (NOTE, verified 2026-09-16: tbc-new/tools/DB2ToSqlite does NOT exist in the
+#    checkout -- only the backup copy above does. The tool has prebuilt net9.0
+#    binaries and dotnet 9.0.318 is installed. Its appsettings.json points BaseDir
+#    at F:\World of Warcraft -- confirm the real install drive at step 0.)
 #    Target DB2s at minimum: Spell*, Talent, TalentTab, Item* (the tool's
 #    manifest names what it found on the new client).
 
@@ -40,7 +54,6 @@ lua EaxRotations/tests/run_forever_audit_tests.lua --check-bridge
 #    exit 0  = real bridge (>=1000 entries); exit 1 = still fixture-sized.
 
 # 4. Re-run the full matrix:
-python -m json.tool /dev/null 2>/dev/null || true   # (noop placeholder)
 luac -p EaxRotations/core_sylvanas.lua
 lua EaxRotations/tests/run_forever_audit_tests.lua
 lua EaxRotations/tests/run_forever_audit_tests.lua --self-test
@@ -73,7 +86,7 @@ lua EaxRotations/tests/run_verify_all.lua
 
 ```bash
 # Copy the tracked-at-source 2.5.5 DBC next to the fixture first (it is
-# gitignored):  cp <main-checkout>/wowheadScrape/dbc_extract/wowsims.db wowheadScrape/dbc_extract/
+# gitignored):  mkdir -p wowheadScrape/dbc_extract && cp /c/newbot/scripts/wowheadScrape/dbc_extract/wowsims.db wowheadScrape/dbc_extract/
 python tools/build_forever_bridge_fixture.py   # writes wowsims_forever.db (SYNTHETIC)
 python tools/build_forever_bridge.py           # extracts from the synthetic DB
 lua EaxRotations/tests/run_forever_audit_tests.lua --check-bridge   # exit 1 = fixture-sized (expected)
@@ -101,6 +114,9 @@ real client on beta day and rebuild before the first `_forever` spec PR.
 - Enforcement stays fail-closed in every mode: with the fixture bridge loaded,
   real-era IDs in a `_forever` file still flag `INVALID` /
   `VANILLA_ID_IN_FOREVER`.
+- Verified 2026-09-16: the scanner also catches ids inside NESTED numeric
+  tables (gmatch(%b{}) previously skipped them -- fixed in `b5116fdca`); ids
+  above 999999 are outside the plausibility ceiling and never flagged.
 
 ## Why this gate exists
 
