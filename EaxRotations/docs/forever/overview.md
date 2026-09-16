@@ -123,9 +123,11 @@ not stack with them** — buff-allowlisting logic must account for them post-lau
 | Classic WoW Forever — Legacy perk reference (community; beta-captured tooltips) | https://classicwowforever.com/legacy/ | 2026-09-15 |
 | Icy Veins — Forever talent calculator (7-row trees, 51 points, Zierhut: 4th gold-medal slot at 16 points; beta "Thursday") | https://www.icy-veins.com/wow-forever/news/start-planning-your-wow-forever-character-with-our-new-talent-calculator/ | 2026-09-16 |
 | MMORPG.com BlizzCon interview via Icy Veins (Greenfield/Parrott: addon policy, hidden item stats, damage meter, bank ~96, class quests) | https://www.icy-veins.com/wow-forever/news/brand-new-interview-reveals-strict-addon-policy-hidden-item-stats-and-new-camping-details/ | 2026-09-16 |
+| Icy Veins Forever class-overview series (all 9 classes, per-class theorycrafter pages: named new talents/abilities per spec — source for the kits/ transcriptions; hunter first) | https://www.icy-veins.com/wow-forever/hunter-class-overview | 2026-09-16 |
 
 Scrape targets as content lands (mirror per the wowheadScrape pipeline):
-`wowhead.com/forever/spell={id}`, Icy Veins Forever class guides
+`wowhead.com/forever/spell={id}`, the Icy Veins Forever class-overview series
+(all 9 classes live since 2026-09-15 — kits/ transcriptions under way),
 (`icy-veins.com/wow-forever/`), and the official class-identity video/article
 series Blizzard promised ("more class and race details ... through future
 videos and articles").

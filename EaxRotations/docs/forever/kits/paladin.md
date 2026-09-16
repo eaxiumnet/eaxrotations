@@ -54,6 +54,9 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
 - **Sacred Arbiter**: empowers Holy Strike + refreshes Judgments on target.
 - **Champion of the Light**: spell damage from Intellect.
 - **Instrument of the Law**: threat reduction + instant Holy Wrath.
+  (Name verified against the official Deep Dive article — Wowhead's BlizzCon
+  coverage misprinted this as "Hammer of Wrath"; cross-check community
+  reproductions against the official text where they disagree.)
 - **Twist of Light**: a new Seal echoes into the next melee swing — seal
   twisting WITHOUT a swing-timer addon (the repo's seal-twist lane can use
   engine swing timing rather than manual windows).
