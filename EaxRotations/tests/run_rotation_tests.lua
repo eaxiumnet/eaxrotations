@@ -28,6 +28,7 @@ local tests = {
  "test_class_loader_cata_fallback.lua",
  "test_class_loader_wotlk_fallback.lua",
  "test_class_loader_forever_fallback.lua",
+ "test_paladin_holy_forever.lua",
  "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",

@@ -65,6 +65,14 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
   threat, block-Reckoning, Templar's Bulwark with Forbearance tracking.
 - `classes/paladin/holy_forever.lua` — 10s Holy Shock core, Infusion of Light
   weaving, Light's Vigil burst, Spirit/FSR interplay.
+  **Status (2026-09-15, pre-beta): AUTHORED** — zero-literal delta over
+  holy_vanilla.lua (baseline captured via a register interceptor, zero edits
+  to the baseline); Holy Shock is era-shared (`NS.PaladinSpells`), the three
+  Forever-new spells resolve BY NAME through the pcall-required DBC-derived
+  bridge module and stay dormant until the beta DBC lands (dbc_runbook.md
+  step 3b). Battery-proven:
+  all four delta lanes fire in the forever scenarios (`forever_iol_weave`,
+  `forever_vigil_burst`, `forever_shock_cd`), never-inventory unchanged at 9.
 - `classes/paladin/leveling_forever.lua` — Holy Strike from 6, Consecration
   from 20, first spec to feel the kit at low level.
 

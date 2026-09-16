@@ -167,19 +167,36 @@ M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla
 
 -- Forever era (World of Warcraft: Forever, 2026-09-14 pre-beta): the vanilla
 -- MANIFEST under the Forever HARNESS. Production resolves _forever -> _vanilla
--- (class_loader_sylvanas.lua), and no _forever spec files exist yet, so the
--- battery loads the same 40 vanilla files with ns.is_forever() true and
--- ns.is_vanilla() true (the superset contract in core_sylvanas.lua). When the
--- first _forever file lands, its manifest replaces this alias and the battery
--- covers it the same way — STRICT, never=0 from day 1 (no SoD-style retrofit).
+-- (class_loader_sylvanas.lua), so the battery mirrors that: era_file_suffix
+-- prefers the _forever delta and load_spec falls back to _vanilla when none
+-- exists yet. Delta files are listed by spec key (paladin holy first,
+-- 2026-09-15); specs without a delta load their _vanilla file with
+-- ns.is_forever() + ns.is_vanilla() true (the superset contract in
+-- core_sylvanas.lua). STRICT, never=0 from day 1 (no SoD-style retrofit).
 -- load_spec/drift map the era suffix: see M.ERA_FILE_SUFFIX below.
-M.SPEC_FILES_FOREVER = M.SPEC_FILES_VANILLA
+M.SPEC_FILES_FOREVER = {
+    druid = { "balance", "bear", "cat", "caster", "leveling", "resto" },
+    hunter = { "beast_mastery", "leveling", "marksmanship", "survival" },
+    mage = { "arcane", "fire", "frost", "leveling" },
+    paladin = { "holy", "leveling", "protection", "retribution" },
+    priest = { "discipline", "holy", "leveling", "shadow", "smite" },
+    rogue = { "assassination", "combat", "leveling", "subtlety" },
+    shaman = { "elemental", "enhancement", "leveling", "restoration" },
+    warlock = { "affliction", "demonology", "destruction", "leveling" },
+    warrior = { "arms", "fury", "kebab", "leveling", "protection" },
+}
 M.ERA_MANIFESTS.forever = M.SPEC_FILES_FOREVER
 
 -- Battery era -> spec-file suffix. Forever reuses the _vanilla files (fallback
 -- semantics made observable); every other era uses its own suffix.
 function M.era_file_suffix(era)
-    if era == "forever" then return "vanilla" end
+    if era == "forever" then
+        -- Production class-loader semantics (shared/class_loader_sylvanas.lua):
+        -- prefer the _forever delta file, fall back to _vanilla when none
+        -- exists yet. check_manifest_drift only validates the FIRST suffix,
+        -- so a present _forever file keeps its _vanilla sibling optional.
+        return "forever"
+    end
     return era
 end
 
@@ -1475,6 +1492,14 @@ function M.build_ns(class_key, era)
         RetributionAura = ns.spell_action({ 27150, 10301, 10300, 10299, 10298, 7294 }, "RetributionAura"),
         SealCommand = ns.spell_action({ 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
         SealRighteousness = ns.spell_action({ 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }, "SealRighteousness"),
+        -- Forever delta (2026-09-15): holy_forever.lua gates its Light's
+        -- Vigil lane on NS.cooldown_remains(SPELLS.HolyShock) and drives
+        -- forever_shock_cd scenarios through the on_cd bank, which only
+        -- resolves spell_action-backed entries (ids[1]). Additive seed —
+        -- the unseeded read already returned ready, so no lane can flip
+        -- from fires to never (TBC-era counts verified unchanged by the
+        -- battery regression suite).
+        HolyShock = ns.spell_action({ 27180, 20473, 20929, 20930 }, "HolyShock"),
     }
     ns.PriestSpells = {
         -- ids[1] resolves the holy_cure_on_cd on_cd entry (CureDisease on CD
@@ -3415,6 +3440,36 @@ M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
     { name = "sod_cleave_cd", overrides = { in_combat = true, enemy_count = 2, enemies_count = 2, ttd = 60, target_ttd = 60, setting_overrides = { use_cooldowns = true } } }
 
+-- ---------------------------------------------------------------------------
+-- Forever era (2026-09-15): shared set + delta observability shapes.
+-- ---------------------------------------------------------------------------
+M.SCENARIOS_FOREVER = {}
+for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = sc end
+-- _forever delta files must PROVE their lanes fire, or the strict scorecard
+-- hard-fails the new never-lanes (Pattern 17). The forever-specific shapes
+-- drive the paladin holy delta lanes; every other class/spec still resolves
+-- all shared scenarios identically (vanilla-twin contract).
+-- holy_forever gate recap: IoL needs buff 90003 + lowest deficit >= 30 +
+-- mana >= 25; Vigil needs lowest <= 70 + mana >= 50 + long-cd allowed +
+-- Holy Shock half-spent (on_cd [27180] >= 5); Holy Shock core needs mana
+-- >= 20 (always ready); Holy Strike needs a healthy group (friends_hp 100s)
+-- + mana >= 30 + melee distance (5yd default). Baseline preemption notes:
+-- LayOnHands (lowest > 12), DivineShield (hp_pct > 18) and BoP (no
+-- protection_target) stay false in these shapes; the blessing lanes see
+-- blessings_up=false; CleanseTank/PurifySelf/BlessingOfFreedomSnare need
+-- the afflicted/snared flags (absent); DivineFavorHolyLightFollowup needs
+-- has_divine_favor (false); HammerOfJusticeDiver needs a diver (absent);
+-- ConsecrationSoloAoE needs enemy_count > 1 (absent in forever_shock_cd);
+-- JudgementSolo/SealOfWisdom read state fields the deltas never touch.
+-- HolyLightEmergency stays quiet (lowest 65/75 > 55) so the IoL weave owns
+-- Holy Light in its window.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_iol_weave",
+    overrides = { buff_remains_map = { [90003] = 8 }, friends_hp = { 65, 100, 100 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_burst",
+    overrides = { friends_hp = { 60, 100, 100 }, mana_pct = 90, on_cd = { [27180] = 5 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shock_cd",
+    overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 60, on_cd = { [27180] = 5 } } }
+
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
 local function _scenario_me(profile, ctx)
@@ -3813,6 +3868,14 @@ function M.build_context_for(class_key, scenario, era)
         if ctx.is_sod == nil then ctx.is_sod = true end
         if ctx.sod_phase == nil then ctx.sod_phase = 8 end
     end
+    -- Forever-era context defaults: the forever files read the same is_forever
+    -- flag production publishes (build_context, main_sylvanas.lua), so gate
+    -- tests can assert is_forever=false blocks. Phase 1 (beta day) mirrors the
+    -- engine default (forever_phase 1).
+    if era == "forever" then
+        if ctx.is_forever == nil then ctx.is_forever = true end
+        if ctx.forever_phase == nil then ctx.forever_phase = 1 end
+    end
     if ctx.target_distance then ctx.target_range = ctx.target_distance end
     -- Warriors start in Battle Stance (1); stance scenarios flip it.
     if class_key == "warrior" and ctx.stance == 0 then ctx.stance = 1 end
@@ -4181,6 +4244,12 @@ function M.load_spec(class_key, spec_key, era, race_override)
     local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_"
         .. M.era_file_suffix(era) .. ".lua"
     local f = io.open(path, "rb")
+    if not f and era == "forever" then
+        -- Loader fallback (shared/class_loader_sylvanas.lua): a spec without a
+        -- _forever delta runs its _vanilla file under the Forever harness.
+        path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_vanilla.lua"
+        f = io.open(path, "rb")
+    end
     if not f then return nil, "missing file " .. path end
     f:close()
 
@@ -4194,6 +4263,29 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- error-handler block so later suites get the real modules back.
 
     local ns = M.build_ns(class_key, era)
+    -- Forever sentinel bridge (Pattern 17): the production delta files
+    -- pcall-require the DBC-derived bridge module
+    -- (shared/wowhead_data_bridge_spell_index_forever_sylvanas) directly.
+    -- The battery requires the SAME module and seeds sentinel ids for the
+    -- Forever-new client names under beta day. Sentinels are ADDITIVE
+    -- (only when the name is absent), so once the real bridge lands on
+    -- beta day the battery consumes it unchanged. The sentinel ids are
+    -- outside every real rank range and are never written as literals in
+    -- spec files (zero-literal contract, docs/forever/dbc_runbook.md).
+    if era == "forever" then
+        local ok_bridge, bridge_mod = pcall(require, "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
+        if ok_bridge and type(bridge_mod) == "table" then
+            ns.EaxForeverBridge = bridge_mod
+        else
+            ns.EaxForeverBridge = { spell_index_by_name_forever = {} }
+        end
+        local by_name = ns.EaxForeverBridge.spell_index_by_name_forever
+        if type(by_name) == "table" then
+            if by_name["Holy Strike"] == nil then by_name["Holy Strike"] = 90001 end
+            if by_name["Light's Vigil"] == nil then by_name["Light's Vigil"] = 90002 end
+            if by_name["Infusion of Light"] == nil then by_name["Infusion of Light"] = 90003 end
+        end
+    end
     -- Item presence: seed the REAL read the class files use (NS.has_item,
     -- installed by core/items.lua). The battery used to seed a package.loaded
     -- "common/utility/inventory_helper" whose has_item member the .api module
@@ -4678,12 +4770,14 @@ function M.run_all(era)
     local manifest = M.ERA_MANIFESTS[era]
     if not manifest then
         error("behavioral_audit: unknown era '" .. tostring(era)
-            .. "' (expected 'sylvanas', 'wotlk', 'vanilla' or 'sod')", 0)
+            .. "' (expected 'sylvanas', 'wotlk', 'vanilla', 'sod' or 'forever')", 0)
     end
     -- W4.3 (2026-08-14): the SoD era runs the shared scenario set plus the
     -- SoD-specific shapes (M.SCENARIOS_SOD); every other era keeps the
     -- shared set (byte-identical to the pre-W4.3 runs).
-    local scenarios = (era == "sod") and M.SCENARIOS_SOD or M.SCENARIOS
+    local scenarios = M.SCENARIOS
+    if era == "sod" then scenarios = M.SCENARIOS_SOD end
+    if era == "forever" then scenarios = M.SCENARIOS_FOREVER end
     local total = 0
     local reports = {}
     local load_failures = {}
@@ -4802,6 +4896,14 @@ function M.check_manifest_drift(era)
         -- strictness: every *_sod.lua file must have a manifest row.
         non_spec = {}
     end
+    if era == "forever" then
+        -- Forever delta files (2026-09-15): every _forever.lua file under
+        -- classes/ must have a manifest row (same maximal strictness as SoD —
+        -- a dropped delta is a dead delta). Delta files are optional per spec
+        -- (the loader falls back to _vanilla), so the SUFFIX scan only
+        -- validates files that exist; _vanilla siblings stay untouched.
+        non_spec = {}
+    end
     if era == "sylvanas" then
         -- TBC leveling files run via run_leveling_tests.lua, not the battery
         -- (WotLK AND vanilla leveling files ARE battery specs — WotLK by
@@ -4842,6 +4944,14 @@ function M.check_manifest_drift(era)
     end
     for rel in pairs(expected) do
         local f = io.open("EaxRotations/classes/" .. rel, "rb")
+        if not f and era == "forever" then
+            -- Loader fallback (mirrors load_spec + class_loader): a manifest
+            -- entry without a _forever delta is satisfied by its _vanilla
+            -- file. Only a present _forever file is validated against the
+            -- manifest; _vanilla siblings are checked by the vanilla era.
+            local vanilla_rel = rel:gsub("_forever%.lua$", "_vanilla.lua")
+            f = io.open("EaxRotations/classes/" .. vanilla_rel, "rb")
+        end
         if not f then
             drift.missing[#drift.missing + 1] = rel
         else
@@ -4857,7 +4967,8 @@ end
 function M.print_report(agg)
     local era_label = (agg.era == "wotlk") and "wotlk"
         or ((agg.era == "vanilla") and "vanilla"
-        or ((agg.era == "sod") and "sod" or "sylvanas"))
+        or ((agg.era == "sod") and "sod"
+        or ((agg.era == "forever") and "forever" or "sylvanas")))
     print("=============================================================================")
     print("  BEHAVIORAL BATTERY AUDIT (" .. tostring(agg.total) .. " " .. era_label .. " specs)")
     print("=============================================================================")
