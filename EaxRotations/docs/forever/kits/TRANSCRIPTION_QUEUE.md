@@ -23,8 +23,8 @@ VERIFY = transcribed, awaiting beta-DBC verification checklist run.
 | Mage | VERIFY | kits/mage.md |
 | Priest | VERIFY | kits/priest.md (NOTE: no Icy Veins priest overview exists yet — demo-derived Zockify source; refresh when IV lands) |
 | Warlock | VERIFY | kits/warlock.md |
-| Druid | QUEUE | kits/druid.md |
-| Rogue | QUEUE | kits/rogue.md |
+| Druid | VERIFY | kits/druid.md |
+| Rogue | VERIFY | kits/rogue.md |
 | Racial & talent framework | VERIFY | kits/racials-and-talents.md (refresh pass after all 9 classes: fold any per-class-page racial detail not yet recorded) |
 
 Source series: Icy Veins Forever class overviews
