@@ -1,8 +1,26 @@
 # Changelog
 
-## Unreleased
+## 2.28.0 — 2026-09-16
+
+### Customer Changelog
+- **WotLK holy and discipline priests stop overhealing small deficits.**
+  Flash Heal and Greater Heal now pick the smallest castable rank whose
+  heal covers the target's missing health instead of always casting
+  max rank; lane priorities, conditions, and full-health behavior are
+  unchanged, and the feature is fail-closed (legacy max-rank casts return
+  the moment the fit ladder or the kill-switch says so).
 
 ### Developer Notes
+- This entry is the `## Unreleased` record of PR #54 (squash 352bf0a9d:
+  the WotLK priest deficit-fit wave) converted to the release entry. The
+  version is 2.28.0, not 2.27.3: the wave adds new functionality (deficit-
+  driven rank selection and the wrath penalty semantics in the heal
+  engine), which takes the minor slot per the v2.27.0 precedent; patch
+  numbers are reserved for corrections. This commit also bumps the four
+  version pins (header.lua, the README badge, the PvP footer, this top
+  entry) and the validation doc's version stamp.
+
+### Healers - WotLK priest deficit fit (Flash Heal / Greater Heal)
 - WotLK priest deficit-fit wave (branch feat/wotlk-priest-fit-2026-09-16):
   Flash Heal and Greater Heal WotLK rank families added to the heal-value
   module (all 18 rows Wowhead wotlk-verified 2026-09-16; two era retunes

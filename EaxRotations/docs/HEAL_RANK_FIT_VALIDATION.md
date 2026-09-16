@@ -1,7 +1,7 @@
 # Heal-Rank Fit — Live-Client Validation Checklist
 
 How to confirm on a real client that each era's deficit-fit rank picks match
-the values pinned in `shared/heal_value_sylvanas.lua` (v2.27.2). Every number
+the values pinned in `shared/heal_value_sylvanas.lua` (v2.28.0). Every number
 below is derived from the module tables plus the two live modifiers the fit
 actually applies: the downrank penalty `classic(level) × min(1,(level+11)/player_level)`
 from `PreemptiveHeal.downrank_penalty` (player_level 60 on SoD/vanilla lanes,
