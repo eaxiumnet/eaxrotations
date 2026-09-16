@@ -11,6 +11,8 @@ local assert_true = function(v, label) if not v then error(label or "assert_true
 local assert_false = function(v, label) if v then error(label or "assert_false failed", 2) end end
 local failures, total_tests, total_passed = {}, 0, 0
 local last_execute_target = nil
+local last_execute_spell = nil
+local last_execute_reason = nil
 
 local function test(label, fn)
     total_tests = total_tests + 1
@@ -50,7 +52,7 @@ _G.EaxRotations = {
     spell_action = make_action,
     spell_ready = function() return true end,
     spell_exists = function() return true end,
-    try_cast = function(spell, target) last_execute_target = target; return true end,
+    try_cast = function(spell, target, reason) last_execute_target = target; last_execute_spell = spell; last_execute_reason = reason; return true end,
     buff_up = function(unit, ids) return false end,
     buff_remains = function() return 0 end,
     debuff_up = function(unit, ids) return false end,
@@ -263,6 +265,100 @@ test("DivinePlea: does not match at high mana", function()
     local state = holy.build_state(ctx)
     state.mana_pct = 80
     assert_false(holy.strategies[5].matches(ctx, state), "DivinePlea should not match above the 50 gate")
+end)
+
+-- ============================================================================
+-- Deficit-fit pins (2026-09-16): live NS lookup over the file-local WotLK
+-- ladders, level-80 divisor threaded, fail-closed to the legacy max-rank
+-- casts (HL 48782 / FoL 48785). Conditions above are untouched -- the fit
+-- changes WHICH rank casts, never whether the lane fires.
+-- ============================================================================
+local NSM = _G.EaxRotations
+local FIT_HL = { id = 25292, name = "HL_FIT" }
+local FIT_FOL = { id = 19943, name = "FOL_FIT" }
+local hook_calls = 0
+local last_hook_label = nil
+local last_hook_opts = nil
+local fit_enabled = true
+NSM.cast_best_heal_rank = function(ranks, target, context, label, opts)
+    hook_calls = hook_calls + 1
+    last_hook_label = label
+    last_hook_opts = opts
+    if not fit_enabled then return nil end
+    if label == "[HOLY] HolyLight" then return FIT_HL, "HolyLight R9" end
+    if label == "[HOLY] FlashOfLight" then return FIT_FOL, "FlashOfLight R6" end
+    return nil
+end
+
+local function wotlk_ctx(hp)
+    local ally = {
+        get_health_percentage = function() return hp end,
+        get_max_health = function(self) return 12000 end,
+        get_health = function(self) return 12000 - 2000 end,
+    }
+    return { in_combat = true, mana_pct = 100, lowest = { unit = ally, hp = hp }, settings = {} }, ally
+end
+
+test("HolyLight fit: hook rank replaces max, level-80 divisor threaded", function()
+    local c, ally = wotlk_ctx(40)
+    local s = holy.build_state(c)
+    hook_calls = 0
+    last_execute_spell = nil
+    assert_true(holy.strategies[9].matches(c, s), "HolyLight should match at hp 40")
+    assert_true(holy.strategies[9].execute(c, s), "HolyLight should execute")
+    assert_true(last_execute_spell == FIT_HL, "deficit-fit rank replaces the 48782 max")
+    assert_true(last_execute_target == ally, "fit cast still targets the lowest friendly")
+    assert_true(last_hook_label == "[HOLY] HolyLight", "fit label contract")
+    assert_true(last_hook_opts and last_hook_opts.player_level == 80, "level-80 wrath divisor threaded")
+    assert_true(hook_calls == 1, "hook attempted once")
+end)
+
+test("HolyLight fallback: hook miss casts the legacy 48782 max", function()
+    fit_enabled = false
+    local c = wotlk_ctx(40)
+    local s = holy.build_state(c)
+    last_execute_spell = nil
+    assert_true(holy.strategies[9].matches(c, s), "HolyLight should match on fit miss")
+    assert_true(holy.strategies[9].execute(c, s), "HolyLight should execute on fit miss")
+    assert_true(type(last_execute_spell) == "table" and last_execute_spell.id == 48782,
+        "fit miss falls back to the legacy max-rank 48782")
+    fit_enabled = true
+end)
+
+test("HolyLight fallback: absent hook casts the legacy max (guard load-bearing)", function()
+    local saved_hook = NSM.cast_best_heal_rank
+    NSM.cast_best_heal_rank = nil
+    local c = wotlk_ctx(40)
+    local s = holy.build_state(c)
+    last_execute_spell = nil
+    assert_true(holy.strategies[9].execute(c, s), "HolyLight should execute without a hook")
+    assert_true(type(last_execute_spell) == "table" and last_execute_spell.id == 48782,
+        "absent hook falls back to the legacy max-rank 48782")
+    NSM.cast_best_heal_rank = saved_hook
+end)
+
+test("FlashOfLight fit: hook rank replaces max", function()
+    local c, ally = wotlk_ctx(60)
+    local s = holy.build_state(c)
+    hook_calls = 0
+    last_execute_spell = nil
+    assert_true(holy.strategies[10].matches(c, s), "FlashOfLight should match at hp 60")
+    assert_true(holy.strategies[10].execute(c, s), "FlashOfLight should execute")
+    assert_true(last_execute_spell == FIT_FOL, "deficit-fit rank replaces the 48785 max")
+    assert_true(last_execute_target == ally, "fit cast still targets the lowest friendly")
+    assert_true(hook_calls == 1, "FoL hook attempted once")
+end)
+
+test("FlashOfLight fallback: hook miss casts the legacy 48785 max", function()
+    fit_enabled = false
+    local c = wotlk_ctx(60)
+    local s = holy.build_state(c)
+    last_execute_spell = nil
+    assert_true(holy.strategies[10].matches(c, s), "FlashOfLight should match on fit miss")
+    assert_true(holy.strategies[10].execute(c, s), "FlashOfLight should execute on fit miss")
+    assert_true(type(last_execute_spell) == "table" and last_execute_spell.id == 48785,
+        "fit miss falls back to the legacy max-rank 48785")
+    fit_enabled = true
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

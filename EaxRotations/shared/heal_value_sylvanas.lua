@@ -111,6 +111,57 @@ M.RANKS = {
             { id = 19940, rank = 3, level = 34, base_min = 153, base_max = 171 },
             { id = 19939, rank = 2, level = 26, base_min = 102, base_max = 117 },
         },
+        -- WotLK (3.3.5) paladin families (2026-09-16 wave): era-distinct
+        -- datasets kept SEPARATE from the TBC families because WotLK retuned
+        -- every shared row upward (HL R11 2846-3166 vs TBC 2196-2446; FoL R7
+        -- 600-670 vs TBC 458-513) and adds one head each (HL R12 48782 req
+        -- 80, FoL R8 48785 req 79). Every row verified 2026-09-16 against
+        -- the wotlk-client tooltips (nether.wowhead.com
+        -- /wotlk/tooltip/spell/<id>: heal range + Requires level).
+        -- 48783 check: that id is Trample (unrelated), so 48782 is the true
+        -- HL max. HL R5 1042 exists in the WotLK client (Holy Light, req 30)
+        -- but is absent from the spec ACTION ladder -- it is included here
+        -- so the fit ladder is complete (R1-R12); the fit only ever picks a
+        -- smaller covering rank, never a larger one. Learn levels: the WotLK
+        -- bridge where present (19750/27136/27137 agree with the tooltips),
+        -- the tooltip Requires-level otherwise. Coefficients: paladin heals
+        -- have no dedicated sim file at wowsims/wotlk@563e4a08 (the
+        -- sim/paladin listing carries no holy_light/flash_of_light -- heals
+        -- resolve through generic APL handling), so no sim exact-match is
+        -- claimed; the coeff reuses the priest-proven 1.88 wrath multiplier
+        -- on the TBC 2.5/3.5 and 1.5/3.5 ratios (0.714 -> 1.3423,
+        -- 0.429 -> 0.8065). At the default bonus 0 the fit runs on raw base
+        -- averages and is coeff-insensitive. WotLK costs are %-of-base-mana
+        -- (HL 29% / FoL 7% at EVERY rank), so cost stays nil and HPM is
+        -- correctly no-signal. Era arg: built era-less (the families are
+        -- already era-distinct); find_rank_by_id resolves Wotlk* after the
+        -- canonical families, so shared ids keep the TBC-table answer.
+        WotlkHolyLight = {
+            coeff = 1.3423, cast_time = 2.5,
+            { id = 48782, rank = 12, level = 80, base_min = 4888, base_max = 5444 },
+            { id = 27136, rank = 11, level = 70, base_min = 2846, base_max = 3166 },
+            { id = 27135, rank = 10, level = 62, base_min = 2264, base_max = 2518 },
+            { id = 25292, rank =  9, level = 60, base_min = 2063, base_max = 2295 },
+            { id = 10329, rank =  8, level = 54, base_min = 1621, base_max = 1803 },
+            { id = 10328, rank =  7, level = 46, base_min = 1232, base_max = 1372 },
+            { id =  3472, rank =  6, level = 38, base_min =  913, base_max = 1017 },
+            { id =  1042, rank =  5, level = 30, base_min =  643, base_max =  724 },
+            { id =  1026, rank =  4, level = 22, base_min =  409, base_max =  467 },
+            { id =   647, rank =  3, level = 14, base_min =  211, base_max =  248 },
+            { id =   639, rank =  2, level =  6, base_min =  101, base_max =  122 },
+            { id =   635, rank =  1, level =  1, base_min =   53, base_max =   64 },
+        },
+        WotlkFlashOfLight = {
+            coeff = 0.8065, cast_time = 1.5,
+            { id = 48785, rank = 8, level = 79, base_min = 788, base_max = 883 },
+            { id = 27137, rank = 7, level = 66, base_min = 600, base_max = 670 },
+            { id = 19943, rank = 6, level = 58, base_min = 458, base_max = 512 },
+            { id = 19942, rank = 5, level = 50, base_min = 357, base_max = 401 },
+            { id = 19941, rank = 4, level = 42, base_min = 265, base_max = 298 },
+            { id = 19940, rank = 3, level = 34, base_min = 197, base_max = 219 },
+            { id = 19939, rank = 2, level = 26, base_min = 130, base_max = 151 },
+            { id = 19750, rank = 1, level = 20, base_min =  86, base_max =  98 },
+        },
     },
     priest = {
         GreaterHeal = {

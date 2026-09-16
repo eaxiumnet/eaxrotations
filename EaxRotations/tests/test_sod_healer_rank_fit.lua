@@ -746,6 +746,105 @@ do
 end
 
 -- ---------------------------------------------------------------------------
+-- 12. WotLK holy paladin fit (2026-09-16 wave): the era-distinct HL/FoL
+--    families, the real hook picking mid ranks at player_level 80 with the
+--    1.12 Healing Light mult, and the real spec lanes answering mid ranks
+--    on deficits and the legacy max-rank casts on unreadable deficits.
+--    WotLK retuned every shared row upward (HL R11 2846-3166 vs TBC
+--    2196-2446) and adds one head each (HL R12 48782, FoL R8 48785); costs
+--    stay nil (%-of-base-mana). No explicit lane deficit guard: the lanes
+--    pass the raw unit, so the deficit resolves inside the hook -- an
+--    unreadable deficit takes the hook's legacy walk to the ladder head,
+--    which IS the legacy max by construction (priest 2.28.0 precedent).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local whl = HV.build_ladder("paladin", "WotlkHolyLight", mk_action("HolyLight"), 1.12)
+    local wfol = HV.build_ladder("paladin", "WotlkFlashOfLight", mk_action("FlashOfLight"), 1.12)
+    assert_eq(#whl, 12, "WotLK HL ladder carries 12 ranks (R1-R12)")
+    assert_eq(#wfol, 8, "WotLK FoL ladder carries 8 ranks (R1-R8)")
+    assert_eq(whl[1].id, 48782, "WotLK HL head is 48782")
+    assert_eq(wfol[1].id, 48785, "WotLK FoL head is 48785")
+    assert_eq(whl[1].base_min, 4888, "WotLK HL head base_min 4888 (wotlk-client tooltip)")
+    assert_eq(whl[1].base_max, 5444, "WotLK HL head base_max 5444")
+    assert_eq(wfol[1].base_min, 788, "WotLK FoL head base_min 788")
+    assert_eq(wfol[1].base_max, 883, "WotLK FoL head base_max 883")
+    local whl_ids = {}
+    for _, e in ipairs(whl) do whl_ids[e.id] = e.rank end
+    assert_eq(whl_ids[1042], 5, "WotLK HL R5 1042 present (client-teaches, ACTION-gap closed)")
+    assert_eq(whl_ids[635], 1, "WotLK HL R1 635 present")
+    -- Era isolation: the TBC families and find_rank_by_id keep TBC values.
+    local tbc_hl = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12)
+    assert_eq(#tbc_hl, 8, "TBC HL family unchanged (8 rows)")
+    assert_eq(HV.find_rank_by_id(25292).base_min, 1619, "find_rank_by_id(25292) stays the TBC 1619")
+    assert_eq(HV.find_rank_by_id(19943).base_min, 356, "find_rank_by_id(19943) stays the TBC 356")
+    local r48782 = HV.find_rank_by_id(48782)
+    assert_true(r48782 ~= nil and r48782.base_min == 4888, "find_rank_by_id resolves corpus-wide (48782 -> wotlk row 4888)")
+
+    -- Real hook at 80 with the 1.12 mult, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HL expected at 80: R12 5786 R11 3367 R10 2678 R9 2440 R8 1917 R7 1458
+    -- R6 1081 R5 766 R4 491 R3 257 R2 125 R1 66.
+    assert_eq(pick80(whl, 4500), "T R12", "HL deficit 4500 -> R12 head (5786 <= bar 5850)")
+    assert_eq(pick80(whl, 3000), "T R11", "HL deficit 3000 -> R11 (bar 3900 < R12 5786)")
+    assert_eq(pick80(whl, 2000), "T R9", "HL deficit 2000 -> R9 (bar 2600 < R10 2678)")
+    assert_eq(pick80(whl, 1500), "T R8", "HL deficit 1500 -> R8 (bar 1950 < R9 2440)")
+    assert_eq(pick80(whl, 1000), "T R6", "HL deficit 1000 -> R6 (bar 1300 < R7 1458)")
+    assert_eq(pick80(whl, 500), "T R4", "HL deficit 500 -> R4 (bar 650 < R5 766)")
+    assert_eq(pick80(whl, 300), "T R3", "HL deficit 300 -> R3 (bar 390 < R4 491)")
+    assert_eq(pick80(whl, 150), "T R2", "HL deficit 150 -> R2 (bar 195 < R3 257)")
+    assert_eq(pick80(whl, 60), "T R1", "HL deficit 60 -> R1 tail (66 <= bar 78)")
+    -- FoL expected at 80: R8 936 R7 711 R6 543 R5 424 R4 315 R3 233 R2 157 R1 103.
+    assert_eq(pick80(wfol, 800), "T R8", "FoL deficit 800 -> R8 head (936 <= bar 1040)")
+    assert_eq(pick80(wfol, 700), "T R7", "FoL deficit 700 -> R7 (bar 910 < R8 936)")
+    assert_eq(pick80(wfol, 400), "T R5", "FoL deficit 400 -> R5 (bar 520 < R6 543)")
+    assert_eq(pick80(wfol, 200), "T R3", "FoL deficit 200 -> R3 (bar 260 < R4 315)")
+    assert_eq(pick80(wfol, 100), "T R1", "FoL deficit 100 -> R1 (bar 130 < R2 157)")
+
+    -- Spec lanes through the real module: deficits pick mid ranks; the
+    -- full-health shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local pala_registry = { playstyles = {} }
+    function pala_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = pala_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local pala = load_spec("classes/paladin/holy_wotlk")
+    local planes = {}
+    for _, s in ipairs(pala.playstyles and pala.playstyles.holy or pala_registry.playstyles.holy or {}) do planes[s.name] = s end
+    local hl_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    local fol_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11500 end } -- deficit 500
+    planes.HolyLight.execute({ lowest = { unit = hl_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25292, "holy HL lane deficit 2000 fits R9 (25292), not the 48782 head")
+    planes.FlashOfLight.execute({ lowest = { unit = fol_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 19943, "holy FoL lane deficit 500 fits R6 (19943), not the 48785 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    planes.HolyLight.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 48782, "holy HL lane nil deficit -> legacy max-rank 48782")
+    planes.FlashOfLight.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[4].spell) == 48785, "holy FoL lane nil deficit -> legacy max-rank 48785")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end
 print("PASS test_sod_healer_rank_fit")

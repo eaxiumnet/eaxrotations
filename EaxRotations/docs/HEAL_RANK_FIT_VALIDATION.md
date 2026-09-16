@@ -241,6 +241,65 @@ row's bonus term by (22 + learn + 5 − 80)/20 clamped to [0,1] — low-learn
 rows gain little bonus), which is the case the live calibration cast
 settles.
 
+### Harvest record (WotLK paladin, 2026-09-16): the WotLK HL/FoL rows
+
+Same wave, same method (nether.wowhead.com/wotlk/tooltip/spell/\<id\>:
+heal range + Requires level, all 20 rows read). WotLK retuned every shared
+row upward, so the families are era-distinct like the priest pair; the TBC
+table keeps its own values and `find_rank_by_id` keeps the TBC answer for
+shared ids.
+
+**Provenance notes.** 48783 resolves to Trample (unrelated), so 48782 is
+the true HL max. HL R5 1042 exists in the WotLK client (Holy Light, req
+30) but is absent from the spec ACTION ladder — it is included in the
+family so the fit ladder is complete (R1–R12). Learn levels: the WotLK
+bridge where present (19750→20, 27136→70, 27137→66 — all agree with the
+tooltips), the tooltip Requires-level otherwise. WotLK costs are
+%-of-base-mana at every rank (HL 29% / FoL 7%), so `cost` stays nil.
+Coefficients: paladin heals have no dedicated sim file at
+wowsims/wotlk@563e4a08 (the sim/paladin listing carries no
+holy_light/flash_of_light — heals resolve through generic APL handling),
+so no sim exact-match is claimed; the coeff reuses the priest-proven 1.88
+wrath multiplier on the TBC ratios (0.714 → 1.3423, 0.429 → 0.8065). At
+the default bonus 0 the fit runs on raw base averages and is
+coeff-insensitive.
+
+**Holy Light (coeff 1.3423, 2.5s, ×1.12 Healing Light)** — expected @80,
+bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R12 | 48782 | 80 | 4888–5444 | 5786 |
+| R11 | 27136 | 70 | 2846–3166 | 3367 |
+| R10 | 27135 | 62 | 2264–2518 | 2678 |
+| R9 | 25292 | 60 | 2063–2295 | 2440 |
+| R8 | 10329 | 54 | 1621–1803 | 1917 |
+| R7 | 10328 | 46 | 1232–1372 | 1458 |
+| R6 | 3472 | 38 | 913–1017 | 1081 |
+| R5 | 1042 | 30 | 643–724 | 766 |
+| R4 | 1026 | 22 | 409–467 | 491 |
+| R3 | 647 | 14 | 211–248 | 257 |
+| R2 | 639 | 6 | 101–122 | 125 |
+| R1 | 635 | 1 | 53–64 | 66 |
+
+**Flash of Light (coeff 0.8065, 1.5s, ×1.12)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R8 | 48785 | 79 | 788–883 | 936 |
+| R7 | 27137 | 66 | 600–670 | 711 |
+| R6 | 19943 | 58 | 458–512 | 543 |
+| R5 | 19942 | 50 | 357–401 | 424 |
+| R4 | 19941 | 42 | 265–298 | 315 |
+| R3 | 19940 | 34 | 197–219 | 233 |
+| R2 | 19939 | 26 | 130–151 | 157 |
+| R1 | 19750 | 20 | 86–98 | 103 |
+
+**Pick zones at 80, bonus 0:** HL — 4500→R12, 3000→R11, 2000→R9,
+1500→R8, 1000→R6, 500→R4, 300→R3, 150→R2, 60→R1; below ~51→overshoot
+R12. FoL — 800→R8, 700→R7, 400→R5, 200→R3, 100→R1; below ~80→overshoot
+R8.
+
 ---
 
 ## Reporting a failure
