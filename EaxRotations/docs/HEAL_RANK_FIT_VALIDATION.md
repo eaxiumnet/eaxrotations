@@ -128,7 +128,7 @@ healing, which is why this checklist pins the unpenalized rows.
 
 ---
 
-## WotLK status (go/no-go check, 2026-09-16): NO-GO — the +11 divisor is TBC-only
+## WotLK status (go/no-go check, 2026-09-16): NO-GO — the +11 divisor is TBC-only → landed as PR #54
 
 The pinned downrank formula (`PreemptiveHeal.downrank_penalty`, cited to
 LibHealComm-4.0) is **not valid on WotLK**, by the cited library's own code:
@@ -163,6 +163,83 @@ still differ (penalized vs unpenalized base), so the shipped expected values
 and pick zones are conservative (they under-state downranked rows, biasing
 picks toward smaller ranks). Any correction would move pinned values across
 all eras and needs its own wave with the same pin discipline.
+
+### Harvest record (PR #54, 2026-09-16): the WotLK FH/GH rows
+
+The go/no-go pre-conditions above are now implemented on PR #54
+(feat/wotlk-priest-fit-2026-09-16): (1) the wrath branch is in
+`downrank_penalty` (player_level > 70), classic/TBC paths byte-unchanged;
+(2) the +4/+5 offset live calibration is **scoped down** — it only matters
+when `heal_bonus_healing` > 0, because the wrath factor scales the
+bonus-healing term only (see the side finding below; at the default bonus 0
+every WotLK expected value is the raw base average and the fit is
+offset-insensitive); (3) the scoping verdict (priest-only first) was
+shipped. Status: the NO-GO gate is resolved; the checklist rows below are
+live in the module and pinned by the rank-fit suite.
+
+**Provenance.** Every row verified 2026-09-16 against the wotlk-client
+tooltips (nether.wowhead.com/wotlk/tooltip/spell/<id>: heal range +
+Requires level + DBC SpellLevel); the two heads exact-match
+wowsims/wotlk@563e4a08 (sim/priest/flash_heal.go `Roll(1896,2203)`,
+greater_heal.go `Roll(3980,4621)` — the 1.88 wrath healing multiplier on
+the 1.5/3.5 ratios gives coeff 0.8057 / 1.6114). Learn levels: the WotLK
+bridge (wowhead_data_bridge_spell_index_wotlk) where present, the tooltip
+Requires-level otherwise (the two heads); the sources agree wherever both
+exist. WotLK costs are %-of-base-mana at every rank (18% FH / 32% GH), so
+`cost` stays nil and HPM is correctly no-signal — downranking saves no
+mana; the fit is pure overheal avoidance. DBC SpellLevel is 80 for every
+rank, so no rank is coefficient-penalized at any caster ≤ 82.
+
+**Two era divergences found** (kept era-distinct in the `Wotlk*` families;
+`find_rank_by_id` resolves era-suffixed families after the canonical
+TBC/classic ones, so shared ids keep the TBC-table answer):
+
+- FH 25235 (R9): wotlk 1121–1300 vs TBC 1116–1295.
+- GH 25213 (R7): wotlk 2433–2822 vs TBC 2414–2803.
+
+**Flash Heal (coeff 0.8057, 1.5s)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R10 | 48071 | 79 | 1896–2203 | 2049.5 |
+| R9 | 25235 † | 67 | 1121–1300 | 1210.5 |
+| R8 | 25233 | 61 | 931–1078 | 1004.5 |
+| R7 | 10917 | 56 | 833–979 | 906 |
+| R6 | 10916 | 50 | 662–783 | 722.5 |
+| R5 | 10915 | 44 | 534–633 | 583.5 |
+| R4 | 9474 | 38 | 414–492 | 453 |
+| R3 | 9473 | 32 | 339–406 | 372.5 |
+| R2 | 9472 | 26 | 269–325 | 297 |
+| R1 | 2061 | 20 | 202–247 | 224.5 |
+
+**Greater Heal (coeff 1.6114, 3.0s)** — expected @80, bonus 0:
+
+| Rank | Id | Learn | Base range | Expected |
+|---|---|---|---|---|
+| R8 | 48063 | 78 | 3980–4621 | 4300.5 |
+| R7 | 25213 † | 68 | 2433–2822 | 2627.5 |
+| R6 | 25210 | 63 | 2107–2444 | 2275.5 |
+| R5 | 25314 | 60 | 2006–2235 | 2120.5 |
+| R4 | 10965 | 58 | 1835–2044 | 1939.5 |
+| R3 | 10964 | 52 | 1470–1642 | 1556 |
+| R2 | 10963 | 46 | 1178–1318 | 1248 |
+| R1 | 2060 | 40 | 924–1039 | 981.5 |
+
+† era-divergent row (wotlk values shown; the TBC table keeps its own).
+
+The four classic GH ranks (2060/10963/10964/10965) are members again — the
+TBC ladder had replaced them with the 61+ ranks only; a WotLK client learns
+both bands.
+
+**Pick zones at 80, bonus 0** (same rule as every era: newest-first walk,
+first rank with expected ≤ deficit × 1.3; when nothing fits, the head is
+the correct overshoot): FH — 440→R4, 600→R6, 900→R8, 1500→R9, deficit
+≥ 1577→R10, below ~173→overshoot R10. GH — 900→R1, 1000→R2, 1700→R5,
+2000→R6, 2350→R7, deficit ≥ 3309→R8, below ~755→overshoot R8. With
+`heal_bonus_healing` > 0 the zones shift (the wrath factor scales each
+row's bonus term by (22 + learn + 5 − 80)/20 clamped to [0,1] — low-learn
+rows gain little bonus), which is the case the live calibration cast
+settles.
 
 ---
 
