@@ -103,6 +103,7 @@ not stack with them** — buff-allowlisting logic must account for them post-lau
 | Massively Overpowered Deep-Dive report | https://massivelyop.com/2026/09/13/blizzcon-2026-world-of-warfores-deep-dive-panel-talks-group-play-progression-and-item-updates/ | 2026-09-15 |
 | Windows Central overview | https://www.windowscentral.com/gaming/blizzard/world-of-warcraft-forever-is-blizzards-take-on-classic-revamping-vanilla-azeroth | 2026-09-15 |
 | Classic WoW Forever — Legacy perk reference (community; beta-captured tooltips) | https://classicwowforever.com/legacy/ | 2026-09-15 |
+| Icy Veins — Forever talent calculator (7-row trees, 51 points, Zierhut: 4th gold-medal slot at 16 points; beta "Thursday") | https://www.icy-veins.com/wow-forever/news/start-planning-your-wow-forever-character-with-our-new-talent-calculator/ | 2026-09-16 |
 
 Scrape targets as content lands (mirror per the wowheadScrape pipeline):
 `wowhead.com/forever/spell={id}`, Icy Veins Forever class guides

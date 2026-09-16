@@ -37,8 +37,10 @@ Druid (custom druid forms). Zephras Isle starting experience (1–12).
 
 ## Talent framework (Deep Dive 2026-09-13)
 
-- Familiar 1.12 tree structure, same row count.
-- Milestone one-pointers at 11/21/31 **plus a NEW 16-point milestone**.
+- Familiar 1.12 tree structure: **confirmed** — 7 rows per spec tree, 51
+  points, gold-medal one-pointers at 11/21/31 **plus a fourth at 16 points**
+  (four special one-point abilities per tree; Zierhut quote via Icy Veins
+  talent-calculator article, 2026-09-16).
 - **Baseline now**: Divine Spirit, Blessing of Kings, Improved Mark of the Wild
   (their old talents are gone/reworked).
 - Stated goal: every tree viable for dungeons or raids.
@@ -46,5 +48,9 @@ Druid (custom druid forms). Zephras Isle starting experience (1–12).
 ### EAX follow-ups (Phase 5)
 - `shared/talent_inference_sylvanas.lua`: Forever mode treats the three
   key-buff talents as baseline (always-on context fields, no talent probe).
-- 16-point milestone: once beta shows the Talent DB2 shape, map it; until then
-  no inference changes.
+- 16-point milestone: **confirmed as a fourth gold-medal slot**, not a new
+  system — map it once beta exposes the Talent DB2 shape; until then no
+  inference changes. The Icy Veins calculator's individual talent
+  names/ranks are community reproductions: treat them as unverified until
+  the beta DBC lands (DBC remains the source of truth; calculator data is
+  a preview aid for the per-class watch lists, not rotation logic).
