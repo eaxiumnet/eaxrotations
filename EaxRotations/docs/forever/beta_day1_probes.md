@@ -114,5 +114,6 @@ pass (holy_forever bridge lookups go live).
 Every probe verdict lands in the owning kit doc (checkbox + date + one-line
 verdict). A flipped claim updates the kit's rotation-impact rows the same
 day. The build order re-ranks only when a gate probe (P2) or a P3 flip
-changes a wave's relative ranking — per the triggers in
-phase4_build_order.md.
+changes a wave's relative ranking — apply the decision table in
+phase4_build_order.md (probe verdict → re-rank): a lookup, not a research
+pass.

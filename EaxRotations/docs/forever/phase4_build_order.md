@@ -88,6 +88,31 @@ haste-not-affecting-dots re-check.
    claim that fails downgrades its delta's rank.
 3. Rage-formula probe verdict → fury/arms ranks move.
 4. Beta patch notes touch a transcribed kit → re-verify affected lanes.
+5. A probe verdict lands (P1–P3, see beta_day1_probes.md) → apply the
+   decision table below; no research pass needed.
+
+## Probe verdict → re-rank decision table (mechanical)
+
+Each beta-day probe verdict maps to exactly one row here. Apply the move,
+renumber within waves, record the verdict in the owning kit doc — one
+commit through the full gate. Priest deltas keep their source-tier
+downgrade regardless of outcome (that risk is independent of the probes);
+the gates below override rank, not tier.
+
+| Probe | Verdict | Priest / warlock / druid / rogue deltas | Waves 1-2 re-check |
+|---|---|---|---|
+| P2 Furor energy rework | CONFIRMED (shift never nets a gain) | NO CHANGE — #5 cat / #6 bear already rank as destructive; proceed day 1 | none |
+| P2 Furor | NOT changed (TBC Furor ships as-is) | #5 cat demotes to wave-2 tail (loses its destructive core; Berserk-cat + critting bleeds remain); #6 bear demotes to wave-3 top | freed wave-2 slot promotes #15 balance (Eclipse) |
+| P2 Warrior rage formula | CHANGED (rage-from-damage) | none directly | #7 fury returns ABOVE #5/#6 — rage re-derivation is the bigger blast radius; cat/bear demote one slot each |
+| P2 Warrior rage | Unchanged | none | #7 fury demotes to wave-2 tail (CD split + ambient Enrage only) |
+| P2 Rogue constant-regen energy | CONFIRMED | #20/#22/#23 promote as a BLOCK to the wave-2 tail, ordered assassination > subtlety > combat (Venom burst, Thousand Cuts engine, Restless Blades CD infra) | combat outranks #13 arms (both CD-lane work); block rides behind the existing wave-2 rows |
+| P2 Rogue energy | NOT confirmed (tick-pulse survives) | rogue deltas stay wave 3 but drop BELOW priest rows — without regen, rogue lanes stay Vanilla-shaped; Venom/Thousand Cuts are additive only | none |
+| P2 Haste does not affect DoTs | CONFIRMED (build behavior) | #10 affliction and #18 destruction hold rank | none |
+| P2 Haste | FLIP: haste DOES scale dots | #10 affliction promotes INTO WAVE 1 (slot 5) — every dot lane re-derives haste-stacked; #18 destruction promotes to wave-2 top | only verdict that EXPANDS wave 1 |
+| P3 Demonic Pact persistence | Persists through resummon | #17 demonology promotes to wave-3 top — buff juggling is rotation-core | none |
+| P3 Demonic Pact | Buff re-applies on resummon only | #17 demonology drops to last of wave 3 (summon-time buff, not rotation) | none |
+| P1 name resolution | Wave-1 ability missing from bridge | affected wave-1 delta → wave-2 tail (dormant, never a guessed ID) | next-ranked promotes into the freed wave-1 slot |
+| Any probe | Verdict contradicts its kit doc | fix the kit doc FIRST (verdict + source line), then apply the matching row | — |
 
 ## Per-delta standard work (unchanged from the proven template)
 
