@@ -139,7 +139,7 @@ videos and articles").
 | 1 | Era plumbing: expansion key, `is_forever`, superset `is_vanilla`, loader chain, schema/context hook, bootstrap + loader suites | **DONE (pre-beta)** |
 | 2 | Research corpus (this dir, incl. `legacy_perks.md`) + DBC runbook + forever spell audit scaffold | **IN PROGRESS** |
 | 3 | Beta-day: DBC extraction → `wowhead_data_bridge_spell_index_forever_sylvanas.lua` → audit goes live | Blocked on 2026-09-17 |
-| 4 | `_forever` spec deltas: paladin (ret/prot/holy/leveling) first, then other classes as kits are revealed | Blocked on reveals + DBC |
+| 4 | `_forever` spec deltas — build order RANKED in `docs/forever/phase4_build_order.md` (wave 1: enh/ele shaman + fire/arcane mage; template proven by holy_forever) | Blocked on DBC (2026-09-17); ranking ready |
 | 5 | Racial manager Forever tables (new actives/passives + race/class combos incl. Skyborne), merged hit/crit, ⅓ healing→damage, talent baseline | Post-beta, per-domain commits |
 
 ## Out of scope until launch data exists

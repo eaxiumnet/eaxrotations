@@ -73,5 +73,6 @@ class, it supersedes the series page and the doc's source line is updated.
       (dbc_runbook.md steps 2–6), each named ability resolved by name; any
       miss downgrades the claim, never silently drops it.
 - [ ] racials-and-talents.md refresh pass complete.
-- [ ] Phase-4 build order written: which `_forever` spec files to author
-      first, ranked by kit delta × repo-code impact (see queue notes).
+- [x] Phase-4 build order written: `docs/forever/phase4_build_order.md`
+      (wave 1 ranked from the transcribed kits; wave 3 re-ranks as the
+      remaining kits land).
