@@ -72,7 +72,10 @@ demotion — the question stays open in the kit). #8
 `hunter/survival_forever.lua` BUILT (additive + shot reorder: Mongoose
 Bite/Strider Kick melee core above Raptor Strike, MultiShot above AimedShot
 for the DBC-confirmed shared cooldown; Aspect of the Beast documented as
-blocked by the builder's BaseLevel-0 guard). #9–#14 pending.
+blocked by the builder's BaseLevel-0 guard). #9
+`hunter/beast_mastery_forever.lua` BUILT (Summon Hawk above the Arcane Shot
+filler it shares a 6s category CD with; the client's 3-hawk cap and 18s
+lifespan recorded, kit's "2 hawks" corrected). #10–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

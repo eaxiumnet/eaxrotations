@@ -3551,6 +3551,9 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_melee",
     overrides = { in_combat = true, target_distance = 5, distance = 5, enemy_count = 1 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_shared_shot",
     overrides = { in_combat = true, enemy_count = 2, enemies_count = 2 } }
+-- Hunter BM: the hawk lane fires on its shared cooldown in combat.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bm_summon_hawk",
+    overrides = { in_combat = true, mana_pct = 80 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4408,6 +4411,8 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Hunter survival day-1 (2026-09-17): the new Strider Kick melee
             -- strike (Mongoose Bite is class-map and needs no sentinel).
             ["Strider Kick"] = 90016,
+            -- Hunter BM day-1 (2026-09-17): the Summon Hawk cast row.
+            ["Summon Hawk"] = 90017,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

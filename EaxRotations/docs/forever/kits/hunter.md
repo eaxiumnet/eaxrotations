@@ -75,6 +75,17 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
 ## Spec files to author (Phase 4, post-DBC)
 - `classes/hunter/beast_mastery_forever.lua` — 2-hawk maintenance lane
   (CD-shared with Arcane Shot), pet-stat-scaling weight, shot priority weave.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (additive)** — Summon Hawk
+  (1293241@25 / 1293525@36 / 1293526@48 / 1293527@60) spliced immediately
+  above the baseline's Arcane Shot filler; the DBC CONFIRMS the shared
+  cooldown (both in SpellCategory 1173, CategoryRecoveryTime 6000) and the
+  18s lifespan (SpellDuration 85 on the summon row 1293248), and CORRECTS the
+  cap: the client text says **"Only 3 hawks can be active at once"** (kit
+  said 2). Three hawks at a 6s shared CD expire exactly as the fourth cast
+  lands, so casting on cooldown is the maintenance loop; the engine enforces
+  the cap and no guardian-count API exists to pre-check it. Class-wide note
+  verified: "Abilities no longer clip Auto Shot" makes the baseline's
+  shot-buffer gates obsolete (harmless, left in place).
 - `classes/hunter/marksmanship_forever.lua` — Lone Wolf petless branch,
   Sniper Shot burst lane (context-gated), shared Aimed/Multi CD weave.
 - `classes/hunter/survival_forever.lua` — near-total rewrite: melee weave
@@ -134,10 +145,25 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
       text) but every row is **BaseLevel 0**, so the bridge builder's level
       guard excludes it and the class map has no entry — see the survival
       status note for the fix path.
+- [x] Summon Hawk (2026-09-17): ladder 1293241@25 / 1293525@36 / 1293526@48 /
+      **1293527@60**, CategoryRecoveryTime **6000 in SpellCategory 1173 — the
+      same category as Arcane Shot 3044/14287** (shared CD confirmed); the
+      summon row 1293248 carries SpellDuration 85 = **18000ms (18s)**; the
+      rank-1 text states the cap as **3 hawks** (kit's "2" corrected) and the
+      dive-bomb damage as base + 6% RAP. No self-aura stacks the hawk count,
+      so the lane casts on the shared cooldown and lets the engine enforce
+      the cap. OPEN (in-game): whether the engine's castability check honors
+      the 3-hawk cap (if not, the fourth cast in a cycle may waste the shared
+      Arcane Shot lockout).
 - [ ] Traps-in-combat: in-game probe (a mechanic flag, not DBC-readable).
+- [x] Class-wide "abilities no longer clip Auto Shot" (2026-09-17): the
+      baseline hunter files carry shot-buffer/swing gates (can_cast_before_auto
+      / can_cast_instant) that this change makes obsolete — they remain
+      harmless (they only suppress casts), documented for the leveling delta.
 - [ ] Confirm hawk summon mechanics (duration, cap, shared CD) — pet-like
       entities may need pet-handler awareness (apidocs: pet-handler.md).
-      [BM delta, #9]
+      [BM delta, #9] DONE (above); pet-handler awareness not needed for the
+      lane (the hawk is engine-managed).
 - [ ] Survival melee abilities: verify melee-range lanes against unit_distance
       gating (Pattern: squared distance). DONE for Mongoose/Strider (6yd,
       mirroring the baseline's Raptor/WingClip gate).
