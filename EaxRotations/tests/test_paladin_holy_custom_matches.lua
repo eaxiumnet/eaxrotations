@@ -201,4 +201,117 @@ assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace
 -- Valid edge: LG at 0.1s -> should match
 assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 0.1, tank = { unit = {}, deficit = 500 } }), "LGChain should match at 0.1s remaining")
 
+-- ============================================================================
+-- Holy Light deficit-fit (2026-09-16): smallest covering rank via the shared
+-- hook, fail-closed to the legacy R11/R9/R7/R4 bands. Live NS lookup so the
+-- hook is injected post-load here.
+-- ============================================================================
+
+local NS_T = _G.EaxRotations
+NS_T.HOLY_LIGHT_RANKS = { { spell = "HL_FAKE_LADDER", label = "R11" } }
+NS_T.HealValue = { pick_castable = function() return nil end }
+local FIT_SPELL = "HL_FIT_R7"
+local hook_calls = 0
+NS_T.cast_best_heal_rank = function(ranks, target, context, label)
+    hook_calls = hook_calls + 1
+    assert_true(ranks == NS_T.HOLY_LIGHT_RANKS, "fit receives the shared HL ladder")
+    assert_eq(label, "Holy Light", "fit label")
+    return FIT_SPELL, "Holy Light R7"
+end
+
+local hle = find_strategy("HolyLightEmergency")
+local function hle_state(deficit)
+    return { lowest = { unit = {}, effective_hp = 40, hp = 40, deficit = deficit } }
+end
+
+-- Fit used: mid-rank spell wins over the R9 band (hp 40 / deficit 1500).
+hook_calls = 0
+local s_fit = hle_state(1500)
+assert_true(hle.matches({ settings = {} }, s_fit), "HolyLightEmergency should match at hp 40")
+assert_eq(s_fit.holy_light_spell, FIT_SPELL, "deficit-fit rank replaces the R9 band")
+assert_eq(s_fit.holy_light_label, "Holy Light R7", "fit label threads through")
+assert_eq(hook_calls, 1, "hook attempted once")
+
+-- Fail-closed: hook returns nil -> legacy R9 band (hp 40 / deficit 1500).
+NS_T.cast_best_heal_rank = function() return nil end
+local s_fb = hle_state(1500)
+assert_true(hle.matches({ settings = {} }, s_fb), "HolyLightEmergency should match on fit miss")
+assert_eq(s_fb.holy_light_label, "Holy Light R9", "fit miss falls back to the R9 band")
+
+-- Explicit rank mode always wins, even when the fit is available.
+NS_T.cast_best_heal_rank = function() return FIT_SPELL, "Holy Light R7" end
+local s_exp = hle_state(1500)
+assert_true(hle.matches({ settings = { holy_light_rank = "rank4" } }, s_exp), "HolyLightEmergency should match in rank4 mode")
+assert_eq(s_exp.holy_light_label, "Holy Light R4", "explicit rank4 bypasses the fit")
+
+-- Unreadable deficit: hook never attempted, legacy band answers.
+hook_calls = 0
+local hook_probe = NS_T.cast_best_heal_rank
+NS_T.cast_best_heal_rank = function(...) hook_calls = hook_calls + 1; return hook_probe(...) end
+local s_zero = hle_state(0)
+assert_true(hle.matches({ settings = {} }, s_zero), "HolyLightEmergency should match at hp 40 / zero deficit")
+assert_eq(s_zero.holy_light_label, "Holy Light R9", "zero deficit keeps the hp band")
+assert_eq(hook_calls, 0, "hook skipped when deficit is unreadable")
+
+-- ============================================================================
+-- Flash of Light deficit-fit (2026-09-16): smallest covering FoL rank via the
+-- shared hook over the 7-rank ladder; conserve/max bands stay as fail-closed
+-- fallback. Public practice: Warcraft Tavern TBC ("experiment with different
+-- ranks of Holy Light and Flash of Light ... do just enough healing"),
+-- wowtbc.gg ("Downrank if necessary for mana"). No TBC holy sim exists, so
+-- the hook's own math pins carry it.
+-- ============================================================================
+
+NS_T.FLASH_OF_LIGHT_RANKS = { { spell = "FOL_FAKE_LADDER", label = "R7" } }
+local FIT_FOL = "FOL_FIT_R4"
+local fol_hook_calls = 0
+local fol_fit_enabled = true
+NS_T.cast_best_heal_rank = function(ranks, target, context, label)
+    if ranks == NS_T.HOLY_LIGHT_RANKS then return nil end
+    assert_true(ranks == NS_T.FLASH_OF_LIGHT_RANKS, "FoL fit receives the shared FoL ladder")
+    assert_eq(label, "Flash of Light", "FoL fit label")
+    fol_hook_calls = fol_hook_calls + 1
+    if not fol_fit_enabled then return nil end
+    return FIT_FOL, "Flash of Light R4"
+end
+
+local smart_heal = find_strategy("SmartHeal")
+local function fol_state(hp, deficit, mana)
+    return { mana_pct = mana or 100, lowest = { unit = {}, effective_hp = hp, hp = hp, deficit = deficit } }
+end
+
+-- Fit used in the flash zone (hp 80, deficit 300: below the HL 70/900 bar).
+fol_hook_calls = 0
+local s_fol = fol_state(80, 300)
+assert_true(smart_heal.matches({ settings = {} }, s_fol), "SmartHeal should match in the flash zone")
+assert_eq(s_fol.heal_spell, FIT_FOL, "deficit-fit FoL replaces max R7")
+assert_eq(s_fol.heal_label, "Flash of Light R4", "FoL fit label threads through")
+assert_eq(fol_hook_calls, 1, "FoL hook attempted once")
+
+-- Fail-closed: hook misses -> max R7.
+fol_fit_enabled = false
+local s_fol_fb = fol_state(80, 300)
+assert_true(smart_heal.matches({ settings = {} }, s_fol_fb), "SmartHeal should match on FoL fit miss")
+assert_eq(s_fol_fb.heal_label, "Flash of Light R7", "FoL fit miss falls back to R7")
+
+-- Conserve band preserved: hook misses + low mana -> R6 conserve.
+local s_fol_cons = fol_state(80, 300, 10)
+assert_true(smart_heal.matches({ settings = {} }, s_fol_cons), "SmartHeal should match at low mana")
+assert_eq(s_fol_cons.heal_label, "Flash of Light R6 conserve", "conserve band survives the fit")
+
+-- Zero deficit + low mana: hook never attempted, conserve answers directly.
+fol_hook_calls = 0
+local s_fol_zero = fol_state(80, 0, 10)
+assert_true(smart_heal.matches({ settings = {} }, s_fol_zero), "SmartHeal should match at zero deficit")
+assert_eq(s_fol_zero.heal_label, "Flash of Light R6 conserve", "zero deficit keeps the conserve band")
+assert_eq(fol_hook_calls, 0, "FoL hook skipped when deficit is unreadable")
+
+-- HL-overheal fallthrough routes through the same fit (single FoL path).
+fol_fit_enabled = true
+NS_T.HealerDeficit = { gate_spell_overheal = function(spell_key) return spell_key == "HolyLight" end }
+local s_fol_thru = fol_state(60, 1000)
+assert_true(smart_heal.matches({ settings = {} }, s_fol_thru), "SmartHeal should match when HL overheats")
+assert_eq(s_fol_thru.heal_spell, FIT_FOL, "HL fallthrough uses the FoL fit, not hardcoded R7")
+NS_T.HealerDeficit = nil
+
 print("PASS test_paladin_holy_custom_matches")
