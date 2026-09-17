@@ -251,6 +251,7 @@ local function run_self_tests()
     expect(maxrank["Fire Nova"], 408345, "maxrank Fire Nova is the trainer-taught totem-detonating cast (not the internal 11307 damage row)")
     expect(maxrank["Berserk"], 417141, "maxrank Berserk is the druid form-branched row (not the warrior 23397 cross-class lowest id)")
     expect(maxrank["Arcane Blast"], 1239700, "maxrank Arcane Blast is the 60 nuke (not the 400573 aura row)")
+    expect(maxrank["Penance"], 1316995, "maxrank Penance is the dual-mode cast row (not the internal 1316991 heal channel)")
     local buffmap = bridge.spell_buff_by_name_forever
     expect(buffmap["Missile Barrage"], 400589, "buff Missile Barrage is the proc (not the 400588 talent)")
     expect(buffmap["Maelstrom Weapon"], 408505, "buff Maelstrom Weapon is the buff text row (not the 408498 talent)")
@@ -262,6 +263,7 @@ local function run_self_tests()
     -- Flame windows are applied by 426316 but carry no class row themselves.
     expect(buffmap["Shadow"], 1293816, "buff Shadow is the Shadow and Flame shadow window row (class-less, pinned)")
     expect(buffmap["Flame"], 426311, "buff Flame is the Shadow and Flame fire window row (class-less, pinned)")
+    expect(buffmap["Divine Aegis"], 431624, "buff Divine Aegis is the applied absorb shield (not the 431622 talent text)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")

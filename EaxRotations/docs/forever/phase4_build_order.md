@@ -114,7 +114,13 @@ Shadow Bolt by the fire/shadow window aura — both window rows class-less and
 now pinned in the builder's CLASS_LESS_BUFF_NAMES — and the off-target Bane
 of Havoc cleave, respecting the one-Bane limit; the kit's max-rank
 no-consume claim corrected to Backdraft/S&F).
-#19–#26 pending.
+#19 `priest/discipline_forever.lua` BUILT (3 lanes: the Soul Warding shield
+loop with combined PW:S + Divine Aegis absorb accounting, the Penance heal
+on the moderate-damage tier, and the offensive Penance inside the Power in
+Light Holy Fire window; the dual-mode cast row 1316995 pinned in the
+builder's MAXRANK_OVERRIDES and the applied Aegis shield 431624 in
+BUFF_OVERRIDES).
+#20–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

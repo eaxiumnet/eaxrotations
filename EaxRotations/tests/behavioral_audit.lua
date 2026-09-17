@@ -3632,6 +3632,17 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_window"
                   buff_remains_map = { [90039] = 10 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_boh_cleave",
     overrides = { in_combat = true, mana_pct = 80, enemy_count = 3, enemies_count = 3 } }
+-- Priest discipline: the Soul Warding shield on the hurt tank (the default
+-- injured bank puts the tank at 70%), the Penance heal on the 55% lowest
+-- ally, and the offensive Penance in the Power in Light window (a healthy
+-- group + the Holy Fire debuff bank on the primary target).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_shield",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_heal",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_damage",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 100, 100, 100 },
+                  debuff_remains_map = { [15261] = 5 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4541,6 +4552,12 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Bane of Havoc"] = 90038,
             ["Flame"] = 90039,
             ["Shadow"] = 90040,
+            -- Priest discipline day-1 (2026-09-17): the dual-mode Penance cast
+            -- row (pinned over the internal channel rows), the Soul Warding
+            -- talent gate and the Divine Aegis absorb shield.
+            ["Penance"] = 90041,
+            ["Soul Warding"] = 90042,
+            ["Divine Aegis"] = 90043,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

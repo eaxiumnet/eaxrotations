@@ -94,6 +94,16 @@ Eureka!) carry from racials-and-talents.md.
 - `classes/priest/discipline_forever.lua` — Penance dual-mode, Aegis
   absorb accounting (with PW:S, Pattern 12), Soul Warding loop, Weakened
   Soul shaving, Power in Light Holy Fire maintenance.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes, additive)** — (1)
+  the Soul Warding shield: with the talent learned, shields the tank/lowest
+  at <= 75% HP when no Weakened Soul is up and the COMBINED PW:S + Divine
+  Aegis absorb (431624 via buff_points) sits at or below 300; (2) Penance
+  heal: the moderate-damage core button on the lowest ally at <= 65% (12s
+  category cooldown declared); (3) Penance damage: the same cast row on the
+  enemy inside the Power in Light window (Holy Fire debuff up), in the idle
+  block with the group-stable >= 92% mirror of the baseline's local helper.
+  The kit's "+10% Power in Light" is corrected to 15%; Renewed Hope's
+  Weakened Soul shave is 5s (passive).
 - `classes/priest/holy_forever.lua` — PoM placement/jump lane, Binding
   Heal pair-heal, Litany of Light cast-variability engine.
 - `classes/priest/shadow_forever.lua` — universal DP dot, extended Mind
@@ -104,16 +114,41 @@ Eureka!) carry from racials-and-talents.md.
   reshape early leveling for all races.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `PriestSpells` only then.
-- [ ] Penance: dual-mode effect shape (damage vs heal effect on one spell).
-- [ ] PoM: trigger-on-damage buff + jump chain (aura shape).
+- [x] Resolve every named ability above BY NAME in the Forever bridge
+      (2026-09-17, disc day-1): Penance 402174@30 / 1240720@40 / 1240721@50 /
+      1316995@60, Soul Warding 402000, Divine Aegis 431622/431624, Renewed
+      Hope 425280, Twin Disciplines 1225132, Power in Light 1309969,
+      Weakened Soul 6788, PW:S 10901 — all resolve.
+- [x] Penance: dual-mode effect shape (2026-09-17, disc day-1) — the cast row
+      1316995 is one spell ("causing $1316993s1 Holy damage to an enemy, or
+      $1316991s1 healing to an ally, instantly and every $402261t2 sec for
+      $402261d"), CategoryRecoveryTime 12000, trainer-taught under
+      Discipline. The internal channel rows 1316991/1316993 win the raw @60
+      maxrank tie, so the cast is pinned in the builder's MAXRANK_OVERRIDES;
+      the #19 lanes carry both modes (heal on allies, damage on enemies in
+      the Power in Light window). [PROBE: the exact tick count/interval and
+      whether ticks can crit.]
+- [x] Divine Aegis: absorb buff via buff points (2026-09-17, disc day-1) —
+      the applied shield is 431624 (effect 6 aura 69 school-absorb, base 2,
+      "$431624d") while the rank-1 baseline 431622 is the talent text, now
+      pinned in the builder's BUFF_OVERRIDES. The #19 shield lane counts
+      PW:S + Aegis absorbs together (Pattern 12) before re-shielding.
+      [PROBE: whether Aegis stacks with PW:S or replaces — the lane assumes
+      additive; the DBC has no stacking rule.]
+- [x] Soul Warding: PW:S cooldown/cost deltas (2026-09-17, disc day-1) —
+      effect rows confirm exactly −4000 ms and −15% mana; PW:S itself carries
+      CategoryRecoveryTime 4000, so with the talent the loop becomes
+      Weakened-Soul-limited. The #19 shield lane is gated on the talent.
+- [x] Power in Light (2026-09-17, disc day-1): 1309969 reads "+15% damage to
+      targets afflicted with your Holy Fire" — the kit's "up to +10%" is
+      CORRECTED to 15%; the #19 offensive Penance lane gates on the Holy
+      Fire debuff. Renewed Hope shaves 5s of Weakened Soul (the kit's
+      "shave" is now quantified) and Twin Disciplines gives +5% instant
+      casts — both passive on existing lanes, no new lane.
+- [ ] PoM: trigger-on-damage buff + jump chain (aura shape). [holy delta]
 - [ ] DP + Fear Ward: baseline (non-racial) availability.
-- [ ] Divine Aegis: absorb buff via buff points (Pattern 11) and its
-      interaction with PW:S absorbs (Pattern 12 accounting).
-- [ ] Soul Warding: PW:S cooldown/cost deltas.
-- [ ] Mind Flay range extension + slow effect.
-- [ ] Devouring Contagion spread-on-death effect.
+- [ ] Mind Flay range extension + slow effect. [shadow delta]
+- [ ] Devouring Contagion spread-on-death effect. [shadow delta]
 - [ ] Cross-check against the Icy Veins priest overview if it appears.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on

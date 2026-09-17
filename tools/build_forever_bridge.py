@@ -223,6 +223,13 @@ def load_forever_spells(conn):
         # 440870 is the TALENT text row ("Reduces the cooldown of your Soul
         # Fire spell by $m2%..."), so a buff read against it always returns 0.
         "Decimation": 440873,
+        # Applied shield row ("Critical heals have a chance to create a
+        # protective shield on the target, absorbing a percentage of the
+        # amount healed", effect 6 aura 69 school-absorb, base 2); the
+        # baseline 431622 is the TALENT text row ("Your critical heals create
+        # a protective shield ... absorbing $s1% ... Lasts $431624d"), so an
+        # absorb read against it always returns 0.
+        "Divine Aegis": 431624,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for
@@ -239,6 +246,16 @@ def load_forever_spells(conn):
         # CategoryRecoveryTime 6000. The @52 tie with the internal 11307
         # breaks by lowest id to the wrong role - pin the cast row.
         "Fire Nova": 408345,
+        # Penance: 1316991/1316993 are the internal channel rows ("Healing
+        # for $s1 every $1316992t2 sec." / "Dealing $s1 Holy damage every
+        # $1316994t2 sec.", single-effect, no class set check needed for the
+        # text) while 1316995 is the player cast ("Launches a volley of holy
+        # light at the target, causing $1316993s1 Holy damage to an enemy, or
+        # $1316991s1 healing to an ally, instantly and every $402261t2 sec"),
+        # trainer-taught under Discipline, 1.5s GCD, CategoryRecoveryTime
+        # 12000. The @60 tie (five rows) breaks by lowest id to the internal
+        # heal row - pin the dual-mode cast.
+        "Penance": 1316995,
     }
 
     result = {}

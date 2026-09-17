@@ -193,6 +193,19 @@ waits, next-ranked delta moves up.
       Shadowburn); both rows are class-less and now pinned through the
       builder's CLASS_LESS_BUFF_NAMES. The max-rank no-consume claim is
       CORRECTED to Backdraft 427713 / S&F's 20% chance.
+- [x] **Penance dual-mode + 12s cooldown** (2026-09-17, disc day-1): the
+      cast row 1316995 carries both the damage and heal clauses (the
+      internal channel rows win the raw @60 tie — pinned in MAXRANK_
+      OVERRIDES), CategoryRecoveryTime 12000. In-game: confirm the tick
+      count/interval and crit behavior.
+- [x] **Divine Aegis shield id + PW:S interplay** (2026-09-17, disc day-1):
+      the applied absorb row is 431624 (effect 6 aura 69, base 2), pinned in
+      BUFF_OVERRIDES; the #19 shield lane counts both absorbs. In-game:
+      whether Aegis and PW:S absorbs stack or replace one another.
+- [x] **Soul Warding deltas** (2026-09-17, disc day-1): effect rows confirm
+      −4000 ms / −15% mana; PW:S CategoryRecoveryTime 4000 → the talented
+      loop is Weakened-Soul-limited. [PROBE: confirm the 4s CD is truly gone
+      in-game — a category CD might not accept a full reduction.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

@@ -71,6 +71,7 @@ local tests = {
  "test_warlock_affliction_forever.lua",
  "test_warlock_demonology_forever.lua",
  "test_warlock_destruction_forever.lua",
+ "test_priest_discipline_forever.lua",
  "test_warrior_protection_forever.lua",
  "test_warrior_arms_forever.lua",
  "test_mage_frost_forever.lua",
