@@ -19,9 +19,11 @@ local function assert_eq(a, b, label)
 end
 
 local registered = nil
+local PLAYER_UNIT_REF = {}
 local NS = {
     settings = {},
     log = function() end,
+    PLAYER_UNIT = PLAYER_UNIT_REF,
     rotation_registry = {
         register = function(self, name, strategies, options)
             registered = { name = name, strategies = strategies, options = options or {} }
@@ -115,6 +117,19 @@ do
     state.mana_pct = 80
     local no_target = { in_combat = true, has_valid_enemy_target = false, me = {}, settings = {} }
     assert_true(not hs.matches(no_target, state), "B: Hot Streak holds without an enemy")
+
+    -- 3-stack cap (DBC: CumulativeAura 3): spend at the cap, hold below it,
+    -- and fail open when the stack read is unusable (0/nil).
+    NS.has_player_buff = function() return true end
+    NS.buff_stacks = function() return 3 end
+    assert_true(hs.matches(ctx, state), "B: Hot Streak fires at the 3-stack cap")
+    NS.buff_stacks = function() return 1 end
+    assert_true(not hs.matches(ctx, state), "B: Hot Streak holds below the stack cap")
+    NS.buff_stacks = function() return 0 end
+    assert_true(hs.matches(ctx, state), "B: Hot Streak fails open on a 0 (unusable) stack read")
+    NS.buff_stacks = nil
+    assert_true(hs.matches(ctx, state), "B: Hot Streak fails open when buff_stacks is unavailable")
+    NS.has_player_buff = function() return false end
 end
 
 -- C. Dormancy on nil lookups: zero delta lanes on empty mirrors.

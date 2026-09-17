@@ -95,17 +95,22 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
       (`NS.ShamanSpells.ElementalMastery`, id 16166, 180s CD) and needs no
       delta. [PROBE (in-game): confirm the talent grants the ability at 31
       points and the class-map lane fires on beta day.]
-- [x] Hot Streak 400625 (Forever stacking proc; CONTRADICTION: kit
-      "3-stack" unconfirmed, legacy 48108 row says "2 in a row" — do not
-      overwrite the kit number; in-game probe) — mage fire
+- [x] Hot Streak 400625 (Forever stacking proc; **RESOLVED 2026-09-17**:
+  `CumulativeAura=3` confirms the kit's 3-stack number, `SpellDuration 8` =
+  15s, aura = casting-time spellmod op 10 at −25/stack; the legacy 48108
+  "2 in a row" row is the pre-Forever mechanic, `CumulativeAura=1`) — mage
+  fire
 - [x] Pyroblast 11366 / Fire Blast 2136 (class-map casts, unchanged) /
       Wake of Fire buff 11078 + window 1312934 (full mechanic text
       confirmed; trigger wiring OPEN — lane stays absent) — mage
-- [x] Arcane Blast buff 400573 + nuke 1239700@60 (nuke text references the
-      stack rows by id; +175%/+10% split confirmed in aura rows; cap 4 +
-      duration OPEN in aura points) — mage arcane
-- [x] Missile Barrage talent 400588 (trigger-set structure confirmed:
-      AB $m1%, others halved) + proc 400589 (buff lane gates on it) — mage
+- [x] Arcane Blast buff 400573 + nuke 1239700@60 (**cap 4 CONFIRMED** via
+      `CumulativeAura=4`, **8s CONFIRMED** via `SpellDuration 31`; effect
+      split CORRECTED: op 0 +10% other spells, op 22 +10% AB damage
+      multiplier, op 14 **+175% AB MANA COST** — the kit's "+175% AB damage"
+      was the cost mod; nuke casts 15% of base mana) — mage arcane
+- [x] Missile Barrage talent 400588 (roll 40 on AB via aura 42, others
+      halved) + proc 400589 (**15s**, channel −50%, mana −100%, missile
+      period −500ms) — mage
 - [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on 20473 AND
       1311606; live-cast id OPEN) / Light's Vigil cast 1311595@60, buff
       1310909, CategoryRecoveryTime 6000 on EVERY rank (1310911/1311590/

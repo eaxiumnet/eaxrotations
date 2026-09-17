@@ -3508,11 +3508,18 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_lava_burst
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_fire_nova",
     overrides = { mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fire_hot_streak",
-    overrides = { buff_remains_map = { [90007] = 8 }, mana_pct = 80 } }
+    overrides = { buff_remains_map = { [90007] = 3 }, mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_blast_spam",
     overrides = { buff_remains_map = { [90008] = 8 }, mana_pct = 80, on_cd = { [38699] = 3 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_missile_barrage",
     overrides = { buff_remains_map = { [90009] = 8 }, mana_pct = 80 } }
+-- Arcane Blast loop on a mana-constrained caster with no stack buff and no
+-- proc: the loop must START from zero stacks (the wave-1 buff-presence gate
+-- could never be satisfied at 0), and the barrage routing must hold the proc
+-- mid-ramp -- the latter is unit-pinned (a hold scenario cannot be asserted
+-- by the never-detector).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_loop_start",
+    overrides = { mana_pct = 65 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
