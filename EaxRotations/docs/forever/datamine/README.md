@@ -27,6 +27,7 @@
 | `spell_meta.json` | JSON | Per-spell metadata keyed by id (31k): cast ms, duration ms, effect radius yd, min/max range, target cap, cone degrees, dispel/mechanic/category names, mana cost + power type, interrupt flags |
 | `icons.png` + `icons.json` | PNG sprite sheet + JSON index | 4,047 icons decoded straight from the client's BLP textures (items, spells, talents) into a 2048x2048 sheet (32px cells); `icons.json` maps icon file id -> cell |
 | `mounts.json` | JSON | All 141 client mounts: name, summon spell (+ name), type/kind, source enum, display ids |
+| `viewer3d.html` + `models.js` + `models_index.json` | WebGL viewer + payload | Offline 3D model previews (orbit/zoom, textured, no skeleton): geometry decoded from the client M2+SKIN via wowser, textures via this repo's BLP decoder. Built by `tools/build_forever_models.py`; the payload is a `window.MODELS`/`window.MODELS_INDEX` script so it loads on `file://` |
 
 Bulk files above are **local-only build output** (gitignored, like the rest
 of `wowheadScrape/`); the tracked artifacts are the generators
@@ -105,6 +106,9 @@ python tools/build_forever_icons.py --blp-dir <exported icons> --out-dir wowhead
 python tools/build_forever_icons.py --out-dir wowheadScrape/dbc_extract/forever_community --check
 python tools/build_forever_bundle.py              # viewer + shareable zip
 python tools/build_forever_bundle.py --check      # verify them
+python tools/build_forever_models.py              # 3D preview pack (models.js)
+python tools/build_forever_models.py --mounts all --items 19019,17182
+python tools/build_forever_models.py --check      # verify the 3D pack
 ```
 
 ## Schema reference
@@ -191,6 +195,14 @@ and only carries non-zero fields.
   computed: **armor and weapon damage** (their tables do not reproduce
   classic values) and items without `ItemLevel` (shares only). Verify
   anything surprising in-game.
+- **3D models are geometry-only.** The pipeline resolves the client model
+  chain (item -> `ItemModifiedAppearance` -> `ItemAppearance` ->
+  `ItemDisplayInfo`; mount -> `MountXDisplay` -> `CreatureDisplayInfo` ->
+  `CreatureModelData`), exports the M2 + `SFID` skin + `TXID` textures,
+  parses geometry with wowser (`MD21` container unwrapped first; M2 v272
+  vertices are 48-byte structs in the M2, indices in the skin) and decodes
+  textures with the BLP decoder here. No skeleton, animations, or geosets:
+  weapons and mounts look right, characters would need far more work.
 - **Icons come from CASC, not the DBCs.** `Item.IconFileDataID` /
   `SpellMisc.SpellIconFileDataID` are ids; the pixels are BLP textures
   exported with an FDID dumper and decoded by `tools/build_forever_icons.py`

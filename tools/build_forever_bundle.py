@@ -185,6 +185,7 @@ table.grid th { background: #161b22; color: #8b949e; font-weight: normal; }
 <button data-tab="world">World</button>
 <button data-tab="races">Races</button>
 <button data-tab="about">About</button>
+<a href="viewer3d.html" style="background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:6px 14px;text-decoration:none;">3D Models</a>
 </nav>
 <main>
 <section id="tab-spells" class="tab active">
@@ -921,6 +922,7 @@ in any modern browser — no server, no internet needed:
 | File / folder | What it is |
 |---|---|
 | `index.html` | The offline browser above (all data embedded). |
+| `viewer3d.html` + `models.js` | Offline **3D model viewer** (WebGL): orbit/zoom real client models (weapons + mounts) with their textures. Double-click to open. |
 | `icons.png` | Icon sprite sheet, straight from the client (use with `data/icons.json`). |
 | `README.md` | This file. |
 | `data/forever_datamine.db` | SQLite database: `spells`, `spell_effects`, `spell_ranks`, `talents`, `trainer_spells`, `races`, `procs` tables plus handy `player_spells` / `heals` views. Open with DB Browser for SQLite (free, sqlitebrowser.org). |
@@ -1188,7 +1190,8 @@ def build_all():
 ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
                "talents.json", "trainers.json", "races.json", "procs.json",
                "items.jsonl", "spell_meta.json", "zones.json", "points.json",
-               "taxi.json", "creatures.json", "icons.json", "mounts.json")
+               "taxi.json", "creatures.json", "icons.json", "mounts.json",
+               "models_index.json")
 
 
 def build_zip(page, meta, nspells, ntalents):
@@ -1205,12 +1208,32 @@ def build_zip(page, meta, nspells, ntalents):
             nitems = sum(1 for _ in f)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(PKG, VIEWER_NAME), top + "/" + VIEWER_NAME)
+        tpl = os.path.join(ROOT, "tools", "viewer3d_template.html")
+        if not os.path.exists(tpl):
+            print("ERROR: 3D viewer template missing: %s" % tpl)
+            sys.exit(2)
+        with open(tpl, encoding="utf-8") as f:
+            v3d = f.read()
+        with open(os.path.join(PKG, "viewer3d.html"), "w", encoding="utf-8",
+                  newline="\n") as f:
+            f.write(v3d)
         icons_png = os.path.join(PKG, "icons.png")
         if not os.path.exists(icons_png):
             print("ERROR: icons.png missing (run build_forever_icons.py): %s"
                   % icons_png)
             sys.exit(2)
         z.write(icons_png, top + "/icons.png")
+        viewer3d = os.path.join(PKG, "viewer3d.html")
+        if not os.path.exists(viewer3d):
+            print("ERROR: viewer3d.html missing (bundle build copies it from"
+                  " tools/viewer3d_template.html)")
+            sys.exit(2)
+        z.write(viewer3d, top + "/viewer3d.html")
+        models_js = os.path.join(PKG, "models.js")
+        if not os.path.exists(models_js):
+            print("ERROR: models.js missing (run build_forever_models.py)")
+            sys.exit(2)
+        z.write(models_js, top + "/models.js")
         z.writestr(top + "/README.md",
                    build_friends_readme(meta, nspells, ntalents, nitems))
         if os.path.exists(BRIDGE_SRC):
@@ -1288,6 +1311,16 @@ def check_bundle():
     icons_png = os.path.join(PKG, "icons.png")
     if not os.path.exists(icons_png) or os.path.getsize(icons_png) < 1000000:
         problems.append("icons.png missing or too small")
+    models_js = os.path.join(PKG, "models.js")
+    if not os.path.exists(models_js):
+        problems.append("models.js missing (run build_forever_models.py)")
+    else:
+        with open(models_js, encoding="utf-8") as f:
+            mtext = f.read()
+        if "window.MODELS = {" not in mtext:
+            problems.append("models.js has no MODELS payload")
+        if "window.MODELS_INDEX = [" not in mtext:
+            problems.append("models.js has no MODELS_INDEX payload")
     zips = sorted(f for f in os.listdir(PKG) if f.endswith(".zip"))
     if not zips:
         problems.append("no bundle zip present")
@@ -1296,7 +1329,8 @@ def check_bundle():
             names = set(z.namelist())
             top = zips[-1][:-len(".zip")]
             want = {top + "/" + VIEWER_NAME, top + "/README.md",
-                    top + "/icons.png"}
+                    top + "/icons.png", top + "/viewer3d.html",
+                    top + "/models.js"}
             want |= {top + "/data/" + m for m in ZIP_MEMBERS}
             missing = sorted(want - names)
             if missing:
