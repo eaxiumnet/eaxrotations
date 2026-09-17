@@ -66,7 +66,7 @@ def m2_chunks(blob):
 
 
 def resolve_models(conn, item_ids, mount_ids):
-    """Return [(model_fdid, label)] for the requested items/mounts."""
+    """Return [(model_fdid, label, material_resource_ids)] for the items."""
     jobs = []
     for iid in item_ids:
         row = conn.execute(
@@ -78,8 +78,9 @@ def resolve_models(conn, item_ids, mount_ids):
             continue
         ap = conn.execute("SELECT ItemDisplayInfoID FROM ItemAppearance "
                           "WHERE ID = ?", (row[0],)).fetchone()
-        di = conn.execute("SELECT ModelResourcesID FROM ItemDisplayInfo "
-                          "WHERE ID = ?", (ap[0],)).fetchone() if ap else None
+        di = conn.execute("SELECT ModelResourcesID, ModelMaterialResourcesID "
+                          "FROM ItemDisplayInfo WHERE ID = ?",
+                          (ap[0],)).fetchone() if ap else None
         name = conn.execute("SELECT Display_lang FROM ItemSparse WHERE ID = ?",
                             (iid,)).fetchone()
         if not di:
@@ -87,13 +88,15 @@ def resolve_models(conn, item_ids, mount_ids):
             continue
         res = [int(x) for x in arr(di[0]) if x.strip().isdigit() and
                int(x) > 0]
+        mats = [int(x) for x in arr(di[1]) if x.strip().isdigit() and
+                int(x) > 0]
         mfd = conn.execute("SELECT FileDataID FROM ModelFileData WHERE "
                            "ModelResourcesID = ? ORDER BY FileDataID LIMIT 1",
                            (res[0],)).fetchone() if res else None
         if not mfd:
             print("  item %s: no model file" % iid)
             continue
-        jobs.append((mfd[0], (name[0] if name else "item %s" % iid)))
+        jobs.append((mfd[0], (name[0] if name else "item %s" % iid), mats))
     for mid in mount_ids:
         row = conn.execute(
             "SELECT x.CreatureDisplayInfoID FROM MountXDisplay x "
@@ -107,13 +110,13 @@ def resolve_models(conn, item_ids, mount_ids):
         if not cmd:
             print("  mount %s: no model" % mid)
             continue
-        jobs.append((cmd[0], (name[0] if name else "mount %s" % mid)))
+        jobs.append((cmd[0], (name[0] if name else "mount %s" % mid), []))
     seen, out = set(), []
-    for fdid, label in jobs:
+    for fdid, label, mats in jobs:
         if fdid in seen:
             continue
         seen.add(fdid)
-        out.append((fdid, label))
+        out.append((fdid, label, mats))
     return out
 
 
@@ -163,15 +166,17 @@ def build(args):
 
     # pass 1: export the M2s
     names = {}
-    for fdid, label in jobs:
+    for fdid, label, mats in jobs:
         names[fdid] = "%d.m2" % fdid
     if not export_files(args.exporter, args.settings, args.tool_dir,
                         [j[0] for j in jobs], models_dir, names):
         return 2
 
-    # pass 2: read skins + textures from the M2 chunks and export them
+    # pass 2: read skins + textures from the M2 chunks and export them,
+    # plus the item material textures (TextureFileData resolution)
+    conn = sqlite3.connect(SRC_DB)
     extra, first_tex = {}, {}
-    for fdid, label in jobs:
+    for fdid, label, mats in jobs:
         path = os.path.join(models_dir, "%d.m2" % fdid)
         if not os.path.exists(path):
             continue
@@ -185,12 +190,19 @@ def build(args):
             if tag == b"TXID":
                 texs += [struct.unpack_from("<I", payload, i)[0]
                          for i in range(0, len(payload) - 3, 4)]
+        mat_fdids = []
+        if mats:
+            q = ("SELECT FileDataID FROM TextureFileData WHERE "
+                 "MaterialResourcesID IN (%s) ORDER BY FileDataID"
+                 % ",".join("?" * len(mats)))
+            mat_fdids = [r[0] for r in conn.execute(q, mats)]
         texs = [t for t in texs if t]
         if skins:
             extra[skins[0]] = "%d.skin" % skins[0]
-            first_tex[fdid] = (skins[0], texs)
-        for t in texs:
+            first_tex[fdid] = (skins[0], mat_fdids, texs)
+        for t in mat_fdids + texs:
             extra.setdefault(t, "%d.blp" % t)
+    conn.close()
     if extra:
         if not export_files(args.exporter, args.settings, args.tool_dir,
                             sorted(extra), models_dir, extra):
@@ -198,13 +210,17 @@ def build(args):
 
     # pass 3: decode textures + geometry, assemble entries
     entries, index = {}, []
-    for fdid, label in jobs:
+    for fdid, label, mats in jobs:
         if fdid not in first_tex:
             print("  skip %s (no skin)" % label)
             continue
-        skin_fdid, texs = first_tex[fdid]
+        skin_fdid, mat_fdids, texs = first_tex[fdid]
+        # prefer the item's material textures, then the biggest M2 textures
+        by_size = sorted(texs, key=lambda t: -os.path.getsize(
+            os.path.join(models_dir, "%d.blp" % t))
+            if os.path.exists(os.path.join(models_dir, "%d.blp" % t)) else 0)
         png_path = None
-        for t in texs:
+        for t in mat_fdids + by_size:
             blp_path = os.path.join(models_dir, "%d.blp" % t)
             if not os.path.exists(blp_path):
                 continue
@@ -215,8 +231,8 @@ def build(args):
                 png_path = os.path.join(tex_dir, "%d.png" % fdid)
                 icons.write_png(png_path, cw, ch, px)
                 break
-            except Exception as e:
-                print("  texture %d failed: %s" % (t, e))
+            except Exception:
+                continue
         entry = convert_model(args.node, args.node_script, args.work_dir,
                               os.path.join(models_dir, "%d.m2" % fdid),
                               os.path.join(models_dir, "%d.skin" % skin_fdid),
@@ -297,9 +313,12 @@ def main():
     ap.add_argument("--work-dir", default=r"C:\Users\Support\AppData\Local\Temp\opencode\forever-models")
     ap.add_argument("--out-dir", default=os.path.join(
         ROOT, "wowheadScrape", "dbc_extract", "forever_community"))
-    ap.add_argument("--mounts", default="6,12,17,19",
+    ap.add_argument("--mounts", default="6,12,17,19,21,26,27,28,32,39,55,69,71,75",
                     help="comma list of mount ids, or 'all'")
-    ap.add_argument("--items", default="19019,17182,22691,19364",
+    ap.add_argument("--items",
+                    default="19019,17182,17193,22691,19364,13262,17103,18832,"
+                            "17075,17076,18713,18715,22589,22630,22632,18816,"
+                            "19169,17069,19361,18803,19363,17073",
                     help="comma list of item ids")
     ap.add_argument("--tex-max", type=int, default=TEX_MAX)
     ap.add_argument("--exporter", default=r"C:\Users\Support\AppData\Local\Temp\opencode\db2-export\bin\Release\net9.0\ExportTool.dll")
