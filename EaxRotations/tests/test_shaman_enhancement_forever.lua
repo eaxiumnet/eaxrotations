@@ -20,9 +20,11 @@ end
 
 local registered = nil
 local cast_log = {}
+local PLAYER_UNIT_REF = {}
 local NS = {
     settings = {},
     log = function() end,
+    PLAYER_UNIT = PLAYER_UNIT_REF,
     rotation_registry = {
         register = function(self, name, strategies, options)
             registered = { name = name, strategies = strategies, options = options or {} }
@@ -135,6 +137,53 @@ do
     state.mana_pct = 10
     assert_true(not nova.matches(ctx, state), "B: Fire Nova respects the mana floor")
     state.mana_pct = 80
+end
+
+-- B2. Maelstrom Weapon stack gate (DBC: CumulativeAura 5): spend at the cap,
+-- hold below it, and fail open when the stack read is unusable (0/nil).
+do
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 },
+        { ["Fire Nova"] = 19105 }, { ["Maelstrom Weapon"] = 19204 })
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+    local mw = combined[find_lane(combined, "Forever_MaelstromWeave")]
+
+    NS.has_player_buff = function() return true end
+    NS.buff_stacks = function() return 5 end
+    assert_true(mw.matches(ctx, state), "B2: MW weave fires at the 5-stack cap")
+    NS.buff_stacks = function() return 3 end
+    assert_true(not mw.matches(ctx, state), "B2: MW weave holds below the stack cap")
+    NS.buff_stacks = function() return 0 end
+    assert_true(mw.matches(ctx, state), "B2: MW weave fails open on a 0 (unusable) stack read")
+    NS.buff_stacks = nil
+    assert_true(mw.matches(ctx, state), "B2: MW weave fails open when buff_stacks is unavailable")
+    NS.has_player_buff = function() return false end
+end
+
+-- B3. Fire Nova live-fire-totem gate: the Forever cast detonates the active
+-- Fire Totem, so no totem -> no cast (all three client shapes: table with
+-- have_totem, the battery's no-totem false, and an unavailable API).
+do
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 },
+        { ["Fire Nova"] = 19105 }, { ["Maelstrom Weapon"] = 19204 })
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+    local nova = combined[find_lane(combined, "Forever_FireNovaSpell")]
+
+    NS.get_totem_info = function(slot) return { have_totem = true, spell_id = 0 } end
+    assert_true(nova.matches(ctx, state), "B3: Fire Nova fires with a live fire totem")
+    NS.get_totem_info = function() return false end
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova holds with no fire totem (false shape)")
+    NS.get_totem_info = function() return { have_totem = false } end
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova holds with no fire totem (table shape)")
+    NS.get_totem_info = nil
+    assert_true(nova.matches(ctx, state), "B3: Fire Nova fails open when get_totem_info is unavailable")
+    state.mana_pct = 10
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova still respects the mana floor")
+    state.mana_pct = 80
+    ctx.has_valid_enemy_target = false
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova needs a valid enemy")
+    ctx.has_valid_enemy_target = true
 end
 
 -- C. Dormancy on nil lookups: empty mirrors leave lanes out.

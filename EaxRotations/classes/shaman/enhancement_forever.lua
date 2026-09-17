@@ -1,17 +1,24 @@
 -- enhancement_forever.lua — Shaman Enhancement delta for WoW Forever (beta).
 -- WHAT:  Forever kit deltas spliced ON TOP of the vanilla baseline: a
---        Maelstrom Weapon stack-gated Lightning Bolt weave and a re-cadenced
---        Stormstrike core (8s baseline CD) in the weave block, plus a Fire
---        Nova spell lane replacing the totem-drop semantics; re-registered
---        as the "enhancement" playstyle with the vanilla strategies kept
---        below.
+--        Maelstrom Weapon stack-gated Lightning Bolt weave (spend at the
+--        DBC-confirmed 5-stack cap) and a re-cadenced Stormstrike core (8s
+--        baseline CD) in the weave block, plus a Fire Nova spell lane (the
+--        totem-detonating cast row, gated on a live Fire Totem) replacing
+--        the totem-drop semantics; re-registered as the "enhancement"
+--        playstyle with the vanilla strategies kept below.
 -- WHEN:  combat, Forever client (class loader prefers _forever over _vanilla).
--- WHY:   docs/forever/kits/shaman.md (Icy Veins class overview, 2026-09-15):
---        Maelstrom Weapon stacks make Lightning Bolt an instant weave filler
---        (the battlemage rework); Stormstrike drops from a 20s TBC CD to an
---        8s baseline; Fire Nova is no longer a totem — it detonates your Fire
+-- WHY:   docs/forever/kits/shaman.md (Icy Veins class overview, 2026-09-15;
+--        beta DBC verification 2026-09-17): Maelstrom Weapon stacks (cap 5,
+--        CumulativeAura) make Lightning Bolt an instant weave filler (the
+--        battlemage rework); Stormstrike drops from a 20s TBC CD to an 8s
+--        baseline; Fire Nova is no longer a totem — it detonates your Fire
 --        Totem as a plain spell (the vanilla totem-twist lanes collapse into
---        a spell gate).
+--        a spell gate). Shocks and the weapon imbues were re-verified against
+--        the client: Earth Shock 10414@60 / Flame Shock 29228@60 / Frost
+--        Shock 10473@58 and the class-map imbue tops (Rockbiter 16316,
+--        Flametongue 16342, Windfury 16362) are the trainer-taught casts; the
+--        408/1220-series name-mates are internal or variant rows (no lane
+--        change).
 -- SAFETY: ZERO numeric spell-ID literals — the fail-closed forever audit
 --        (run_forever_audit_tests.lua) resolves every ID through the bridge.
 --        Forever-new spells resolve BY NAME through the DBC-derived bridge
@@ -64,9 +71,11 @@ end
 -- mirror; a nil lookup in either mirror leaves the lane dormant -- never a
 -- guessed ID. Maelstrom Weapon gates on the BUFF row (408505, "Reduces the
 -- cast time ... of your next Lightning Bolt" -- the 408498 baseline is the
--- talent text); Fire Nova casts the max-rank damage row (11307@52 -- the
--- @52 tie with the 11311 trigger row breaks by lowest id to the correct
--- one, verified by effect dump). Exact client names come from
+-- talent text; SpellAuraOptions CumulativeAura=5 is the stack cap). Fire
+-- Nova casts the max-rank mirror's player-cast row (408345@52, trainer-
+-- taught, 520 mana, 1.5s GCD, 6s category CD -- the internal 8349/11307
+-- damage rows win the raw @52 tie by lowest id and are pinned away in the
+-- builder's MAXRANK_OVERRIDES). Exact client names come from
 -- docs/forever/kits/shaman.md; sentinel stand-ins are seeded per mirror by
 -- the battery's build_ns so mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
@@ -97,9 +106,18 @@ local format = string.format
 local EMPTY_OPTS = {}
 
 local FOREVER_MW_LB_MANA_FLOOR = 30    -- weave filler: never at starvation
+-- DBC-confirmed (SpellAuraOptions 408505 CumulativeAura=5; talent row 408498
+-- third effect base_points 5): Maelstrom Weapon caps at 5 stacks, each stack
+-- cutting the next Lightning Bolt's cast time (aura 108, -20%/stack), so
+-- spending early wastes the instant window the kit is built around.
+local FOREVER_MW_SPEND_STACKS = 5
 -- DBC-confirmed: RecoveryTime 8000 on Stormstrike 17364 (kit: 8s baseline).
 local FOREVER_STORMSTRIKE_CD_ESTIMATE = 8
 local FOREVER_FIRE_NOVA_MANA_FLOOR = 30
+-- Fire totem slot (WoW totem slots: 1 fire, 2 earth, 3 water, 4 air). The
+-- Forever Fire Nova detonates the ACTIVE fire totem, so the lane holds when
+-- the client reports none.
+local FOREVER_FIRE_TOTEM_SLOT = 1
 
 local function setting(context, key, default)
     return spec_kit.setting(context, key, default)
@@ -107,6 +125,18 @@ end
 
 local function has_valid_enemy(context)
     return context and context.has_valid_enemy_target and context.target
+end
+
+-- Live-fire-totem probe (NS.get_totem_info, core_sylvanas). Fail-open when
+-- the API is unavailable; the engine wrapper returns a table with
+-- have_totem, while the battery's no-totem shape is the literal false.
+local function fire_totem_up()
+    local get_info = NS.get_totem_info
+    if type(get_info) ~= "function" then return true end
+    local info = get_info(FOREVER_FIRE_TOTEM_SLOT)
+    if info == false then return false end
+    if type(info) == "table" and info.have_totem == false then return false end
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -120,9 +150,12 @@ end
 local delta_weave = {}
 
 -- Maelstrom Weapon weave (kit: stacks make Lightning Bolt instant — spend
--- them as the top filler). Gates on the buff being present; the stack-count
--- threshold (spend at N stacks) is a beta-day upgrade once aura points are
--- confirmed on the client. Battery drives the buff through the sentinel id.
+-- them as the top filler). Gates on the buff being present AND, when the
+-- stack read is usable, on the 5-stack cap (DBC CumulativeAura=5) so the
+-- instant window is never wasted on a low-stack spender; a 0/nil stack read
+-- fails open to the presence gate so a degraded aura API cannot stall the
+-- weave. Battery drives the buff through the sentinel id and the stack
+-- count through the buff_remains_map bank.
 if MAELSTROM_WEAPON_BUFF then
     delta_weave[#delta_weave + 1] = {
         name = "Forever_MaelstromWeave",
@@ -130,6 +163,13 @@ if MAELSTROM_WEAPON_BUFF then
             if not has_valid_enemy(context) then return false end
             if (s.mana_pct or 100) < setting(context, "enh_forever_mw_mana_floor", FOREVER_MW_LB_MANA_FLOOR) then return false end
             if not NS.has_player_buff(MAELSTROM_WEAPON_BUFF) then return false end
+            local stacks = 0
+            if NS.buff_stacks then
+                stacks = NS.buff_stacks(NS.PLAYER_UNIT, { MAELSTROM_WEAPON_BUFF }) or 0
+            end
+            if stacks > 0 and stacks < setting(context, "enh_forever_mw_spend_stacks", FOREVER_MW_SPEND_STACKS) then
+                return false
+            end
             return NS.spell_ready(SPELLS.LightningBolt, context.target, EMPTY_OPTS)
         end,
         execute = function(context)
@@ -159,15 +199,17 @@ delta_weave[#delta_weave + 1] = {
 
 local delta_nova = {}
 
--- Fire Nova spell (kit: no longer a totem — detonates your live Fire Totem,
--- +15y with Elemental Reach). Sits above the baseline's totem-twist lane so
--- the spell semantics replace the drop semantics when the bridge resolves
--- the name. Dormant until then.
+-- Fire Nova spell (kit: no longer a totem — the max-rank mirror's cast row
+-- 408345 detonates your live Fire Totem, +15y with Elemental Reach). Sits
+-- above the baseline's totem-twist lane so the spell semantics replace the
+-- drop semantics when the bridge resolves the name; holds when no fire totem
+-- is up (the detonation is a no-op without one). Dormant until then.
 if FIRE_NOVA_SPELL then
     delta_nova[#delta_nova + 1] = {
         name = "Forever_FireNovaSpell",
         matches = function(context, s)
             if not has_valid_enemy(context) then return false end
+            if not fire_totem_up() then return false end
             if (s.mana_pct or 100) < setting(context, "enh_forever_nova_mana_floor", FOREVER_FIRE_NOVA_MANA_FLOOR) then return false end
             return NS.spell_ready(FIRE_NOVA_SPELL, context.target, EMPTY_OPTS)
         end,

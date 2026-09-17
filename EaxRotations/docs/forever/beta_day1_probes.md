@@ -71,12 +71,17 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
 2026-09-17, beta 1.60.1.69893 DBC unless noted):
 
 - [x] Maelstrom Weapon — shaman enhancement (buff 408505 + talent 408498
-      resolve; stack cap + proc chance live in aura points — in-game probe
-      for the spend-at-N gate)
+      resolve; **stack cap CONFIRMED = 5** via SpellAuraOptions CumulativeAura
+      on 408505 and the talent row's third effect base_points; proc mask
+      81920 = melee hit, ProcChance 100 — the spend-at-5 gate is DBC-derived
+      now, no in-game probe needed)
 - [x] Stormstrike (8s CD confirmed: RecoveryTime 8000) / Improved
       Stormstrike (dodge-parry reset OPEN — talent-side, wave 2)
-- [x] Fire Nova (spell, max damage rank 11307@52; trigger twin 11311
-      correctly excluded by the tie-break) — shaman
+- [x] Fire Nova — shaman (ROLE FIX 2026-09-17: the player cast is the
+      trainer-taught 408341-408345 family — 520 mana, 1.5s GCD,
+      **CategoryRecoveryTime 6000**, "detonates your Fire Totem"; the classic
+      8349/11307 rows are totem-internal damage rows with no mana/cast/GCD;
+      the bridge's MAXRANK_OVERRIDES now pins Fire Nova to 408345)
 - [x] Totemic Projection 437009 (60s CD) / Totemic Recall 36936 /
       Call of the Elements 66842 — shaman
 - [x] Lava Burst 408490/1238300 (+20% FS bonus in EffectBasePoints) — shaman

@@ -120,6 +120,13 @@ not encode either.
 - `classes/shaman/enhancement_forever.lua` — MW-stack LB weave (Pattern 11),
   8s Stormstrike + dodge/parry reset reactivity, Rage of the Farseer burst
   window pairing, Rockbiter tank-mode branch.
+  **Status (2026-09-17, beta day): DAY-1 VERIFIED** — the weave lane spends
+  Lightning Bolt at the DBC-confirmed 5-stack cap (fails open on an unusable
+  stack read), the Stormstrike core rides the 8s RecoveryTime, and the Fire
+  Nova lane casts the corrected totem-detonating cast row and holds without a
+  live fire totem. Shocks and imbues re-verified (above) — no lane changes
+  needed. OPEN (wave 2, talent-side): Improved Stormstrike dodge/parry reset,
+  Rage of the Farseer pairing, Rockbiter tank-mode branch.
 - `classes/shaman/restoration_forever.lua` — Riptide→Chain Heal loop,
   flat Healing Way, Water Shield default, Restorative Totem weights.
 - `classes/shaman/leveling_forever.lua` — early Stormstrike (8s CD) leveling
@@ -131,22 +138,45 @@ not encode either.
       408505, Stormstrike 17364, Fire Nova 8349/11307, Totemic Projection
       437009, Totemic Recall 36936, Call of the Elements 66842, Lava Burst
       408490/1238300, Flame Shock 8050).
-- [x] Fire Nova: standalone spell rows confirmed (damage ranks 8349@12 …
-      11307@52 with Effect-2 AoE shapes + paired trigger rows 8504 … 11311;
-      max-rank mirror resolves 11307). No DBC cooldown row on any rank —
-      readiness is engine-gated.
+- [x] Fire Nova **re-verified 2026-09-17 (role fix)**: the classic rows
+      8349@12 … 11307@52 are totem-INTERNAL damage rows (no mana, no cast
+      time, no GCD, no cooldown, not trainer-taught); the player casts are
+      408341@12 … 408345@52 ("Instantly inflicts $11307s1 fire damage to
+      enemies within $11307a1 yd of your active Fire totem"), trainer-taught
+      under Elemental Combat, 520 mana at rank 5, 1.5s GCD, and
+      **CategoryRecoveryTime 6000** (the earlier "no DBC cooldown row" came
+      from the RecoveryTime column only). The max-rank mirror picked 11307 on
+      the raw @52 tie (lowest id wins), so the bridge builder now pins
+      Fire Nova to 408345 via MAXRANK_OVERRIDES. Lanes hold when no fire
+      totem is up (the detonation is a no-op without one) — see
+      `forever_fire_nova_totem`.
 - [x] Lava Burst: Flame Shock dependency confirmed in description text
-      ("If your Flame Shock is on the target") + EffectBasePoints 20 on the
-      bonus effect (+20%); max rank 1238300@60 (10s category CD on both
-      408490 and 1238300); lane casts the max-rank mirror.
-- [x] Maelstrom Weapon (partial 2026-09-17): buff row identified as 408505
-      ("Reduces the cast time and Mana cost of your next Lightning Bolt
-      spell" — baseline 408498 is the talent text); weave lane gates on the
-      buff mirror. OPEN: stack cap + proc chance live in aura points —
-      in-game buff-points read (Pattern 11).
+      ("If your Flame Shock is on the target") + the bonus effect (+20
+      EffectBasePoints; the rendered tooltip reads 21% with talents); max
+      rank 1238300@60 (10s category CD on both 408490 and 1238300); lane
+      casts the max-rank mirror.
+- [x] Maelstrom Weapon (complete 2026-09-17): buff row 408505 ("Reduces the
+      cast time and Mana cost of your next Lightning Bolt spell" — baseline
+      408498 is the talent text); **SpellAuraOptions CumulativeAura = 5
+      confirms the 5-stack cap** (talent row 408498's third effect
+      base_points 5, aura 108 at -20%/stack), proc mask 81920 = melee hit,
+      ProcChance 100. The weave lane spends at 5 stacks and fails open when
+      the stack read is unusable.
 - [x] Stormstrike CD 8s confirmed (RecoveryTime 8000 on 17364; bridge
       cooldown field reads 8.0). OPEN: Improved Stormstrike reset/
       dodge-parry semantics (talent-side, wave 2).
+- [x] Shocks re-verified 2026-09-17: the casts are the class-map classic rows
+      (Earth Shock 10414@60, Flame Shock 29228@60, Frost Shock 10473@58,
+      Lightning Bolt 15208@56 with cast_ms 2500 — the kit's 2.5s cadence is
+      the live row, Chain Lightning 10605@56 with cast_ms 2000). The
+      408xxx/1220xxx name-mates are internal or variant rows (408690 is the
+      "S03 - Earth Shock - Way of Earth" taunt variant); no lane change.
+- [x] Weapon imbues re-verified 2026-09-17: the trainer-taught tops are the
+      class-map ids (Rockbiter 16316@54, Flametongue 16342@56, Windfury
+      16362@60, Frostbrand 16356@58); the same-name 461xxx rows exist but are
+      not in the trainer list, and Flametongue/Rockbiter/Frostbrand carry no
+      SpellClassOptions row (only Windfury does), so they are absent from the
+      bridge mirrors — the class map covers the lanes, no change needed.
 - [ ] Rockbiter threat modifier (+30% with Spirit Weapons) — threat-logic
       branch flag.
 - [x] Totemic Projection/Recall/Call of the Elements spell shapes

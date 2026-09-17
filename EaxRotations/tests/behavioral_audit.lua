@@ -3495,7 +3495,12 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sotc_judge",
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shock_cd",
     overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 60, on_cd = { [27180] = 5 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_mw_weave",
-    overrides = { buff_remains_map = { [90004] = 8 }, mana_pct = 80 } }
+    overrides = { buff_remains_map = { [90004] = 5 }, mana_pct = 80 } }
+-- Fire Nova (enh + ele deltas) casts the trainer-taught totem-detonating row
+-- and HOLDS without a live Fire Totem: the totem bank presents one so the
+-- lane's own gate is the only thing that can keep it dark here.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fire_nova_totem",
+    overrides = { totem_active = true, mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_stormstrike_core",
     overrides = { mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_lava_burst",
