@@ -266,6 +266,7 @@ local function run_self_tests()
     expect(buffmap["Divine Aegis"], 431624, "buff Divine Aegis is the applied absorb shield (not the 431622 talent text)")
     expect(buffmap["Thousand Cuts"], 1310723, "buff Thousand Cuts is the stack buff row (not the 1310721 talent text)")
     expect(buffmap["Cutthroat"], 462707, "buff Cutthroat is the stealth-free Ambush proc (not the 424980 grant row)")
+    expect(buffmap["Prayer of Mending"], 1240849, "buff Prayer of Mending is the @60 applied aura (not the 401859 cast row)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")

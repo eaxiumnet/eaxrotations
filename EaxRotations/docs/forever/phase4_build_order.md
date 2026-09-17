@@ -139,7 +139,11 @@ spender-timing lane that spends at 3-4 CP when a tracked CD sits inside the
 2s x combo shave window, and the Puncturing Wounds dagger generator
 promoted above the Hemorrhage filler; Hack and Slash recorded as a
 class-less bridge gap + Blade Dance as a rune-granted backlog candidate).
-#24–#26 pending.
+#24 `priest/holy_forever.lua` BUILT (3 lanes: the Prayer of Mending
+placement with party-wide jump tracking, the Binding Heal pair-heal gated
+on both parties hurt, and the Litany of Light cast-variability alternation;
+the @60 PoM aura 1240849 pinned in BUFF_OVERRIDES).
+#25–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

@@ -241,6 +241,13 @@ waits, next-ranked delta moves up.
       whether Rupture shaves; Hack and Slash 13960 is a class-less row
       (bridge gap, passive) and Blade Dance 400012 is rune-granted — both
       recorded in the kit checklist.]
+- [x] **PoM + Binding Heal + Litany shapes** (2026-09-17, holy day-1):
+      RESOLVED by the client text/effects — PoM 1240827@60 applies the aura
+      1240849 (10s category CD, pinned in BUFF_OVERRIDES); Binding Heal
+      1240774 heals target + caster; Litany 1317006 refunds mana on a
+      different-spell heal. [PROBE: the PoM jump count/radius, the Litany
+      refund %, and Binding Heal's threat reduction; Twilight Focus 14913
+      is a passive.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

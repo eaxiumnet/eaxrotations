@@ -106,6 +106,19 @@ Eureka!) carry from racials-and-talents.md.
   Weakened Soul shave is 5s (passive).
 - `classes/priest/holy_forever.lua` — PoM placement/jump lane, Binding
   Heal pair-heal, Litany of Light cast-variability engine.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes, additive)** — (1)
+  Prayer of Mending: the maxrank cast (1240827@60, CategoryRecoveryTime
+  10000) on the tank whenever NO party member carries the aura — the jump
+  tracking reads the pinned @60 aura row (1240849, builder BUFF_OVERRIDES)
+  plus the maxrank cast id, and scans the frame-cached healing entries.
+  (2) Binding Heal (1240774@56, "Heals a friendly target and the caster",
+  effect rows = two heal effects): the pair-heal fires only when BOTH the
+  lowest ally and the priest sit at or below 65%. (3) Litany of Light
+  (1317006, a passive proc): the cast-variability lane alternates Greater
+  Heal and Flash Heal on its own last cast (the engine exposes no
+  last-spell read — core's _last_spell_cast is file-local), so every cast
+  it makes is a "different spell" for the refund. Twilight Focus (14913,
+  pushback protection) is a pure passive — recorded as a probe.
 - `classes/priest/shadow_forever.lua` — universal DP dot, extended Mind
   Flay (range + slow), DP-spread on-kill chaining, SW:D execute sharpening.
   **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
@@ -160,7 +173,23 @@ Eureka!) carry from racials-and-talents.md.
       Fire debuff. Renewed Hope shaves 5s of Weakened Soul (the kit's
       "shave" is now quantified) and Twin Disciplines gives +5% instant
       casts — both passive on existing lanes, no new lane.
-- [ ] PoM: trigger-on-damage buff + jump chain (aura shape). [holy delta]
+- [x] PoM: trigger-on-damage buff + jump chain (2026-09-17, holy day-1) —
+      the cast ladder 401859@40 / 1240826@50 / 1240827@60 (10s
+      CategoryRecoveryTime) applies the @60 aura 1240849 ("Heals upon taking
+      damage or receiving healing"), pinned in the builder's BUFF_OVERRIDES;
+      the #24 lane places it on the tank and holds while ANY party member
+      carries it (jump tracking). [PROBE: the in-game jump count (kit: 5)
+      and the jump radius.]
+- [x] Binding Heal (2026-09-17, holy day-1): 1240774@56 heals the target
+      AND the caster (effect rows confirm two heals); the #24 pair-heal
+      gates on both parties being hurt. [PROBE: the threat reduction in-game
+      ("Low threat") — no threat API.]
+- [x] Litany of Light (2026-09-17, holy day-1): 1317006 is a passive proc
+      (aura 42) refunding mana when the previous heal was a different spell;
+      the #24 variety lane alternates Greater Heal / Flash Heal. [PROBE: the
+      refund % (kit: 5-10%) in-game.]
+- [ ] Twilight Focus (14913: pushback protection %) — pure passive,
+      recorded; confirm the in-game value.
 - [ ] DP + Fear Ward: baseline (non-racial) availability.
 - [x] Mind Flay range extension + slow effect (2026-09-17, shadow day-1):
       1225139 reads "+damage, +range, slow"; the baseline's MindFlay lane

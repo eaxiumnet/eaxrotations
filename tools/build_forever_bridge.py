@@ -241,6 +241,10 @@ def load_forever_spells(conn):
         # 424980 is the "Gain the Cutthroat ability" grant row, so a buff
         # read against it always returns 0.
         "Cutthroat": 462707,
+        # Applied aura row ("Heals upon taking damage or receiving healing",
+        # effect 6 aura 4, base 1902 at the @60 rank); the baseline 401859 is
+        # the @40 CAST row, so an aura read against it always returns 0.
+        "Prayer of Mending": 1240849,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for

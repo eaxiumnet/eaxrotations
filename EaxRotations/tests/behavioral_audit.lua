@@ -3681,6 +3681,14 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_rb",
     overrides = { in_combat = true, combo_points = 4, on_cd = { [13750] = 6 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_pw",
     overrides = { in_combat = true, equipped_daggers = true } }
+-- Priest holy: the Prayer of Mending placement (the default injured bank
+-- leaves the tank at 70% with no aura) and the Binding Heal pair heal (both
+-- the lowest ally and the priest hurt). The Litany variety lane rides the
+-- base scenarios (lowest 55%, mana 100%).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_pom",
+    overrides = { in_combat = true, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_binding",
+    overrides = { in_combat = true, hp = 60, friends_hp = { 55, 70, 100 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4615,6 +4623,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- gate and the Puncturing Wounds generator gate.
             ["Restless Blades"] = 90051,
             ["Puncturing Wounds"] = 90052,
+            -- Priest holy day-1 (2026-09-17): the Prayer of Mending cast
+            -- (and its pinned @60 aura id) and the Binding Heal pair heal.
+            ["Prayer of Mending"] = 90053,
+            ["Binding Heal"] = 90054,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
