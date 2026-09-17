@@ -27,4 +27,7 @@
 # EaxRotations/docs/forever/dbc_runbook.md, so they must be tracked.
 !/tools/build_forever_bridge.py
 !/tools/build_forever_bridge_fixture.py
+# Forever community datamine package (scripts + docs only; the built bulk
+# files under wowheadScrape/dbc_extract/forever_community/ stay local-only).
+!/tools/build_forever_database.py
 EaxRotations/.omo/
