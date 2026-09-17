@@ -83,6 +83,7 @@ local tests = {
  "test_mage_frost_forever.lua",
  "test_druid_balance_forever.lua",
  "test_druid_resto_forever.lua",
+ "test_forever_coverage.lua",
  "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",
