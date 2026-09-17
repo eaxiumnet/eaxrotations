@@ -52,7 +52,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 638 test suites (597 rotation + 41 leveling)
+    tests/                  # 639 test suites (597 rotation + 42 leveling)
 ```
 
 ---
@@ -84,7 +84,7 @@ scripts/
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **638 Test Suites** | 597 rotation + 41 leveling registered; 597 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
+| 🧪 **639 Test Suites** | 597 rotation + 42 leveling registered; 597 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -123,7 +123,7 @@ EaxRotations/
 │
 └── tests/                  # Regression test suite
     ├── run_rotation_tests.lua    # 597 rotation suites
-    ├── run_leveling_tests.lua    # 41 leveling suites
+    ├── run_leveling_tests.lua    # 42 leveling suites
     └── test_*.lua                # Individual test files
 ```
 
@@ -181,7 +181,7 @@ Run the full rotation regression suite (**597 suites**):
 lua EaxRotations/tests/run_rotation_tests.lua
 ```
 
-Run the leveling test suite (**41 suites**):
+Run the leveling test suite (**42 suites**):
 
 ```bash
 lua EaxRotations/tests/run_leveling_tests.lua

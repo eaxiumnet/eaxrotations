@@ -153,9 +153,10 @@ Exorcism and Consecration; the rank-ladder mirror recorded as a close-out
 candidate); druid BUILT (the Omen of Clarity clearcast weave waiving the
 flat energy floors inside the free-cast window; the form-energy half needs
 no lane — Furor is a capped restore and the leveling file has no
-powershift lane); the remaining classes (rogue energy pace, warlock
-Bane-slot math, warrior Victory Rush, hunter Aimed Shot, mage Frostfire,
-shaman early Stormstrike, priest Fear Ward/DP) follow.
+powershift lane); warrior BUILT (the Victory Rush kill-window sustain lane
+above Execute, rune-learn-gated); the remaining classes (rogue energy pace,
+warlock Bane-slot math, hunter Aimed Shot, mage Frostfire, shaman early
+Stormstrike, priest Fear Ward/DP) follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

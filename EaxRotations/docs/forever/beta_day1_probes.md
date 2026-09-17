@@ -266,6 +266,12 @@ waits, next-ranked delta moves up.
       the leveling lane fires the expensive ability free. The form-energy
       half is a no-op (Furor capped; no powershift lane in the leveling
       file).
+- [x] **Warrior Victory Rush** (2026-09-17, warrior leveling day-1): 402927
+      (level 20, 30s CD) is rune-granted ("Engrave Gloves - Victory Rush")
+      and the VICTORIOUS enabler 402975 resolves in all three mirrors; the
+      leveling lane fires inside the kill window. [PROBE: confirm the rune's
+      in-game source and the heal percentage; the rage-formula watch stays
+      the standing P2 probe.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

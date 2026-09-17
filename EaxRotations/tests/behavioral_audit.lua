@@ -3704,6 +3704,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_leveling_s
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_druid_leveling_omen",
     overrides = { in_combat = true, form = 3, combo_points = 2,
                   buff_remains_map = { [16864] = 10 } } }
+-- Warrior leveling: the Victory Rush kill window (the real Victorious
+-- enabler id in the buff map; the melee/combat defaults hold).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warrior_leveling_vr",
+    overrides = { in_combat = true, buff_remains_map = { [402975] = 15 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

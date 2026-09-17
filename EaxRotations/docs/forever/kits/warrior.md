@@ -152,6 +152,15 @@ resolves it** (no IDs, no rank numbers below).
   Shield Slam 23925 / Revenge 25288 value changes need no lane.
 - `classes/warrior/leveling_forever.lua` — Victory Rush kill-chain sustain
   lane, rage-formula watch (leveling is where starvation bites first).
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — Victory Rush
+  402927 (Warrior, level 20, 30s RecoveryTime, rune-granted via "Engrave
+  Gloves - Victory Rush": "Instantly attack the target ... healing you for
+  $s2% of your maximum health. Only useable within $402975d after you kill
+  a non-trivial enemy") fired inside the VICTORIOUS kill window (402975,
+  "Follows killing an enemy") above the baseline's Execute lane, with the
+  melee/combat/target gates the baseline's damage lanes carry and a learn
+  gate for the rune (fail-closed un-engraved). The rage-formula watch is
+  the standing P2 probe (not client-resolvable) — recorded, no lane.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve the wave-2 names BY NAME / class map (2026-09-17): Retaliation
