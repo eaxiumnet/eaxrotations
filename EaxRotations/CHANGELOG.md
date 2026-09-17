@@ -2,6 +2,63 @@
 
 ## Unreleased
 
+### Era: WoW Forever — day-1 rotations complete (29 specs + leveling)
+
+- **Every spec has a Forever rotation path.** 26 spec deltas + 9 leveling
+  deltas (35 `_forever` files) were authored on the beta-day DBC (client
+  1.60.1.69893) across 47 commits; the three specs whose kits changed
+  nothing mechanically (paladin protection/retribution, shaman restoration)
+  ride the vanilla-superset fallback, so all 29 specs resolve a Forever
+  rotation the moment the era loads. Every delta is additive unless the kit
+  forced otherwise (druid cat: powershift dropped — Furor rework; priest
+  smite: the cast-on-cooldown Holy Fire lane replaced by the debuff-driven
+  upkeep; hunter/leveling: the shared Aimed/Multi pair reordered
+  Multi-first; warlock affliction: the Immolate lane dropped while UA is
+  engraved).
+- **By-name, zero-literal design held throughout.** No `_forever` file
+  writes a numeric spell ID: spells resolve through the DBC-derived bridge
+  mirrors (`spell_index_by_name_forever` / `spell_maxrank_by_name_forever` /
+  `spell_buff_by_name_forever`), and a nil lookup leaves the lane dormant.
+  The bridge gained three mechanism extensions this campaign: the
+  `CLASS_LESS_BUFF_NAMES` pin (class-less aura rows the DBC's class filter
+  drops — the Shadow and Flame windows), plus new `BUFF_OVERRIDES` /
+  `MAXRANK_OVERRIDES` / `MIRROR_NAME_OVERRIDES` entries (Decimation 440873,
+  Divine Aegis 431624, Prayer of Mending 1240849, Thousand Cuts 1310723,
+  Cutthroat 462707, Penance 1316995, Fire Nova 408345, Berserk 417141), each
+  with a permanent audit self-test pin.
+- **The behavioral battery is strict and observable.** Every new lane fires
+  in at least one forever scenario; the never-inventory stays at the 9
+  deliberately-pinned lanes (druid bear FaerieFirePull/PrePullEnrage, mage
+  fire/frost ManaGemConjure, mage leveling ConjureManaGem, priest holy
+  EncounterReactions, priest leveling Fade, shaman elemental
+  WrathOfAirTotem, warlock affliction RacialArcaneTorrent). Suites: 597
+  rotation + 48 leveling + 82 WotLK, verify_all green, 19/19 pre-commit.
+- **Kit corrections recorded** (each verified against the DBC/effect dump
+  and documented in `docs/forever/kits/`): Drain Hope does not exist (the
+  capstone is Wrack 1316697); Light's Vigil is a 6s-category-CD mark (not
+  180s); Hot Streak is a 3-stack proc (not the legacy 2-in-a-row row);
+  Winter's Chill's applied debuff is 12579 (the baseline read the talent);
+  Icy Veins is 429125 (the class map's 12472 is Cold Snap); Eclipse is
+  Wrath-procs-3-fast-Starfires (not a 4-stack alternation) and Balance of
+  Nature has no client row; the max-rank Conflagrate still consumes
+  Immolate (no-consume = Backdraft 427713 / Shadow and Flame's chance);
+  Power in Light is +15% (not +10%); Improved Ghost Wolf's instant/everywhere
+  semantics are talent-gated per the kit's table; Demonic Sacrifice's cast
+  row is class-less (the sacrifice stays a manual pre-pull choice).
+- **Open in-game probes** (all recorded in
+  `docs/forever/beta_day1_probes.md` + the per-class kits): the rogue
+  constant-regen energy model (P2 #3 — every rogue energy threshold stays
+  vanilla-shaped until it lands); the Bane-vs-Curse slot mechanics (the
+  leveling amp lane would churn if shared); Demonic Pact's third-demon
+  behaviour; the Shadow and Flame window durations and the Decimation
+  proc's token values; PoM's jump count/radius; Litany of Light's refund %;
+  the Penance channel's tick count and per-tick crit; Soul Warding's CD
+  actually reaching zero; Improved Ghost Wolf's "usable everywhere" scope;
+  the Forever Mutilate's (absent) behind requirement; Tree of Life's form
+  semantics; Eclipse's charge→haste value; Fingers of Frost / Early Demise
+  / Aspect of the Beast / Bloodthrill BaseLevel-0 bridge gaps; and the
+  per-weapon passives (Hack and Slash 13960 is class-less in the DBC).
+
 ### Era: WoW Forever — day-1 era support (pre-beta)
 
 - **New era: World of Warcraft: Forever** (BlizzCon 2026 Classic+; beta
