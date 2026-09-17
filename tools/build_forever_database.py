@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """build_forever_database.py -- WoW Forever community datamine package builder.
 
-WHAT:  turns the beta-client DBC extraction (wowsims_forever.db) into a
-        community-ready dataset under wowheadScrape/dbc_extract/
-        forever_community/: an enriched SQLite database (forever_datamine.db),
-        grep-friendly JSONL (spells.jsonl), lookup maps (by_name.json,
-        talents.json, trainers.json, races.json, procs.json). Full spell
-        descriptions are first-class fields everywhere -- they are the most
-        useful rotation-design input.
+WHAT:  turns the beta-client DBC extraction (wowsims_forever.db, 108 tables
+        as of the 2026-09-17 1.60.1.69893 extraction) into a community-ready
+        dataset under wowheadScrape/dbc_extract/forever_community/:
+        an enriched SQLite database (forever_datamine.db) carrying the curated
+        spell/talent tables PLUS a verbatim mirror of every world/NPC/item
+        table (AreaTable, UiMap, Taxi*, Creature*, Item*, Spell* meta...), and
+        grep-friendly JSON artifacts -- spells.jsonl, by_name.json,
+        talents.json, trainers.json, races.json, procs.json, plus the world
+        set: items.jsonl, zones.json, points.json, taxi.json, creatures.json,
+        spell_meta.json. Full spell descriptions are first-class fields
+        everywhere -- they are the most useful rotation-design input.
 WHEN:  beta day 2026-09-17+; re-run after every beta build refresh.
 WHY:   the DBC is the authoritative source of truth (AGENTS.md); this package
         is how the wider community -- humans and AI agents alike -- consumes
@@ -29,6 +33,12 @@ copies here). Rank numbers are positional conveniences computed per
 (class, name) ordered by (level, id); see the README quirks section for the
 cases where id order disagrees with level order (Holy Strike) or where one
 name covers several roles (Arcane Blast aura vs nuke).
+
+Item stats: ItemSparse stores stat *types* (StatModifier_bonusStat) and
+budget *percents in basis points* (StatPercentEditor), NOT final numbers --
+the client derives final values from ilvl/quality via the budget tables
+(RandPropPoints, ItemArmor*/ItemDamage*) which ship raw in this package.
+See the README quirks for the derivation formula and its slot-tier caveat.
 """
 
 import argparse
@@ -52,6 +62,88 @@ OUT_TALENTS = os.path.join(OUT_DIR, "talents.json")
 OUT_TRAINERS = os.path.join(OUT_DIR, "trainers.json")
 OUT_RACES = os.path.join(OUT_DIR, "races.json")
 OUT_PROCS = os.path.join(OUT_DIR, "procs.json")
+OUT_ITEMS = os.path.join(OUT_DIR, "items.jsonl")
+OUT_ZONES = os.path.join(OUT_DIR, "zones.json")
+OUT_POINTS = os.path.join(OUT_DIR, "points.json")
+OUT_TAXI = os.path.join(OUT_DIR, "taxi.json")
+OUT_CREATURES = os.path.join(OUT_DIR, "creatures.json")
+OUT_SPELL_META = os.path.join(OUT_DIR, "spell_meta.json")
+
+# Verbatim mirror of the world/NPC/item/spell-meta DBC tables extracted from
+# the 1.60.1.69893 beta client (probe-confirmed on this client; the probe
+# recipe lives in the runbook). Names match the DBC table names so queries
+# read like wowdev docs. Everything else stays in wowsims_forever.db.
+WORLD_TABLES = (
+    # creature / NPC
+    "Creature", "CreatureFamily", "CreatureType", "CreatureDisplayInfo",
+    "CreatureDisplayInfoExtra", "CreatureModelData", "CreatureMovementInfo",
+    "CreatureImmunities", "CreatureSoundData", "CreatureDifficulty",
+    "CreatureXDisplayInfo", "NPCSounds",
+    # faction
+    "Faction", "FactionTemplate", "FactionGroup",
+    # world / areas / maps
+    "Map", "MapDifficulty", "AreaTable", "AreaTrigger", "AreaPOI",
+    "UiMap", "UiMapAssignment", "UiMapGroup", "UiMapGroupMember", "UiMapLink",
+    "UiMapFogOfWar", "UiMapXMapArt", "WorldMapOverlay",
+    "LiquidType", "LiquidObject", "LiquidMaterial",
+    "BattlemasterList", "LFGDungeons",
+    # navigation / transport
+    "TaxiNodes", "TaxiPath", "TaxiPathNode", "TransportAnimation",
+    "TransportRotation", "TransportPhysics",
+    # gameobjects
+    "GameObjectDisplayInfo", "GameObjectArtKit",
+    # items
+    "Item", "ItemSparse", "ItemNameDescription", "ItemClass", "ItemSubClass",
+    "ItemSubClassMask", "ItemDisplayInfo", "ItemArmorQuality",
+    "ItemArmorShield", "ItemArmorTotal", "ArmorLocation",
+    "ItemDamageAmmo", "ItemDamageOneHand", "ItemDamageOneHandCaster",
+    "ItemDamageRanged", "ItemDamageThrown", "ItemDamageTwoHand",
+    "ItemDamageTwoHandCaster", "ItemDamageWand", "ItemSet", "ItemSetSpell",
+    "ItemExtendedCost", "ItemEffect", "ItemBonus", "SpellItemEnchantment",
+    "GemProperties", "RandPropPoints",
+    # spell metadata (rotation dev)
+    "SpellCastTimes", "SpellDuration", "SpellRadius", "SpellRange",
+    "SpellShapeshiftForm", "SpellMechanic", "SpellDispelType",
+    "SpellCategory", "SpellCategories", "SpellPower",
+    "SpellTargetRestrictions", "SpellInterrupts", "SpellEquippedItems",
+    "SpellProcsPerMinute", "SpellProcsPerMinuteMod", "SpellFocusObject",
+    # characters / emotes / scaling
+    "ChrClasses", "ChrSpecialization", "ChrClassesXPowerTypes",
+    "PowerDisplay", "SkillRaceClassInfo", "Emotes", "EmotesText",
+    "ExpectedStat", "ExpectedStatMod", "ContentTuning",
+    "ContentTuningXExpected",
+)
+
+# Classic inventory-slot names (InventoryType enum) for item display.
+INV_SLOT = {
+    0: "Non-equip", 1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt",
+    5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet", 9: "Wrist", 10: "Hands",
+    11: "Finger", 12: "Trinket", 13: "One-Hand", 14: "Shield", 15: "Ranged",
+    16: "Back", 17: "Two-Hand", 18: "Bag", 19: "Tabard", 20: "Robe",
+    21: "Main Hand", 22: "Off Hand", 23: "Holdable", 24: "Ammo",
+    25: "Thrown", 26: "Ranged Right", 27: "Relic",
+}
+
+# Classic ITEM_MOD_* stat-type names (TrinityCore 3.3.5 enum; -1 = empty).
+STAT_TYPE = {
+    0: "mana", 1: "health", 3: "agility", 4: "strength", 5: "intellect",
+    6: "spirit", 7: "stamina", 12: "defense_rating", 13: "dodge_rating",
+    14: "parry_rating", 15: "block_rating", 16: "hit_melee_rating",
+    17: "hit_ranged_rating", 18: "hit_spell_rating", 19: "crit_melee_rating",
+    20: "crit_ranged_rating", 21: "crit_spell_rating",
+    22: "hit_taken_melee_rating", 23: "hit_taken_ranged_rating",
+    24: "hit_taken_spell_rating", 25: "crit_taken_melee_rating",
+    26: "crit_taken_ranged_rating", 27: "crit_taken_spell_rating",
+    28: "haste_melee_rating", 29: "haste_ranged_rating",
+    30: "haste_spell_rating", 31: "hit_rating", 32: "crit_rating",
+    33: "hit_taken_rating", 34: "crit_taken_rating", 35: "resilience_rating",
+    36: "haste_rating", 37: "expertise_rating", 38: "attack_power",
+    39: "ranged_attack_power", 40: "feral_attack_power",
+    41: "spell_healing_done", 42: "spell_damage_done",
+    43: "mana_regeneration", 44: "armor_penetration_rating",
+    45: "spell_power", 46: "health_regen", 47: "spell_penetration",
+    48: "block_value",
+}
 
 # TalentTab.ClassMask / SkillLineAbility.ClassMask bit -> class (classic
 # bitmask; verified against the extracted TalentTab rows, one tab per
@@ -90,6 +182,28 @@ def _targets(raw):
 def _is_aoe(effect, a, b):
     return bool(effect in (27, 124) or (b >= 15 and a != 1)
                 or b in bb.AREA_TARGETS)
+
+
+def _arr(text):
+    """Parse a DBC array-of-scalars text field ('[1,2,3]') into raw strings."""
+    if text is None:
+        return []
+    s = str(text).strip()
+    if s.startswith("[") and s.endswith("]"):
+        s = s[1:-1]
+    if not s:
+        return []
+    return [x.strip().strip("'\"") for x in s.split(",")]
+
+
+def _fvec(text):
+    out = []
+    for x in _arr(text):
+        try:
+            out.append(float(x))
+        except ValueError:
+            out.append(0.0)
+    return out
 
 
 def load(conn):
@@ -300,6 +414,11 @@ def write_package(data, stamp):
         conn.execute("DROP TABLE IF EXISTS races");
         conn.execute("DROP TABLE IF EXISTS procs");
         conn.execute("DROP TABLE IF EXISTS meta");
+        for t in WORLD_TABLES:
+            conn.execute('DROP TABLE IF EXISTS "%s"' % t)
+        for v in ("player_spells", "heals", "creature_displays", "zones",
+                  "taxi_nodes", "item_index"):
+            conn.execute("DROP VIEW IF EXISTS %s" % v)
         conn.execute("""CREATE TABLE spells(
             id INTEGER PRIMARY KEY, name TEXT, subtext TEXT, class TEXT,
             class_set INTEGER, level INTEGER, school TEXT, school_mask INTEGER,
@@ -377,6 +496,41 @@ def write_package(data, stamp):
             SELECT * FROM spells WHERE class IS NOT NULL""")
         conn.execute("""CREATE VIEW heals AS
             SELECT * FROM spells WHERE is_heal = 1 AND class IS NOT NULL""")
+        # Verbatim world/NPC/item mirror: copy straight from the extraction
+        # DB so the package is self-contained for every downstream query.
+        conn.execute("ATTACH DATABASE ? AS src", (SRC_DB,))
+        try:
+            for t in WORLD_TABLES:
+                conn.execute('CREATE TABLE "%s" AS SELECT * FROM src."%s"'
+                             % (t, t))
+            conn.commit()
+        finally:
+            conn.execute("DETACH DATABASE src")
+        conn.execute("""CREATE VIEW creature_displays AS
+            SELECT cd.ID AS display_id, cd.ModelID AS model_id,
+                   cm.FileDataID AS model_fdid, cm.RunSpeed AS run_speed,
+                   cm.WalkSpeed AS walk_speed, cm.CollisionWidth AS width,
+                   cm.CollisionHeight AS height, cd.SizeClass AS size_class,
+                   cd.CreatureModelScale AS scale, cd.SoundID AS sound_id
+            FROM CreatureDisplayInfo cd
+            LEFT JOIN CreatureModelData cm ON cm.ID = cd.ModelID""")
+        conn.execute("""CREATE VIEW zones AS
+            SELECT a.ID AS id, a.AreaName_lang AS name,
+                   a.ContinentID AS map_id, m.MapName_lang AS map,
+                   m.MapType AS map_type, a.ParentAreaID AS parent_id,
+                   a.Flags AS flags
+            FROM AreaTable a LEFT JOIN Map m ON m.ID = a.ContinentID""")
+        conn.execute("""CREATE VIEW taxi_nodes AS
+            SELECT ID AS id, Name_lang AS name, ContinentID AS map_id,
+                   Pos AS pos, Flags AS flags FROM TaxiNodes""")
+        conn.execute("""CREATE VIEW item_index AS
+            SELECT sp.ID AS id, sp.Display_lang AS name,
+                   sp.ItemLevel AS ilvl, sp.OverallQualityID AS quality,
+                   sp.RequiredLevel AS req_level, i.ClassID AS class_id,
+                   i.SubclassID AS subclass_id, i.InventoryType AS inv_type,
+                   sp.BuyPrice AS buy, sp.SellPrice AS sell,
+                   sp.ItemSet AS set_id
+            FROM ItemSparse sp LEFT JOIN Item i ON i.ID = sp.ID""")
         conn.commit()
     finally:
         conn.close()
@@ -403,10 +557,307 @@ def write_package(data, stamp):
     }
 
 
+def write_world_artifacts():
+    """Curated grep/viewer-friendly views over the raw world mirror."""
+    conn = sqlite3.connect(OUT_DB)
+    conn.row_factory = sqlite3.Row
+    try:
+        item_class = {r["ClassID"]: r["ClassName_lang"] for r in conn.execute(
+            "SELECT ClassID, ClassName_lang FROM ItemClass")}
+        item_sub = {}
+        for r in conn.execute(
+                "SELECT ClassID, SubClassID, DisplayName_lang, VerboseName_lang"
+                " FROM ItemSubClass"):
+            item_sub[(r["ClassID"], r["SubClassID"])] = (
+                r["DisplayName_lang"] or r["VerboseName_lang"] or "")
+        maps = {r["ID"]: r["MapName_lang"] for r in conn.execute(
+            "SELECT ID, MapName_lang FROM Map")}
+        with open(OUT_ITEMS, "w", encoding="utf-8") as f:
+            for r in conn.execute(
+                    "SELECT sp.ID, sp.Display_lang, sp.ItemLevel,"
+                    " sp.OverallQualityID, sp.RequiredLevel, sp.Stackable,"
+                    " sp.BuyPrice, sp.SellPrice, sp.ItemSet,"
+                    " sp.StatModifier_bonusStat, sp.StatPercentEditor,"
+                    " sp.SocketType, sp.ItemDelay, sp.Bonding,"
+                    " sp.ContainerSlots, i.ClassID, i.SubclassID,"
+                    " i.InventoryType, i.IconFileDataID"
+                    " FROM ItemSparse sp LEFT JOIN Item i ON i.ID = sp.ID"
+                    " WHERE sp.Display_lang IS NOT NULL"
+                    " AND sp.Display_lang != '' ORDER BY sp.ID"):
+                types = [int(x) for x in _arr(r["StatModifier_bonusStat"])
+                         if x.lstrip("-").isdigit()]
+                pcts = _fvec(r["StatPercentEditor"])
+                stats = []
+                for i, t in enumerate(types):
+                    if t < 0:
+                        continue
+                    pct = pcts[i] if i < len(pcts) else 0.0
+                    if pct > 0:
+                        stats.append([t, STAT_TYPE.get(t, "stat%d" % t), pct])
+                entry = {
+                    "id": r["ID"], "name": r["Display_lang"],
+                    "quality": r["OverallQualityID"], "ilvl": r["ItemLevel"],
+                    "req": r["RequiredLevel"],
+                    "class": item_class.get(r["ClassID"]) or "",
+                    "subclass": item_sub.get(
+                        (r["ClassID"], r["SubclassID"])) or "",
+                    "slot": INV_SLOT.get(r["InventoryType"], ""),
+                }
+                if r["Stackable"] and r["Stackable"] > 1:
+                    entry["stack"] = r["Stackable"]
+                if r["BuyPrice"]:
+                    entry["buy"] = r["BuyPrice"]
+                if r["SellPrice"]:
+                    entry["sell"] = r["SellPrice"]
+                if r["ItemSet"]:
+                    entry["set"] = r["ItemSet"]
+                if r["ItemDelay"]:
+                    entry["delay_ms"] = r["ItemDelay"]
+                if r["ContainerSlots"]:
+                    entry["slots"] = r["ContainerSlots"]
+                if r["Bonding"]:
+                    entry["bonding"] = r["Bonding"]
+                if stats:
+                    entry["stats"] = stats
+                socks = [int(x) for x in _arr(r["SocketType"])
+                         if x.lstrip("-").isdigit()]
+                if any(socks):
+                    entry["sockets"] = socks
+                if r["IconFileDataID"]:
+                    entry["icon_fdid"] = r["IconFileDataID"]
+                f.write(json.dumps(entry, ensure_ascii=False,
+                                   separators=(",", ":")) + "\n")
+        # --- zones
+        zones = []
+        for r in conn.execute(
+                "SELECT id, name, map_id, map, map_type, parent_id FROM zones"
+                " WHERE name IS NOT NULL AND name != '' ORDER BY id"):
+            zones.append({
+                "id": r["id"], "name": r["name"], "map": r["map"] or "",
+                "map_id": r["map_id"], "map_type": r["map_type"] or 0,
+                "parent": r["parent_id"] or 0,
+            })
+        with open(OUT_ZONES, "w", encoding="utf-8") as f:
+            json.dump(zones, f, ensure_ascii=False, indent=1)
+        # --- points (POIs + area triggers + taxi nodes in one place index)
+        points = []
+        for r in conn.execute(
+                "SELECT ID, Name_lang, Pos, ContinentID, AreaID, Importance"
+                " FROM AreaPOI WHERE Name_lang IS NOT NULL"
+                " AND Name_lang != '' ORDER BY ID"):
+            x, y, z = (_fvec(r["Pos"]) + [0.0, 0.0, 0.0])[:3]
+            points.append({
+                "type": "poi", "id": r["ID"], "name": r["Name_lang"],
+                "map": maps.get(r["ContinentID"], ""),
+                "map_id": r["ContinentID"], "x": round(x, 2),
+                "y": round(y, 2), "z": round(z, 2),
+                "area": r["AreaID"] or 0, "importance": r["Importance"] or 0,
+            })
+        for r in conn.execute(
+                "SELECT ID, Pos, ContinentID, Radius FROM AreaTrigger"
+                " ORDER BY ID"):
+            x, y, z = (_fvec(r["Pos"]) + [0.0, 0.0, 0.0])[:3]
+            points.append({
+                "type": "trigger", "id": r["ID"], "name": "",
+                "map": maps.get(r["ContinentID"], ""),
+                "map_id": r["ContinentID"], "x": round(x, 2),
+                "y": round(y, 2), "z": round(z, 2),
+                "radius": r["Radius"] or 0,
+            })
+        for r in conn.execute(
+                "SELECT ID, Name_lang, Pos, ContinentID, Flags FROM TaxiNodes"
+                " ORDER BY ID"):
+            x, y, z = (_fvec(r["Pos"]) + [0.0, 0.0, 0.0])[:3]
+            points.append({
+                "type": "taxi", "id": r["ID"], "name": r["Name_lang"] or "",
+                "map": maps.get(r["ContinentID"], ""),
+                "map_id": r["ContinentID"], "x": round(x, 2),
+                "y": round(y, 2), "z": round(z, 2),
+                "flags": r["Flags"] or 0,
+            })
+        with open(OUT_POINTS, "w", encoding="utf-8") as f:
+            json.dump(points, f, ensure_ascii=False, indent=1)
+        # --- taxi network (nodes + path summaries)
+        taxi_nodes = []
+        for r in conn.execute(
+                "SELECT ID, Name_lang, Pos, ContinentID, Flags FROM TaxiNodes"
+                " ORDER BY ID"):
+            x, y, z = (_fvec(r["Pos"]) + [0.0, 0.0, 0.0])[:3]
+            taxi_nodes.append({
+                "id": r["ID"], "name": r["Name_lang"] or "",
+                "map": maps.get(r["ContinentID"], ""),
+                "x": round(x, 2), "y": round(y, 2), "z": round(z, 2),
+                "flags": r["Flags"] or 0,
+            })
+        taxi_paths = []
+        for r in conn.execute(
+                "SELECT ID, FromTaxiNode, ToTaxiNode, Cost,"
+                " (SELECT COUNT(*) FROM TaxiPathNode n WHERE n.PathID ="
+                " TaxiPath.ID) AS wp FROM TaxiPath ORDER BY ID"):
+            taxi_paths.append({
+                "id": r["ID"], "from": r["FromTaxiNode"],
+                "to": r["ToTaxiNode"], "cost": r["Cost"] or 0,
+                "waypoints": r["wp"],
+            })
+        with open(OUT_TAXI, "w", encoding="utf-8") as f:
+            json.dump({"nodes": taxi_nodes, "paths": taxi_paths}, f,
+                      ensure_ascii=False, indent=1)
+        # --- creatures (companion catalogue + families/types/difficulty)
+        family = {r["ID"]: r["Name_lang"] for r in conn.execute(
+            "SELECT ID, Name_lang FROM CreatureFamily")}
+        ctype = {r["ID"]: r["Name_lang"] for r in conn.execute(
+            "SELECT ID, Name_lang FROM CreatureType")}
+        companions = []
+        for r in conn.execute(
+                "SELECT ID, Name_lang, Title_lang, Classification,"
+                " CreatureType, CreatureFamily, DisplayID FROM Creature"
+                " ORDER BY ID"):
+            companions.append({
+                "id": r["ID"], "name": r["Name_lang"] or "",
+                "title": r["Title_lang"] or "",
+                "classification": r["Classification"] or 0,
+                "type": ctype.get(r["CreatureType"], ""),
+                "family": family.get(r["CreatureFamily"]) or "",
+                "displays": [int(x) for x in _arr(r["DisplayID"])
+                             if x.lstrip("-").isdigit() and int(x) > 0],
+            })
+        families = [{
+            "id": r["ID"], "name": r["Name_lang"] or "",
+            "min_scale": r["MinScale"], "max_scale": r["MaxScale"],
+            "pet_food_mask": r["PetFoodMask"], "talent_type":
+            r["PetTalentType"], "skill_line": r["SkillLine"],
+        } for r in conn.execute("SELECT * FROM CreatureFamily ORDER BY ID")]
+        difficulty = [{
+            "creature": r["CreatureID"], "min_level": r["MinLevel"],
+            "max_level": r["MaxLevel"], "faction_template":
+            r["FactionTemplateID"], "content_tuning": r["ContentTuningID"],
+        } for r in conn.execute("SELECT * FROM CreatureDifficulty"
+                                " ORDER BY CreatureID")]
+        with open(OUT_CREATURES, "w", encoding="utf-8") as f:
+            json.dump({
+                "companions": companions,
+                "families": families,
+                "types": [{"id": i, "name": n}
+                          for i, n in sorted(ctype.items())],
+                "difficulty": difficulty,
+            }, f, ensure_ascii=False, indent=1)
+        # --- spell_meta (rotation-relevant per-spell metadata, joined)
+        cast = {r["ID"]: r["Base"] for r in conn.execute(
+            "SELECT ID, Base FROM SpellCastTimes")}
+        dur = {r["ID"]: r["Duration"] for r in conn.execute(
+            "SELECT ID, Duration FROM SpellDuration")}
+        range_tbl = {}
+        for r in conn.execute("SELECT * FROM SpellRange"):
+            k = r.keys()
+
+            def pick(*names):
+                for n in names:
+                    if n in k and r[n] is not None:
+                        return r[n]
+                return None
+            range_tbl[r["ID"]] = (pick("MinRangeHostile", "MinRange"),
+                                  pick("MaxRangeHostile", "MaxRange"))
+        dispel = {r["ID"]: r["Name_lang"] for r in conn.execute(
+            "SELECT ID, Name_lang FROM SpellDispelType")}
+        mech = {r["ID"]: r["StateName_lang"] for r in conn.execute(
+            "SELECT ID, StateName_lang FROM SpellMechanic")}
+        cat = {}
+        try:
+            cat = {r["ID"]: r["Name_lang"] for r in conn.execute(
+                "SELECT ID, Name_lang FROM SpellCategory")}
+        except sqlite3.OperationalError:
+            pass
+
+        def first_map(sql):
+            out = {}
+            for r in conn.execute(sql):
+                out.setdefault(r["SpellID"], r)
+            return out
+
+        src = sqlite3.connect(SRC_DB)
+        src.row_factory = sqlite3.Row
+        try:
+            misc = {r["SpellID"]: r for r in src.execute(
+                "SELECT SpellID, CastingTimeIndex, DurationIndex, RangeIndex"
+                " FROM SpellMisc ORDER BY SpellID")}
+            effects_radius = {r["SpellID"]: r["rad"] for r in src.execute(
+                "SELECT e.SpellID AS SpellID, MAX(sr.Radius) AS rad"
+                " FROM SpellEffect e JOIN SpellRadius sr"
+                " ON sr.ID = e.EffectRadiusIndex GROUP BY e.SpellID")}
+        finally:
+            src.close()
+        restrictions = first_map(
+            "SELECT SpellID, MaxTargets, ConeDegrees, Targets"
+            " FROM SpellTargetRestrictions ORDER BY SpellID")
+        cats = first_map(
+            "SELECT SpellID, DispelType, Mechanic, Category"
+            " FROM SpellCategories ORDER BY SpellID")
+        powers = first_map(
+            "SELECT SpellID, ManaCost, PowerType, PowerCostPct"
+            " FROM SpellPower ORDER BY SpellID, OrderIndex")
+        interrupts = first_map(
+            "SELECT SpellID, InterruptFlags FROM SpellInterrupts"
+            " ORDER BY SpellID")
+        meta = {}
+        for (sid,) in conn.execute("SELECT id FROM spells ORDER BY id"):
+            m = {}
+            mr = misc.get(sid)
+            if mr:
+                if mr["CastingTimeIndex"] in cast:
+                    m["cast_ms"] = cast[mr["CastingTimeIndex"]]
+                if mr["DurationIndex"] in dur:
+                    m["dur_ms"] = dur[mr["DurationIndex"]]
+                if mr["RangeIndex"] in range_tbl:
+                    mn, mx = range_tbl[mr["RangeIndex"]]
+                    if mx:
+                        m["range_max"] = mx
+                    if mn:
+                        m["range_min"] = mn
+            rad = effects_radius.get(sid)
+            if rad:
+                m["radius_yd"] = round(rad, 2)
+            tr = restrictions.get(sid)
+            if tr:
+                if tr["MaxTargets"]:
+                    m["max_targets"] = tr["MaxTargets"]
+                if tr["ConeDegrees"]:
+                    m["cone_deg"] = tr["ConeDegrees"]
+                if tr["Targets"]:
+                    m["targets"] = tr["Targets"]
+            sc = cats.get(sid)
+            if sc:
+                if sc["DispelType"]:
+                    m["dispel"] = dispel.get(sc["DispelType"],
+                                             sc["DispelType"])
+                if sc["Mechanic"]:
+                    m["mechanic"] = mech.get(sc["Mechanic"], sc["Mechanic"])
+                if sc["Category"]:
+                    m["category"] = cat.get(sc["Category"], sc["Category"])
+            sp = powers.get(sid)
+            if sp:
+                if sp["ManaCost"]:
+                    m["mana"] = sp["ManaCost"]
+                if sp["PowerType"]:
+                    m["power"] = sp["PowerType"]
+                if sp["PowerCostPct"]:
+                    m["mana_pct"] = sp["PowerCostPct"]
+            si = interrupts.get(sid)
+            if si and si["InterruptFlags"]:
+                m["interrupt"] = si["InterruptFlags"]
+            if m:
+                meta[str(sid)] = m
+        with open(OUT_SPELL_META, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
+    finally:
+        conn.close()
+
+
 def check_package():
     """Verify a built package (exit codes mirror build_forever_bridge)."""
     missing = [p for p in (OUT_DB, OUT_JSONL, OUT_BY_NAME, OUT_TALENTS,
-                           OUT_TRAINERS, OUT_RACES, OUT_PROCS)
+                           OUT_TRAINERS, OUT_RACES, OUT_PROCS, OUT_ITEMS,
+                           OUT_ZONES, OUT_POINTS, OUT_TAXI, OUT_CREATURES,
+                           OUT_SPELL_META)
                if not os.path.exists(p)]
     if missing:
         print("FAIL: package files missing: %s" % missing)
@@ -443,6 +894,50 @@ def check_package():
             break
     if not meta.get("client_build"):
         problems.append("meta table lacks client_build")
+    # World/NPC mirror + curated artifacts.
+    conn2 = sqlite3.connect(OUT_DB)
+    try:
+        spots = {
+            "ItemSparse": 19000, "Item": 31000, "AreaTable": 1300,
+            "AreaPOI": 300, "AreaTrigger": 300, "TaxiNodes": 100,
+            "TaxiPath": 300, "TaxiPathNode": 10000, "Creature": 178,
+            "CreatureFamily": 27, "CreatureDisplayInfo": 13000,
+            "UiMap": 60, "Map": 70, "ChrSpecialization": 10,
+            "SpellPower": 3000, "SpellTargetRestrictions": 4000,
+        }
+        for table, floor in spots.items():
+            n2 = conn2.execute('SELECT COUNT(*) FROM "%s"' % table
+                               ).fetchone()[0]
+            if n2 < floor:
+                problems.append("%s has %d rows (<%d)" % (table, n2, floor))
+    except sqlite3.OperationalError as e:
+        problems.append("world mirror incomplete: %s" % e)
+    finally:
+        conn2.close()
+    with open(OUT_ITEMS, encoding="utf-8") as f:
+        items_text = f.read()
+    if "Thunderfury" not in items_text:
+        problems.append("items.jsonl lacks Thunderfury")
+    with open(OUT_ZONES, encoding="utf-8") as f:
+        zones = json.load(f)
+    if not any(z["name"] == "Elwynn Forest" for z in zones):
+        problems.append("zones.json lacks Elwynn Forest")
+    with open(OUT_TAXI, encoding="utf-8") as f:
+        taxi = json.load(f)
+    if len(taxi.get("nodes", [])) < 100 or len(taxi.get("paths", [])) < 300:
+        problems.append("taxi.json too small: %d nodes / %d paths" % (
+            len(taxi.get("nodes", [])), len(taxi.get("paths", []))))
+    with open(OUT_CREATURES, encoding="utf-8") as f:
+        creatures = json.load(f)
+    if len(creatures.get("companions", [])) != 178:
+        problems.append("creatures.json companions != 178")
+    with open(OUT_SPELL_META, encoding="utf-8") as f:
+        spell_meta = json.load(f)
+    fb = spell_meta.get("133", {})
+    if not fb.get("mana") or not fb.get("cast_ms"):
+        problems.append("spell_meta.json lacks Fireball (133) mana/cast")
+    if len(spell_meta) < 20000:
+        problems.append("spell_meta.json only %d entries" % len(spell_meta))
     if problems:
         for p in problems:
             print("FAIL:", p)
@@ -473,6 +968,7 @@ def main():
             datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "generator": "tools/build_forever_database.py",
         "source_db": os.path.basename(SRC_DB),
+        "dbc_tables": str(13 + len(WORLD_TABLES)),
     }
     conn = sqlite3.connect(SRC_DB)
     try:
@@ -483,6 +979,12 @@ def main():
     data = build(spells, effects, talents, tabs, skills, sla, races, procs,
                  all_names, all_descs)
     paths = write_package(data, stamp)
+    write_world_artifacts()
+    paths.update({
+        "items": OUT_ITEMS, "zones": OUT_ZONES, "points": OUT_POINTS,
+        "taxi": OUT_TAXI, "creatures": OUT_CREATURES,
+        "spell_meta": OUT_SPELL_META,
+    })
     print("Forever datamine: %d spells (%d player), %d talents, %d races" % (
         len(data["spells"]),
         sum(1 for s in data["spells"].values() if s["class"]),

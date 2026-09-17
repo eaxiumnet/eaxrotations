@@ -434,6 +434,10 @@ in any modern browser — no server, no internet needed:
   tier/column with rank-spell names.
 - **Races** tab: every race on the client, playable flag + starting level.
 - **About** tab: effect-id legend and caveats, repeated below.
+- **Beyond the viewer**: the `data/` folder carries the full item catalogue,
+  the zone/flight/POI place index and per-spell metadata (cast time, range,
+  mana, ...). Browse them with DB Browser for SQLite or any text editor —
+  recipes below.
 
 ## What's in this folder
 
@@ -448,6 +452,12 @@ in any modern browser — no server, no internet needed:
 | `data/trainers.json` | What each class trainer teaches, with required levels. |
 | `data/races.json` | All client races, playable flag, starting level. |
 | `data/procs.json` | Proc/aura-chance rows (chance, charges, type) with spell names joined. |
+| `data/items.jsonl` | Every named item ({NITEMS} rows): quality, item level, required level, class/subclass, slot, stat types + budget percents, prices, set id. |
+| `data/spell_meta.json` | Per-spell extras keyed by id: cast time, duration, range, radius, target cap, dispel/mechanic, mana cost, interrupt flags. |
+| `data/zones.json` | Every zone/area with its map and parent area. |
+| `data/points.json` | Place index: points of interest, area triggers and flight masters with world coordinates. |
+| `data/taxi.json` | Flight network: nodes with coordinates plus every flight path (cost, waypoint count). |
+| `data/creatures.json` | Companion creatures with type/family, the pet families, and level ranges. |
 | `bridge/` | Lua spell-id table used by a rotation addon project — only interesting if you develop Lua rotations/addons; everyone else can ignore it. |
 
 ## Try it (no special tools needed)
@@ -464,6 +474,11 @@ SELECT id, name, level, cooldown_s FROM heals WHERE class = 'Shaman';
 -- Full tooltip + mechanic rows for one spell:
 SELECT description FROM spells WHERE id = 11078;
 SELECT effect, aura, base_points, targets FROM spell_effects WHERE spell_id = 11078;
+-- Items by name, with slot and item level (helper view):
+SELECT id, name, quality, ilvl, req_level, inv_type FROM item_index
+ WHERE name LIKE 'Thunderfury%';
+-- Flight masters of one map, with coordinates:
+SELECT Name_lang, Pos FROM TaxiNodes WHERE ContinentID = 0 ORDER BY Name_lang;
 ```
 
 Text search — `data/spells.jsonl` is one object per line, so Ctrl+F works in
@@ -490,6 +505,10 @@ any editor:
   columns and only one is extracted here (Holy Shock, Holy Strike and Lava
   Burst keep theirs in the other one). A blank cell means "no data", not
   "spammable".
+- **Item stat numbers are computed by the game, not stored.** The item files
+  carry stat types and budget percentages; the game turns those into final
+  numbers from item level and quality. Treat them as relative weights and
+  check final values in-game.
 - **Tooltip `$s1`-style tokens are verbatim** client text — the numbers they
   stand for resolve in-game, not in this package.
 - **No hotfix data.** The beta ships no usable hotfix cache for its own
@@ -505,7 +524,7 @@ rebuilt from scratch after every beta patch. If your client is newer than
 """
 
 
-def build_friends_readme(meta, nspells, ntalents):
+def build_friends_readme(meta, nspells, ntalents, nitems):
     date = meta.get("extracted_at_utc", "?")
     if date.endswith(" UTC"):
         date = date[:-len(" UTC")]
@@ -513,6 +532,7 @@ def build_friends_readme(meta, nspells, ntalents):
             .replace("{VERSION}", meta.get("client_version", "?"))
             .replace("{DATE}", date)
             .replace("{NSPELLS}", str(nspells))
+            .replace("{NITEMS}", str(nitems))
             .replace("{NTALENTS}", str(ntalents)))
 
 
@@ -622,7 +642,9 @@ def build_all():
 
 
 ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
-               "talents.json", "trainers.json", "races.json", "procs.json")
+               "talents.json", "trainers.json", "races.json", "procs.json",
+               "items.jsonl", "spell_meta.json", "zones.json", "points.json",
+               "taxi.json", "creatures.json")
 
 
 def build_zip(page, meta, nspells, ntalents):
@@ -632,10 +654,15 @@ def build_zip(page, meta, nspells, ntalents):
         f.write(page)
     top = "forever-datamine-%s" % meta.get("client_version", "unknown")
     zpath = os.path.join(PKG, top + ".zip")
+    items_path = os.path.join(PKG, "items.jsonl")
+    nitems = 0
+    if os.path.exists(items_path):
+        with open(items_path, encoding="utf-8") as f:
+            nitems = sum(1 for _ in f)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(PKG, VIEWER_NAME), top + "/" + VIEWER_NAME)
         z.writestr(top + "/README.md",
-                   build_friends_readme(meta, nspells, ntalents))
+                   build_friends_readme(meta, nspells, ntalents, nitems))
         if os.path.exists(BRIDGE_SRC):
             z.write(BRIDGE_SRC, top + "/bridge/" + os.path.basename(BRIDGE_SRC))
         for member in ZIP_MEMBERS:

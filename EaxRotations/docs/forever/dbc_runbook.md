@@ -5,6 +5,27 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
+## Status (updated 2026-09-17: 108-table extraction, world/NPC/item package)
+
+**2026-09-17 world/NPC extension:** the extraction grew from 13 to **108
+tables** — the 13 spell/talent core plus 95 probe-confirmed world/NPC/item/
+spell-meta tables (creature displays/models/families/types/speeds,
+factions, `AreaTable`/`Map`/`UiMap*`/`AreaPOI`/`AreaTrigger`, the `Taxi*`
+network, `TransportAnimation`, the full `Item*` family, `SpellPower`/
+`SpellTargetRestrictions`/`SpellCategories`/`SpellRange`/..., `ChrClasses`/
+`ChrSpecialization`, `ExpectedStat`). Settings file:
+`appsettings.forever_world.json`; the authoritative table list is
+`WORLD_TABLES` in `tools/build_forever_database.py`. The probe recipe and
+the bisect driver live in `tools/probe_forever_tables.py` (a missing table
+dies with `File not found in root` *before* the DB is written; the crash
+never names the table — bisect by list order). The community package now
+mirrors all 95 world tables verbatim and adds the curated world artifacts
+(`items.jsonl`, `zones.json`, `points.json`, `taxi.json`, `creatures.json`,
+`spell_meta.json`) — see `docs/forever/datamine/README.md`. Key absence
+notes: spawns/drops/health are server-side (not client data); `WorldMapArea`
+is gone in favour of `UiMap`; `Gt*` game tables and `ItemRandomProperties`
+are not shippable on this client build.
+
 ## Status (updated 2026-09-17: beta DBC extracted, bridge LIVE)
 
 **2026-09-17 beta-day execution:** the beta arrived as the `wow_classic_beta`
@@ -73,6 +94,13 @@ Run from the repo root (or the forever worktree):
 # 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9 required):
 cd ../scripts-backup-20260630-095300/tbc-new/tools/DB2ToSqlite && dotnet run --
     -o /c/newbot/scripts/wowheadScrape/dbc_extract/wowsims_forever.db
+#    Full package (108 tables incl. world/NPC/item): use the settings file
+#    appsettings.forever_world.json instead of the default appsettings.json:
+#      dotnet DB2ToSqliteTool.dll -s appsettings.forever_world.json -o <db>
+#    The table list = 13 core + WORLD_TABLES (tools/build_forever_database.py).
+#    New/unstable tables: probe with tools/probe_forever_tables.py first --
+#    a missing table aborts the run with "File not found in root" and the DB
+#    is only written after every table loads.
 #    (NOTE, verified 2026-09-16: tbc-new/tools/DB2ToSqlite does NOT exist in the
 #    checkout -- only the backup copy above does. The tool has prebuilt net9.0
 #    binaries and dotnet 9.0.318 is installed. Its appsettings.json points BaseDir
