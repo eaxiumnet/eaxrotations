@@ -116,6 +116,21 @@ resolves it** (no IDs, no rank numbers below).
 - `classes/warrior/protection_forever.lua` — shield-gated structural check,
   Shield Slam primary spender, TC-in-defensive AoE threat loop, Revenge
   damage lane, CD-split defensives (independent thresholds), Vanguard opener.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (one replacement + one
+  addition)** — the baseline's Thunder Clap lane hard-gated on Battle Stance
+  ("Vanilla TC requires Battle Stance"), so the class-wide unlock could never
+  fire in the tanking stance: the lane is REPLACED with a stance-agnostic
+  version (Defensive or Battle, same debuff/rage/AoE gates) in the same
+  position. The new passive Vanguard 1310317 ("Your Charge ability is now
+  usable while in Defensive Stance", aura-332 overrides of the Charge ids) is
+  gated on is_spell_learned and adds an OUT-OF-COMBAT Defensive-stance Charge
+  opener (8-25yd); in combat the baseline's Intercept stays the gap-closer.
+  CD reductions confirmed in the DBC (Shield Wall 871 = 900000, Last Stand
+  12975 = 180000 — 15/3 min, down from vanilla's 30/10) and need no lane
+  (the baseline's separate defensive lanes read spell_ready). "Shield is
+  structural" is a talent-condition note: the engine validates the shield on
+  cast and no shield-type API read exists in this tree — documented.
+  Shield Slam 23925 / Revenge 25288 value changes need no lane.
 - `classes/warrior/leveling_forever.lua` — Victory Rush kill-chain sustain
   lane, rage-formula watch (leveling is where starvation bites first).
 
@@ -147,7 +162,19 @@ resolves it** (no IDs, no rank numbers below).
       API, so this stays a leveling/solo candidate, not a day-1 lane.
 - [ ] Shield-gated prot talents: verify condition text (shield-required
       effect) for the tank-mode structural check.
-- [ ] Vanguard: Charge-in-defensive WITHOUT in-combat use.
+- [x] Prot wave (2026-09-17): Vanguard 1310317 confirmed ("Charge usable in
+      Defensive Stance", aura-332 override rows at the Charge ids
+      11578/6178/100); Shield Wall 871 RecoveryTime 900000 and Last Stand
+      12975 RecoveryTime 180000 confirm the CD reductions; Shield Slam
+      23925@60 ("656 damage, increased by your Block Value ... very high
+      threat"), Revenge 25288@60 ("must follow a block, dodge or parry"),
+      Shield Block 2565 ("Increases chance to block by 76% for 7, but will
+      only block $n attacks" — the $n is the Forever 2), Devastate 20243,
+      Sunder Armor 7386/11597, Concussion Blow 12809, Improved Revenge
+      12797, Improved Thunder Clap 12287, Focused Rage 29787 all resolve.
+      The baseline's TC Battle-stance gate was the one live defect (fixed).
+- [ ] Vanguard: Charge-in-defensive WITHOUT in-combat use. DONE (the lane
+      gates OOC + defensive + 8-25yd).
 - [ ] RAGE FORMULA: **not resolvable from the client data** (no rage table
       is extracted; the Gt* tables are absent from this build). In-game
       probe stands: compare rage-per-damage against the TBC formula. Until

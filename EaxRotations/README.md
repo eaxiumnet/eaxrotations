@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.26.2-blue" alt="Version 2.26.2">
   <img src="https://img.shields.io/badge/specs-172%20rated%20(5%20eras)-brightgreen" alt="172 Specs Rated Across 5 Eras (live-gated)">
-  <img src="https://img.shields.io/badge/tests-583%2F583%20passing-brightgreen" alt="583/583 Tests Passing (rotation suite fully green)">
+  <img src="https://img.shields.io/badge/tests-584%2F584%20passing-brightgreen" alt="584/584 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -15,7 +15,7 @@
 
 ## What Is This?
 
-**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)**, **Season of Discovery** and **WoW Forever**. Across the 5 eras it ships **172 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD · 40 Forever), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **583-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
+**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)**, **Season of Discovery** and **WoW Forever**. Across the 5 eras it ships **172 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD · 40 Forever), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **584-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
 
 Every action passes shared safety gates before casting:
 - ✅ Player exists, is alive, and can act
@@ -52,7 +52,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 622 test suites (583 rotation + 39 leveling)
+    tests/                  # 623 test suites (584 rotation + 39 leveling)
 ```
 
 ---
@@ -84,7 +84,7 @@ scripts/
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **622 Test Suites** | 583 rotation + 39 leveling registered; 583 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
+| 🧪 **623 Test Suites** | 584 rotation + 39 leveling registered; 584 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -122,7 +122,7 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 583 rotation suites
+    ├── run_rotation_tests.lua    # 584 rotation suites
     ├── run_leveling_tests.lua    # 39 leveling suites
     └── test_*.lua                # Individual test files
 ```
@@ -175,7 +175,7 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**583 suites**):
+Run the full rotation regression suite (**584 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua

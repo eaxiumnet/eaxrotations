@@ -69,6 +69,7 @@ local tests = {
  "test_hunter_beast_mastery_forever.lua",
  "test_hunter_marksmanship_forever.lua",
  "test_warlock_affliction_forever.lua",
+ "test_warrior_protection_forever.lua",
  "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",

@@ -3563,6 +3563,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mm_sniper",
 -- Haunt/UA lanes) on a live target.
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_affl_dots",
     overrides = { in_combat = true, mana_pct = 80 } }
+-- Warrior protection: the Vanguard opener (OOC + Defensive + charge range)
+-- and the stance-agnostic Thunder Clap (Defensive + rage + fresh debuff; the
+-- aoe_self_meets stub reports nearby enemies).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_charge",
+    overrides = { in_combat = false, stance = 2, target_distance = 20, distance = 20 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_tc",
+    overrides = { in_combat = true, stance = 2, rage = 40, enemy_count = 3, enemies_count = 3 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4433,6 +4440,9 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Wrack"] = 90020,
             ["Haunt"] = 90021,
             ["Unstable Affliction"] = 90022,
+            -- Warrior protection day-1 (2026-09-17): the Vanguard passive row
+            -- (the Defensive-charge gate).
+            ["Vanguard"] = 90023,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
