@@ -1515,6 +1515,9 @@ function M.build_ns(class_key, era)
         -- spell_exists(nil) path). Ladder mirrors classes/priest/
         -- class_sylvanas.lua (TBC max rank first).
         DevouringPlague = ns.spell_action({ 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
+        -- (forever day-1 2026-09-17): the priest leveling delta's Fear Ward
+        -- lane (the Dwarf racial made universal); the mock lacked the row.
+        FearWard = ns.spell_action({ 6346 }, "FearWard"),
         -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
         -- comment for the rationale and ladder convention.
         DesperatePrayer = ns.spell_action({ 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
@@ -3724,6 +3727,12 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shaman_levelin
 -- through the buff bank).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mage_leveling_hs",
     overrides = { in_combat = true, buff_remains_map = { [90007] = 3 } } }
+-- Priest leveling: the universal pair — Devouring Plague in combat (the
+-- debuff absent by default) and Fear Ward out of combat.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_priest_leveling_dp",
+    overrides = { in_combat = true } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_priest_leveling_fw",
+    overrides = { in_combat = false } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

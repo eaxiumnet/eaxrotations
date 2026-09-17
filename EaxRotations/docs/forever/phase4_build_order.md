@@ -164,8 +164,10 @@ energy half stays probe-gated); shaman BUILT (the Improved Ghost Wolf
 in-combat escape lane; the 8s Stormstrike and early imbues already ride the
 baseline); mage BUILT (the Hot Streak spend in the leveling fire branch;
 the Frostfire school-swap stays deliberately absent per the kit's
-unconfirmed note); the remaining class (priest Fear Ward/DP universal)
-follows.
+unconfirmed note); priest BUILT (the universal-access pair — Devouring
+Plague in the dot block and Fear Ward in the self-buff block). **#26
+COMPLETE: all nine leveling classes shipped (paladin, druid, warrior,
+hunter, warlock, rogue, shaman, mage, priest).**
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

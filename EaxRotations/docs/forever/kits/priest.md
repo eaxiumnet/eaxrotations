@@ -151,6 +151,15 @@ Eureka!) carry from racials-and-talents.md.
   baseline otherwise).
 - `classes/priest/leveling_forever.lua` — Fear Ward/DP universal access
   reshape early leveling for all races.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes)** — the
+  universal-access pair: Devouring Plague in the dot block (target +
+  combat + not moving + the 4s refresh window, mirroring the baseline's
+  SWP/HolyFire pattern) and Fear Ward in the self-buff block (out of
+  combat + not already warded, mirroring the fortitude/inner-fire pattern).
+  The vanilla leveling baseline had NO lane for either (race-gated content),
+  so both are pure additions; both resolve era-shared from the class map
+  (Fear Ward 6346, DP ladder 2944@20 ... 19280@60 — the class map's TBC
+  25467 walks to the known rung via NS.get_spell_id).
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve every named ability above BY NAME in the Forever bridge
