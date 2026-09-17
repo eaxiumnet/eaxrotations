@@ -3554,6 +3554,11 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_shared_shot
 -- Hunter BM: the hawk lane fires on its shared cooldown in combat.
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bm_summon_hawk",
     overrides = { in_combat = true, mana_pct = 80 } }
+-- Hunter MM: the Sniper Shot window (execute-range target) and the Lone Wolf
+-- fork (the sentinel makes the talent "learned", so the pet lanes must be
+-- absent from the forever marksmanship strategy list).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mm_sniper",
+    overrides = { in_combat = true, target_hp = 15, enemies_count = 1 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4413,6 +4418,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Strider Kick"] = 90016,
             -- Hunter BM day-1 (2026-09-17): the Summon Hawk cast row.
             ["Summon Hawk"] = 90017,
+            -- Hunter MM day-1 (2026-09-17): the Sniper Shot cast row and the
+            -- Lone Wolf talent row (the pet-fork gate).
+            ["Sniper Shot"] = 90018,
+            ["Lone Wolf"] = 90019,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

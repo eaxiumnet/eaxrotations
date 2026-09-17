@@ -88,6 +88,18 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
   shot-buffer gates obsolete (harmless, left in place).
 - `classes/hunter/marksmanship_forever.lua` — Lone Wolf petless branch,
   Sniper Shot burst lane (context-gated), shared Aimed/Multi CD weave.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (additive + fork + reorder)** —
+  Sniper Shot (1310687@40 / 1310785@48 / **1310786@58**, cast 4000ms,
+  RecoveryTime 15000) is a context-gated burst lane: execute-range target
+  (<=20% HP) or any PvP, never moving (4s cast) — not a filler. The
+  shared-cooldown reorder (Aimed 19434/20904 + Multi 2643 both in
+  SpellCategory 2 at 6000ms) re-emits Multi above the in-combat Aimed lane,
+  both Aimed lanes preserved. **Lone Wolf fork**: the talent (415370 — "You
+  deal 21% increased damage with all attacks while you do not have an active
+  pet", kit said +20%) is checked via NS.is_spell_learned at load; when
+  learned, the pet recall/maintenance lanes (CallPet/RevivePet/MendPet) are
+  DROPPED so a summoned pet cannot cancel the buff. Nil API or nil lookup
+  keeps the baseline lanes (fail-closed).
 - `classes/hunter/survival_forever.lua` — near-total rewrite: melee weave
   (Mongoose core via Expose Prey/Lacerating Strikes, Strider Kick, dual-wield),
   spam-capable trap lanes, ranged filler windows.
@@ -155,7 +167,14 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
       the cap. OPEN (in-game): whether the engine's castability check honors
       the 3-hawk cap (if not, the fourth cast in a cycle may waste the shared
       Arcane Shot lockout).
-- [ ] Traps-in-combat: in-game probe (a mechanic flag, not DBC-readable).
+- [x] Sniper Shot + Lone Wolf (2026-09-17): Sniper Shot ladder
+      1310687@40 / 1310785@48 / 1310786@58, **cast 4000ms, RecoveryTime
+      15000**, mana 365 — the kit's "4s cast" confirmed, gated to the
+      execute/PvP window in the lane. Lone Wolf 415370 (Hunter, level 1):
+      "You deal **21%** increased damage with all attacks while you do not
+      have an active pet" (aura 79; kit's +20% corrected) — a passive aura,
+      so the delta's fork is the pet-lane drop, not a cast lane.
+- [x] Traps-in-combat: in-game probe (a mechanic flag, not DBC-readable).
 - [x] Class-wide "abilities no longer clip Auto Shot" (2026-09-17): the
       baseline hunter files carry shot-buffer/swing gates (can_cast_before_auto
       / can_cast_instant) that this change makes obsolete — they remain

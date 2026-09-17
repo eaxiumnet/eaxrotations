@@ -75,7 +75,10 @@ for the DBC-confirmed shared cooldown; Aspect of the Beast documented as
 blocked by the builder's BaseLevel-0 guard). #9
 `hunter/beast_mastery_forever.lua` BUILT (Summon Hawk above the Arcane Shot
 filler it shares a 6s category CD with; the client's 3-hawk cap and 18s
-lifespan recorded, kit's "2 hawks" corrected). #10–#14 pending.
+lifespan recorded, kit's "2 hawks" corrected). #12
+`hunter/marksmanship_forever.lua` BUILT (Sniper Shot execute/PvP window, the
+shared-CD shot reorder, and the Lone Wolf pet-fork via NS.is_spell_learned).
+#10–#11/#13–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
