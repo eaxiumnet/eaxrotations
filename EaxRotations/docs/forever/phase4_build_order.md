@@ -154,9 +154,10 @@ candidate); druid BUILT (the Omen of Clarity clearcast weave waiving the
 flat energy floors inside the free-cast window; the form-energy half needs
 no lane — Furor is a capped restore and the leveling file has no
 powershift lane); warrior BUILT (the Victory Rush kill-window sustain lane
-above Execute, rune-learn-gated); the remaining classes (rogue energy pace,
-warlock Bane-slot math, hunter Aimed Shot, mage Frostfire, shaman early
-Stormstrike, priest Fear Ward/DP) follow.
+above Execute, rune-learn-gated); hunter BUILT (the shared Aimed/Multi
+cooldown reorder — the pair re-emitted Multi-first, no new lanes); the
+remaining classes (rogue energy pace, warlock Bane-slot math, mage
+Frostfire, shaman early Stormstrike, priest Fear Ward/DP) follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

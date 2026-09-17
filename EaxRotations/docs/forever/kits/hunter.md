@@ -124,6 +124,17 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
   (kit said "CDs/costs").
 - `classes/hunter/leveling_forever.lua` — Aimed Shot baseline reshapes early
   rotations; trap-in-combat opens leveling tools.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (reorder, no new lanes)** —
+  the shared Aimed/Multi cooldown (SpellCategory 2 at 6000ms, the BM/MM/SV
+  day-1 finding) applies to the leveling file too: its lane order
+  (AimedShot above MultiShot) starved Multi on every multi-pull, so the pair
+  is re-emitted Multi-first at the baseline's MultiShot position (no lane
+  duplicated, none dead; the baseline's lane objects are reused unchanged).
+  TRAP-IN-COMBAT half: the baseline's FreezingTrap lane already gates on
+  in_combat (2+ enemies) — no delta needed. The checklist's obsolete
+  shot-buffer/swing gates (can_cast_before_auto / can_cast_instant) are
+  deliberately untouched — they only suppress casts and removing them is a
+  separate concern.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve the wave-2 names (2026-09-17): Mongoose Bite 1495/14271,
