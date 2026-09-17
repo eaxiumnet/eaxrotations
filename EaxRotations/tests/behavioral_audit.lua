@@ -3585,6 +3585,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_icelance
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_winters_chill",
     overrides = { in_combat = true, mana_pct = 80, debuff_stacks = 2, debuff_aura_ids = { 90028 },
                   debuff_remains_map = { [90028] = 12 } } }
+-- Druid balance: the charged Eclipse window (the buff_remains_map value is
+-- the stack/charge count in the harness's stack-aware bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bal_eclipse_charged",
+    overrides = { in_combat = true, mana_pct = 70, buff_remains_map = { [90030] = 2 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4470,6 +4474,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Icy Veins"] = 90027,
             ["Winter's Chill"] = 90028,
             ["Frost Nova"] = 90029,
+            -- Druid balance day-1 (2026-09-17): the Eclipse talent row; the
+            -- battery seeds all mirrors with one id, so the charge read and
+            -- the learned check share the sentinel.
+            ["Eclipse"] = 90030,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

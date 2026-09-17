@@ -95,7 +95,11 @@ Nova window, Icy Veins — absent from the kit but trainer-taught on the
 client, with the class map pointing at Cold Snap — and the Winter's Chill
 replacement reading the applied debuff 12579 via a new BUFF_OVERRIDES pin;
 Fingers of Frost recorded as a BaseLevel-0 bridge gap).
-**Wave 2 COMPLETE (2026-09-17).** Wave 3 (#15–#26) pending.
+**Wave 2 COMPLETE (2026-09-17).** Wave 3 (#15–#26) in progress: #15
+`druid/balance_forever.lua` BUILT (the Eclipse pair — Wrath-procs-3-fast-
+Starfires per the client text, NOT the kit's 4-stack alternation; Balance of
+Nature has no client row; Nature's Grace/Dreamstate/Moonkin are passives).
+#16–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

@@ -30,15 +30,35 @@ rank numbers below).
   4**, more flexible and more powerful than Balance of Nature — the
   alternating-cast loop is the rotation's spine (track Eclipse stacks,
   Pattern 11).
+  **DBC CORRECTION (2026-09-17)**: the client's Eclipse 408248 (granted by
+  the "Engrave Belt - Eclipse" rune) reads "Your **Wrath** spell reduces the
+  cast time of your next **3 Starfire** spells by X sec. Stores up to
+  $408255u charges. Lasts $408255d" — a Wrath-procs-fast-Starfire loop, not
+  a 4-stack alternation mechanic; the charge buff row is 408255 (pinned in
+  the bridge's BUFF_OVERRIDES; the name's lowest-id row is the talent text).
+  The day-1 lanes implement the loop: charges up -> Starfire, no charges ->
+  Wrath re-proc (with an unreadable charge state keeping the classic
+  priority instead of degenerating into Wrath spam).
 - **Balance of Nature** (NEW): same alternation theme, stricter — talent
   interplay flagged for beta tuning.
+  **DBC FINDING**: no such druid ability exists in the client (the only row
+  named "Balance of Nature" is an NPC spell, 5414) — the kit's second talent
+  claim has no data behind it.
 - **Nature's Grace**: 10% cast speed AND GCD reduction for 3s on a
   non-periodic crit — crit-proc haste lane (GCD reduction is new for
-  Vanilla-shaped casters).
+  Vanilla-shaped casters). CONFIRMED as a passive proc (16880 -> buff 16886,
+  "increasing your spellcasting speed and reducing your global cooldown");
+  no cast lane.
+- **Dreamstate** (client-side bonus, absent from the kit): "Your damaging
+  non-periodic spell critical strikes grant you X% of your mana regeneration
+  while casting" (408258 -> 408261) — passive; no lane.
 - **Reflection/Subtlety buffs**: mana + threat largely solved — the spec's
   two historical raid blockers; threat-aware lane logic can relax.
 - **Moonkin Form**: party crit to ALL spell/ability types (was spell-crit
   only); **exclusive with Leader of the Pack** — buff-role accounting.
+  CONFIRMED in the client text ("all party members within $24907a1 yards
+  have their critical strike chance increased by $24907s1%, exclusive with
+  Leader of the Pack"); no cast lane.
 
 ## Feral — the form rework
 - **Berserk** (NEW): 3-min CD, 15s, form-dependent — **Bear: removes Mangle
@@ -110,6 +130,12 @@ faction on-use). Standard set — see racials-and-talents.md.
 - `classes/druid/balance_forever.lua` — Eclipse alternation loop (stack
   reads), Nature's Grace crit-proc lane, relaxed threat logic, moonkin
   buff-role accounting (LotP exclusivity).
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes)** — the Eclipse
+  pair (charges > 0 -> Starfire, 0 -> Wrath) above StarfirePrimary, gated on
+  the engraving being learned and on NS.buff_stacks being available; an
+  unreadable charge state keeps the classic priority (no Wrath spam).
+  Nature's Grace / Dreamstate / Moonkin Form are passives (documented, no
+  lane); Balance of Nature has no client row.
 - `classes/druid/resto_forever.lua` — Wild Growth CD lane, non-consuming
   Swiftmend spot-heal spam, GotE 1s-GCD blanket priority, critting HoTs,
   Omen clearcast weaving.
@@ -153,9 +179,17 @@ faction on-use). Standard set — see racials-and-talents.md.
       client — bear lanes must resolve by name. The bridge's "Lacerate"
       maxrank lands on the druid 1235827 (the classic 24118 is a Hunter-class
       row) ✓.
-- [ ] Eclipse: stack cap 4 + Wrath/Starfire trigger shape.
+- [x] Eclipse (2026-09-17): the stack cap 4 + Wrath/Starfire trigger claim is
+      CORRECTED — the client's Eclipse is a Wrath-procs-3-fast-Starfires
+      loop (charges via 408255); the day-1 lanes implement it. [PROBE: the
+      exact charge->haste value and whether a charge is consumed per
+      Starfire — the tooltip tokens are unresolved.]
+- [x] Nature's Grace 16880 (proc -> 16886) and Dreamstate 408258 (proc ->
+      408261) confirmed as passive procs; Moonkin Form 24858's text
+      confirms party-wide crit + LotP exclusivity. No lanes.
 - [ ] Swiftmend: confirm non-consumption (effect no longer removes the HoT).
-- [ ] Wild Growth: party HoT effect shape + CD.
+      [resto delta, #16]
+- [ ] Wild Growth: party HoT effect shape + CD. [resto delta, #16]
 - [ ] Moonkin/LotP buff exclusivity (aura family check).
 - [x] Omen of Clarity (2026-09-17): 16864's client text confirms the
       era-wide baseline proc ("Your spells and attacks have a chance to

@@ -196,6 +196,11 @@ def load_forever_spells(conn):
         # referenced by the talent text as $12579s1/$12579d); baseline 11180
         # is the TALENT row, so a stack read against it always returns 0.
         "Winter's Chill": 12579,
+        # Charge buff row ("Your Wrath spell reduces the cast time of your
+        # next 3 Starfire spells ... Stores up to $408255u charges"); the
+        # baseline 408248 is the talent/engraving text row, so a charge read
+        # against it always returns 0.
+        "Eclipse": 408255,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for
