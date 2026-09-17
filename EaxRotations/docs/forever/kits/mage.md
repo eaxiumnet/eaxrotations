@@ -147,6 +147,15 @@ Cross-page contradiction: Blood Fury's numbers differ per class page
   Fingers of Frost stays un-laned (BaseLevel-0 bridge gap, probe recorded).
 - `classes/mage/leveling_forever.lua` — school-swap Frostfire for
   resist-varying leveling targets; Hot Streak availability timing.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the Hot Streak
+  spend in the leveling fire branch: proc up (buff mirror 400625) + the
+  DBC-confirmed 3-stack cap (a 0/nil read fails open to the presence gate) +
+  the baseline's fire-nuke gates (target, combat, movement, 10% mana) ->
+  fast Pyroblast (class map). The FROSTFIRE half stays DELIBERATELY ABSENT:
+  the kit's own unconfirmed list says the lower-resist mechanic "needs DBC
+  proof before any school-choice lane encodes it" — a guessed school-swap is
+  worse than a missing one (the plain Frostfire Bolt nuke is likewise not a
+  lane the kit asks for).
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve every named ability above BY NAME in the Forever bridge

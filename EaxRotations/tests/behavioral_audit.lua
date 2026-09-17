@@ -3720,6 +3720,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_rogue_leveling
 -- talent is learned by default and the wolf form is down).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shaman_leveling_wolf",
     overrides = { in_combat = true, hp = 30 } }
+-- Mage leveling: the Hot Streak spend (the sentinel id at the 3-stack cap
+-- through the buff bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mage_leveling_hs",
+    overrides = { in_combat = true, buff_remains_map = { [90007] = 3 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

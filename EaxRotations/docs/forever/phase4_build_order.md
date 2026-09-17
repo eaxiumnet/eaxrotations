@@ -162,8 +162,10 @@ pet-Move-To half is no rotation-lane impact); rogue BUILT (the Mutilate
 2-CP builder above Sinister Strike, both-hand dagger gate + learn gate; the
 energy half stays probe-gated); shaman BUILT (the Improved Ghost Wolf
 in-combat escape lane; the 8s Stormstrike and early imbues already ride the
-baseline); the remaining classes (mage Frostfire school-swap, priest Fear
-Ward/DP universal) follow.
+baseline); mage BUILT (the Hot Streak spend in the leveling fire branch;
+the Frostfire school-swap stays deliberately absent per the kit's
+unconfirmed note); the remaining class (priest Fear Ward/DP universal)
+follows.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
