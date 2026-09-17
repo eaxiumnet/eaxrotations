@@ -101,6 +101,20 @@ ranks, "even entire mechanics" to change).
   amplify-window sequencing, active-affliction-count state for Improved
   Drains, execute tripled Drain Soul, critting-dot table (era-shared IDs
   from `WarlockSpells`).
+  **Status (2026-09-17, beta day): DAY-1 BUILT (additive + one slot drop)** —
+  **"Drain Hope" does NOT exist in the beta client (any class)**: the kit's
+  capstone is **WRACK 1316697** ("Tears the target apart from within, dealing
+  $s1 Shadow damage every $t sec and increasing the damage they take from
+  your other Shadow damage over time effects by $s2%. Lasts $d" — 6s,
+  instant, no CD, 200 mana), and Improved Drains 403511 names it explicitly
+  ("your Drain Life, Drain Soul, and Wrack spells"). The delta maintains
+  Wrack at the head of the dot block. **Haunt** (403501@40 … 1293694@60, 15s
+  CD, 12s amplify) and **Unstable Affliction** (427717@40 … 1242971@60, 18s)
+  are ENGRAVING-granted ("Engrave Gloves - Haunt" / "Engrave Bracers -
+  Unstable Affliction"), so those lanes gate on NS.is_spell_learned (either
+  mirror id) and stay dormant un-engraved; when UA is learned the baseline's
+  ImmolateDoT lane is DROPPED (the UA text: "Only one Unstable Affliction or
+  Immolate per Warlock can be active on any one target").
 - `classes/warlock/demonology_forever.lua` — Demonic Pact sacrifice-and-
   resummon buff juggling (school-choice lane), pet-scaling weight, Decimation
   execute, Demonic Brand pet-tank lane.
@@ -111,14 +125,29 @@ ranks, "even entire mechanics" to change).
   early levels; pet Move To for leveling control.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `WarlockSpells` only then.
-- [ ] Confirm Bane of Agony/Doom are separate debuff-slot mechanics (aura
-      family distinct from curses).
+- [x] Affliction names resolved (2026-09-17): Corruption 172, Bane of Agony
+      980/11713, Bane of Doom 603, Drain Life 689/11700, Drain Soul
+      1120/11675, Siphon Life 18265/18881, Death Coil 6789, Curse of the
+      Elements 440892/1311680, Curse of Recklessness 704/11717, talents
+      (Pandemic 427712, Malediction 1225177, Improved Drains 403511, Soul
+      Siphon 17804, Everlasting Affliction 412689). **"Drain Hope" absent
+      from the whole client** (name scan) — Wrack 1316697 is the kit's
+      capstone (renamed); Curse of Agony is likewise renamed to Bane of
+      Agony (same classic ids, so the class map still resolves).
+- [x] Haunt / Unstable Affliction (2026-09-17): both exist as the kit
+      describes but are ENGRAVING-granted (trainer `Engraving` rows), not
+      trainer/talent rows — the delta gates them on is_spell_learned.
+- [x] Improved Drains text CORRECTED: "Increases health drained or damage
+      done by your **Drain Life, Drain Soul, and Wrack** spells by $m1%" —
+      no Drain-Soul-tripled-below-20% clause (the kit's execute claim is not
+      in the client text; the baseline's DrainSoulExecute lane stands on its
+      own).
+- [x] Banes-not-curses confirmed in shape: "Bane of Agony/Doom" and "Curse
+      of the Elements/Recklessness" are separate names with separate rows
+      (the slot mechanics themselves are in-game).
 - [ ] Confirm DoT crit capability + Pandemic crit-damage effect shape.
 - [ ] Confirm haste non-application to periodic effects (beta re-check —
-      highest flip-risk claim).
-- [ ] Drain Hope: channel DoT + shadow-dot amplify aura (effect shape).
+      highest flip-risk claim; not DBC-readable).
 - [ ] Demonic Pact: sacrifice-buff persistence across re-summon (aura
       source semantics) — this gates the whole demo rotation.
 - [ ] Incinerate +25% vs Immolate; Shadow and Flame windows + non-consuming

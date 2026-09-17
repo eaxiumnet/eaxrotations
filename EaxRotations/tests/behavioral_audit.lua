@@ -3559,6 +3559,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bm_summon_hawk
 -- absent from the forever marksmanship strategy list).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mm_sniper",
     overrides = { in_combat = true, target_hp = 15, enemies_count = 1 } }
+-- Warlock affliction: the dot block (Wrack refresh, the engraving-gated
+-- Haunt/UA lanes) on a live target.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_affl_dots",
+    overrides = { in_combat = true, mana_pct = 80 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4422,6 +4426,13 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Lone Wolf talent row (the pet-fork gate).
             ["Sniper Shot"] = 90018,
             ["Lone Wolf"] = 90019,
+            -- Warlock affliction day-1 (2026-09-17): the Wrack amplify DoT
+            -- (the beta client's rename of the kit's "Drain Hope") and the
+            -- two engraving-granted rows (Haunt / Unstable Affliction) whose
+            -- learned check reads both mirror ids.
+            ["Wrack"] = 90020,
+            ["Haunt"] = 90021,
+            ["Unstable Affliction"] = 90022,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

@@ -78,7 +78,10 @@ filler it shares a 6s category CD with; the client's 3-hawk cap and 18s
 lifespan recorded, kit's "2 hawks" corrected). #12
 `hunter/marksmanship_forever.lua` BUILT (Sniper Shot execute/PvP window, the
 shared-CD shot reorder, and the Lone Wolf pet-fork via NS.is_spell_learned).
-#10–#11/#13–#14 pending.
+#10 `warlock/affliction_forever.lua` BUILT (the kit's "Drain Hope" is
+WRACK 1316697 in the beta client — a name that does not exist anywhere;
+Haunt/Unstable Affliction are engraving-granted and gated on
+is_spell_learned, with the UA/Immolate slot drop). #11/#13–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
