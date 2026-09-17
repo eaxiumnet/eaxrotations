@@ -84,8 +84,17 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
       the bridge's MAXRANK_OVERRIDES now pins Fire Nova to 408345)
 - [x] Totemic Projection 437009 (60s CD) / Totemic Recall 36936 /
       Call of the Elements 66842 — shaman
-- [x] Lava Burst 408490/1238300 (+20% FS bonus in EffectBasePoints) — shaman
-      elemental
+- [x] Lava Burst 408490/1238300 (+20% FS bonus in EffectBasePoints; rendered
+      tooltip reads 21% — the bonus flag is a dummy effect, talents raise the
+      printed number) — shaman elemental
+- [x] Elemental Mastery — **name-table quirk, not a removal**: talent row
+      16166 still sits in the client's Elemental tree (tier 6, column 1,
+      prereq 565 = Elemental Fury 5-point), but the client has NO SpellName
+      row for it, so the spell is absent from `by_name.json` and from the
+      bridge mirrors. The baseline elemental lane casts it from the class map
+      (`NS.ShamanSpells.ElementalMastery`, id 16166, 180s CD) and needs no
+      delta. [PROBE (in-game): confirm the talent grants the ability at 31
+      points and the class-map lane fires on beta day.]
 - [x] Hot Streak 400625 (Forever stacking proc; CONTRADICTION: kit
       "3-stack" unconfirmed, legacy 48108 row says "2 in a row" — do not
       overwrite the kit number; in-game probe) — mage fire

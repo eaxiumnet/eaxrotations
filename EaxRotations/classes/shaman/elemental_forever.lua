@@ -1,16 +1,22 @@
 -- elemental_forever.lua — Shaman Elemental delta for WoW Forever (beta).
 -- WHAT:  Forever kit deltas spliced ON TOP of the vanilla baseline: a
---        Lava Burst nuke lane hard-gated on Flame Shock being up (+20% on
---        shocked targets — the flagship keep-FS-up loop) and a Fire Nova
---        spell lane; re-registered as the "elemental" playstyle with the
---        vanilla strategies kept below.
+--        Lava Burst nuke lane hard-gated on Flame Shock being up (+20% /
+--        rendered 21% on shocked targets — the flagship keep-FS-up loop,
+--        10s category CD declared to the readiness check) and a Fire Nova
+--        spell lane (the trainer-taught totem-detonating cast row, gated on
+--        a live Fire Totem); re-registered as the "elemental" playstyle with
+--        the vanilla strategies kept below.
 -- WHEN:  combat, Forever client (class loader prefers _forever over _vanilla).
--- WHY:   docs/forever/kits/shaman.md (Icy Veins class overview, 2026-09-15):
---        Lava Burst is the capstone nuke with +20% damage on Flame-Shocked
---        targets, making FS uptime a rotation-shaping dependency; Fire Nova
---        is no longer a totem — it detonates your Fire Totem as a plain
---        spell (the vanilla totem-drop semantics collapse into a spell
---        gate).
+-- WHY:   docs/forever/kits/shaman.md (Icy Veins class overview, 2026-09-15;
+--        beta DBC verification 2026-09-17): Lava Burst is the capstone nuke
+--        with the Flame Shock dependency, making FS uptime a rotation-shaping
+--        gate; Fire Nova is no longer a totem — it detonates your Fire Totem
+--        as a plain spell (the vanilla totem-drop semantics collapse into a
+--        spell gate). Elemental Mastery needs NO delta: the talent row (16166,
+--        tier 6, prereq Elemental Fury 5) still exists in the client's
+--        Elemental tree and the baseline lane casts it from the class map —
+--        the client's SpellName table simply has no name row for it, so it is
+--        absent from the bridge (documented in the kit, no dead lane added).
 -- SAFETY: ZERO numeric spell-ID literals — the fail-closed forever audit
 --        (run_forever_audit_tests.lua) resolves every ID through the bridge.
 --        Forever-new spells resolve BY NAME through the DBC-derived bridge
@@ -61,10 +67,11 @@ end
 -- ---------------------------------------------------------------------------
 -- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): both
 -- lanes CAST, so both resolve through the max-rank mirror (Lava Burst
--- 1238300@60 with the +20% Flame Shock bonus in its description text;
--- Fire Nova 11307@52, the damage row). A nil lookup leaves the lane
--- dormant -- never a guessed ID. Sentinel stand-ins are seeded per mirror
--- by the battery's build_ns so mirror selection itself is pinned.
+-- 1238300@60, the +20%/rendered-21% Flame Shock row; Fire Nova 408345@52,
+-- the trainer-taught totem-detonating cast pinned in the builder's
+-- MAXRANK_OVERRIDES over the internal 11307 damage row). A nil lookup leaves
+-- the lane dormant -- never a guessed ID. Sentinel stand-ins are seeded per
+-- mirror by the battery's build_ns so mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
 local ok_bridge, ForeverBridge = pcall(require,
     "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
@@ -95,6 +102,14 @@ local EMPTY_OPTS = {}
 local FOREVER_LB_MANA_FLOOR = 25
 local FOREVER_NOVA_MANA_FLOOR = 30
 local FOREVER_FS_MIN_REMAINS = 2   -- cast LB while FS comfortably up
+-- DBC-confirmed: CategoryRecoveryTime 10000 on both Lava Burst cast rows
+-- (408490@40, 1238300@60). The engine owns the real cooldown; the expected
+-- value keeps the manual fallback honest on a client with sparse data.
+local FOREVER_LAVA_BURST_CD = 10
+-- Fire totem slot (WoW totem slots: 1 fire, 2 earth, 3 water, 4 air). The
+-- Forever Fire Nova detonates the ACTIVE fire totem, so the lane holds when
+-- the client reports none.
+local FOREVER_FIRE_TOTEM_SLOT = 1
 
 local function setting(context, key, default)
     return spec_kit.setting(context, key, default)
@@ -102,6 +117,18 @@ end
 
 local function has_valid_enemy(context)
     return context and context.has_valid_enemy_target and context.target
+end
+
+-- Live-fire-totem probe (NS.get_totem_info, core_sylvanas). Fail-open when
+-- the API is unavailable; the engine wrapper returns a table with
+-- have_totem, while the battery's no-totem shape is the literal false.
+local function fire_totem_up()
+    local get_info = NS.get_totem_info
+    if type(get_info) ~= "function" then return true end
+    local info = get_info(FOREVER_FIRE_TOTEM_SLOT)
+    if info == false then return false end
+    if type(info) == "table" and info.have_totem == false then return false end
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -112,6 +139,8 @@ end
 -- ---------------------------------------------------------------------------
 
 local delta_nuke = {}
+
+local LAVA_BURST_OPTS = { expected_cooldown = FOREVER_LAVA_BURST_CD }
 
 -- Lava Burst (kit: capstone nuke, +20% on Flame-Shocked targets). Hard FS
 -- dependency: only while the target's Flame Shock has comfortable remains —
@@ -127,7 +156,7 @@ if LAVA_BURST_SPELL then
             if not FLAME_SHOCK_DEBUFF then return false end
             if (NS.debuff_remains(context.target, FLAME_SHOCK_DEBUFF) or 0)
                 < setting(context, "ele_forever_fs_min_remains", FOREVER_FS_MIN_REMAINS) then return false end
-            return NS.spell_ready(LAVA_BURST_SPELL, context.target, EMPTY_OPTS)
+            return NS.spell_ready(LAVA_BURST_SPELL, context.target, LAVA_BURST_OPTS)
         end,
         execute = function(context)
             return NS.try_cast(LAVA_BURST_SPELL, context.target,
@@ -136,15 +165,17 @@ if LAVA_BURST_SPELL then
     }
 end
 
--- Fire Nova spell (kit: no longer a totem — detonates your live Fire Totem,
--- +15y with Elemental Reach). Above the baseline nuke block so the spell
--- semantics win while it is off cooldown in the AoE window. Dormant until
--- the bridge resolves the name.
+-- Fire Nova spell (kit: no longer a totem — the max-rank mirror's cast row
+-- 408345 detonates your live Fire Totem, +15y with Elemental Reach). Above
+-- the baseline nuke block so the spell semantics win while it is off
+-- cooldown; holds when no fire totem is up (the detonation is a no-op
+-- without one). Dormant until the bridge resolves the name.
 if FIRE_NOVA_SPELL then
     delta_nuke[#delta_nuke + 1] = {
         name = "Forever_FireNovaSpell",
         matches = function(context, s)
             if not has_valid_enemy(context) then return false end
+            if not fire_totem_up() then return false end
             if (s.mana_pct or 100) < setting(context, "ele_forever_nova_mana_floor", FOREVER_NOVA_MANA_FLOOR) then return false end
             return NS.spell_ready(FIRE_NOVA_SPELL, context.target, EMPTY_OPTS)
         end,

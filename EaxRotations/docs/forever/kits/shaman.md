@@ -117,6 +117,15 @@ not encode either.
 - `classes/shaman/elemental_forever.lua` — FS→Lava Burst dependency gate,
   Fire Nova spell lane (Fire Totem live check), Overload threat-neutral
   awareness, shorter LB/CL cadence.
+  **Status (2026-09-17, beta day): DAY-1 VERIFIED** — Lava Burst casts the
+  max-rank row 1238300@60 with the Flame Shock remains gate and the 10s
+  category CD declared to the readiness check; Fire Nova casts the corrected
+  totem-detonating row and holds without a live fire totem; Elemental Mastery
+  needs no delta (talent row 16166 still in the client's Elemental tree —
+  tier 6, prereq Elemental Fury 5 — and the baseline lane casts it from the
+  class map; the client's SpellName table has no name row for it, so it is
+  bridge-invisible, see the probe list). OPEN (wave 2): Lightning Overload
+  threat-neutrality, Elemental Alacrity cast-time math.
 - `classes/shaman/enhancement_forever.lua` — MW-stack LB weave (Pattern 11),
   8s Stormstrike + dodge/parry reset reactivity, Rage of the Farseer burst
   window pairing, Rockbiter tank-mode branch.

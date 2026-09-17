@@ -130,6 +130,46 @@ do
     state.mana_pct = 80
 end
 
+-- B2. Lava Burst declares the DBC 10s category cooldown to the readiness
+-- check (the engine owns the real cooldown; the hint keeps the manual
+-- fallback honest).
+do
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+    local lb = combined[find_lane(combined, "Forever_LavaBurstShocked")]
+
+    local seen_opts = nil
+    local orig_ready = NS.spell_ready
+    NS.spell_ready = function(spell, target, opts) seen_opts = opts; return true end
+    NS.debuff_remains = function() return 10 end
+    assert_true(lb.matches(ctx, state), "B2: Lava Burst fires with FS up")
+    assert_eq(seen_opts and seen_opts.expected_cooldown, 10, "B2: Lava Burst declares the 10s category CD")
+    NS.spell_ready = orig_ready
+    NS.debuff_remains = function() return 0 end
+end
+
+-- B3. Fire Nova live-fire-totem gate: the Forever cast detonates the active
+-- Fire Totem, so no totem -> no cast (table, false and unavailable shapes).
+do
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+    local nova = combined[find_lane(combined, "Forever_FireNovaSpell")]
+
+    NS.get_totem_info = function(slot) return { have_totem = true, spell_id = 0 } end
+    assert_true(nova.matches(ctx, state), "B3: Fire Nova fires with a live fire totem")
+    NS.get_totem_info = function() return false end
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova holds with no fire totem (false shape)")
+    NS.get_totem_info = function() return { have_totem = false } end
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova holds with no fire totem (table shape)")
+    NS.get_totem_info = nil
+    assert_true(nova.matches(ctx, state), "B3: Fire Nova fails open when get_totem_info is unavailable")
+    ctx.has_valid_enemy_target = false
+    assert_true(not nova.matches(ctx, state), "B3: Fire Nova needs a valid enemy")
+    ctx.has_valid_enemy_target = true
+end
+
 -- C. Dormancy on nil lookups: both lanes dormant on empty mirrors.
 do
     local combined = load_delta({}, {}, {})
