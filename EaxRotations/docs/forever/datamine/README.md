@@ -11,7 +11,7 @@
 | Artifact (under `wowheadScrape/dbc_extract/forever_community/`) | Shape | Contents |
 |---|---|---|
 | `index.html` | viewer (offline) | Self-contained Wowhead-style browser: search + class/heal/aoe filters, tooltip cards, rank ladders, talent trees, race table. Double-click to open, no server |
-| `forever-datamine-1.60.1.69893.zip` | shareable bundle | The viewer + every file below + this README + the rotation bridge, under one top folder |
+| `forever-datamine-1.60.1.69893.zip` | shareable bundle | The viewer + every file below + the rotation bridge + a generated friend-facing README (`FRIENDS_README_TEMPLATE` in the bundle script — this maintainer README never ships, it references repo paths) under one top folder |
 | `forever_datamine.db` | SQLite | `spells`, `spell_effects`, `spell_ranks`, `talents`, `talent_tabs`, `trainer_spells`, `races`, `procs`, `meta` tables + `player_spells` / `heals` views |
 | `spells.jsonl` | JSON lines | One object per named spell (31,308 lines): full descriptions included |
 | `by_name.json` | JSON map | Exact client name → every spell id carrying it (sorted) |

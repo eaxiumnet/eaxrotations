@@ -6,7 +6,9 @@ WHAT:  turns the community datamine package (wowheadScrape/dbc_extract/
         (1) index.html, a self-contained offline Wowhead-style spell/talent/
         race viewer (single file, no network, works from file://), and
         (2) forever-datamine-<version>.zip bundling the viewer, the data
-        files, the rotation bridge and the datamine README for sharing.
+        files, the rotation bridge and a generated friend-facing README
+        (FRIENDS_README_TEMPLATE below -- the maintainer README never ships;
+        it references repo paths friends don't have).
 WHEN:  beta day 2026-09-17+; rebuild after every datamine refresh.
 WHY:   the database files are maintainer-oriented; friends and fellow
         developers get one zip to unzip and double-click.
@@ -195,15 +197,14 @@ table.grid th { background: #161b22; color: #8b949e; font-weight: normal; }
 <section id="tab-races" class="tab"><div id="racelist"></div></section>
 <section id="tab-about" class="tab">
 <h3>About this datamine</h3>
-<p>Spell/talent/trainer/race rows read off the Forever beta client DBC
+<p>Spell/talent/trainer/race rows read off the Forever beta client data
 (beta {VERSION}); descriptions are verbatim client text (<code>$s1</code>-style
-tokens kept raw). Built by <code>tools/build_forever_database.py</code> — see
-<code>EaxRotations/docs/forever/datamine/README.md</code> for schema, usage
-recipes, regeneration, and known data quirks (rank-1 vs rank order, one name
+tokens kept raw). See <code>README.md</code> next to this file for the data
+files, usage recipes, and known data quirks (rank-1 vs rank order, one name
 covering several roles, aura-name gaps).</p>
 <h3>Effect legend (DBC-verified on this client)</h3>
 <p><code>2</code> damage &middot; <code>6</code> apply aura &middot;
-<code>10</code> heal. All other effect ids render raw — see the README.</p>
+<code>10</code> heal. All other effect ids render raw — see README.md.</p>
 <p class="note">Cooldowns live in two DBC columns; a blank cooldown here means
 the DBC carries no row, not "no cooldown". Mana costs are %-of-base-mana on
 the client and are not part of the extracted tables.</p>
@@ -407,6 +408,114 @@ else init();
 """
 
 
+# Friend-facing README shipped inside the zip (generated per build so the
+# version/date/counts can't go stale). Rule: only paths that exist INSIDE
+# the zip -- never repo paths, tool commands, or maintainer jargon. The
+# --check below scans the shipped README for leaks.
+FRIENDS_README_TEMPLATE = """# WoW Forever Datamine — beta {VERSION}
+
+Spell, talent, trainer, race and proc data read straight from the WoW
+Forever beta client files (build {VERSION}, extracted {DATE} UTC). No
+guessing, no fansite scraping — every number here is what the client
+itself ships.
+
+If the beta patches, this package goes stale: compare the version in the
+folder name against your client build.
+
+## Start here
+
+Unzip anywhere, then double-click **`index.html`**. It works fully offline
+in any modern browser — no server, no internet needed:
+
+- **Spells** tab: search by name or spell id, filter by class, heals, AoE.
+  Click a row for the full tooltip (client text verbatim), the raw effect
+  table, and buttons to walk the whole rank ladder.
+- **Talents** tab: all {NTALENTS} talents across 27 trees (9 classes x 3),
+  tier/column with rank-spell names.
+- **Races** tab: every race on the client, playable flag + starting level.
+- **About** tab: effect-id legend and caveats, repeated below.
+
+## What's in this folder
+
+| File / folder | What it is |
+|---|---|
+| `index.html` | The offline browser above (all data embedded). |
+| `README.md` | This file. |
+| `data/forever_datamine.db` | SQLite database: `spells`, `spell_effects`, `spell_ranks`, `talents`, `trainer_spells`, `races`, `procs` tables plus handy `player_spells` / `heals` views. Open with DB Browser for SQLite (free, sqlitebrowser.org). |
+| `data/spells.jsonl` | One JSON object per line for every named spell — plain-text searchable in any editor. |
+| `data/by_name.json` | Spell name → every spell id using it (sorted). Answers "which id is the real max rank?". |
+| `data/talents.json` | Talent trees with rank-spell names + descriptions joined in. |
+| `data/trainers.json` | What each class trainer teaches, with required levels. |
+| `data/races.json` | All client races, playable flag, starting level. |
+| `data/procs.json` | Proc/aura-chance rows (chance, charges, type) with spell names joined. |
+| `bridge/` | Lua spell-id table used by a rotation addon project — only interesting if you develop Lua rotations/addons; everyone else can ignore it. |
+
+## Try it (no special tools needed)
+
+SQLite — open `data/forever_datamine.db` in DB Browser for SQLite, tab
+"Execute SQL":
+
+```sql
+-- Every Holy Strike rank, weakest to strongest:
+SELECT spell_id, rank_no, level FROM spell_ranks
+ WHERE name = 'Holy Strike' AND class = 'Paladin' ORDER BY rank_no;
+-- Every direct heal a Resto Shaman can cast:
+SELECT id, name, level, cooldown_s FROM heals WHERE class = 'Shaman';
+-- Full tooltip + mechanic rows for one spell:
+SELECT description FROM spells WHERE id = 11078;
+SELECT effect, aura, base_points, targets FROM spell_effects WHERE spell_id = 11078;
+```
+
+Text search — `data/spells.jsonl` is one object per line, so Ctrl+F works in
+any editor:
+
+```
+"name": "Holy Strike"          # every Holy Strike row
+"name": "Touch of the Grave"   # racial proc rows
+```
+
+## Read this before theorycrafting (data quirks)
+
+- **Rank 1 is not the lowest id.** A few classic ladders number out of
+  order: Holy Strike rank 1 is spell 679 (level 6), not 678 (level 12);
+  Consecration rank 1 is 26573 (level 20), not 20116 (level 30). The viewer
+  walks ladders in true rank order — trust the R1/R2/... chips, not the ids.
+- **One name, several different spells.** The client reuses names across
+  roles: Arcane Blast is both an aura (400573) and a nuke (400574);
+  Missile Barrage is a talent (400588) and a proc (400589); same story for
+  Maelstrom Weapon. Hot Streak additionally keeps a legacy row (48108)
+  beside the real proc (400625). Always check the effect table / tooltip
+  before citing an id.
+- **Blank cooldown does NOT mean no cooldown.** Cooldowns live in two client
+  columns and only one is extracted here (Holy Shock, Holy Strike and Lava
+  Burst keep theirs in the other one). A blank cell means "no data", not
+  "spammable".
+- **Tooltip `$s1`-style tokens are verbatim** client text — the numbers they
+  stand for resolve in-game, not in this package.
+- **No hotfix data.** The beta ships no usable hotfix cache for its own
+  build, so this is base client data; numbers can still move before launch.
+- **Items are not included** (the beta's item-property table doesn't extract
+  cleanly yet) — spells, talents, trainers, races and procs only.
+
+## Where this came from
+
+Read directly off the Forever beta client data files on {DATE} (UTC) and
+rebuilt from scratch after every beta patch. If your client is newer than
+{VERSION}, ask whoever sent you this for a fresh pack.
+"""
+
+
+def build_friends_readme(meta, nspells, ntalents):
+    date = meta.get("extracted_at_utc", "?")
+    if date.endswith(" UTC"):
+        date = date[:-len(" UTC")]
+    return (FRIENDS_README_TEMPLATE
+            .replace("{VERSION}", meta.get("client_version", "?"))
+            .replace("{DATE}", date)
+            .replace("{NSPELLS}", str(nspells))
+            .replace("{NTALENTS}", str(ntalents)))
+
+
 def build_viewer(spells, talents, races, meta):
     compact = []
     for s in spells:
@@ -516,19 +625,17 @@ ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
                "talents.json", "trainers.json", "races.json", "procs.json")
 
 
-def build_zip(page, meta):
+def build_zip(page, meta, nspells, ntalents):
     """Write index.html + assemble the shareable zip. Returns zip path."""
     with open(os.path.join(PKG, VIEWER_NAME), "w", encoding="utf-8",
               newline="\n") as f:
         f.write(page)
     top = "forever-datamine-%s" % meta.get("client_version", "unknown")
     zpath = os.path.join(PKG, top + ".zip")
-    readme = os.path.join(ROOT, "EaxRotations", "docs", "forever",
-                          "datamine", "README.md")
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(PKG, VIEWER_NAME), top + "/" + VIEWER_NAME)
-        if os.path.exists(readme):
-            z.write(readme, top + "/README.md")
+        z.writestr(top + "/README.md",
+                   build_friends_readme(meta, nspells, ntalents))
         if os.path.exists(BRIDGE_SRC):
             z.write(BRIDGE_SRC, top + "/bridge/" + os.path.basename(BRIDGE_SRC))
         for member in ZIP_MEMBERS:
@@ -576,12 +683,33 @@ def check_bundle():
     else:
         with zipfile.ZipFile(os.path.join(PKG, zips[-1])) as z:
             names = set(z.namelist())
-        top = zips[-1][:-len(".zip")]
-        want = {top + "/" + VIEWER_NAME, top + "/README.md"}
-        want |= {top + "/data/" + m for m in ZIP_MEMBERS}
-        missing = sorted(want - names)
-        if missing:
-            problems.append("zip lacks members: %s" % missing)
+            top = zips[-1][:-len(".zip")]
+            want = {top + "/" + VIEWER_NAME, top + "/README.md"}
+            want |= {top + "/data/" + m for m in ZIP_MEMBERS}
+            missing = sorted(want - names)
+            if missing:
+                problems.append("zip lacks members: %s" % missing)
+            readme = ""
+            try:
+                readme = z.read(top + "/README.md").decode("utf-8")
+            except KeyError:
+                problems.append("zip README.md unreadable")
+            if readme:
+                # The shipped README is friend-facing: any repo-internal
+                # reference is a leak (friends only have the zip).
+                for marker in ("wowheadScrape", "EaxRotations", "tools/",
+                               "dbc_runbook", "repo law", "DB2ToSqlite",
+                               "dotnet", "--check"):
+                    if marker in readme:
+                        problems.append(
+                            "zip README.md leaks internal ref %r" % marker)
+                if "{VERSION}" in readme or "{NSPELLS}" in readme:
+                    problems.append("zip README.md has unfilled template tokens")
+    # Same leak rule for the viewer About tab (spell descriptions are
+    # client text and never contain these markers).
+    for marker in ("EaxRotations/docs", "tools/build_forever"):
+        if marker in page:
+            problems.append("viewer leaks internal ref %r" % marker)
     if problems:
         for p in problems:
             print("FAIL:", p)
@@ -598,7 +726,9 @@ def main():
     if args.check:
         sys.exit(check_bundle())
     page, spells, talents, races, meta = build_all()
-    zpath = build_zip(page, meta)
+    nspells = len([s for s in spells if s["class"]])
+    ntalents = sum(len(t["talents"]) for t in talents)
+    zpath = build_zip(page, meta, nspells, ntalents)
     print("Viewer:  %s (%s bytes)" % (
         os.path.join(PKG, VIEWER_NAME),
         format(os.path.getsize(os.path.join(PKG, VIEWER_NAME)), ",")))
