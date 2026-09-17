@@ -15,6 +15,7 @@ local _ft_unit = { _friendly = true, is_player = function() return true end }
 local _ft_hp = 75
 local _ft_hostile = false
 local _ft_present = true
+local _ft_deficit = nil
 local _last_cast = nil
 
 _G.core = { time = function() return 0 end, log = function() end, get_game_version = function() return "Vanilla" end }
@@ -29,7 +30,7 @@ _G.EaxRotations = {
     unit_health_pct = function(u) if u == _ft_unit then return _ft_hp end return 100 end,
     get_friendly_target_entry = function()
         if not _ft_present or _ft_hostile then return nil end
-        return { unit = _ft_unit, hp_pct = _ft_hp, effective_hp = _ft_hp, is_player = true }
+        return { unit = _ft_unit, hp_pct = _ft_hp, effective_hp = _ft_hp, deficit = _ft_deficit, is_player = true }
     end,
     spell_ready = function() return true end,
     has_player_buff = function() return false end,
@@ -59,8 +60,8 @@ local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")
 
 local function ctx(o) local c = { in_combat = true, is_moving = false, mana_pct = 100, hp = 100, settings = {}, me = { _mock = true }, is_pvp = false, target = nil } if o then for k,v in pairs(o) do c[k]=v end end return c end
-local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, healing_wave_ready = true, lesser_healing_wave_ready = true, chain_heal_ready = false } if o then for k,v in pairs(o) do s[k]=v end end return s end
-local function reset() _ft_present = true; _ft_hostile = false; _ft_hp = 75; _last_cast = nil end
+local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, healing_wave_ready = true, lesser_healing_wave_ready = true, chain_heal_ready = false, healing_way_stacks = 0 } if o then for k,v in pairs(o) do s[k]=v end end return s end
+local function reset() _ft_present = true; _ft_hostile = false; _ft_hp = 75; _ft_deficit = nil; _last_cast = nil end
 
 print("--- Shaman Resto Vanilla FriendlyTarget (B6) ---")
 
@@ -98,5 +99,67 @@ assert_true(ft_idx and uc_idx and hw_idx, "C6: expected strategies present")
 assert_true(uc_idx < ft_idx, "C6: FriendlyTarget after UnavailableClassicShamanBurst")
 assert_true(ft_idx < hw_idx, "C6: FriendlyTarget before HealingWay")
 print("  [ PASS ] C6: strategy ordering")
+
+-- ============================================================================
+-- Healing Wave deficit-fit (2026-09-16): smallest covering rank over the
+-- learn-capped classic ladder, fail-closed to the legacy max-rank cast.
+-- Live NS lookup so the hook is injected post-load here (mock
+-- SPELLS.HealingWave id 25316 is the legacy fallback answer).
+-- ============================================================================
+local NS_V = _G.EaxRotations
+NS_V.ShamanHEALING_WAVE_RANKS = { { spell = "HW_FAKE_LADDER", label = "R10" } }
+local FIT_HW = "HW_FIT_R8"
+local hw_hook_calls = 0
+local hw_last_opts = nil
+NS_V.cast_best_heal_rank = function(ranks, target, context, label, opts)
+    hw_hook_calls = hw_hook_calls + 1
+    assert_true(ranks == NS_V.ShamanHEALING_WAVE_RANKS, "HW fit receives the shared ladder")
+    hw_last_opts = opts
+    return FIT_HW, "HealingWay R8"
+end
+
+local hw = find("HealingWay")
+
+-- Tank fit: deficit 1000 -> mid-rank, level-60 divisor threaded.
+hw_hook_calls = 0
+_last_cast = nil
+local tank_unit = {}
+local s_hw = st({ tank = { unit = tank_unit, effective_hp = 70, deficit = 1000 }, healing_wave_ready = true })
+assert_true(hw.execute(ctx(), s_hw), "C7: HealingWay executes")
+assert_eq(_last_cast.spell, FIT_HW, "C7: deficit-fit rank replaces max-rank HW")
+assert_eq(_last_cast.target, tank_unit, "C7: fit cast targets the tank")
+assert_eq(hw_last_opts and hw_last_opts.player_level, 60, "C7: level-60 penalty divisor threaded")
+assert_eq(hw_hook_calls, 1, "C7: hook attempted once")
+print("  [ PASS ] C7: tank deficit-fit + level threading")
+
+-- Fail-closed: hook misses -> legacy max-rank cast.
+NS_V.cast_best_heal_rank = function() return nil end
+_last_cast = nil
+assert_true(hw.execute(ctx(), s_hw), "C8: HealingWay executes on fit miss")
+assert_eq(_last_cast.spell, 25316, "C8: fit miss falls back to max-rank HealingWave")
+print("  [ PASS ] C8: tank fail-closed fallback")
+
+-- FriendlyTarget fit: deficit 500 -> fit rank on the friendly unit.
+NS_V.cast_best_heal_rank = function(ranks, target, context, label, opts)
+    hw_last_opts = opts
+    return FIT_HW, "Healing Wave (friendly target) R6"
+end
+reset(); _ft_deficit = 500
+_last_cast = nil
+assert_true(ft.execute(ctx(), st({ lowest = { effective_hp = 80, unit = {} } })), "C9: FriendlyTarget executes")
+assert_eq(_last_cast.spell, FIT_HW, "C9: friendly-target lane uses the fit rank")
+assert_eq(_last_cast.target, _ft_unit, "C9: fit cast targets the friendly unit")
+assert_eq(hw_last_opts and hw_last_opts.player_level, 60, "C9: level-60 divisor threaded")
+print("  [ PASS ] C9: friendly-target deficit-fit")
+
+-- Zero deficit: hook never attempted, legacy cast answers.
+hw_hook_calls = 0
+NS_V.cast_best_heal_rank = function(...) hw_hook_calls = hw_hook_calls + 1 return nil end
+reset()
+_last_cast = nil
+assert_true(ft.execute(ctx(), st({ lowest = { effective_hp = 80, unit = {} } })), "C10: FriendlyTarget executes at zero deficit")
+assert_eq(_last_cast.spell, 25316, "C10: zero deficit keeps max-rank cast")
+assert_eq(hw_hook_calls, 0, "C10: hook skipped when deficit is unreadable")
+print("  [ PASS ] C10: zero-deficit skip")
 
 print("PASS test_shaman_resto_vanilla_friendly_target")
