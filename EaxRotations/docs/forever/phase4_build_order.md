@@ -103,7 +103,12 @@ Nature has no client row; Nature's Grace/Dreamstate/Moonkin are passives).
 >= 2 members hurt, non-consuming Swiftmend spot-heal under the emergency
 lane, GotE-gated Rejuvenation blanket). Tree of Life 439745 recorded as the
 resto open probe (form semantics unresolved, not laned).
-#17–#26 pending.
+#17 `warlock/demonology_forever.lua` BUILT (2 lanes: the Demonic Pact partner
+maintenance — summon the other demon while a sacrifice aura is up, per the
+425464 persistence text — and the Decimation Soul Fire window, with the
+applied proc 440873 pinned in the builder's BUFF_OVERRIDES; Demonic
+Sacrifice's class-less 18788 row keeps the sacrifice cast manual).
+#18–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

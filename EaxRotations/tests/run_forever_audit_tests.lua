@@ -257,6 +257,7 @@ local function run_self_tests()
     expect(buffmap["Hot Streak"], 400625, "buff Hot Streak is the Forever stacking proc (not the legacy 48108 row)")
     expect(buffmap["Winter's Chill"], 12579, "buff Winter's Chill is the applied debuff row (not the 11180 talent)")
     expect(buffmap["Eclipse"], 408255, "buff Eclipse is the charge buff row (not the 408248 talent text)")
+    expect(buffmap["Decimation"], 440873, "buff Decimation is the Soul Fire proc row (not the 440870 talent text)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")

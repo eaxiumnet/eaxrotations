@@ -118,6 +118,23 @@ ranks, "even entire mechanics" to change).
 - `classes/warlock/demonology_forever.lua` — Demonic Pact sacrifice-and-
   resummon buff juggling (school-choice lane), pet-scaling weight, Decimation
   execute, Demonic Brand pet-tank lane.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes)** — (1) the Demonic
+  Pact PARTNER lane: while a Demonic Sacrifice school aura is up (Burning
+  Shadow 18789 = sacrificed Imp / Touch of Fire 18791 = sacrificed Succubus)
+  and no living demon is out, it summons the OTHER demon through the bridge's
+  maxrank mirror (the sacrificed pet itself is the one summon that would
+  cancel the aura — the client text's own rule). Dormant unless Demonic Pact
+  425464 is learned. (2) The DECIMATION lane: while the proc buff (440873,
+  pinned in the builder's BUFF_OVERRIDES — the 440870 row is the talent text)
+  is up, Soul Fire is cast on the target above the baseline's Shadow Bolt
+  filler (the Shadow Bolt / Searing Pain trigger rides the existing filler).
+  **Demonic Sacrifice itself (18788) has no SpellClassOptions row on this
+  client**, so the bridge's player-spell index cannot carry it — the
+  sacrifice cast stays the pre-pull MANUAL choice the vanilla baseline already
+  documents (DS/Ruin); the delta automates the half the new mechanic created.
+  OPEN (in-game): whether DS is trainer/engraving-granted at 60; Demonic Brand
+  pet-tank lane (Searing Pain threat −% + pet consumes the brand — no threat
+  API data, world/solo concern).
 - `classes/warlock/destruction_forever.lua` — Immolate→Incinerate hard
   dependency, Shadow and Flame cross-school windows + non-consuming
   Conflagrate, Bane of Havoc cleave placement, shard-free execute.
@@ -145,11 +162,34 @@ ranks, "even entire mechanics" to change).
 - [x] Banes-not-curses confirmed in shape: "Bane of Agony/Doom" and "Curse
       of the Elements/Recklessness" are separate names with separate rows
       (the slot mechanics themselves are in-game).
-- [ ] Confirm DoT crit capability + Pandemic crit-damage effect shape.
+- [x] Confirm DoT crit capability + Pandemic crit-damage effect shape.
 - [ ] Confirm haste non-application to periodic effects (beta re-check —
       highest flip-risk claim; not DBC-readable).
-- [ ] Demonic Pact: sacrifice-buff persistence across re-summon (aura
-      source semantics) — this gates the whole demo rotation.
+- [x] Demonic Pact: sacrifice-buff persistence across re-summon (2026-09-17,
+      demo day-1) — RESOLVED by the client text: 425464 reads "Your Demonic
+      Sacrifice effect is no longer cancelled by summoning a different Demon
+      pet. Resummoning the sacrificed pet will still cancel the effect." The
+      #17 partner lane encodes exactly that rule (summon the OTHER demon of
+      the sacrifice aura). The sacrifice auras are separately named rows —
+      Burning Shadow 18789 (Imp) and Touch of Fire 18791 (Succubus) — so the
+      lane reads the aura's own name. [PROBE: confirm in-game that a third
+      demon (Voidwalker) may be summoned without cancelling either aura.]
+- [x] Decimation (2026-09-17, demo day-1): 440870's text confirms the
+      sub-35% trigger ("When you cast Shadow Bolt or Searing Pain on an enemy
+      below $m3% health, they deal $m4% increased damage, and for the next
+      $440873d your Soul Fire spell has its cast time reduced by $m1% and
+      costs no Soul Shards"); the applied proc 440873 is now pinned in the
+      builder's BUFF_OVERRIDES. Soul Fire itself carries no RecoveryTime row
+      (1.5s StartRecovery only), so the lane gates on the proc + spell_ready.
+      [PROBE: the exact $m3/$m4/$m1 values and whether the proc survives
+      leaving execute range.]
+- [x] Demonic Sacrifice (2026-09-17): the cast row 18788 exists but has **no
+      SpellClassOptions row**, so the bridge's class-filtered index cannot
+      carry it (mirrors the 2.5.5 note for class-less racial actives). The
+      sacrifice cast stays manual; recorded again under the demo probes.
+- [ ] Demonic Brand pet-tank window (Searing Pain threat −17/34/51%, pet's
+      next 2 attacks "generate high threat") — no threat API; world/solo lane,
+      not automated on day 1.
 - [ ] Incinerate +25% vs Immolate; Shadow and Flame windows + non-consuming
       Conflagrate.
 - [ ] Spellstone/Firestone as weapon oils (item-effect shape, not wand).

@@ -201,6 +201,12 @@ def load_forever_spells(conn):
         # baseline 408248 is the talent/engraving text row, so a charge read
         # against it always returns 0.
         "Eclipse": 408255,
+        # Proc buff row granted on a sub-35% target by Shadow Bolt / Searing
+        # Pain ("...for the next $440873d your Soul Fire spell has its cast
+        # time reduced by $m1% and costs no Soul Shards"); the baseline
+        # 440870 is the TALENT text row ("Reduces the cooldown of your Soul
+        # Fire spell by $m2%..."), so a buff read against it always returns 0.
+        "Decimation": 440873,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for

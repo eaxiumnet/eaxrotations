@@ -141,6 +141,10 @@ waits, next-ranked delta moves up.
 - [ ] **Demonic Pact persistence** (sacrifice buff survives summoning a
       DIFFERENT demon; re-summoning the sacrificed one cancels) — gates the
       entire demonology rotation (#17).
+      **RESOLVED 2026-09-17 (demo day-1)**: the client text of 425464 carries
+      the rule verbatim; the #17 partner lane implements it. In-game still
+      worth confirming: a third demon (Voidwalker/Felhunter) may be summoned
+      without cancelling a school aura.
 - [ ] **Frostfire Bolt lower-resist school swap** (DBC dual-school effect
       proof required) — mage fire/frost school-choice lanes.
 - [ ] **Aimed Shot / Multi-Shot shared cooldown** + **traps usable in
@@ -171,6 +175,14 @@ waits, next-ranked delta moves up.
       form lane candidate; NOT laned in #16. Recorded 2026-09-17.
 - [ ] **Rejuv/Swiftmend same-second GCD interaction** (GotE's 1s GCD vs the
       standard 1.5s floor) — the #16 blanket's throughput assumption.
+- [ ] **Demonic Sacrifice as a 60 ability** (trainer/engraving source; the row
+      18788 has no SpellClassOptions so the bridge cannot carry it) + the
+      Decimation $m1/$m3/$m4 token values (cast reduction / HP threshold /
+      bonus damage) — the #17 sacrifice cast stays manual until the source is
+      known. Recorded 2026-09-17.
+- [ ] **Demonic Brand pet-tank window** (Searing Pain threat reduction + the
+      pet's next 2 attacks "generate high threat") — no threat API surface;
+      world/solo lane, not automated in #17.
 - [ ] **Conflagrate no longer consumes Immolate at max Shadow and Flame**
       — destruction rotation (#18).
 - [ ] **Restless Blades CD-discount shape** (2s per CP spent; exact CD

@@ -1556,6 +1556,11 @@ function M.build_ns(class_key, era)
         ShadowBolt = ns.spell_action({ 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
         SiphonLife = ns.spell_action({ 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
         SpellLock = ns.spell_action({ 24259, 19647 }, "SpellLock"),
+        -- (forever day-1 2026-09-17): the demonology delta's Decimation lane
+        -- casts the class-map Soul Fire; the mock lacked it, which would
+        -- leave the lane's cast path unresolved (mirrors classes/warlock/
+        -- class_sylvanas.lua ladder, TBC max rank first).
+        SoulFire = ns.spell_action({ 30545, 27211, 17924, 6353 }, "SoulFire"),
     }
     ns.RogueSpells = {
         AdrenalineRush = ns.spell_action({ 13750 }, "AdrenalineRush"),
@@ -3601,6 +3606,20 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_wild_gro
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_swiftmend_spot",
     overrides = { in_combat = true, mana_pct = 70, friends_hp = { 85, 100, 100 },
                   buff_remains_map = { [774] = 8 } } }
+-- Warlock demonology: the Demonic Pact partner maintenance (a sacrifice aura
+-- up with no living demon — no_pet keeps the warlock profile's pet out) and
+-- the Decimation Soul Fire window. Both aura ids are the seeded sentinels.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_pact_partner",
+    no_pet = true,
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90035] = 600 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_pact_partner_fire",
+    no_pet = true,
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90036] = 600 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_decimation",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90034] = 10 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4494,6 +4513,14 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Earthmother talent gate.
             ["Wild Growth"] = 90031,
             ["Gift of the Earthmother"] = 90032,
+            -- Warlock demonology day-1 (2026-09-17): the Demonic Pact talent
+            -- gate, the Decimation proc buff, and the two Demonic Sacrifice
+            -- school auras (Burning Shadow = Imp/+Shadow, Touch of Fire =
+            -- Succubus/+Fire) the partner lane maps to the other summon.
+            ["Demonic Pact"] = 90033,
+            ["Decimation"] = 90034,
+            ["Burning Shadow"] = 90035,
+            ["Touch of Fire"] = 90036,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
