@@ -230,6 +230,17 @@ def load_forever_spells(conn):
         # a protective shield ... absorbing $s1% ... Lasts $431624d"), so an
         # absorb read against it always returns 0.
         "Divine Aegis": 431624,
+        # Stack buff row ("When your Rupture ability deals periodic damage,
+        # the Energy cost of your next Hemorrhage or Backstab ability within
+        # $1310723d is reduced by $1310723s1, stacking up to $1310723u
+        # times", effect 6 aura 107 base -3); the baseline 1310721 is the
+        # TALENT text row, so a stack read against it always returns 0.
+        "Thousand Cuts": 1310723,
+        # Proc buff row ("Your Backstab has a $m1% chance to cause your next
+        # Ambush within $462707d to not require Stealth"); the baseline
+        # 424980 is the "Gain the Cutthroat ability" grant row, so a buff
+        # read against it always returns 0.
+        "Cutthroat": 462707,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for

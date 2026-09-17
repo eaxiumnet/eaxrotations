@@ -264,6 +264,8 @@ local function run_self_tests()
     expect(buffmap["Shadow"], 1293816, "buff Shadow is the Shadow and Flame shadow window row (class-less, pinned)")
     expect(buffmap["Flame"], 426311, "buff Flame is the Shadow and Flame fire window row (class-less, pinned)")
     expect(buffmap["Divine Aegis"], 431624, "buff Divine Aegis is the applied absorb shield (not the 431622 talent text)")
+    expect(buffmap["Thousand Cuts"], 1310723, "buff Thousand Cuts is the stack buff row (not the 1310721 talent text)")
+    expect(buffmap["Cutthroat"], 462707, "buff Cutthroat is the stealth-free Ambush proc (not the 424980 grant row)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")

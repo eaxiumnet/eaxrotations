@@ -228,6 +228,12 @@ waits, next-ranked delta moves up.
       in-game; Early Demise 1310076 is a BaseLevel-0 bridge gap like Fingers
       of Frost — the #21 lane's window matches the talent condition
       regardless.]
+- [x] **Thousand Cuts + Cutthroat shapes** (2026-09-17, subtlety day-1):
+      RESOLVED by the client text — TC 1310721 discounts Hemorrhage/Backstab
+      by 3/stack (applied row 1310723, pinned); Cutthroat 462708 procs a
+      stealth-free Ambush (applied row 462707, pinned). [PROBE: the TC stack
+      cap (kit: 5), the Cutthroat proc chance (m1%), and whether the proc's
+      Ambush still needs behind/dagger.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

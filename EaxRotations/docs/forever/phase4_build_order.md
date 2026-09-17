@@ -130,7 +130,11 @@ Early Demise execute the baseline never had, and the Devouring Contagion
 cleave maintenance lane keeping DP rolling so deaths spread it; Improved
 Mind Flay is a pure passive on the range-gateless baseline lane, Early
 Demise recorded as a BaseLevel-0 bridge gap).
-#22–#26 pending.
+#22 `rogue/subtlety_forever.lua` BUILT (2 lanes: the Thousand Cuts stack
+engine firing the discounted Hemorrhage under the baseline's pooling floor,
+and the Cutthroat stealth-free Ambush proc; the applied TC stack row
+1310723 and the Cutthroat proc 462707 are pinned in BUFF_OVERRIDES).
+#23–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

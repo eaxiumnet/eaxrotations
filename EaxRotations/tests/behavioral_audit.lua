@@ -3665,6 +3665,15 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_swd",
     overrides = { in_combat = true, target_hp = 20 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_contagion",
     overrides = { in_combat = true, enemy_count = 3, enemies_count = 3 } }
+-- Rogue subtlety: the Thousand Cuts discounted generator (3 stacks at 32
+-- energy — below the baseline's flat 40 floor, so only the delta lane can
+-- fire) and the Cutthroat stealth-free Ambush (proc bank + both-hand
+-- daggers).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_tc",
+    overrides = { in_combat = true, energy = 32, buff_remains_map = { [90049] = 3 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_cutthroat",
+    overrides = { in_combat = true, equipped_daggers = true,
+                  buff_remains_map = { [90050] = 10 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4590,6 +4599,11 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Devouring Contagion talent gate.
             ["Shadow Word: Death"] = 90047,
             ["Devouring Contagion"] = 90048,
+            -- Rogue subtlety day-1 (2026-09-17): the Thousand Cuts stack
+            -- buff (the energy-engine read) and the Cutthroat stealth-free
+            -- Ambush proc.
+            ["Thousand Cuts"] = 90049,
+            ["Cutthroat"] = 90050,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

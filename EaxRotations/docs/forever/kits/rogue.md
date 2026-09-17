@@ -106,6 +106,17 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/subtlety_forever.lua` — Hemorrhage→Rupture amplifier loop,
   Thousand Cuts stack engine, Cutthroat free-Ambush bursts, Quietus
   execute-ish lane.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
+  the Thousand Cuts energy engine: with Rupture-tick stacks on (the applied
+  row 1310723, pinned in the builder's BUFF_OVERRIDES — the baseline 1310721
+  is the talent text), the lane fires the discounted Hemorrhage when energy
+  + 3/stack covers both the 35 cost and the baseline's 40-energy pooling
+  floor (e.g. 25 energy at 5 stacks). (2) the Cutthroat stealth-free Ambush:
+  the proc (462707, pinned; the baseline 424980 is the grant row) + behind +
+  main-hand dagger + 60 energy, above the baseline's stealth Ambush opener.
+  Hemorrhage's +Rupture-damage amplifier (16511) is already maintained by the
+  baseline's HemorrhageDebuff lane; Quietus 1310728 is a passive on the
+  generators the rotation already casts — no lane, recorded as a probe.
 - `classes/rogue/leveling_forever.lua` — constant-regen energy reshapes
   early leveling pace; Mutilate from early levels (Assassination leveling).
 
@@ -137,9 +148,22 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
       Mutilate lands; if the client enforces behind, add the TBC positional
       gate.]
 - [ ] Restless Blades: CD-reduction effect shape + CD list. [combat delta]
-- [ ] Thousand Cuts: stack cap 5 + which generators it discounts. [subtlety]
-- [ ] Hemorrhage's Rupture-vulnerability debuff (aura family). [subtlety]
-- [ ] Cutthroat stealth-free Ambush proc. [subtlety]
+- [x] Thousand Cuts: stack cap 5 + which generators it discounts (2026-09-17,
+      subtlety day-1) — 1310721's text names Hemorrhage AND Backstab, -3
+      energy per stack ("$1310723s1"), cap "$1310723u" (kit: 5); the applied
+      stack row 1310723 is pinned in BUFF_OVERRIDES. [PROBE: confirm the
+      in-game cap and that the discount applies to Backstab's own gate.]
+- [x] Hemorrhage's Rupture-vulnerability debuff (2026-09-17, subtlety
+      day-1): 16511 carries the "+$m3% Rupture damage" amplifier text; the
+      baseline's HemorrhageDebuff lane already maintains it — no delta lane.
+- [x] Cutthroat stealth-free Ambush proc (2026-09-17, subtlety day-1):
+      462708 ("Your Backstab has a $m1% chance to cause your next Ambush
+      within $462707d to not require Stealth") applies the proc 462707 —
+      pinned in BUFF_OVERRIDES; the #22 lane consumes it. [PROBE: the m1%
+      chance and whether the proc's Ambush respects the behind/dagger
+      requirements (the lane assumes yes).]
+- [ ] Quietus values (1310728: "$m1% more damage below $m2% health") — the
+      passive is recorded; confirm the in-game numbers.
 - [ ] 1h axe equip-ability for rogues.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on
