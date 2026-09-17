@@ -335,7 +335,21 @@ local strategies = {
     { name = "NaturesSwiftness", matches = function(_, state) return state.ns_target and not state.has_natures_swiftness and (state.ns_target.time_to_die or 999) <= 3.5 and NS.spell_ready(SPELLS.NaturesSwiftness, PLAYER_UNIT, NS_OPTS) end, execute = function() return NS.try_cast(SPELLS.NaturesSwiftness, PLAYER_UNIT, "[RESTO] Nature's Swiftness", NS_OPTS) end },
     { name = "NaturesSwiftnessHealingTouch", matches = function(_, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(SPELLS.HealingTouch, state.ns_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
     { name = "TranquilityEmergency", matches = function(context, state) if NS.should_use_long_cd and not NS.should_use_long_cd(context, 600) then return false end; local needed = (context.settings and context.settings.resto_tranquility_count) or 3; if (state.tranquility_count or 0) < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
-    { name = "HealingTouchMaxEmergency", matches = function(context, state) return not context.is_moving and state.ht_target and NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+    { name = "HealingTouchMaxEmergency", matches = function(context, state) return not context.is_moving and state.ht_target and NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) end, execute = function(context, state)
+        -- Deficit-fit (2026-09-16, TBC-resto/SoD/vanilla-priest precedent):
+        -- smallest HT rank covering the deficit over the learn-capped
+        -- classic ladder (class build, era vanilla + max 60), level-60
+        -- penalty divisor threaded explicitly. Fail-closed to the legacy
+        -- max-rank cast below (no ladder/hook, unreadable deficit, kill
+        -- switch, uncastable). Live NS lookup so tests inject post-load.
+        -- The NS+HT lane above deliberately stays max-rank (instant-cast
+        -- emergency identity, same as the SoD NS lane).
+        if type(NS.DruidHEALING_TOUCH_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" and (effective_deficit(state.ht_target) or 0) > 0 then
+            local chosen, ltxt = NS.cast_best_heal_rank(NS.DruidHEALING_TOUCH_RANKS, state.ht_target, context, "Healing Touch emergency", { player_level = 60 })
+            if chosen then return NS.try_cast(chosen, state.ht_target.unit, ltxt or "[RESTO] Healing Touch emergency") end
+        end
+        return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency")
+    end },
     { name = "FriendlyTarget", matches = function(context, state)
         if not context.in_combat then return false end
         if context.is_moving then return false end
@@ -362,7 +376,15 @@ local strategies = {
     { name = "SoloWrath", matches = function(context, state) return solo_damage_enabled(context, state) and not context.is_moving and not state.mana_emergency and NS.spell_ready(SPELLS.Wrath, context.target) end, execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[RESTO] Solo Wrath") end },
     { name = "TravelFormReposition", matches = function(context, state) return state.should_move_form and context.is_moving and context.stance ~= STANCE_TRAVEL and context.stance ~= STANCE_CAT and NS.spell_ready(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TravelForm, PLAYER_UNIT, "[RESTO] Travel Form reposition", SKIP_RANGE) end },
     { name = "CatFormRepositionFallback", matches = function(context, state) return state.should_move_form and context.is_moving and context.stance ~= STANCE_CAT and NS.spell_ready(SPELLS.CatForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.CatForm, PLAYER_UNIT, "[RESTO] Cat Form reposition", SKIP_RANGE) end },
-    { name = "FallbackHealingTouch", matches = function(context, state) return not context.is_moving and state.lowest and effective_hp(state.lowest) <= 80 and NS.spell_ready(SPELLS.HealingTouch, state.lowest.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
+    { name = "FallbackHealingTouch", matches = function(context, state) return not context.is_moving and state.lowest and effective_hp(state.lowest) <= 80 and NS.spell_ready(SPELLS.HealingTouch, state.lowest.unit) end, execute = function(context, state)
+        -- Deficit-fit, same contract as HealingTouchMaxEmergency above.
+        -- DownrankHealingTouch stays a fixed-R4 efficiency lane by design.
+        if type(NS.DruidHEALING_TOUCH_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" and (effective_deficit(state.lowest) or 0) > 0 then
+            local chosen, ltxt = NS.cast_best_heal_rank(NS.DruidHEALING_TOUCH_RANKS, state.lowest, context, "Healing Touch fallback", { player_level = 60 })
+            if chosen then return NS.try_cast(chosen, state.lowest.unit, ltxt or "[RESTO] Healing Touch fallback") end
+        end
+        return NS.try_cast(SPELLS.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback")
+    end },
 }
 
 local module = { strategies = strategies, build_state = build_state }

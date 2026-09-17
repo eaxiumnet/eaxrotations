@@ -100,4 +100,66 @@ assert_true(ht_idx < ft_idx, "C6: FriendlyTarget after HealingTouchMaxEmergency"
 assert_true(ft_idx < rs_idx, "C6: FriendlyTarget before RegrowthSpotHeal")
 print("  [ PASS ] C6: strategy ordering")
 
+-- ============================================================================
+-- Healing Touch deficit-fit (2026-09-16): smallest covering rank over the
+-- learn-capped classic ladder, fail-closed to the legacy max-rank cast.
+-- Live NS lookup so the hook is injected post-load here.
+-- ============================================================================
+local NS_V = _G.EaxRotations
+NS_V.DruidHEALING_TOUCH_RANKS = { { spell = "HT_FAKE_LADDER", label = "R11" } }
+local FIT_HT = "HT_FIT_R9"
+local ht_hook_calls = 0
+local ht_last_opts = nil
+NS_V.cast_best_heal_rank = function(ranks, target, context, label, opts)
+    ht_hook_calls = ht_hook_calls + 1
+    assert_true(ranks == NS_V.DruidHEALING_TOUCH_RANKS, "HT fit receives the shared ladder")
+    ht_last_opts = opts
+    return FIT_HT, "Healing Touch emergency R9"
+end
+
+local em = find("HealingTouchMaxEmergency")
+local fb = find("FallbackHealingTouch")
+
+-- Emergency fit: deficit 1500 -> mid-rank, level-60 divisor threaded.
+ht_hook_calls = 0
+_last_cast = nil
+local s_em = st({ ht_target = { unit = {}, effective_hp = 30, deficit = 1500 } })
+assert_true(em.matches(ctx(), s_em), "C7: emergency matches at hp 30")
+assert_true(em.execute(ctx(), s_em), "C7: emergency executes")
+assert_eq(_last_cast.spell, FIT_HT, "C7: deficit-fit rank replaces max-rank HT")
+assert_eq(ht_last_opts and ht_last_opts.player_level, 60, "C7: level-60 penalty divisor threaded")
+assert_eq(ht_hook_calls, 1, "C7: hook attempted once")
+print("  [ PASS ] C7: emergency deficit-fit + level threading")
+
+-- Fail-closed: hook misses -> legacy max-rank cast (mock id 26978).
+NS_V.cast_best_heal_rank = function() return nil end
+_last_cast = nil
+local s_em_fb = st({ ht_target = { unit = {}, effective_hp = 30, deficit = 1500 } })
+assert_true(em.execute(ctx(), s_em_fb), "C8: emergency executes on fit miss")
+assert_eq(_last_cast.spell, 26978, "C8: fit miss falls back to max-rank HealingTouch")
+print("  [ PASS ] C8: emergency fail-closed fallback")
+
+-- Fallback lane fit: deficit 800 -> fit rank.
+NS_V.cast_best_heal_rank = function(ranks, target, context, label, opts)
+    ht_last_opts = opts
+    return FIT_HT, "Healing Touch fallback R9"
+end
+_last_cast = nil
+local s_fb = st({ lowest = { unit = {}, effective_hp = 70, deficit = 800 } })
+assert_true(fb.matches(ctx(), s_fb), "C9: fallback matches at hp 70")
+assert_true(fb.execute(ctx(), s_fb), "C9: fallback executes")
+assert_eq(_last_cast.spell, FIT_HT, "C9: fallback lane uses the fit rank")
+assert_eq(ht_last_opts and ht_last_opts.player_level, 60, "C9: level-60 divisor threaded")
+print("  [ PASS ] C9: fallback deficit-fit")
+
+-- Zero deficit: hook never attempted, legacy cast answers.
+ht_hook_calls = 0
+NS_V.cast_best_heal_rank = function(...) ht_hook_calls = ht_hook_calls + 1 return nil end
+_last_cast = nil
+local s_zero = st({ lowest = { unit = {}, effective_hp = 70, deficit = 0 } })
+assert_true(fb.execute(ctx(), s_zero), "C10: fallback executes at zero deficit")
+assert_eq(_last_cast.spell, 26978, "C10: zero deficit keeps max-rank cast")
+assert_eq(ht_hook_calls, 0, "C10: hook skipped when deficit is unreadable")
+print("  [ PASS ] C10: zero-deficit skip")
+
 print("PASS test_druid_resto_vanilla_friendly_target")
