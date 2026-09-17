@@ -3716,6 +3716,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warlock_leveli
 -- open combo bank).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_rogue_leveling_mutilate",
     overrides = { in_combat = true, combo_points = 2, equipped_daggers = true } }
+-- Shaman leveling: the Improved Ghost Wolf escape (low HP in combat; the
+-- talent is learned by default and the wolf form is down).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shaman_leveling_wolf",
+    overrides = { in_combat = true, hp = 30 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

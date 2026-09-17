@@ -140,6 +140,17 @@ not encode either.
   flat Healing Way, Water Shield default, Restorative Totem weights.
 - `classes/shaman/leveling_forever.lua` — early Stormstrike (8s CD) leveling
   loop per the page's build sketch, instant Ghost Wolf mobility, early imbues.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the Improved
+  Ghost Wolf ESCAPE lane: with the talent (16262) learned, low HP + in
+  combat shifts the wolf as a disengage (the baseline's GhostWolf lane only
+  fires OUT of combat as travel). The other two halves need NO lane: the
+  baseline's stormstrike_ready carries no expected cooldown, so the client's
+  8s RecoveryTime already drives the existing Stormstrike lane (the class
+  map's stale `cooldown = 10` data field is never read), and the WeaponImbue
+  lane already covers early imbues (Elemental Weapons' "pickable much
+  earlier" is a talent-tree position change). [PROBE: the in-game "usable
+  everywhere" scope of Improved Ghost Wolf and the rune variant 415233's
+  damage-taken reduction.]
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve every named ability above BY NAME in the Forever bridge

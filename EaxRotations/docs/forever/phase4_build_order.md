@@ -160,8 +160,10 @@ BUILT (the Banes-not-curses pair — Curse of the Elements alongside the
 baseline's Bane of Agony, Bane-present precondition + mana floor; the
 pet-Move-To half is no rotation-lane impact); rogue BUILT (the Mutilate
 2-CP builder above Sinister Strike, both-hand dagger gate + learn gate; the
-energy half stays probe-gated); the remaining classes (mage Frostfire,
-shaman early Stormstrike, priest Fear Ward/DP) follow.
+energy half stays probe-gated); shaman BUILT (the Improved Ghost Wolf
+in-combat escape lane; the 8s Stormstrike and early imbues already ride the
+baseline); the remaining classes (mage Frostfire school-swap, priest Fear
+Ward/DP universal) follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
