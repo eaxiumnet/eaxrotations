@@ -71,6 +71,7 @@ OUT_POINTS = os.path.join(OUT_DIR, "points.json")
 OUT_TAXI = os.path.join(OUT_DIR, "taxi.json")
 OUT_CREATURES = os.path.join(OUT_DIR, "creatures.json")
 OUT_SPELL_META = os.path.join(OUT_DIR, "spell_meta.json")
+OUT_MOUNTS = os.path.join(OUT_DIR, "mounts.json")
 
 # Verbatim mirror of the world/NPC/item/spell-meta DBC tables extracted from
 # the 1.60.1.69893 beta client (probe-confirmed on this client; the probe
@@ -95,6 +96,10 @@ WORLD_TABLES = (
     "TransportRotation", "TransportPhysics",
     # gameobjects
     "GameObjectDisplayInfo", "GameObjectArtKit",
+    # mounts / appearance / file manifests
+    "Mount", "MountXDisplay", "MountType", "MountCapability",
+    "MountEquipment", "ItemAppearance", "ItemModifiedAppearance",
+    "ItemSearchName", "ModelFileData", "TextureFileData",
     # items
     "Item", "ItemSparse", "ItemNameDescription", "ItemClass", "ItemSubClass",
     "ItemSubClassMask", "ItemDisplayInfo", "ItemArmorQuality",
@@ -841,8 +846,8 @@ def write_world_artifacts():
         src.row_factory = sqlite3.Row
         try:
             misc = {r["SpellID"]: r for r in src.execute(
-                "SELECT SpellID, CastingTimeIndex, DurationIndex, RangeIndex"
-                " FROM SpellMisc ORDER BY SpellID")}
+                "SELECT SpellID, CastingTimeIndex, DurationIndex, RangeIndex,"
+                " SpellIconFileDataID FROM SpellMisc ORDER BY SpellID")}
             effects_radius = {r["SpellID"]: r["rad"] for r in src.execute(
                 "SELECT e.SpellID AS SpellID, MAX(sr.Radius) AS rad"
                 " FROM SpellEffect e JOIN SpellRadius sr"
@@ -876,6 +881,8 @@ def write_world_artifacts():
                         m["range_max"] = mx
                     if mn:
                         m["range_min"] = mn
+                if mr["SpellIconFileDataID"]:
+                    m["icon"] = mr["SpellIconFileDataID"]
             rad = effects_radius.get(sid)
             if rad:
                 m["radius_yd"] = round(rad, 2)
@@ -911,6 +918,32 @@ def write_world_artifacts():
                 meta[str(sid)] = m
         with open(OUT_SPELL_META, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
+        # --- mounts (name, source spell, type, display, journal text)
+        type_names = {r["ID"]: r for r in conn.execute(
+            "SELECT * FROM MountType")}
+        displays = {}
+        for r in conn.execute("SELECT MountID, CreatureDisplayInfoID FROM "
+                              "MountXDisplay ORDER BY MountID, ID"):
+            displays.setdefault(r["MountID"], []).append(
+                r["CreatureDisplayInfoID"])
+        mounts = []
+        for r in conn.execute(
+                "SELECT m.ID, m.Name_lang, m.SourceSpellID, m.MountTypeID,"
+                " m.SourceTypeEnum, m.Flags, m.Description_lang,"
+                " m.SourceText_lang FROM Mount m ORDER BY m.ID"):
+            sname = spell_names.get(r["SourceSpellID"], ("", ""))[0]
+            mt = type_names.get(r["MountTypeID"], {})
+            mounts.append({
+                "id": r["ID"], "name": r["Name_lang"] or "",
+                "spell": r["SourceSpellID"], "spell_name": sname,
+                "type": r["MountTypeID"],
+                "kind": (mt["Type"] if mt else 0) or 0,
+                "flags": r["Flags"] or 0,
+                "source": r["SourceTypeEnum"] or 0,
+                "displays": sorted(set(displays.get(r["ID"], []))),
+            })
+        with open(OUT_MOUNTS, "w", encoding="utf-8") as f:
+            json.dump(mounts, f, ensure_ascii=False, indent=1)
     finally:
         conn.close()
 
@@ -920,7 +953,7 @@ def check_package():
     missing = [p for p in (OUT_DB, OUT_JSONL, OUT_BY_NAME, OUT_TALENTS,
                            OUT_TRAINERS, OUT_RACES, OUT_PROCS, OUT_ITEMS,
                            OUT_ZONES, OUT_POINTS, OUT_TAXI, OUT_CREATURES,
-                           OUT_SPELL_META)
+                           OUT_SPELL_META, OUT_MOUNTS)
                if not os.path.exists(p)]
     if missing:
         print("FAIL: package files missing: %s" % missing)
@@ -1001,6 +1034,12 @@ def check_package():
         problems.append("spell_meta.json lacks Fireball (133) mana/cast")
     if len(spell_meta) < 20000:
         problems.append("spell_meta.json only %d entries" % len(spell_meta))
+    with open(OUT_MOUNTS, encoding="utf-8") as f:
+        mounts = json.load(f)
+    if len(mounts) < 100:
+        problems.append("mounts.json only %d mounts" % len(mounts))
+    if not any(m["name"] == "Brown Horse" for m in mounts):
+        problems.append("mounts.json lacks Brown Horse")
     if problems:
         for p in problems:
             print("FAIL:", p)
@@ -1046,7 +1085,7 @@ def main():
     paths.update({
         "items": OUT_ITEMS, "zones": OUT_ZONES, "points": OUT_POINTS,
         "taxi": OUT_TAXI, "creatures": OUT_CREATURES,
-        "spell_meta": OUT_SPELL_META,
+        "spell_meta": OUT_SPELL_META, "mounts": OUT_MOUNTS,
     })
     print("Forever datamine: %d spells (%d player), %d talents, %d races" % (
         len(data["spells"]),

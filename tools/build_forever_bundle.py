@@ -169,6 +169,7 @@ table.grid th { background: #161b22; color: #8b949e; font-weight: normal; }
 .sky { color: #71d5ff; font-weight: 600; }
 .count { color: #8b949e; font-size: 12px; margin-bottom: 8px; }
 .cbtn { background: #21262d; color: #58a6ff; border: 1px solid #30363d; border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-top: 8px; font-size: 12px; }
+.icon { display: inline-block; vertical-align: middle; background-image: url('icons.png'); background-repeat: no-repeat; image-rendering: pixelated; border: 1px solid #30363d; border-radius: 3px; margin-right: 6px; }
 .tooltip td.dim { color: #8b949e; }
 .idtag { color: #8b949e; font-size: 11px; cursor: pointer; border: 1px dashed #30363d; border-radius: 4px; padding: 1px 6px; }
 .idtag:hover { color: #58a6ff; border-color: #58a6ff; }
@@ -253,6 +254,8 @@ the client and are not part of the extracted tables.</p>
 <script type="application/json" id="d-places">{PLACES}</script>
 <script type="application/json" id="d-taxi">{TAXI}</script>
 <script type="application/json" id="d-itemsets">{ITEMSETS}</script>
+<script type="application/json" id="d-icons">{ICONS}</script>
+<script type="application/json" id="d-mounts">{MOUNTS}</script>
 <script type="application/json" id="d-meta">{META}</script>
 <script>
 "use strict";
@@ -264,6 +267,18 @@ var ZONES = JSON.parse(document.getElementById("d-zones").textContent);
 var PLACES = JSON.parse(document.getElementById("d-places").textContent);
 var TAXI = JSON.parse(document.getElementById("d-taxi").textContent);
 var ITEMSETS = JSON.parse(document.getElementById("d-itemsets").textContent);
+var ICONS = JSON.parse(document.getElementById("d-icons").textContent);
+var MOUNTS = JSON.parse(document.getElementById("d-mounts").textContent);
+function iconHtml(fdid, size) {
+  if (!fdid || ICONS.index[fdid] === undefined) return "";
+  var idx = ICONS.index[fdid];
+  var col = idx % ICONS.cols;
+  var row = Math.floor(idx / ICONS.cols);
+  return '<span class="icon" style="width:' + size + "px;height:" + size
+    + "px;background-size:" + (ICONS.cols * size) + "px "
+    + (ICONS.cols * size) + "px;background-position:-" + (col * size)
+    + "px -" + (row * size) + 'px"></span>';
+}
 var META = JSON.parse(document.getElementById("d-meta").textContent);
 var CLASS_COLORS = {CLASS_COLORS};
 var EFFECT_HINTS = {EFFECT_HINTS};
@@ -370,7 +385,8 @@ function renderList() {
   for (var i = 0; i < list.length; i++) {
     var s = list[i];
     var color = CLASS_COLORS[s["class"]] || "#c9d1d9";
-    html += '<div class="row" data-id="' + s.id + '"><span class="nm" style="color:' + color + '">'
+    html += '<div class="row" data-id="' + s.id + '">' + iconHtml(s.icon, 18)
+      + '<span class="nm" style="color:' + color + '">'
       + esc(s.name) + '</span><span class="meta">R' + s.rank + ' &middot; lvl ' + s.level
       + ' &middot; ' + esc(s.school) + (s.cd != null ? ' &middot; ' + s.cd + 's CD' : '') + '</span></div>';
   }
@@ -384,7 +400,8 @@ function showDetail(id) {
   var s = byId(id);
   if (!s) return;
   var color = CLASS_COLORS[s["class"]] || "#c9d1d9";
-  var h = '<div class="tooltip"><h3 style="color:' + color + '">' + esc(s.name) + '</h3>'
+  var h = '<div class="tooltip"><h3 style="color:' + color + '">'
+    + iconHtml(s.icon, 32) + esc(s.name) + '</h3>'
     + '<div class="sub">Rank ' + s.rank + ' &middot; requires level ' + s.level
     + ' &middot; ' + esc(s.school) + ' &middot; id ' + s.id + '</div>';
   h += '<div>GCD ' + (s.gcd != null ? s.gcd + 's' : '—')
@@ -453,7 +470,8 @@ function renderItems() {
   var html = "";
   for (var i = 0; i < list.length; i++) {
     var it = list[i];
-    html += '<div class="row" data-id="' + it.id + '"><span class="nm" style="color:'
+    html += '<div class="row" data-id="' + it.id + '">' + iconHtml(it.icon, 18)
+      + '<span class="nm" style="color:'
       + qcol(it.q) + '">' + esc(it.name) + '</span><span class="meta">ilvl ' + it.ilvl
       + (it.req ? ' &middot; req ' + it.req : '')
       + (it.slot ? ' &middot; ' + esc(it.slot) : '')
@@ -468,7 +486,8 @@ function showItem(id) {
   if (!it) return;
   var h = '<div class="tooltip"><div class="sub" style="float:right">'
     + '<span class="idtag">id ' + it.id + '</span></div>'
-    + '<h3 style="color:' + qcol(it.q) + '">' + esc(it.name) + '</h3>'
+    + '<h3 style="color:' + qcol(it.q) + '">' + iconHtml(it.icon, 32)
+    + esc(it.name) + '</h3>'
     + '<div class="sub">' + qname(it.q)
     + (it.ilvl ? ' &middot; item level ' + it.ilvl : '')
     + (it.req ? ' &middot; requires level ' + it.req : '') + '</div>'
@@ -624,6 +643,17 @@ function renderWorld() {
         + p.y + ' &middot; id ' + p.id + '</span></div>';
       count++;
     }
+  } else if (wstate.mode === "mounts") {
+    for (var mo_i = 0; mo_i < MOUNTS.length && count < 300; mo_i++) {
+      var mo = MOUNTS[mo_i];
+      if (!wmatch(mo.name, mo.id)) continue;
+      html += '<div class="row" data-kind="mount" data-id="' + mo.id
+        + '"><span class="nm">' + esc(mo.name) + '</span><span class="meta">'
+        + 'type ' + mo.type + (mo.kind ? '/' + mo.kind : '')
+        + ' &middot; spell ' + mo.spell + ' &middot; id ' + mo.id
+        + '</span></div>';
+      count++;
+    }
   } else {
     var nodes = [], routes = [];
     for (var k = 0; k < TAXI.nodes.length; k++) {
@@ -666,7 +696,24 @@ function renderWorld() {
 }
 function showWorld(kind, id) {
   var box = document.getElementById("wdetail"), h = "", text = "";
-  if (kind === "zone") {
+  if (kind === "mount") {
+    var mo = null;
+    for (var i = 0; i < MOUNTS.length; i++) {
+      if (MOUNTS[i].id === id) mo = MOUNTS[i];
+    }
+    if (!mo) return;
+    h = '<div class="tooltip"><div class="sub" style="float:right">'
+      + '<span class="idtag">id ' + mo.id + '</span></div><h3>'
+      + esc(mo.name) + '</h3><div class="sub">type ' + mo.type
+      + (mo.kind ? '/' + mo.kind : '') + ' &middot; source '
+      + mo.source + '</div><div>summon spell ' + mo.spell
+      + (mo.spell_name ? ' (' + esc(mo.spell_name) + ')' : '') + '</div>'
+      + '<div class="note">displays: ' + (mo.displays.join(", ") || "—")
+      + ' &middot; flags ' + mo.flags + '</div>'
+      + '<div><button class="cbtn">copy</button></div></div>';
+    text = mo.name + " (mount id " + mo.id + ")\\ntype " + mo.type
+      + "\\nspell " + mo.spell + " " + mo.spell_name;
+  } else if (kind === "zone") {
     var z = ZONE_BY_ID[id];
     if (!z) return;
     var parent = z.parent ? ZONE_BY_ID[z.parent] : null;
@@ -729,7 +776,7 @@ function showWorld(kind, id) {
 function initWorld() {
   buildChips(document.getElementById("wmode"), [
     { label: "zones", v: "zones" }, { label: "places", v: "places" },
-    { label: "flights", v: "flights" },
+    { label: "flights", v: "flights" }, { label: "mounts", v: "mounts" },
   ], function (o) {
     wstate.mode = o.v;
     wstate.q = "";
@@ -857,11 +904,11 @@ in any modern browser — no server, no internet needed:
   table, and buttons to walk the whole rank ladder.
 - **Items** tab: search {NITEMS} items by name/id, filter by quality/class;
   item cards show slot, prices, computed stats, flavor text and use/equip
-  effects.
+  effects — all with the real item icon.
 - **Talents** tab: all {NTALENTS} talents across 27 trees (9 classes x 3),
   tier/column with rank-spell names.
-- **World** tab: zones, points of interest, area triggers and the flight
-  network — every entry with map and world coordinates.
+- **World** tab: zones, points of interest, area triggers, the flight
+  network and all mounts — every entry with map/coordinates or details.
 - **Races** tab: every race on the client, playable flag + starting level.
 - **About** tab: effect-id legend and caveats, repeated below.
 - Every detail card has a **copy** button (the id tag copies the id too) —
@@ -874,6 +921,7 @@ in any modern browser — no server, no internet needed:
 | File / folder | What it is |
 |---|---|
 | `index.html` | The offline browser above (all data embedded). |
+| `icons.png` | Icon sprite sheet, straight from the client (use with `data/icons.json`). |
 | `README.md` | This file. |
 | `data/forever_datamine.db` | SQLite database: `spells`, `spell_effects`, `spell_ranks`, `talents`, `trainer_spells`, `races`, `procs` tables plus handy `player_spells` / `heals` views. Open with DB Browser for SQLite (free, sqlitebrowser.org). |
 | `data/spells.jsonl` | One JSON object per line for every named spell — plain-text searchable in any editor. |
@@ -888,6 +936,8 @@ in any modern browser — no server, no internet needed:
 | `data/points.json` | Place index: points of interest, area triggers and flight masters with world coordinates. |
 | `data/taxi.json` | Flight network: nodes with coordinates plus every flight path (cost, waypoint count). |
 | `data/creatures.json` | Companion creatures with type/family, the pet families, and level ranges. |
+| `data/mounts.json` | All client mounts: name, summon spell, type, display ids. |
+| `data/icons.json` | Icon index: icon file id -> sprite cell in `icons.png`. |
 | `bridge/` | Lua spell-id table used by a rotation addon project — only interesting if you develop Lua rotations/addons; everyone else can ignore it. |
 
 ## Try it (no special tools needed)
@@ -1026,6 +1076,11 @@ def build_viewer(spells, talents, races, meta, extra):
         "{PLACES}": blob(extra["points"]),
         "{TAXI}": blob(extra["taxi"]),
         "{ITEMSETS}": blob(extra["sets"]),
+        "{ICONS}": blob({"cell": extra["icons"].get("cell", 32),
+                         "cols": extra["icons"].get("cols", 64),
+                         "count": extra["icons"].get("count", 0),
+                         "index": extra["icons"].get("index", {})}),
+        "{MOUNTS}": blob(extra["mounts"]),
         "{META}": blob({"version": meta.get("client_version", "?"),
                         "build": meta.get("client_build", "?")}),
         "{CLASS_COLORS}": json.dumps(CLASS_COLORS),
@@ -1090,7 +1145,9 @@ def load_inputs():
         conn.close()
     extra = {"sets": sets}
     for key, fname in (("items", "items.jsonl"), ("zones", "zones.json"),
-                       ("points", "points.json"), ("taxi", "taxi.json")):
+                       ("points", "points.json"), ("taxi", "taxi.json"),
+                       ("spell_meta", "spell_meta.json"),
+                       ("icons", "icons.json"), ("mounts", "mounts.json")):
         path = os.path.join(PKG, fname)
         if not os.path.exists(path):
             print("ERROR: package file missing (run build_forever_database.py"
@@ -1111,6 +1168,7 @@ def zip_name(meta):
 
 def build_all():
     spells, talents, races, meta, extra = load_inputs()
+    smeta = extra["spell_meta"]
     shaped = []
     for s in spells:
         shaped.append({
@@ -1121,6 +1179,7 @@ def build_all():
             "aura_description": s["aura_description"] or "",
             "is_heal": bool(s["is_heal"]), "aoe": bool(s["aoe"]),
             "effects": s["effects"], "ladder": s["ladder"],
+            "icon": smeta.get(str(s["id"]), {}).get("icon", 0),
         })
     return (build_viewer(shaped, talents, races, meta, extra), spells,
             talents, races, meta)
@@ -1129,7 +1188,7 @@ def build_all():
 ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
                "talents.json", "trainers.json", "races.json", "procs.json",
                "items.jsonl", "spell_meta.json", "zones.json", "points.json",
-               "taxi.json", "creatures.json")
+               "taxi.json", "creatures.json", "icons.json", "mounts.json")
 
 
 def build_zip(page, meta, nspells, ntalents):
@@ -1146,6 +1205,12 @@ def build_zip(page, meta, nspells, ntalents):
             nitems = sum(1 for _ in f)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(os.path.join(PKG, VIEWER_NAME), top + "/" + VIEWER_NAME)
+        icons_png = os.path.join(PKG, "icons.png")
+        if not os.path.exists(icons_png):
+            print("ERROR: icons.png missing (run build_forever_icons.py): %s"
+                  % icons_png)
+            sys.exit(2)
+        z.write(icons_png, top + "/icons.png")
         z.writestr(top + "/README.md",
                    build_friends_readme(meta, nspells, ntalents, nitems))
         if os.path.exists(BRIDGE_SRC):
@@ -1215,6 +1280,14 @@ def check_bundle():
         t = blobs["d-taxi"]
         if len(t.get("nodes", [])) < 100 or len(t.get("paths", [])) < 300:
             problems.append("viewer taxi data incomplete")
+    if "d-icons" in blobs:
+        icons = blobs["d-icons"]
+        if icons.get("count", 0) < 3000:
+            problems.append("viewer icons index only %d entries"
+                            % icons.get("count", 0))
+    icons_png = os.path.join(PKG, "icons.png")
+    if not os.path.exists(icons_png) or os.path.getsize(icons_png) < 1000000:
+        problems.append("icons.png missing or too small")
     zips = sorted(f for f in os.listdir(PKG) if f.endswith(".zip"))
     if not zips:
         problems.append("no bundle zip present")
@@ -1222,7 +1295,8 @@ def check_bundle():
         with zipfile.ZipFile(os.path.join(PKG, zips[-1])) as z:
             names = set(z.namelist())
             top = zips[-1][:-len(".zip")]
-            want = {top + "/" + VIEWER_NAME, top + "/README.md"}
+            want = {top + "/" + VIEWER_NAME, top + "/README.md",
+                    top + "/icons.png"}
             want |= {top + "/data/" + m for m in ZIP_MEMBERS}
             missing = sorted(want - names)
             if missing:

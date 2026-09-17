@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<AssemblyName>ExportTool</AssemblyName>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- Point TactSharpPath at the TACTSharp.dll that ships next to the
+		     DB2ToSqlite tool (the pristine CASC extractor workspace), e.g.:
+		     dotnet build -c Release -p:TactSharpPath=C:\path\TACTSharp.dll -->
+		<TactSharpPath Condition="'$(TactSharpPath)' == ''">TACTSharp.dll</TactSharpPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="TACTSharp">
+			<HintPath>$(TactSharpPath)</HintPath>
+		</Reference>
+	</ItemGroup>
+
+</Project>

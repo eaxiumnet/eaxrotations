@@ -5,7 +5,18 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
-## Status (updated 2026-09-17: 109-table extraction, world/NPC/item package)
+## Status (updated 2026-09-17: 119-table extraction, icons + mounts, world/NPC/item package)
+
+**2026-09-17 icons + mounts extension:** the extraction is now **119 tables**
+(the 13 spell/talent core + 106 world/NPC/item/appearance/file-manifest
+tables, incl. `Mount*`, `ItemAppearance`, `ItemModifiedAppearance`,
+`ItemSearchName`, `ModelFileData`, `TextureFileData`). Icons were exported
+from CASC by FDID with a small TACTSharp-based dumper (same reference-DLL
+pattern as DB2ToSqlite; source kept at `tools/forever_export_cs/`), decoded
+by `tools/build_forever_icons.py` (4,047 icons -> `icons.png` + `icons.json`
+in the package). 24 exported icons are zero-byte encrypted placeholders.
+`ModelFileData` (121k rows) + `TextureFileData` (58.5k) are the client's own
+file manifests -- the foundation for the model/3D export step.
 
 **2026-09-17 world/NPC extension:** the extraction grew from 13 to **109
 tables** — the 13 spell/talent core plus 96 probe-confirmed world/NPC/item/

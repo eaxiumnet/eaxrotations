@@ -25,6 +25,8 @@
 | `taxi.json` | JSON | Flight network: 100 nodes (name, map, x/y/z) + 328 paths (from/to, ticket cost, waypoint count) |
 | `creatures.json` | JSON | Companion-creature catalogue (178 rows) with type/family names, the 27 families, 13 types, and difficulty rows (min/max level) |
 | `spell_meta.json` | JSON | Per-spell metadata keyed by id (31k): cast ms, duration ms, effect radius yd, min/max range, target cap, cone degrees, dispel/mechanic/category names, mana cost + power type, interrupt flags |
+| `icons.png` + `icons.json` | PNG sprite sheet + JSON index | 4,047 icons decoded straight from the client's BLP textures (items, spells, talents) into a 2048x2048 sheet (32px cells); `icons.json` maps icon file id -> cell |
+| `mounts.json` | JSON | All 141 client mounts: name, summon spell (+ name), type/kind, source enum, display ids |
 
 Bulk files above are **local-only build output** (gitignored, like the rest
 of `wowheadScrape/`); the tracked artifacts are the generators
@@ -99,6 +101,8 @@ Regeneration (needs the beta installed; see `docs/forever/dbc_runbook.md`):
 dotnet DB2ToSqliteTool.dll -s appsettings.forever_world.json -o wowheadScrape/dbc_extract/wowsims_forever.db
 python tools/build_forever_database.py            # rebuild this package
 python tools/build_forever_database.py --check    # verify it
+python tools/build_forever_icons.py --blp-dir <exported icons> --out-dir wowheadScrape/dbc_extract/forever_community
+python tools/build_forever_icons.py --out-dir wowheadScrape/dbc_extract/forever_community --check
 python tools/build_forever_bundle.py              # viewer + shareable zip
 python tools/build_forever_bundle.py --check      # verify them
 ```
@@ -187,6 +191,17 @@ and only carries non-zero fields.
   computed: **armor and weapon damage** (their tables do not reproduce
   classic values) and items without `ItemLevel` (shares only). Verify
   anything surprising in-game.
+- **Icons come from CASC, not the DBCs.** `Item.IconFileDataID` /
+  `SpellMisc.SpellIconFileDataID` are ids; the pixels are BLP textures
+  exported with an FDID dumper and decoded by `tools/build_forever_icons.py`
+  (DXT1/DXT3/DXT5 + paletted + BGRA; the 1.60 icons are BLP2 whose `type`
+  field reads 1 while the payload is DXT -- format is picked by payload
+  size + alpha depth). 24 of the 4,071 exported icons decode as all-zero
+  bytes: those are the client's encrypted/unreleased placeholders (same
+  phenomenon as encrypted TACT content) -- not a decoder failure.
+- **Mounts**: `Mount` + `MountXDisplay` (uuid-free join) with the summon
+  spell resolved through `SpellName`; `MountType` has no names (the client
+  localizes from `Type`), so the artifact carries ids + kind.
 - **Item effects come from `ItemXItemEffect`.** `ItemEffect` rows are keyed
   by row id, not item id; the item link lives in `ItemXItemEffect`
   (`ItemID` -> `ItemEffectID`). That is what resolves potions, trinkets and
