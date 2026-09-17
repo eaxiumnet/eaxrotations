@@ -103,6 +103,18 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/combat_forever.lua` — Restless Blades CD-recycling lane
   (spenders recharge cooldowns), Puncturing Wounds weapon flexibility,
   Hack-and-Slash per-weapon behavior.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
+  Restless Blades (1241797, talent-gated): when a tracked CD (Adrenaline
+  Rush / Blade Flurry / Evasion / Sprint / Vanish — the DBC's five) sits
+  inside 2s x combo of ready, the lane spends at 3-4 CP with Eviscerate
+  (below the baseline's 5-CP rule, above Rupture so a needed bleed refresh
+  still wins) — the damaging finisher is what shaves. (2) Puncturing Wounds
+  (1224716, talent-gated): the dagger generator promoted above the
+  Hemorrhage filler (dagger + behind + 60 energy + not stealthed).
+  HACK AND SLASH (13960) is a CLASS-LESS row (no SpellClassOptions — the
+  same bridge gap as Fingers of Frost) and a pure passive either way;
+  Blade Dance 400012 is rune-granted ("Engrave Pants - Blade Dance") and
+  not laned by the kit — both recorded for the close-out report.
 - `classes/rogue/subtlety_forever.lua` — Hemorrhage→Rupture amplifier loop,
   Thousand Cuts stack engine, Cutthroat free-Ambush bursts, Quietus
   execute-ish lane.
@@ -147,7 +159,21 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
       is positional-free. [PROBE: confirm in-game that a front-facing
       Mutilate lands; if the client enforces behind, add the TBC positional
       gate.]
-- [ ] Restless Blades: CD-reduction effect shape + CD list. [combat delta]
+- [x] Restless Blades: CD-reduction effect shape + CD list (2026-09-17,
+      combat day-1) — 1241797 names the five CDs (AR/BF/Evasion/Sprint/
+      Vanish) and "$m1 sec per combo point"; the #23 lane uses the kit's 2s
+      per point. [PROBE: the exact $m1 value and whether Rupture (a damaging
+      finishing move) shaves like Eviscerate.]
+- [x] Puncturing Wounds (2026-09-17, combat day-1): 1224716 = Backstab
+      +crit / +CP-proc chance + Mutilate crit; the #23 lane promotes the
+      dagger generator when learned.
+- [ ] Hack and Slash (13960: axe/sword extra attack, dagger/fist +crit,
+      mace armor ignore) — CLASS-LESS row, excluded by the bridge's class
+      filter; pure passive. [PROBE: confirm the per-weapon values in-game;
+      the class-less bridge gap is recorded like Fingers of Frost.]
+- [ ] Blade Dance 400012 (rune-granted via "Engrave Pants - Blade Dance",
+      a Parry/AP finisher; Cut to the Chase refreshes it) — not laned by the
+      kit; candidate for the post-campaign backlog.
 - [x] Thousand Cuts: stack cap 5 + which generators it discounts (2026-09-17,
       subtlety day-1) — 1310721's text names Hemorrhage AND Backstab, -3
       energy per stack ("$1310723s1"), cap "$1310723u" (kit: 5); the applied

@@ -234,6 +234,13 @@ waits, next-ranked delta moves up.
       stealth-free Ambush (applied row 462707, pinned). [PROBE: the TC stack
       cap (kit: 5), the Cutthroat proc chance (m1%), and whether the proc's
       Ambush still needs behind/dagger.]
+- [x] **Restless Blades + Puncturing Wounds** (2026-09-17, combat day-1):
+      RESOLVED by the client text — RB 1241797 names the five tracked CDs
+      (AR/BF/Evasion/Sprint/Vanish, $m1 sec per CP); PW 1224716 gives
+      Backstab +crit and a CP-proc chance. [PROBE: the RB per-CP value and
+      whether Rupture shaves; Hack and Slash 13960 is a class-less row
+      (bridge gap, passive) and Blade Dance 400012 is rune-granted — both
+      recorded in the kit checklist.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

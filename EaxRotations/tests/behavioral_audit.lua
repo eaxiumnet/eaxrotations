@@ -3674,6 +3674,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_tc",
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_cutthroat",
     overrides = { in_combat = true, equipped_daggers = true,
                   buff_remains_map = { [90050] = 10 } } }
+-- Rogue combat: the Restless Blades shave spend (a tracked CD inside the
+-- 2x combo window at 4 CP — below the baseline's 5-CP rule) and the
+-- Puncturing Wounds dagger generator (both-hand daggers, behind default).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_rb",
+    overrides = { in_combat = true, combo_points = 4, on_cd = { [13750] = 6 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_pw",
+    overrides = { in_combat = true, equipped_daggers = true } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4604,6 +4611,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Ambush proc.
             ["Thousand Cuts"] = 90049,
             ["Cutthroat"] = 90050,
+            -- Rogue combat day-1 (2026-09-17): the Restless Blades talent
+            -- gate and the Puncturing Wounds generator gate.
+            ["Restless Blades"] = 90051,
+            ["Puncturing Wounds"] = 90052,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
