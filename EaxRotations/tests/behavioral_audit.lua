@@ -4303,18 +4303,49 @@ function M.load_spec(class_key, spec_key, era, race_override)
         else
             ns.EaxForeverBridge = { spell_index_by_name_forever = {} }
         end
-        local by_name = ns.EaxForeverBridge.spell_index_by_name_forever
-        if type(by_name) == "table" then
-            if by_name["Holy Strike"] == nil then by_name["Holy Strike"] = 90001 end
-            if by_name["Light's Vigil"] == nil then by_name["Light's Vigil"] = 90002 end
-            if by_name["Infusion of Light"] == nil then by_name["Infusion of Light"] = 90003 end
+        -- Sentinel mirrors (Pattern 17): the battery OVERWRITES all three
+        -- bridge mirrors with sentinel ids (beta-day live-bridge update).
+        -- Additive seeding ("only when absent") died with the stub bridge:
+        -- with live data every name resolves to a real id no scenario
+        -- drives, so every buff-gated delta lane silently never fired
+        -- (mage/arcane AB spam first). The SAME sentinel per name in every
+        -- mirror keeps scenarios unchanged; mirror SELECTION (maxrank vs
+        -- buff) is pinned instead by the per-spec unit suites, which seed
+        -- distinct sentinels per mirror (19000/19100/19200 ranges).
+        local mirrors = ns.EaxForeverBridge
+        if type(mirrors.spell_maxrank_by_name_forever) ~= "table" then
+            mirrors.spell_maxrank_by_name_forever = {}
+        end
+        if type(mirrors.spell_buff_by_name_forever) ~= "table" then
+            mirrors.spell_buff_by_name_forever = {}
+        end
+        -- One sentinel per wave-1 name, written into ALL THREE mirrors so
+        -- lanes fire regardless of which mirror they read; mirror SELECTION
+        -- (maxrank vs buff) is pinned instead by the per-spec unit suites,
+        -- which seed distinct sentinels per mirror (19000/19100/19200
+        -- ranges). Every other name keeps its real bridge data untouched.
+        local sentinels = {
+            ["Holy Strike"] = 90001,
+            ["Light's Vigil"] = 90002,
+            ["Infusion of Light"] = 90003,
             -- Wave-1 scaffolding (2026-09-17): shaman + mage delta names.
-            if by_name["Maelstrom Weapon"] == nil then by_name["Maelstrom Weapon"] = 90004 end
-            if by_name["Fire Nova"] == nil then by_name["Fire Nova"] = 90005 end
-            if by_name["Lava Burst"] == nil then by_name["Lava Burst"] = 90006 end
-            if by_name["Hot Streak"] == nil then by_name["Hot Streak"] = 90007 end
-            if by_name["Arcane Blast"] == nil then by_name["Arcane Blast"] = 90008 end
-            if by_name["Missile Barrage"] == nil then by_name["Missile Barrage"] = 90009 end
+            ["Maelstrom Weapon"] = 90004,
+            ["Fire Nova"] = 90005,
+            ["Lava Burst"] = 90006,
+            ["Hot Streak"] = 90007,
+            ["Arcane Blast"] = 90008,
+            ["Missile Barrage"] = 90009,
+        }
+        local by_name = mirrors.spell_index_by_name_forever
+        local by_maxrank = mirrors.spell_maxrank_by_name_forever
+        local by_buff = mirrors.spell_buff_by_name_forever
+        if type(by_name) == "table" and type(by_maxrank) == "table"
+            and type(by_buff) == "table" then
+            for name, id in pairs(sentinels) do
+                by_name[name] = id
+                by_maxrank[name] = id
+                by_buff[name] = id
+            end
         end
     end
     -- Item presence: seed the REAL read the class files use (NS.has_item,

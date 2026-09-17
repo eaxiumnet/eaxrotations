@@ -198,10 +198,15 @@ local function run_self_tests()
     local comment_scan = scan_content('-- define("SealOfFury", { 999999 }, "SealOfFury")')
     expect(#comment_scan.hits, 0, "comment lines are exempt")
 
-    -- In stub mode, EVERY id in code is unresolvable; a define line with two
-    -- ids yields two hits (deduped when equal).
-    local scan = scan_content('define("SealOfFury", { 12345, 12345, 678 }, "SealOfFury")')
-    expect(#scan.hits, 2, "stub-mode scan dedupes and fires")
+    -- Unresolvable ids each yield a hit (deduped when equal). The probe ids
+    -- resolve in NEITHER bridge in EITHER mode: 12345/12344 are gaps in both
+    -- the vanilla and the Forever indexes, so this pin holds in stub mode
+    -- and in live mode alike (a live-resolving id such as Holy Strike 678,
+    -- or a vanilla-indexed id such as 12346 "Awaken the Soulflayer", must NOT
+    -- be used here -- they yield a hit only while the bridge is a stub, or
+    -- the vanilla-leak verdict instead of INVALID).
+    local scan = scan_content('define("SealOfFury", { 12345, 12345, 12344 }, "SealOfFury")')
+    expect(#scan.hits, 2, "scan dedupes and fires")
     expect(scan.hits[1].id, 12345, "first hit id")
     expect(scan.hits[2].kind, "INVALID", "unknown id classifies INVALID")
 
@@ -221,14 +226,35 @@ local function run_self_tests()
 
     -- Vanilla-known IDs still report the precise era-leak verdict in code
     -- (bridge tables are data, and data tables are scanned only in real
-    -- _forever files; the scanner itself just classifies).
-    expect(classify_id(25898), "VANILLA_ID_IN_FOREVER", "vanilla id leaks precise verdict (25898 = Seal of Righteousness r1)")
+    -- _forever files; the scanner itself just classifies). The probe must be
+    -- vanilla-indexed but absent from the rank-1-baselined forever index in
+    -- EVERY mode: 143 (Fireball non-baseline rank) qualifies, while 25898
+    -- (live-resolving since the beta DBC landed) does not.
+    expect(classify_id(143), "VANILLA_ID_IN_FOREVER", "vanilla id leaks precise verdict (143 = Fireball non-baseline rank)")
 
     -- By-name resolution contract (zero-literal spec design): the bridge
     -- module MUST expose the name mirror (spec files require it), and the
     -- audit's lane-dormancy rule -- a nil name lookup never fabricates an ID.
     expect(type(bridge.spell_index_by_name_forever), "table", "bridge exposes spell_index_by_name_forever (spec files require it)")
     expect(forever_by_name["__NonexistentSpell__"], nil, "missing name resolves nil (lane stays dormant)")
+
+    -- Maxrank/buff mirror contract (beta-day DBC landing): cast lanes resolve
+    -- max rank, buff lanes resolve the proc buff; both mirrors must exist and
+    -- carry the DBC-proven ids (spot-pinned so a regeneration drift fails
+    -- loudly instead of silently recasting lanes at the wrong rank).
+    expect(type(bridge.spell_maxrank_by_name_forever), "table", "bridge exposes spell_maxrank_by_name_forever (cast lanes require it)")
+    expect(type(bridge.spell_buff_by_name_forever), "table", "bridge exposes spell_buff_by_name_forever (buff lanes require it)")
+    local maxrank = bridge.spell_maxrank_by_name_forever
+    expect(maxrank["Holy Strike"], 10333, "maxrank Holy Strike is the 60 max (not the 678 baseline)")
+    expect(maxrank["Light's Vigil"], 1311595, "maxrank Light's Vigil is the 60 cast row (not the 1310909 buff row)")
+    expect(maxrank["Lava Burst"], 1238300, "maxrank Lava Burst is the 60 nuke (not the 408490 rank)")
+    expect(maxrank["Fire Nova"], 11307, "maxrank Fire Nova is the 52 damage row (not the 11311 trigger row)")
+    expect(maxrank["Arcane Blast"], 1239700, "maxrank Arcane Blast is the 60 nuke (not the 400573 aura row)")
+    local buffmap = bridge.spell_buff_by_name_forever
+    expect(buffmap["Missile Barrage"], 400589, "buff Missile Barrage is the proc (not the 400588 talent)")
+    expect(buffmap["Maelstrom Weapon"], 408505, "buff Maelstrom Weapon is the buff text row (not the 408498 talent)")
+    expect(buffmap["Hot Streak"], 400625, "buff Hot Streak is the Forever stacking proc (not the legacy 48108 row)")
+    expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")
 end

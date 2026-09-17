@@ -668,17 +668,18 @@ local components = {
             }
         end,
     },
-    -- Forever spell audit (2026-09-14): scaffold mode until the beta client's
-    -- DBC is extracted (docs/forever/dbc_runbook.md) — the stub bridge keeps
-    -- the live scan vacuous but the scanner self-probes always run, so a
-    -- broken scanner fails here before it can silently pass post-beta.
+    -- Forever spell audit (live since the 2026-09-17 beta DBC landing,
+    -- docs/forever/dbc_runbook.md): the real bridge enforces ID resolution
+    -- across every _forever file. (The scanner self-probes moved to the
+    -- dedicated "forever audit self-test" component below -- the live scan
+    -- no longer prints that marker.)
     {
         label = "forever spell audit",
         cmd = "lua " .. R .. "/run_forever_audit_tests.lua",
         check = function(c)
             return {
-                { "scaffold mode active (beta DBC pending)", c:find("SCAFFOLD MODE", 1, true) ~= nil },
-                { "scanner self-probes pass", c:find("scanner self-probes: PASS", 1, true) ~= nil },
+                { "live mode active (no SCAFFOLD MODE marker)", c:find("SCAFFOLD MODE", 1, true) == nil },
+                { "zero invalid ids", c:find("Invalid: 0", 1, true) ~= nil },
             }
         end,
     },

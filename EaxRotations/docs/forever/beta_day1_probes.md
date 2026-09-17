@@ -50,20 +50,53 @@ apply the listed build-order consequence.
 - Runbook prereqs all green (DB2ToSqlite backup, dotnet 9, TBC
   calibration DBC); steps 1-3 + probes P1/P2 remain client-gated.
 
+### P0 verdict — 2026-09-17 (beta-day execution, beta found)
+
+- **Client INSTALLED as `wow_classic_beta` 1.60.1.69893** (folder
+  `_classic_beta_`; the anticipated `_forever_` folder does not exist).
+  Identity confirmed by DBC signatures, not folder/product naming.
+- **Install drive**: `C:\Program Files (x86)\World of Warcraft` (the
+  `F:\` drive in DB2ToSqlite's appsettings was stale — extraction used a
+  custom settings file with the real drive + `Product: wow_classic_beta`).
+- **Version string**: `.build.info` reports `wow_classic_beta =
+  1.60.1.69893`. The live `get_game_version()` output still needs a beta
+  login (runbook step 5 stays open); no client process was touched —
+  extraction is CASC file reads only.
+- **Addon-policy recon**: unchanged posture — file reads only, no process
+  attach, no login performed.
+
 ## P1 — wave-1 name resolution (unlocks days 1–3 authoring)
 
-Every wave-1 lane resolves by name or goes dormant. One pass:
+Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
+2026-09-17, beta 1.60.1.69893 DBC unless noted):
 
-- [ ] Maelstrom Weapon (+ stack cap) — shaman enhancement
-- [ ] Stormstrike (8s CD) / Improved Stormstrike (dodge-parry reset) — shaman
-- [ ] Fire Nova (spell, not totem; references live Fire Totem) — shaman
-- [ ] Totemic Projection / Totemic Recall / Call of the Elements — shaman
-- [ ] Lava Burst (+ Flame Shock bonus effect shape) — shaman elemental
-- [ ] Hot Streak (3-stack, 15s, Pyro cast reduction per stack) — mage fire
-- [ ] Pyroblast / Fire Blast / Wake of Fire (kill-triggered crit buff) — mage
-- [ ] Arcane Blast (4 stacks, expiry-on-other-spell) — mage arcane
-- [ ] Missile Barrage (trigger set: AB 40% / Fireball/Frostbolt/FFB 20%) — mage
-- [ ] Holy Shock 10s / Light's Vigil / Holy Strike / Infusion of Light — paladin (delta already dormant-pending these)
+- [x] Maelstrom Weapon — shaman enhancement (buff 408505 + talent 408498
+      resolve; stack cap + proc chance live in aura points — in-game probe
+      for the spend-at-N gate)
+- [x] Stormstrike (8s CD confirmed: RecoveryTime 8000) / Improved
+      Stormstrike (dodge-parry reset OPEN — talent-side, wave 2)
+- [x] Fire Nova (spell, max damage rank 11307@52; trigger twin 11311
+      correctly excluded by the tie-break) — shaman
+- [x] Totemic Projection 437009 (60s CD) / Totemic Recall 36936 /
+      Call of the Elements 66842 — shaman
+- [x] Lava Burst 408490/1238300 (+20% FS bonus in EffectBasePoints) — shaman
+      elemental
+- [x] Hot Streak 400625 (Forever stacking proc; CONTRADICTION: kit
+      "3-stack" unconfirmed, legacy 48108 row says "2 in a row" — do not
+      overwrite the kit number; in-game probe) — mage fire
+- [x] Pyroblast 11366 / Fire Blast 2136 (class-map casts, unchanged) /
+      Wake of Fire buff 11078 + window 1312934 (full mechanic text
+      confirmed; trigger wiring OPEN — lane stays absent) — mage
+- [x] Arcane Blast buff 400573 + nuke 1239700@60 (nuke text references the
+      stack rows by id; +175%/+10% split confirmed in aura rows; cap 4 +
+      duration OPEN in aura points) — mage arcane
+- [x] Missile Barrage talent 400588 (trigger-set structure confirmed:
+      AB $m1%, others halved) + proc 400589 (buff lane gates on it) — mage
+- [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on 20473 AND
+      1311606; live-cast id OPEN) / Light's Vigil cast 1311595@60, buff
+      1310909, no DBC cooldown row (180s estimate stands) / Holy Strike
+      10333@60 max (kit "level 6" ↔ 679@6) / Infusion of Light buff 53672
+      (talent/learn row 426065; live proc-id confirmation OPEN) — paladin
 
 Consequence: all resolved → wave-1 authoring starts; any miss → its delta
 waits, next-ranked delta moves up.

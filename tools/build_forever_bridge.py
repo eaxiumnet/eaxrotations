@@ -45,25 +45,39 @@ SCHOOL_MAP = {
     64: "arcane",
 }
 
-# SpellClassSet -> class name (verified against the 2.5.5 DBC: 20594 Stoneform
-# carries no SpellClassOptions row; class sets only appear on class spells).
+# SpellClassSet -> class name. DIVERGENCE from the 2.5.5 client: the modern
+# SpellFamily enum (2=Paladin, 7=Shaman, 8=Mage, ...) does NOT apply here.
+# Calibrated 2026-09-17 against the 1.60.1.69893 extraction -- this
+# classic-line client uses the classic SpellFamily enum, proven per class
+# (Heroic Strike 78 -> 4, Hunter's Mark 1130 -> 9, Rejuvenation 774 -> 7,
+# Lesser Heal 2050 -> 6, LHW 8004 -> 11, Fireball 133 -> 3, Sinister Strike
+# 1752 -> 8, Immolate 348 -> 5, Seal of Fury 20163 -> 10). Sets 0/1/13 are
+# non-class rows (test/world/item spells); 2/12 are empty on this client.
+# (The 2.5.5 note about Stoneform still holds in spirit: racial actives such
+# as Touch of the Grave 1260189 carry no SpellClassOptions row and stay out
+# of this class-spell index by design.)
 CLASS_MAP = {
-    1: "Warrior",
-    2: "Paladin",
-    3: "Hunter",
-    4: "Rogue",
-    5: "Priest",
-    6: "Death Knight",
-    7: "Shaman",
-    8: "Mage",
-    9: "Warlock",
-    11: "Druid",
+    3: "Mage",
+    4: "Warrior",
+    5: "Warlock",
+    6: "Priest",
+    7: "Druid",
+    8: "Rogue",
+    9: "Hunter",
+    10: "Paladin",
+    11: "Shaman",
 }
 
-# Effects that heal (EffectBasePoints + roll(DieSides)) on this client format.
-# Calibrated on the 2.5.5 DBC: Flash Heal r1 (2061) uses 10, Holy Light r2
-# (639) uses 77. The classic-era IDs 2/62 are kept for forward compatibility.
-HEAL_EFFECTS = {2, 10, 62, 77}
+# Effects that heal on the Forever client format (1.60 classic-line DBC).
+# Calibrated 2026-09-17 against the 1.60.1.69893 extraction: every direct
+# heal probed uses Effect 10 (Flash Heal 2061, Greater Heal 2060, Prayer of
+# Healing 596, Chain Heal 1064, LHW 8004, HW 331, HT 5185, Lesser Heal 2050;
+# HoTs use Effect 6 / Aura 8 and stay out by design). Effect 2 is direct
+# DAMAGE here (Frostbolt 116, Fireball 133, Arcane Explosion 1449), Effect
+# 62 is power burn (Mana Burn 8129+), Effect 77 is damage-side (Immolate
+# 348+, Holy Strike 678) -- all three would misflag heals, so the 2.5.5
+# set {2,10,62,77} does NOT carry over; only {10} is correct on this client.
+HEAL_EFFECTS = {10}
 
 # ImplicitTarget buckets that make an effect area-targeted.
 # ImplicitTarget[0] == TARGET_CASTER (1, 15); area targets are >= 15 elsewhere.
@@ -119,17 +133,18 @@ def load_forever_spells(conn):
         """
     ).fetchall()
 
-    # Aggregate effects per spell id (heal + AoE detection).
+    # Aggregate effects per spell id (heal + AoE detection). NOTE: the 1.60
+    # classic-line SpellEffect has no EffectBasePoints/EffectDieSides columns
+    # (base points live in EffectBasePointsF); only Effect + targets are read.
     effect_rows = cur.execute(
         """
-        SELECT SpellID, Effect, EffectAura, EffectBasePoints, EffectDieSides,
-               ImplicitTarget
+        SELECT SpellID, Effect, EffectAura, ImplicitTarget
         FROM SpellEffect
         """
     ).fetchall()
     heal_spells = set()
     aoe_spells = set()
-    for spell_id, effect, aura, base_pts, die_sides, targets in effect_rows:
+    for spell_id, effect, aura, targets in effect_rows:
         if effect in HEAL_EFFECTS:
             heal_spells.add(spell_id)
         targets = targets or "[0,0]"
@@ -139,7 +154,36 @@ def load_forever_spells(conn):
         if effect in (27, 124) or (target_b >= 15 and target_a != 1) or target_b in AREA_TARGETS:
             aoe_spells.add(spell_id)
 
+    # Buff-role overrides: exact client name -> the buff/proc aura id a lane
+    # must gate on, for the mechanics where the rank-1 baseline resolves to
+    # the WRONG role (talent row instead of proc buff). Every entry verified
+    # 2026-09-17 against the 1.60.1.69893 DBC (effect rows + description
+    # text); the baseline id is named in each note so the divergence is
+    # reviewable without re-running the probes.
+    BUFF_OVERRIDES = {
+        # Proc buff (triggered BY 400588 per EffectTriggerSpell; baseline
+        # 400588 is the talent: "Gives your Arcane Blast spell a $m1%
+        # chance..."). Lane gates the proc window, not the talent.
+        "Missile Barrage": 400589,
+        # Buff text ("Reduces the cast time and Mana cost of your next
+        # Lightning Bolt spell"); baseline 408498 is the talent text
+        # ("When you deal damage with a melee attack, you have a chance...").
+        "Maelstrom Weapon": 408505,
+        # Forever stacking proc ("grant Hot Streak for $400625d... stacking
+        # up to $400625s2 times", granted by talent 400624); baseline 48108
+        # is the legacy 2-in-a-row row ("Any time you score 2 spell criticals
+        # in a row..."). Kit's "3-stack" number itself is still unconfirmed
+        # (lives in aura points) -- recorded as an in-game probe, not here.
+        "Hot Streak": 400625,
+    }
+
     result = {}
+    maxrank = {}
+    # Every player-filtered spell id (not just baselines): the fail-closed
+    # reference set for the mirror check below. Multi-rank ladders contribute
+    # their whole ladder here; spell_index_forever itself stays baselines-only
+    # (audit contract stability).
+    all_player_ids = set()
     for (spell_id, name, school_mask, cast_time_idx, spell_level, base_level,
          class_set, recovery_time, start_recovery) in spell_rows:
         if _degenerate(name):
@@ -147,32 +191,50 @@ def load_forever_spells(conn):
         class_name = CLASS_MAP.get(class_set)
         if class_name is None:
             continue  # non-player spell (NPC abilities, items, GM, etc.)
+        all_player_ids.add(spell_id)
         # Rank 1 baseline: emit only one row per (class, name) — the lowest
         # spell id seen for that pair (client rank ladders share one name).
         key = (class_name, name)
         existing = result.get(key)
         if existing is not None and existing["spell_id"] <= spell_id:
-            continue
-        result[key] = {
-            "spell_id": spell_id,
-            "name": name,
-            "class": class_name,
-            "level": base_level if base_level else spell_level or 1,
-            "school": _school(school_mask or 1),
-            "is_heal": spell_id in heal_spells,
-            "aoe": spell_id in aoe_spells,
-            "cast_time": cast_time_idx or 0,
-            "gcd": round((start_recovery or 0) / 1000, 2),
-            "cooldown_seconds": round((recovery_time or 0) / 1000, 2),
-        }
-    return result
+            pass
+        else:
+            result[key] = {
+                "spell_id": spell_id,
+                "name": name,
+                "class": class_name,
+                "level": base_level if base_level else spell_level or 1,
+                "school": _school(school_mask or 1),
+                "is_heal": spell_id in heal_spells,
+                "aoe": spell_id in aoe_spells,
+                "cast_time": cast_time_idx or 0,
+                "gcd": round((start_recovery or 0) / 1000, 2),
+                "cooldown_seconds": round((recovery_time or 0) / 1000, 2),
+            }
+        # Max-rank baseline: highest BaseLevel wins (NULL levels sort below
+        # every real level), ties broken by lowest id. Cast lanes resolve
+        # through this mirror so max-level rotations cast max rank, not rank
+        # 1 (e.g. Holy Strike 10333@60, not the 678@12 baseline; Light's
+        # Vigil 1311595@60, the cast row, not the 1310909 buff row; Fire Nova
+        # 11307@52, the damage row -- the @52 tie with the 11311 trigger row
+        # breaks by lowest id to the correct one, verified by effect dump).
+        # Rows without a class set never reach this map (filtered above), so
+        # every emitted id is a real player-spell row.
+        lvl = base_level if isinstance(base_level, int) else -1
+        cur_max = maxrank.get(key)
+        if cur_max is None or (lvl, -spell_id) > (cur_max[0], -cur_max[1]):
+            maxrank[key] = (lvl, spell_id)
+    buff_ids = {}
+    for (class_name, name), entry in result.items():
+        buff_ids[(class_name, name)] = BUFF_OVERRIDES.get(name, entry["spell_id"])
+    return result, maxrank, buff_ids, all_player_ids
 
 
 def lua_escape(s):
     return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def write_bridge(spells):
+def write_bridge(spells, maxrank, buff_ids, all_player_ids):
     lines = [
         "-- wowhead_data_bridge_spell_index_forever_sylvanas.lua -- Forever-era spell index bridge.",
         "-- WHAT:  DBC-derived map of WoW Forever (beta 2026-09-17) spell IDs to",
@@ -183,12 +245,21 @@ def write_bridge(spells):
         "--        moment this file carries a real index (no __forever_stub flag):",
         "--        every spell ID in a _forever spec file must resolve here.",
         "--        _forever spec files resolve Forever-new spells BY NAME through",
-        "--        spell_index_by_name_forever (zero numeric literals in code --",
-        "--        the DBC is the only source of an ID). A nil lookup must leave",
-        "--        the calling lane dormant, never guess.",
+        "--        the mirrors below (zero numeric literals in code -- the DBC is",
+        "--        the only source of an ID). A nil lookup must leave the calling",
+        "--        lane dormant, never guess.",
         "-- SAFETY: generated file — do not hand-edit; regenerate from the DBC.",
         "-- FORMAT: spell_index_forever: positional fields 1-10 (tbc/vanilla shape).",
-        "--        spell_index_by_name_forever: exact client name -> rank-1 spell id.",
+        "--        spell_index_by_name_forever: exact client name -> rank-1 spell id",
+        "--        (lowest id per ladder; buff-role lookups land here).",
+        "--        spell_maxrank_by_name_forever: exact client name -> max-rank spell",
+        "--        id (highest BaseLevel per ladder, ties to lowest id) for CAST",
+        "--        lanes, so max-level rotations cast max rank, not rank 1.",
+        "--        spell_buff_by_name_forever: exact client name -> buff/proc aura id",
+        "--        for buff-gated lanes; equals the rank-1 baseline except the",
+        "--        BUFF_OVERRIDES in the builder (Missile Barrage, Maelstrom",
+        "--        Weapon, Hot Streak), where the baseline resolves to the talent",
+        "--        row instead of the proc buff.",
         "",
         "local M = {}",
         "",
@@ -218,6 +289,30 @@ def write_bridge(spells):
         lines.append("    [%s] = %d," % (lua_escape(e["name"]), e["spell_id"]))
     lines.append("}")
     lines.append("")
+
+    def emit_mirror(table, mapping, id_of):
+        lines.append(table)
+        # Deterministic emission order (by name); duplicate names across
+        # classes resolve to the lowest spell id, mirroring the rank-1 rule.
+        by_name = {}
+        for (class_name, name) in sorted(mapping):
+            sid = id_of((class_name, name))
+            if name not in by_name or sid < by_name[name]:
+                by_name[name] = sid
+        for name in sorted(by_name):
+            lines.append("    [%s] = %d," % (lua_escape(name), by_name[name]))
+        lines.append("}")
+        lines.append("")
+
+    lines.append("-- Exact client name -> max-rank spell id (highest BaseLevel per")
+    lines.append("-- (class, name); ties break to the lowest id, which verified")
+    lines.append("-- correct on the one observed tie (Fire Nova 11307 damage row vs")
+    lines.append("-- the 11311 trigger row at level 52).")
+    emit_mirror("M.spell_maxrank_by_name_forever = {", maxrank,
+                lambda k: maxrank[k][1])
+    lines.append("-- Exact client name -> buff/proc aura id for buff-gated lanes.")
+    emit_mirror("M.spell_buff_by_name_forever = {", buff_ids,
+                lambda k: buff_ids[k])
     lines.append("return M")
     lines.append("")
     with open(OUTPUT, "w", encoding="utf-8", newline="\n") as f:
@@ -225,7 +320,19 @@ def write_bridge(spells):
     print("  Generated: %s" % OUTPUT)
     print("  Entries:   %d" % len(entries))
     print("  Size:      %s bytes" % format(os.path.getsize(OUTPUT), ","))
-
+    # Every mirror id must be a real player-filtered spell row in the DBC.
+    # (Checked against all_player_ids, NOT spell_index_forever: the index is
+    # rank-1 baselines by contract, while maxrank ids are higher ranks of the
+    # same ladders by design.)
+    for label, mapping, id_of in (
+            ("maxrank", maxrank, lambda k: maxrank[k][1]),
+            ("buff", buff_ids, lambda k: buff_ids[k])):
+        orphans = sorted({id_of(k) for k in mapping} - all_player_ids)
+        if orphans:
+            print("ERROR: %s mirror ids with no player-filtered DBC row: %s"
+                  % (label, orphans))
+            sys.exit(2)
+    print("  Mirrors:   by_name + maxrank + buff all resolve to player rows")
 
 def check_bridge():
     """Verify an existing bridge is a real (non-stub) DBC-derived index."""
@@ -266,14 +373,14 @@ def main():
         sys.exit(2)
     conn = sqlite3.connect(DBC_DB)
     try:
-        spells = load_forever_spells(conn)
+        spells, maxrank, buff_ids, all_player_ids = load_forever_spells(conn)
     finally:
         conn.close()
     if not spells:
         print("ERROR: no player spells extracted from %s" % DBC_DB)
         sys.exit(2)
     print("Forever DBC: %d player spells extracted" % len(spells))
-    write_bridge(spells)
+    write_bridge(spells, maxrank, buff_ids, all_player_ids)
     print("Audit live mode: run_forever_audit_tests.lua now enforces real ID resolution.")
 
 

@@ -5,12 +5,41 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
-## Status (updated 2026-09-16: beta-day dress rehearsal PASSED)
+## Status (updated 2026-09-17: beta DBC extracted, bridge LIVE)
 
-**2026-09-17 beta-day attempt:** client not yet installed on the ops
+**2026-09-17 beta-day execution:** the beta arrived as the `wow_classic_beta`
+product (folder `_classic_beta_`, **no** `_forever_` folder — the runbook's
+third shape), version **1.60.1.69893** per `.build.info` (anniversary sits at
+2.5.6.69795). Identity confirmed by DBC signatures, not by folder name:
+Holy Strike / Seal of Fury / Touch of the Grave (1260189+) / Infusion of
+Light / Twist of Light (1310735) / Light's Vigil (1310909+) / Voice of Truth
+/ Reverence / Templar's Bulwark / Iron Creed / Sacred Arbiter all resolve in
+the extracted `SpellName`; Skyborne resolves in `ChrRaces` (95/96).
+Extraction used a pristine copy of the DB2ToSqlite backup tree with a custom
+settings file (`BaseDir: C:\Program Files (x86)\World of Warcraft`,
+`Product: wow_classic_beta`) — the backup tree itself was never mutated.
+Two adaptations were required for this classic-line client (both documented
+in `tools/build_forever_bridge.py` with DBC evidence): (1) the extraction
+`TargetDirectory` must stay `dbfilesclient` (the tool resolves
+`{TargetDirectory}/{table}.db2` against listfile FDIDs); (2) `Tables` must
+exclude `ItemRandomProperties` (deterministic "File not found in root" crash
+on this client — retry recipe: bisect the table list, keep the Spell* core).
+The unified `wowsims_forever.db` now carries 13 tables (7 Spell* + Talent,
+TalentTab, SkillLineAbility, SkillLine, ChrRaces, SpellAuraOptions).
+`tools/build_forever_bridge.py` emits **1,696** player spells; the audit is
+LIVE (`--check-bridge` exit 0; full audit 0 invalid; self-test green).
+The 1.60 `SpellEffect` schema has no `EffectBasePoints`/`EffectDieSides`
+columns (base points live in `EffectBasePointsF`), and two 2.5.5
+calibrations do NOT carry over: heal effects are `{10}` only (2 = direct
+damage, 62 = power burn, 77 = damage-side here), and `SpellClassSet` uses
+the classic family enum (3 Mage / 4 Warrior / 5 Warlock / 6 Priest / 7 Druid
+/ 8 Rogue / 9 Hunter / 10 Paladin / 11 Shaman).
+
+**2026-09-17 beta-day attempt (morning):** client not yet installed on the ops
 machine (anniversary client self-updated to 2.5.6.69795 on 09-13, no
 forever product on any Battle.net surface); `EaxRotations/tools/check_forever_client.py`
-added as the re-runnable step-0 gate. Steps 1-4 unexecuted until install.
+added as the re-runnable step-0 gate. (Superseded by the execution entry
+above once `wow_classic_beta` 1.60.1.69893 was found installed.)
 
 **Rehearsal 2026-09-16 (synthetic DBC, fresh worktree):** fixture build, bridge
 build, `--check-bridge` exit 1 (fixture-sized), fail-closed negative scan, and
