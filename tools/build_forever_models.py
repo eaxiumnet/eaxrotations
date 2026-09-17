@@ -65,6 +65,47 @@ def m2_chunks(blob):
     return out
 
 
+def resolve_all(conn):
+    """Every unique item model + every mount model, with a label and the
+    material resources of the first appearance seen for that model."""
+    jobs = {}
+    for row in conn.execute(
+            "SELECT di.ModelResourcesID, di.ModelMaterialResourcesID,"
+            " sp.Display_lang FROM ItemSparse sp "
+            "JOIN ItemModifiedAppearance ima ON ima.ItemID = sp.ID "
+            "JOIN ItemAppearance ap ON ap.ID = ima.ItemAppearanceID "
+            "JOIN ItemDisplayInfo di ON di.ID = ap.ItemDisplayInfoID "
+            "WHERE sp.Display_lang != '' ORDER BY sp.ID"):
+        mats = [int(x) for x in arr(row[1]) if x.strip().isdigit()
+                and int(x) > 0]
+        for x in arr(row[0]):
+            if not (x.strip().isdigit() and int(x) > 0):
+                continue
+            res = int(x)
+            if res not in jobs:
+                jobs[res] = [row[2], mats]
+            elif not jobs[res][1] and mats:
+                jobs[res][1] = mats
+    out = []
+    for res, (label, mats) in jobs.items():
+        mfd = conn.execute("SELECT FileDataID FROM ModelFileData WHERE "
+                           "ModelResourcesID = ? ORDER BY FileDataID LIMIT 1",
+                           (res,)).fetchone()
+        if mfd:
+            out.append((mfd[0], label, mats))
+    seen = {j[0] for j in out}
+    for row in conn.execute(
+            "SELECT cmd.FileDataID, m.Name_lang FROM Mount m "
+            "JOIN MountXDisplay mx ON mx.MountID = m.ID "
+            "JOIN CreatureDisplayInfo cd ON cd.ID = mx.CreatureDisplayInfoID "
+            "JOIN CreatureModelData cmd ON cmd.ID = cd.ModelID "
+            "WHERE cmd.FileDataID > 0 ORDER BY m.ID"):
+        if row[0] not in seen:
+            seen.add(row[0])
+            out.append((row[0], row[1] or ("mount %d" % row[0]), []))
+    return out
+
+
 def resolve_models(conn, item_ids, mount_ids):
     """Return [(model_fdid, label, material_resource_ids)] for the items."""
     jobs = []
@@ -150,13 +191,16 @@ def convert_model(node, script, work, m2_path, skin_path, png_path, label):
 def build(args):
     conn = sqlite3.connect(SRC_DB)
     mount_ids = []
-    if args.mounts == "all":
-        mount_ids = [r[0] for r in conn.execute("SELECT ID FROM Mount"
-                                                " ORDER BY ID")]
-    elif args.mounts:
-        mount_ids = [int(x) for x in args.mounts.split(",") if x.strip()]
-    items = [int(x) for x in (args.items or "").split(",") if x.strip()]
-    jobs = resolve_models(conn, items, mount_ids)
+    if args.all:
+        jobs = resolve_all(conn)
+    else:
+        if args.mounts == "all":
+            mount_ids = [r[0] for r in conn.execute("SELECT ID FROM Mount"
+                                                    " ORDER BY ID")]
+        elif args.mounts:
+            mount_ids = [int(x) for x in args.mounts.split(",") if x.strip()]
+        items = [int(x) for x in (args.items or "").split(",") if x.strip()]
+        jobs = resolve_models(conn, items, mount_ids)
     conn.close()
     print("models to build: %d" % len(jobs))
 
@@ -320,6 +364,8 @@ def main():
                             "17075,17076,18713,18715,22589,22630,22632,18816,"
                             "19169,17069,19361,18803,19363,17073",
                     help="comma list of item ids")
+    ap.add_argument("--all", action="store_true",
+                    help="build every unique item model + every mount model")
     ap.add_argument("--tex-max", type=int, default=TEX_MAX)
     ap.add_argument("--exporter", default=r"C:\Users\Support\AppData\Local\Temp\opencode\db2-export\bin\Release\net9.0\ExportTool.dll")
     ap.add_argument("--settings", default="appsettings.forever_world.json")

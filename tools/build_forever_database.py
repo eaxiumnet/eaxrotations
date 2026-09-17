@@ -48,6 +48,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import sqlite3
 import sys
 
@@ -236,6 +237,72 @@ def _fvec(text):
     return out
 
 
+def _render_tokens(desc, effects, radius_by_idx, duration_ms, max_targets):
+    """Render the common client tooltip tokens ($s1/$m1/$d/$t1/$a1/$o1/$x1,
+    $/N;sM) into numbers. Unknown/expression tokens ($<var>, ${...}, $?a..)
+    are left verbatim (documented in the README)."""
+    if not desc or "$" not in desc:
+        return desc
+
+    def base_of(n):
+        i = n - 1
+        if 0 <= i < len(effects):
+            b = effects[i].get("base")
+            if isinstance(b, (int, float)):
+                return b + 1
+        return None
+
+    def ticks_of(n):
+        i = n - 1
+        if 0 <= i < len(effects):
+            amp = effects[i].get("amplitude")
+            if duration_ms and amp:
+                return max(1, int(duration_ms / (amp * 1000)))
+        return 1
+
+    # $/N;sM  -> effect M base divided by N
+    def div_sub(m):
+        div, eff = int(m.group(1)), int(m.group(2))
+        b = base_of(eff)
+        return str(int(round(b / div))) if b is not None else m.group(0)
+    desc = re.sub(r"\$/(\d+);s(\d+)", div_sub, desc)
+
+    def sub(m):
+        body = m.group(1)
+        v = None
+        try:
+            if body.startswith("s") or body.startswith("S"):
+                b = base_of(int(body[1:]))
+                v = str(int(round(b))) if b is not None else None
+            elif body.startswith("o") and body[1:].isdigit():
+                b = base_of(int(body[1:]))
+                v = str(int(round(b * ticks_of(int(body[1:]))))) \
+                    if b is not None else None
+            elif body.startswith("m"):
+                i = int(body[1:]) - 1
+                if 0 <= i < len(effects) and effects[i].get("misc") is not None:
+                    v = str(effects[i]["misc"])
+            elif body.startswith("a"):
+                i = int(body[1:]) - 1
+                if 0 <= i < len(effects):
+                    r = radius_by_idx.get(effects[i].get("radius"))
+                    if r:
+                        v = "%g" % r
+            elif body.startswith("x") and body[1:].isdigit():
+                if max_targets:
+                    v = str(max_targets)
+            elif body == "d":
+                v = str(int(duration_ms / 1000)) if duration_ms else None
+            elif body.startswith("t") and body[1:].isdigit():
+                if duration_ms:
+                    v = str(ticks_of(int(body[1:])))
+        except (ValueError, TypeError):
+            v = None
+        return v if v is not None else m.group(0)
+
+    return re.sub(r"\$([sSomaAx]?\d+|\d+|[dt]\d*)", sub, desc)
+
+
 def load(conn):
     """Read the raw extraction into plain structures."""
     conn.row_factory = sqlite3.Row
@@ -260,8 +327,16 @@ def load(conn):
     for r in conn.execute(
             "SELECT SpellID, EffectIndex, Effect, EffectAura, EffectBasePointsF, "
             "EffectMiscValue, ImplicitTarget, EffectTriggerSpell, "
-            "EffectRadiusIndex, Coefficient FROM SpellEffect"):
+            "EffectRadiusIndex, Coefficient, EffectAmplitude FROM SpellEffect"):
         effects.setdefault(r["SpellID"], []).append(dict(r))
+    durations = {r["ID"]: r["Duration"] for r in conn.execute(
+        "SELECT ID, Duration FROM SpellDuration")}
+    radii = {r["ID"]: r["Radius"] for r in conn.execute(
+        "SELECT ID, Radius FROM SpellRadius")}
+    dur_index = {r["SpellID"]: r["DurationIndex"] for r in conn.execute(
+        "SELECT SpellID, DurationIndex FROM SpellMisc")}
+    target_caps = {r["SpellID"]: r["MaxTargets"] for r in conn.execute(
+        "SELECT SpellID, MaxTargets FROM SpellTargetRestrictions")}
     talents = [dict(r) for r in conn.execute("SELECT * FROM Talent")]
     tabs = [dict(r) for r in conn.execute("SELECT * FROM TalentTab")]
     skills = [dict(r) for r in conn.execute("SELECT * FROM SkillLine")]
@@ -279,11 +354,11 @@ def load(conn):
             all_names[r["ID"]] = r["Name_lang"]
             all_descs[r["ID"]] = r["Description_lang"] or ""
     return spells, effects, talents, tabs, skills, sla, races, procs, \
-        all_names, all_descs
+        all_names, all_descs, durations, radii, dur_index, target_caps
 
 
 def build(spells, effects, talents, tabs, skills, sla, races, procs,
-          all_names, all_descs):
+          all_names, all_descs, durations, radii, dur_index, target_caps):
     """Shape the community dataset (JSON-serializable)."""
     tab_by_id = {t["ID"]: t for t in tabs}
     skill_by_id = {s["ID"]: s for s in skills}
@@ -336,6 +411,11 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
             if _is_aoe(e["Effect"], a, b):
                 aoe = True
         rec, grec = s["RecoveryTime"], s["StartRecoveryTime"]
+        dms = durations.get(dur_index.get(sid, 0)) or 0
+        rendered = _render_tokens(s["Description_lang"] or "", effs, radii,
+                                  dms, target_caps.get(sid))
+        aura_rendered = _render_tokens(s["AuraDescription_lang"] or "", effs,
+                                       radii, dms, target_caps.get(sid))
         out_spells[sid] = {
             "id": sid, "name": s["Name_lang"],
             "subtext": s["NameSubtext_lang"] or "",
@@ -348,6 +428,8 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
             "cooldown_s": round(rec / 1000, 2) if isinstance(rec, (int, float)) else None,
             "description": s["Description_lang"] or "",
             "aura_description": s["AuraDescription_lang"] or "",
+            "description_rendered": rendered,
+            "aura_description_rendered": aura_rendered,
             "is_heal": is_heal, "aoe": aoe,
             "effects": effs,
         }
@@ -355,6 +437,28 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
     by_name = {}
     for sid in sorted(out_spells):
         by_name.setdefault(out_spells[sid]["name"], []).append(sid)
+
+    # expand $@spelldesc<id> references (iterate for nesting)
+    ref = re.compile(r"\$@spelldesc(\d+)")
+    for _ in range(3):
+        changed = False
+        for sid in out_spells:
+            for field in ("description_rendered",
+                          "aura_description_rendered"):
+                txt = out_spells[sid].get(field) or ""
+                if "$@spelldesc" not in txt:
+                    continue
+
+                def repl(m):
+                    other = out_spells.get(int(m.group(1)))
+                    return (other.get(field) if other else "") or ""
+
+                new = ref.sub(repl, txt)
+                if new != txt:
+                    out_spells[sid][field] = new
+                    changed = True
+        if not changed:
+            break
 
     out_tabs = []
     for t in sorted(tabs, key=lambda t: (t["ID"])):
@@ -453,7 +557,8 @@ def write_package(data, stamp):
             id INTEGER PRIMARY KEY, name TEXT, subtext TEXT, class TEXT,
             class_set INTEGER, level INTEGER, school TEXT, school_mask INTEGER,
             cast_idx INTEGER, gcd_s REAL, cooldown_s REAL, description TEXT,
-            aura_description TEXT, is_heal INTEGER, aoe INTEGER)""")
+            aura_description TEXT, is_heal INTEGER, aoe INTEGER,
+            description_rendered TEXT, aura_description_rendered TEXT)""")
         conn.execute("""CREATE TABLE spell_effects(
             spell_id INTEGER, idx INTEGER, effect INTEGER, aura INTEGER,
             base_points REAL, misc TEXT, targets TEXT, trigger_spell INTEGER,
@@ -481,11 +586,13 @@ def write_package(data, stamp):
         for sid in sorted(spells):
             s = spells[sid]
             conn.execute(
-                "INSERT INTO spells VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO spells VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (s["id"], s["name"], s["subtext"], s["class"], s["class_set"],
                  s["level"], s["school"], s["school_mask"], s["cast_idx"],
                  s["gcd_s"], s["cooldown_s"], s["description"],
-                 s["aura_description"], int(s["is_heal"]), int(s["aoe"])))
+                 s["aura_description"], int(s["is_heal"]), int(s["aoe"]),
+                 s.get("description_rendered") or "",
+                 s.get("aura_description_rendered") or ""))
             for e in s["effects"]:
                 conn.execute(
                     "INSERT INTO spell_effects VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -1034,6 +1141,15 @@ def check_package():
         problems.append("spell_meta.json lacks Fireball (133) mana/cast")
     if len(spell_meta) < 20000:
         problems.append("spell_meta.json only %d entries" % len(spell_meta))
+    conn3 = sqlite3.connect(OUT_DB)
+    try:
+        fb = conn3.execute("SELECT description, description_rendered FROM "
+                           "spells WHERE id = 133").fetchone()
+        if fb and fb[0] and "$s" in (fb[0] or "") and \
+                (not fb[1] or "$s" in fb[1]):
+            problems.append("Fireball 133 description tokens not rendered")
+    finally:
+        conn3.close()
     with open(OUT_MOUNTS, encoding="utf-8") as f:
         mounts = json.load(f)
     if len(mounts) < 100:
@@ -1075,11 +1191,13 @@ def main():
     conn = sqlite3.connect(SRC_DB)
     try:
         (spells, effects, talents, tabs, skills, sla, races, procs,
-         all_names, all_descs) = load(conn)
+         all_names, all_descs, durations, radii, dur_index,
+         target_caps) = load(conn)
     finally:
         conn.close()
     data = build(spells, effects, talents, tabs, skills, sla, races, procs,
-                 all_names, all_descs)
+                 all_names, all_descs, durations, radii, dur_index,
+                 target_caps)
     paths = write_package(data, stamp)
     write_world_artifacts()
     paths.update({

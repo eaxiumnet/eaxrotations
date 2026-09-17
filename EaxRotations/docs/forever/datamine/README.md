@@ -115,7 +115,12 @@ python tools/build_forever_models.py --check      # verify the 3D pack
 
 `spells`: `id, name, subtext, class, class_set, level, rank, school,
 school_mask, cast_idx, gcd_s, cooldown_s, description, aura_description,
-is_heal, aoe`. `cooldown_s`/`gcd_s` are seconds (NULL when the DBC carries
+is_heal, aoe`, plus `description_rendered` / `aura_description_rendered`:
+the client tooltip tokens ($s1/$m1/$d/$t1/$a1/$o1/$x1, $/N;sM,
+$@spelldesc\<id\>) substituted with real numbers from the effect tables
+(67% of all tokenized descriptions fully resolved; the rest use runtime
+expressions `${...}`, `$<var>`, `$?a...` that the client evaluates from
+SpellDescriptionVariables/local state and are left verbatim). `cooldown_s`/`gcd_s` are seconds (NULL when the DBC carries
 no cooldown row — distinct from 0.0). `description` holds the FULL client
 tooltip text including `$s1`/`$m1`-style tokens (client-resolved numbers,
 kept verbatim). `rank` is positional per (class, name) ordered by

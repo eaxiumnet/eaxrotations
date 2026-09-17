@@ -1026,8 +1026,10 @@ def build_viewer(spells, talents, races, meta, extra):
             "id": s["id"], "name": s["name"], "class": s["class"],
             "level": s["level"], "rank": s["rank"], "school": s["school"],
             "cd": s["cooldown_s"], "gcd": s["gcd_s"],
-            "desc": render_desc(s["description"]),
-            "auradesc": render_desc(s["aura_description"]),
+            "desc": render_desc(s.get("description_rendered")
+                                or s["description"]),
+            "auradesc": render_desc(s.get("aura_description_rendered")
+                                    or s["aura_description"]),
             "heal": s["is_heal"], "aoe": s["aoe"],
             "effects": [[e["idx"], e["effect"], e["aura"], e["base_points"],
                          e["misc"], e["targets"], e["trigger_spell"]]
