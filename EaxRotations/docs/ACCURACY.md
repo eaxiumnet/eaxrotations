@@ -12,10 +12,10 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 |---|---|
 | Game eras covered | 5 — TBC · WotLK · Vanilla · Season of Discovery · Forever |
 | Specs rated | 172 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 3578 |
+| Decision rules exercised by the test rig | 3581 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
 | Rules the rig never triggers, each with a filed written reason | 43 |
-| Behavioral test battery | 587 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
+| Behavioral test battery | 588 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
 | Cast order machine-checked against simulators | 50 of 50 pinned specs (where a simulator exists) |
 | Unreachable-rule gate | strict in all 5 eras — an unexplained unreachable rule fails the release |
 
@@ -249,5 +249,5 @@ A rating below S is never silent: every non-firing rule is individually document
 ## How to check this yourself
 
 - Full engineering detail (every rule, every reason): `docs/scorecard.md`.
-- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (587 rotation suites + leveling + five era batteries + this page’s drift check).
+- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (588 rotation suites + leveling + five era batteries + this page’s drift check).
 - Regenerate this page and the scorecard: `lua tools/spec_scorecard.lua`.

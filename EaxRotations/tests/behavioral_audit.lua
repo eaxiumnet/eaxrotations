@@ -1368,6 +1368,10 @@ function M.build_ns(class_key, era)
         NaturesGrasp = ns.spell_action({ 27009, 17329, 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
         Pounce = ns.spell_action({ 27006, 9827, 9823, 9005 }, "Pounce"),
         Rejuvenation = ns.spell_action({ 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
+        -- (forever day-1 2026-09-17): Swiftmend is in the production class map
+        -- (classes/druid/class_sylvanas.lua ids {18562}); the mock lacked it,
+        -- which left the resto delta's spot-heal lane structurally dormant.
+        Swiftmend = ns.spell_action({ 18562 }, "Swiftmend"),
         Starfire = ns.spell_action({ 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
         SwipeBear = ns.spell_action({ 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
         Thorns = ns.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
@@ -3589,6 +3593,14 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_winters_
 -- the stack/charge count in the harness's stack-aware bank).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bal_eclipse_charged",
     overrides = { in_combat = true, mana_pct = 70, buff_remains_map = { [90030] = 2 } } }
+-- Druid resto: the Wild Growth party-heal window (two hurt members) and the
+-- Swiftmend spot-heal (a HoT-carrying ally driven through the class map's
+-- Rejuvenation ids in the buff map).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_wild_growth",
+    overrides = { in_combat = true, mana_pct = 70, friends_hp = { 60, 80, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_swiftmend_spot",
+    overrides = { in_combat = true, mana_pct = 70, friends_hp = { 85, 100, 100 },
+                  buff_remains_map = { [774] = 8 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4478,6 +4490,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- battery seeds all mirrors with one id, so the charge read and
             -- the learned check share the sentinel.
             ["Eclipse"] = 90030,
+            -- Druid resto day-1 (2026-09-17): Wild Growth + the Gift of the
+            -- Earthmother talent gate.
+            ["Wild Growth"] = 90031,
+            ["Gift of the Earthmother"] = 90032,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

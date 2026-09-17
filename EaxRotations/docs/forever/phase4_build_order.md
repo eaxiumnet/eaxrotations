@@ -99,7 +99,11 @@ Fingers of Frost recorded as a BaseLevel-0 bridge gap).
 `druid/balance_forever.lua` BUILT (the Eclipse pair — Wrath-procs-3-fast-
 Starfires per the client text, NOT the kit's 4-stack alternation; Balance of
 Nature has no client row; Nature's Grace/Dreamstate/Moonkin are passives).
-#16–#26 pending.
+#16 `druid/resto_forever.lua` BUILT (3 lanes: Wild Growth 6s party HoT when
+>= 2 members hurt, non-consuming Swiftmend spot-heal under the emergency
+lane, GotE-gated Rejuvenation blanket). Tree of Life 439745 recorded as the
+resto open probe (form semantics unresolved, not laned).
+#17–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

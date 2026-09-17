@@ -82,13 +82,27 @@ rank numbers below).
 ## Restoration — the HoT spec
 - **Wild Growth** (NEW): party-wide HoT on a short CD — expected core raid/
   dungeon heal (cooldown-tracked lane).
+  **DBC CONFIRMATION (2026-09-17)**: ladder 408120@40 / 1238214@50 /
+  **1238215@60** ("Heals the target and their party for 98 over 7"),
+  **CategoryRecoveryTime 6000** — the 6s CD suite holds; the day-1 lane
+  declares the expected cooldown.
 - **Swiftmend no longer consumes the HoT** (still requires one active) —
   becomes a spam-able spot heal; the Vanilla "don't waste the Rejuv"
   interplay is gone.
+  **DBC CONFIRMATION (2026-09-17)**: 18562 carries a 15s cooldown and the
+  client text has NO consumption clause (no aura-removal effect row) — the
+  day-1 lane treats it as a non-consuming spot heal above the baseline's
+  50% emergency lane.
 - **Gift of the Earthmother**: Rejuv/Swiftmend/Wild Growth GCD −0.5s (1s
   GCD) — blanket-the-group speed lane.
+  **DBC CONFIRMATION (2026-09-17)**: 414673 resolves in the bridge; the
+  blanket lane is gated on it.
 - **HoTs can crit** + better in-combat regen (Reflection) — mana model
   loosens; HoT-centric builds displace direct Healing Touch.
+- **Tree of Life 439745** ("...increased all healing received by party
+  members within $a1 yards by 11%") — form semantics unresolved [PROBE,
+  in-game]; NOT laned. Lifebloom / Nourish / Living Seed have no client
+  rows on this build (TBC-era kit is absent).
 
 ## Druid-relevant racial detail (per-class page)
 Night Elf (Elune's Light crit burst; Shadowmeld), Tauren (War Stomp,
@@ -139,6 +153,17 @@ faction on-use). Standard set — see racials-and-talents.md.
 - `classes/druid/resto_forever.lua` — Wild Growth CD lane, non-consuming
   Swiftmend spot-heal spam, GotE 1s-GCD blanket priority, critting HoTs,
   Omen clearcast weaving.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes)** — (1) Wild Growth
+  (bridge maxrank, 6s expected cooldown) fires when >= 2 party members sit at
+  or below 90% HP, anchored on the tank when hurt else the lowest member;
+  (2) the Swiftmend spot-heal (class map, 15s CD) picks the first
+  HoT-carrying member at or below 90% — placed directly under the baseline's
+  SwiftmendEmergency; (3) the Gift of the Earthmother blanket casts
+  Rejuvenation on any un-HoT'd member at or below 95% while a 35% mana floor
+  holds. The scan comes from the shared druid healing module (frame-cached,
+  HAS_REJUVENATION/HAS_REGROWTH decoration), not the baseline state. OPEN
+  (in-game): whether the blanket should stop at 2 party members hurt
+  (Rejuv is the expensive HoT) [PROBE].
 - `classes/druid/leveling_forever.lua` — form-change energy model changes
   early cat leveling; Omen baseline helps all specs.
 
@@ -187,10 +212,26 @@ faction on-use). Standard set — see racials-and-talents.md.
 - [x] Nature's Grace 16880 (proc -> 16886) and Dreamstate 408258 (proc ->
       408261) confirmed as passive procs; Moonkin Form 24858's text
       confirms party-wide crit + LotP exclusivity. No lanes.
-- [ ] Swiftmend: confirm non-consumption (effect no longer removes the HoT).
-      [resto delta, #16]
-- [ ] Wild Growth: party HoT effect shape + CD. [resto delta, #16]
+- [x] Swiftmend: confirm non-consumption (2026-09-17, resto day-1) — 18562's
+      client text carries no consumption clause and the effect rows show no
+      HoT-removal effect; 15s cooldown. The day-1 spot-heal lane treats it as
+      non-consuming. [PROBE: confirm the HoT aura SURVIVES a Swiftmend cast
+      in-game — the tooltip alone is the evidence here.]
+- [x] Wild Growth: party HoT effect shape + CD (2026-09-17, resto day-1) —
+      408120@40 / 1238214@50 / 1238215@60 (the level-60 row is what the 60
+      bracket resolves), CategoryRecoveryTime 6000, "Heals the target and
+      their party for 98 over 7". The lane resolves the maxrank BY NAME and
+      declares the 6s expected cooldown. [PROBE: the in-game party radius /
+      whether the HoT ticks independently of Rejuvenation caps.]
 - [ ] Moonkin/LotP buff exclusivity (aura family check).
+- [x] Gift of the Earthmother 414673 (2026-09-17, resto day-1): the engraving
+      resolves in the bridge; the blanket lane is gated on is_spell_learned.
+      [PROBE: the exact 1s-GCD interaction with Swiftmend in the same
+      second.]
+- [x] Tree of Life 439745 (2026-09-17, resto day-1): resolves in the bridge
+      with the +11% party healing-received aura text; form semantics (shapeshift
+      id? duration? aura row?) unresolved — NOT laned, listed as the resto
+      open probe in beta_day1_probes.md.
 - [x] Omen of Clarity (2026-09-17): 16864's client text confirms the
       era-wide baseline proc ("Your spells and attacks have a chance to
       grant you Clearcasting, reducing the Mana, Rage, or Energy cost of

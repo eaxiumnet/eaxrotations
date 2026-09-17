@@ -157,8 +157,20 @@ waits, next-ranked delta moves up.
 - [ ] **Berserk (druid): one spell, form-branched effects** (Bear: no
       Mangle CD + 3 targets; Cat: +100% CP-gen crit; fear immunity) —
       cat/bear burst windows.
-- [ ] **Swiftmend no longer consumes the HoT** (still requires one) —
-      resto spot-heal lane (#16).
+- [x] **Swiftmend no longer consumes the HoT** (2026-09-17, resto day-1):
+      RESOLVED as client-text evidence — 18562 has a 15s cooldown and no
+      consumption clause / aura-removal effect row; the #16 lane ships as a
+      non-consuming spot heal. In-game confirm the HoT aura SURVIVES a cast
+      (kill the target's Rejuv timer mid-cast and re-read).
+- [x] **Wild Growth party HoT + CD** (2026-09-17, resto day-1): RESOLVED —
+      ladder 408120@40 / 1238214@50 / 1238215@60, CategoryRecoveryTime 6000,
+      "Heals the target and their party for 98 over 7". The #16 lane declares
+      the 6s cooldown.
+- [ ] **Tree of Life 439745 form semantics** (shapeshift? duration? aura row?
+      the +11% healing-received text has unresolved `$a1` radius) — resto
+      form lane candidate; NOT laned in #16. Recorded 2026-09-17.
+- [ ] **Rejuv/Swiftmend same-second GCD interaction** (GotE's 1s GCD vs the
+      standard 1.5s floor) — the #16 blanket's throughput assumption.
 - [ ] **Conflagrate no longer consumes Immolate at max Shadow and Flame**
       — destruction rotation (#18).
 - [ ] **Restless Blades CD-discount shape** (2s per CP spent; exact CD
