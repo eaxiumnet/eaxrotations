@@ -125,7 +125,12 @@ builder with the both-hand dagger gate and the poison tag, the Venom
 poison-window finisher at 5 CP, and the Improved Expose Armor 5-CP refund
 upgrade of the assigned armor lane; the energy-model probe stays
 unconfirmed, so the vanilla energy shape is kept).
-#21–#26 pending.
+#21 `priest/shadow_forever.lua` BUILT (2 lanes: the Shadow Word: Death
+Early Demise execute the baseline never had, and the Devouring Contagion
+cleave maintenance lane keeping DP rolling so deaths spread it; Improved
+Mind Flay is a pure passive on the range-gateless baseline lane, Early
+Demise recorded as a BaseLevel-0 bridge gap).
+#22–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

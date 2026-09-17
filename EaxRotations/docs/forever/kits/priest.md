@@ -108,6 +108,21 @@ Eureka!) carry from racials-and-talents.md.
   Heal pair-heal, Litany of Light cast-variability engine.
 - `classes/priest/shadow_forever.lua` — universal DP dot, extended Mind
   Flay (range + slow), DP-spread on-kill chaining, SW:D execute sharpening.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
+  Shadow Word: Death as the Early Demise execute (the baseline had NO SW:D
+  lane): the maxrank row 1309636 at targets <= 20% HP, 15s
+  CategoryRecoveryTime declared, below the mana-emergency floor and never
+  clipping a live Mind Flay channel. Early Demise 1310076 is BaseLevel 0 (the
+  builder's level guard excludes it — recorded as a probe), so the lane does
+  not gate on the talent: its 20%-HP window IS the talent's condition. (2)
+  The Devouring Contagion chaining lane: talent-gated, cleave/aoe mode,
+  DP refreshed inside a wider 6s window so trash deaths always spread it
+  (1309950: -50% mana, 10y jump). Devouring Plague is rune-granted
+  ("Gain the Devouring Plague ability" rows reference the vanilla 19280
+  ladder) — the baseline's spell_exists lane is the universal path, no delta.
+  Improved Mind Flay 1225139 (+damage, +range, slow) is a pure passive on the
+  baseline's range-gateless MindFlay lane — no new lane; the in-game numbers
+  are recorded as a probe.
 - `classes/priest/smite_forever.lua` — Power in Light makes the smite
   build real: Holy Fire upkeep + Penance/Smite core.
 - `classes/priest/leveling_forever.lua` — Fear Ward/DP universal access
@@ -147,8 +162,20 @@ Eureka!) carry from racials-and-talents.md.
       casts — both passive on existing lanes, no new lane.
 - [ ] PoM: trigger-on-damage buff + jump chain (aura shape). [holy delta]
 - [ ] DP + Fear Ward: baseline (non-racial) availability.
-- [ ] Mind Flay range extension + slow effect. [shadow delta]
-- [ ] Devouring Contagion spread-on-death effect. [shadow delta]
+- [x] Mind Flay range extension + slow effect (2026-09-17, shadow day-1):
+      1225139 reads "+damage, +range, slow"; the baseline's MindFlay lane
+      carries no range gate, so the extension applies to every existing cast
+      (no new lane). [PROBE: the exact +yards / slow % / damage % in-game.]
+- [x] Devouring Contagion spread-on-death effect (2026-09-17, shadow
+      day-1): 1309950 = -50% DP mana (aura 108) + a 10y jump on death (aura
+      4, base 10); the #21 lane keeps DP rolling in cleave/aoe so the spread
+      chains. [PROBE: the spread target selection (nearest enemy?) and
+      whether the jump carries the remaining duration.]
+- [x] Shadow Word: Death + Early Demise (2026-09-17, shadow day-1): SW:D
+      ladder 1309595@32 / 1309633@40 / 1309635@48 / 1309636@56 with
+      CategoryRecoveryTime 15000; Early Demise 1310076 (+30% crit at <= 20%
+      HP, effect rows) is BaseLevel 0 — the builder's level guard excludes it
+      (probe). The #21 execute lane's window matches the talent's condition.
 - [ ] Cross-check against the Icy Veins priest overview if it appears.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on

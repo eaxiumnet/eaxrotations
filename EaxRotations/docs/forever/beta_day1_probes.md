@@ -216,6 +216,18 @@ waits, next-ranked delta moves up.
       assassination delta kept the vanilla energy shape (real-cost builder
       gate, pooling flag on finishers); if the probe lands CONFIRMED the
       thresholds re-derive (and #22/#23 follow).
+- [x] **Devouring Contagion spread + universal DP** (2026-09-17, shadow
+      day-1): RESOLVED by the client text/effects — 1309950 = −50% DP mana
+      + a 10y on-death jump; DP is rune-granted ("Gain the Devouring Plague
+      ability" rows referencing the vanilla 19280 ladder) so every race
+      reaches the baseline's lane. [PROBE: the jump target selection and
+      whether the remaining duration carries.]
+- [x] **Improved Mind Flay numbers** (2026-09-17, shadow day-1): 1225139
+      reads +damage / +yards / slow; the baseline MindFlay lane has no range
+      gate so the extension is passive. [PROBE: the exact +yards and slow %
+      in-game; Early Demise 1310076 is a BaseLevel-0 bridge gap like Fingers
+      of Frost — the #21 lane's window matches the talent condition
+      regardless.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

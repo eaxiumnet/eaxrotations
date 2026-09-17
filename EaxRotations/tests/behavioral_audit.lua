@@ -1509,6 +1509,12 @@ function M.build_ns(class_key, era)
         -- ids[1] resolves the holy_cure_on_cd on_cd entry (CureDisease on CD
         -- → holy AbolishDisease's `not cure_disease_ready` gate passes).
         CureDisease = ns.spell_action({ 528, 11554 }, "CureDisease"),
+        -- (forever day-1 2026-09-17): the shadow delta's Contagion lane casts
+        -- the class-map Devouring Plague; the mock lacked it (the baseline's
+        -- devouring_plague_known read passed only through the permissive
+        -- spell_exists(nil) path). Ladder mirrors classes/priest/
+        -- class_sylvanas.lua (TBC max rank first).
+        DevouringPlague = ns.spell_action({ 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
         -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
         -- comment for the rationale and ladder convention.
         DesperatePrayer = ns.spell_action({ 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
@@ -3652,6 +3658,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_mutil
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_iea",
     overrides = { in_combat = true, combo_points = 5,
                   setting_overrides = { assassin_expose_assigned = true } } }
+-- Priest shadow: the Early Demise execute window (a 20%-HP target) and the
+-- Contagion cleave maintenance (a 3-enemy bank puts the state in cleave mode
+-- with the DP debuff absent on the primary target).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_swd",
+    overrides = { in_combat = true, target_hp = 20 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_contagion",
+    overrides = { in_combat = true, enemy_count = 3, enemies_count = 3 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4573,6 +4586,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Mutilate"] = 90044,
             ["Venom"] = 90045,
             ["Improved Expose Armor"] = 90046,
+            -- Priest shadow day-1 (2026-09-17): the SW:D execute cast and the
+            -- Devouring Contagion talent gate.
+            ["Shadow Word: Death"] = 90047,
+            ["Devouring Contagion"] = 90048,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
