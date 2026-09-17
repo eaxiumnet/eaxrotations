@@ -63,8 +63,9 @@ miss downgrades the lane to dormant, never a guessed ID.
 mage fire/arcane.
 **Wave-2 status (2026-09-17)**: #5 `druid/cat_forever.lua` BUILT (destructive:
 Powershift dropped per the Furor rework, Tiger's Fury replaced, Berserk burst
-added — probe P2 #1 resolved "rework shipped" from the client text). #6–#14
-pending.
+added — probe P2 #1 resolved "rework shipped" from the client text). #6
+`druid/bear_forever.lua` BUILT (additive: Mangle/Lacerate core above the
+Swipe/Maul block, Berserk-bear window). #7–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

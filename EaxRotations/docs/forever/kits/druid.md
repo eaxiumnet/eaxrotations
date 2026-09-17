@@ -98,6 +98,15 @@ faction on-use). Standard set — see racials-and-talents.md.
 - `classes/druid/bear_forever.lua` — Mangle/Lacerate/Maul priority with
   Lacerate stack tracking (Pattern 11), Berserk-bear AoE window
   (no-Mangle-CD + 3-target), threat re-derivation.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (additive)** — Berserk 417141,
+  Mangle (the druid max-rank row 1238073@60, CategoryRecoveryTime 6000,
+  threat effect; the TBC class-map MangleBear ids are absent from this client
+  so the lane resolves by name) and Lacerate (414644@42/1235826@50/1235827@58,
+  CumulativeAura 5, 15s bleed, debuff_stacks read) spliced above the
+  baseline's Swipe/Maul block — Maul becomes the rage dump by priority.
+  Threat re-derivation: no lane change (no threat API data); the taunt head
+  lanes keep first refusal. OPEN (in-game): whether Berserk-bear should wait
+  for multi-target pulls instead of firing on cooldown single-target.
 - `classes/druid/balance_forever.lua` — Eclipse alternation loop (stack
   reads), Nature's Grace crit-proc lane, relaxed threat logic, moonkin
   buff-role accounting (LotP exclusivity).
@@ -135,10 +144,15 @@ faction on-use). Standard set — see racials-and-talents.md.
       $417046s1 Energy]" with King of the Jungle (417046, effect base 60).
       The lane replacement drops the vanilla energy-cap gate (which blocked
       a FREE CD above 70 energy) and keeps the buff-down refresh gate.
-- [ ] Lacerate stack cap + threat effect; Mangle 6s CD (bear wave — the
-      ladder is 414644@42/1235826@50/1235827@58, **CategoryRecoveryTime
-      6000** on every Mangle rank, threat effect 31; the bridge's "Lacerate"
-      maxrank already lands on the druid 1235827).
+- [x] Lacerate + Mangle (2026-09-17, bear day-1): Lacerate ladder
+      414644@42 / 1235826@50 / 1235827@58 with **CumulativeAura 5** and
+      **SpellDuration 8 = 15s**, bleed aura row + 11%-weapon-damage dummy;
+      **Mangle ladder 407995@25 / 1238069@36 / 1238070@48 / 1238073@60 with
+      CategoryRecoveryTime 6000** and a threat effect row (bear role). The
+      TBC class-map `MangleBear` ids (33987/33986/33878) do NOT exist on this
+      client — bear lanes must resolve by name. The bridge's "Lacerate"
+      maxrank lands on the druid 1235827 (the classic 24118 is a Hunter-class
+      row) ✓.
 - [ ] Eclipse: stack cap 4 + Wrath/Starfire trigger shape.
 - [ ] Swiftmend: confirm non-consumption (effect no longer removes the HoT).
 - [ ] Wild Growth: party HoT effect shape + CD.

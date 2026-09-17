@@ -3529,6 +3529,15 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_berserk",
     overrides = { form = 3, in_combat = true, energy = 60, combo_points = 2 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_tigers_fury",
     overrides = { form = 3, in_combat = true, energy = 50, combo_points = 2 } }
+-- Druid bear: the Mangle/Lacerate core needs bear form + rage + a valid
+-- enemy; the stack scenario drives the Lacerate debuff read through the
+-- id-scoped debuff_stacks bank (sentinel aura id) so the build path is
+-- exercised, not just the empty-target path.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_mangle",
+    overrides = { form = 1, in_combat = true, rage = 60 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_lacerate_stacks",
+    overrides = { form = 1, in_combat = true, rage = 60, debuff_stacks = 3,
+                  debuff_aura_ids = { 90015 }, debuff_remains_map = { [90015] = 10 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4379,6 +4388,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Tiger's Fury buff id (the replacement lane's refresh gate).
             ["Berserk"] = 90012,
             ["Tiger's Fury"] = 90013,
+            -- Druid bear day-1 (2026-09-17): the Mangle/Lacerate cast rows
+            -- (Lacerate's stack read is scoped by the same sentinel id).
+            ["Mangle"] = 90014,
+            ["Lacerate"] = 90015,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

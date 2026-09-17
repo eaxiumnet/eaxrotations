@@ -63,6 +63,7 @@ local tests = {
  "test_mage_fire_forever.lua",
  "test_mage_arcane_forever.lua",
  "test_druid_cat_forever.lua",
+ "test_druid_bear_forever.lua",
  "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",
