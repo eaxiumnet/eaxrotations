@@ -260,6 +260,12 @@ waits, next-ranked delta moves up.
       cooldown at the low ranks and the @6 rank id — the bridge mirrors
       carry one id per name, so a rank-ladder mirror is a close-out
       candidate.]
+- [x] **Druid Omen clearcast for leveling** (2026-09-17, druid leveling
+      day-1): Omen of Clarity 16864 resolves in all three bridge mirrors
+      (the cat_vanilla precedent reads the same id as the clearcast buff);
+      the leveling lane fires the expensive ability free. The form-energy
+      half is a no-op (Furor capped; no powershift lane in the leveling
+      file).
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

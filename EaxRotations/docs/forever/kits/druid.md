@@ -166,6 +166,16 @@ faction on-use). Standard set — see racials-and-talents.md.
   (Rejuv is the expensive HoT) [PROBE].
 - `classes/druid/leveling_forever.lua` — form-change energy model changes
   early cat leveling; Omen baseline helps all specs.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the Omen of
+  Clarity clearcast weave: with the era-wide baseline proc (16864) up, the
+  leveling cat fires its EXPENSIVE ability inside the free-cast window —
+  Shred when behind, Claw otherwise — waiving the baseline's flat energy
+  floors (Shred >= 42, Claw >= 45) that would otherwise block the free
+  cast; the cat/combat/target/< 5-CP gates mirror the baseline exactly. The
+  form-change half needs NO lane: the Furor rework (probe P2 #1) is a capped
+  restore that can never net energy and the vanilla leveling baseline
+  carries no powershift lane (the cat spec delta was destructive for that
+  reason; the leveling file was already clean).
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve every named ability above BY NAME in the Forever bridge

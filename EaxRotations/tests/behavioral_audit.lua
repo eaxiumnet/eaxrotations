@@ -3699,6 +3699,11 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_smite_penance"
 -- id, a test-only literal in the scenario).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_leveling_strike",
     overrides = { in_combat = true, buff_remains_map = { [21084] = 600 } } }
+-- Druid leveling: the Omen clearcast weave (cat form via the form bank, an
+-- open combo bank and the real Omen id in the buff map).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_druid_leveling_omen",
+    overrides = { in_combat = true, form = 3, combo_points = 2,
+                  buff_remains_map = { [16864] = 10 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

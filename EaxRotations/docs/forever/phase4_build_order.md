@@ -150,9 +150,12 @@ talent-gated, fail-closed to the baseline).
 #26 `*/leveling_forever.lua` fillers IN PROGRESS: paladin BUILT (the Holy
 Strike strike lane from the re-added Retribution ladder, woven between
 Exorcism and Consecration; the rank-ladder mirror recorded as a close-out
-candidate); the remaining classes (druid form-energy, rogue energy pace,
-warlock Bane-slot math, warrior Victory Rush, hunter Aimed Shot, mage
-Frostfire, shaman early Stormstrike, priest Fear Ward/DP) follow.
+candidate); druid BUILT (the Omen of Clarity clearcast weave waiving the
+flat energy floors inside the free-cast window; the form-energy half needs
+no lane — Furor is a capped restore and the leveling file has no
+powershift lane); the remaining classes (rogue energy pace, warlock
+Bane-slot math, warrior Victory Rush, hunter Aimed Shot, mage Frostfire,
+shaman early Stormstrike, priest Fear Ward/DP) follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
