@@ -169,6 +169,7 @@ table.grid th { background: #161b22; color: #8b949e; font-weight: normal; }
 .sky { color: #71d5ff; font-weight: 600; }
 .count { color: #8b949e; font-size: 12px; margin-bottom: 8px; }
 .cbtn { background: #21262d; color: #58a6ff; border: 1px solid #30363d; border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-top: 8px; font-size: 12px; }
+.tooltip td.dim { color: #8b949e; }
 .idtag { color: #8b949e; font-size: 11px; cursor: pointer; border: 1px dashed #30363d; border-radius: 4px; padding: 1px 6px; }
 .idtag:hover { color: #58a6ff; border-color: #58a6ff; }
 .sectionhead { color: #8b949e; font-size: 13px; margin: 16px 0 6px; border-bottom: 1px solid #30363d; padding-bottom: 4px; }
@@ -474,18 +475,44 @@ function showItem(id) {
     + '<div>' + esc(it.slot || "—") + ' &middot; ' + esc(it.cls)
     + (it.sub ? ' / ' + esc(it.sub) : '') + '</div>';
   if (it.stats && it.stats.length) {
-    h += '<table><tr><th>stat</th><th>budget</th></tr>';
+    h += '<table><tr><th>stat</th><th>value</th><th>budget</th></tr>';
     for (var i = 0; i < it.stats.length; i++) {
-      h += '<tr><td>' + esc(statName(it.stats[i][1])) + '</td><td>'
-        + (it.stats[i][2] / 100).toFixed(0) + '%</td></tr>';
+      var st = it.stats[i];
+      var val = (st[2] === null || st[2] === undefined) ? "—" : "+" + st[2];
+      h += '<tr><td>' + esc(statName(st[1])) + '</td><td>' + val
+        + '</td><td class="dim">' + (st[3] / 100).toFixed(0) + '%</td></tr>';
     }
     h += '</table>';
+    h += '<div class="note">values derived from the client item-level budget'
+      + ' (formula verified on Lionheart Helm and Thunderfury); budget = raw'
+      + ' share of the slot budget.</div>';
   } else {
-    h += '<div class="note">no stat budget on this item</div>';
+    h += '<div class="note">no stats on this item</div>';
+  }
+  if (it.effects && it.effects.length) {
+    h += '<div class="sectionhead">use / equip</div>';
+    for (var e = 0; e < it.effects.length; e++) {
+      var ef = it.effects[e];
+      h += '<div class="sub"><b>' + esc(ef.name || ("spell " + ef.spell))
+        + '</b>' + (ef.charges ? ' &middot; ' + ef.charges + ' charges' : '')
+        + (ef.cd_s ? ' &middot; ' + ef.cd_s + 's cooldown' : '') + '</div>';
+      if (ef.desc) h += '<div class="desc" style="color:#c9d1d9">'
+        + ef.desc + '</div>';
+    }
+  }
+  if (it.desc) {
+    h += '<div class="desc" style="font-style:italic">' + it.desc + '</div>';
   }
   if (it.set && ITEMSETS[it.set]) {
-    h += '<div class="ladder">set: ' + esc(ITEMSETS[it.set])
-      + ' (id ' + it.set + ')</div>';
+    var s2 = ITEMSETS[it.set];
+    h += '<div class="sectionhead">set: ' + esc(s2.name) + ' (id '
+      + it.set + ')</div>';
+    for (var b = 0; b < s2.bonuses.length; b++) {
+      var bo = s2.bonuses[b];
+      h += '<div class="sub">(' + bo.need + ') '
+        + esc(bo.name || ("spell " + bo.spell)) + '</div>';
+      if (bo.desc) h += '<div class="note">' + esc(bo.desc) + '</div>';
+    }
   }
   var bits = [];
   if (it.buy) bits.push("buy " + money(it.buy));
@@ -501,11 +528,13 @@ function showItem(id) {
     qname(it.q) + " | ilvl " + it.ilvl + " | req " + it.req + " | "
     + (it.slot || "—") + " | " + it.cls + (it.sub ? " / " + it.sub : "")];
   for (var s = 0; s < (it.stats || []).length; s++) {
-    lines.push("  " + statName(it.stats[s][1]) + ": "
-      + (it.stats[s][2] / 100).toFixed(0) + "% budget");
+    var st3 = it.stats[s];
+    lines.push("  +" + (st3[2] === null || st3[2] === undefined ? "?" : st3[2])
+      + " " + statName(st3[1]));
   }
+  if (it.desc) lines.push("flavor: " + String(it.desc).replace(/<[^>]+>/g, ""));
   if (it.set && ITEMSETS[it.set]) {
-    lines.push("set: " + ITEMSETS[it.set] + " (" + it.set + ")");
+    lines.push("set: " + ITEMSETS[it.set].name + " (" + it.set + ")");
   }
   wireCopy(box, lines.join("\\n"));
   var tag = box.querySelector(".idtag");
@@ -827,7 +856,8 @@ in any modern browser — no server, no internet needed:
   Click a row for the full tooltip (client text verbatim), the raw effect
   table, and buttons to walk the whole rank ladder.
 - **Items** tab: search {NITEMS} items by name/id, filter by quality/class;
-  item cards show slot, prices and the stat budget.
+  item cards show slot, prices, computed stats, flavor text and use/equip
+  effects.
 - **Talents** tab: all {NTALENTS} talents across 27 trees (9 classes x 3),
   tier/column with rank-spell names.
 - **World** tab: zones, points of interest, area triggers and the flight
@@ -852,7 +882,7 @@ in any modern browser — no server, no internet needed:
 | `data/trainers.json` | What each class trainer teaches, with required levels. |
 | `data/races.json` | All client races, playable flag, starting level. |
 | `data/procs.json` | Proc/aura-chance rows (chance, charges, type) with spell names joined. |
-| `data/items.jsonl` | Every named item ({NITEMS} rows): quality, item level, required level, class/subclass, slot, stat types + budget percents, prices, set id. |
+| `data/items.jsonl` | Every named item ({NITEMS} rows): quality, item level, required level, class/subclass, slot, computed stat values, flavor text, use/equip effects, prices, set id. |
 | `data/spell_meta.json` | Per-spell extras keyed by id: cast time, duration, range, radius, target cap, dispel/mechanic, mana cost, interrupt flags. |
 | `data/zones.json` | Every zone/area with its map and parent area. |
 | `data/points.json` | Place index: points of interest, area triggers and flight masters with world coordinates. |
@@ -905,10 +935,11 @@ any editor:
   columns and only one is extracted here (Holy Shock, Holy Strike and Lava
   Burst keep theirs in the other one). A blank cell means "no data", not
   "spammable".
-- **Item stat numbers are computed by the game, not stored.** The item files
-  carry stat types and budget percentages; the game turns those into final
-  numbers from item level and quality. Treat them as relative weights and
-  check final values in-game.
+- **Item stats are computed for you, but armor/damage are not.** The client
+  stores stat shares and item level; the files here compute the real values
+  (verified on famous items like Lionheart Helm and Thunderfury). Armor and
+  weapon damage do not derive from the client tables offline — check those
+  in game.
 - **Tooltip `$s1`-style tokens are verbatim** client text — the numbers they
   stand for resolve in-game, not in this package.
 - **No hotfix data.** The beta ships no usable hotfix cache for its own
@@ -971,7 +1002,14 @@ def build_viewer(spells, talents, races, meta, extra):
                    "stats": i.get("stats", []), "set": i.get("set", 0),
                    "buy": i.get("buy", 0), "sell": i.get("sell", 0),
                    "stack": i.get("stack", 0), "delay": i.get("delay_ms", 0),
-                   "bond": i.get("bonding", 0), "icon": i.get("icon_fdid", 0)}
+                   "bond": i.get("bonding", 0), "icon": i.get("icon_fdid", 0),
+                   "desc": render_desc(i.get("desc", "")),
+                   "effects": [{"spell": e["spell"],
+                                "name": render_desc(e.get("name", "")),
+                                "desc": render_desc(e.get("desc", "")),
+                                "charges": e.get("charges", 0),
+                                "cd_s": e.get("cd_s", 0)}
+                               for e in i.get("effects", [])]}
                   for i in extra["items"]]
     tokens = {
         "{VERSION}": html.escape(meta.get("client_version", "?")),
@@ -1031,8 +1069,23 @@ def load_inputs():
         races = json.load(open(os.path.join(PKG, "races.json"),
                                encoding="utf-8"))
         meta = dict(conn.execute("SELECT k, v FROM meta").fetchall())
-        sets = {str(r["ID"]): (r["Name_lang"] or "") for r in conn.execute(
-            "SELECT ID, Name_lang FROM ItemSet")}
+        sets = {}
+        for r in conn.execute("SELECT ID, Name_lang FROM ItemSet"):
+            sets[str(r["ID"])] = {"name": r["Name_lang"] or "", "bonuses": []}
+        for r in conn.execute(
+                "SELECT ItemSetID, Threshold, SpellID FROM ItemSetSpell"
+                " ORDER BY ItemSetID, Threshold, SpellID"):
+            sid = str(r["ItemSetID"])
+            if sid not in sets:
+                continue
+            srow = conn.execute(
+                "SELECT name, description FROM spells WHERE id = ?",
+                (r["SpellID"],)).fetchone()
+            sets[sid]["bonuses"].append({
+                "need": r["Threshold"], "spell": r["SpellID"],
+                "name": (srow["name"] if srow else "") or "",
+                "desc": (srow["description"] if srow else "") or "",
+            })
     finally:
         conn.close()
     extra = {"sets": sets}
@@ -1145,6 +1198,13 @@ def check_bundle():
         for spot in (19019, 6948, 12640):
             if spot not in iids:
                 problems.append("viewer item data missing spot id %d" % spot)
+        by_id = {i["id"]: i for i in items}
+        tf = {s[1]: s[2] for s in by_id.get(19019, {}).get("stats", [])}
+        if tf.get("agility") != 5 or tf.get("stamina") != 8:
+            problems.append("Thunderfury computed stats wrong: %s" % tf)
+        lh = {s[1]: s[2] for s in by_id.get(12640, {}).get("stats", [])}
+        if lh.get("strength") != 18:
+            problems.append("Lionheart Helm strength != 18: %s" % lh)
     if "d-zones" in blobs:
         if len(blobs["d-zones"]) < 1000:
             problems.append("viewer zone data only %d rows"

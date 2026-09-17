@@ -12,14 +12,14 @@
 |---|---|---|
 | `index.html` | viewer (offline) | Self-contained Wowhead-style browser: search + class/heal/aoe filters, tooltip cards, rank ladders, talent trees, race table. Double-click to open, no server |
 | `forever-datamine-1.60.1.69893.zip` | shareable bundle | The viewer + every file below + the rotation bridge + a generated friend-facing README (the maintainer README you are reading never ships — it references repo paths) under one top folder |
-| `forever_datamine.db` | SQLite | Curated `spells`, `spell_effects`, `spell_ranks`, `talents`, `talent_tabs`, `trainer_spells`, `races`, `procs`, `meta` tables + `player_spells` / `heals` views, **plus a verbatim mirror of all 95 world/NPC/item DBC tables** (`AreaTable`, `Map`, `UiMap*`, `Taxi*`, `Creature*`, `Item*`, `SpellPower`, ...) and 4 helper views: `creature_displays`, `zones`, `taxi_nodes`, `item_index` |
+| `forever_datamine.db` | SQLite | Curated `spells`, `spell_effects`, `spell_ranks`, `talents`, `talent_tabs`, `trainer_spells`, `races`, `procs`, `meta` tables + `player_spells` / `heals` views, **plus a verbatim mirror of all 96 world/NPC/item DBC tables** (`AreaTable`, `Map`, `UiMap*`, `Taxi*`, `Creature*`, `Item*`, `SpellPower`, ...) and 4 helper views: `creature_displays`, `zones`, `taxi_nodes`, `item_index` |
 | `spells.jsonl` | JSON lines | One object per named spell (31,308 lines): full descriptions included |
 | `by_name.json` | JSON map | Exact client name → every spell id carrying it (sorted) |
 | `talents.json` | JSON | 27 talent tabs → talents (tier/column/prereq) with rank-spell names + descriptions joined |
 | `trainers.json` | JSON | Per class: trainer spell lists (spell, level, skill line, method) |
 | `races.json` | JSON | All 58 client races (playable flag, starting level) |
 | `procs.json` | JSON | `SpellAuraOptions` proc rows (chance/charges/type) with spell names joined |
-| `items.jsonl` | JSON lines | One object per named item (~19k): quality, ilvl, required level, class/subclass, slot, budget stat types + percents, prices, stack, set id, icon FDID |
+| `items.jsonl` | JSON lines | One object per named item (~19k): quality, ilvl, required level, class/subclass, slot, **computed stat values + budget shares**, flavor text, on-use/equip effects (via `ItemXItemEffect`), prices, stack, set id, icon FDID |
 | `zones.json` | JSON | `AreaTable` joined to `Map`: every named area with id, map name/type, parent area |
 | `points.json` | JSON | Place index: `AreaPOI` + `AreaTrigger` + `TaxiNodes` in one list with world coordinates (x/y/z) and ids |
 | `taxi.json` | JSON | Flight network: 100 nodes (name, map, x/y/z) + 328 paths (from/to, ticket cost, waypoint count) |
@@ -126,7 +126,7 @@ array. `trainers`: per-class trainer lists joined to skill-line names
 `races`: all 58 client races with `playable` flag and starting level.
 `procs`: `SpellAuraOptions` rows (chance/charges/type/ppm) with spell names
 joined. `meta`: client version/build/product, extraction timestamp,
-generator, source DB, `dbc_tables` (108).
+generator, source DB, `dbc_tables` (109).
 
 **World mirror**: every table named in `WORLD_TABLES`
 (`tools/build_forever_database.py`) is copied verbatim from
@@ -174,16 +174,24 @@ and only carries non-zero fields.
   `CharStartOutfit`, `SoundEntries` and the `Gt*` game tables are likewise
   absent from this client build (probe-confirmed). Use
   `tools/probe_forever_tables.py` to re-check after a client patch.
-- **Item stat values are budget-derived, not stored.** `ItemSparse` stores
-  stat TYPES (`StatModifier_bonusStat`) and budget PERCENTS in basis points
-  (`StatPercentEditor`, e.g. Lionheart Helm 4000 = 40%), not final numbers:
-  the client computes `value ≈ percent / 10000 × RandPropPoints(ilvl)`
-  budget component, picked by quality and an inventory-slot tier. Budget
-  tables ship raw (`RandPropPoints`, `ItemArmor*`, `ItemDamage*`,
-  `ItemArmorQuality/Shield`), so the derivation is possible — but the
-  slot→tier mapping is client logic and may not be exact. Verify final
-  numbers in-game before theorycrafting with them. Armor/damage carve-outs
-  are NOT stored per item either; they come from the same tables.
+- **Item stat values are computed, and validated.** The 1.60 client stores
+  stat TYPES + budget SHARES (basis points in `StatPercentEditor`) and
+  derives values from `RandPropPoints(ItemLevel)[quality column][slot tier]`.
+  `items.jsonl` carries both the computed value and the raw share, using the
+  slot-tier mapping calibrated against the 2.5.5 reference client (which
+  stores final values): head/chest/legs/2H/robe -> tier 0;
+  shoulders/waist/feet/hands -> 1; neck/wrist/finger/back/shield/holdable ->
+  2; 1H/main-hand/off-hand -> 3; ranged/thrown -> 4. Spot checks:
+  Lionheart Helm -> +18 Str / +28 crit rating / +20 hit rating;
+  Thunderfury -> +5 agi / +8 sta / +8 fire res / +9 nature res. Still NOT
+  computed: **armor and weapon damage** (their tables do not reproduce
+  classic values) and items without `ItemLevel` (shares only). Verify
+  anything surprising in-game.
+- **Item effects come from `ItemXItemEffect`.** `ItemEffect` rows are keyed
+  by row id, not item id; the item link lives in `ItemXItemEffect`
+  (`ItemID` -> `ItemEffectID`). That is what resolves potions, trinkets and
+  procs (Thunderfury -> spell 21992). The old direct `ItemEffect.ID = item`
+  join finds nothing on this client.
 - **NPC spawns, drop tables and live health do NOT exist in the client.**
   No client DB2 carries spawn points, loot, vendors or per-NPC HP — that
   data lives server-side. What the client DOES ship: the companion-creature

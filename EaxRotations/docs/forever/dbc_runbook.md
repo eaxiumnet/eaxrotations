@@ -5,10 +5,10 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
-## Status (updated 2026-09-17: 108-table extraction, world/NPC/item package)
+## Status (updated 2026-09-17: 109-table extraction, world/NPC/item package)
 
-**2026-09-17 world/NPC extension:** the extraction grew from 13 to **108
-tables** — the 13 spell/talent core plus 95 probe-confirmed world/NPC/item/
+**2026-09-17 world/NPC extension:** the extraction grew from 13 to **109
+tables** — the 13 spell/talent core plus 96 probe-confirmed world/NPC/item/
 spell-meta tables (creature displays/models/families/types/speeds,
 factions, `AreaTable`/`Map`/`UiMap*`/`AreaPOI`/`AreaTrigger`, the `Taxi*`
 network, `TransportAnimation`, the full `Item*` family, `SpellPower`/
@@ -94,7 +94,7 @@ Run from the repo root (or the forever worktree):
 # 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9 required):
 cd ../scripts-backup-20260630-095300/tbc-new/tools/DB2ToSqlite && dotnet run --
     -o /c/newbot/scripts/wowheadScrape/dbc_extract/wowsims_forever.db
-#    Full package (108 tables incl. world/NPC/item): use the settings file
+#    Full package (109 tables incl. world/NPC/item): use the settings file
 #    appsettings.forever_world.json instead of the default appsettings.json:
 #      dotnet DB2ToSqliteTool.dll -s appsettings.forever_world.json -o <db>
 #    The table list = 13 core + WORLD_TABLES (tools/build_forever_database.py).

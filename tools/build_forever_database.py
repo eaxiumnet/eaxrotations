@@ -35,10 +35,13 @@ cases where id order disagrees with level order (Holy Strike) or where one
 name covers several roles (Arcane Blast aura vs nuke).
 
 Item stats: ItemSparse stores stat *types* (StatModifier_bonusStat) and
-budget *percents in basis points* (StatPercentEditor), NOT final numbers --
-the client derives final values from ilvl/quality via the budget tables
-(RandPropPoints, ItemArmor*/ItemDamage*) which ship raw in this package.
-See the README quirks for the derivation formula and its slot-tier caveat.
+budget *shares in basis points* (StatPercentEditor), NOT final numbers --
+the client derives final values from ilvl/quality via the budget tables.
+This package now COMPUTES the values (RandPropPoints x share x slot tier;
+see the STAT_TIER calibration note below) and keeps the raw share alongside;
+the raw budget tables (RandPropPoints, ItemArmor*, ItemDamage*) ship as-is
+for anyone re-deriving. Armor and weapon damage are not computed (their
+tables do not reproduce classic values -- verify in-game).
 """
 
 import argparse
@@ -99,7 +102,8 @@ WORLD_TABLES = (
     "ItemDamageAmmo", "ItemDamageOneHand", "ItemDamageOneHandCaster",
     "ItemDamageRanged", "ItemDamageThrown", "ItemDamageTwoHand",
     "ItemDamageTwoHandCaster", "ItemDamageWand", "ItemSet", "ItemSetSpell",
-    "ItemExtendedCost", "ItemEffect", "ItemBonus", "SpellItemEnchantment",
+    "ItemExtendedCost", "ItemEffect", "ItemXItemEffect", "ItemBonus",
+    "SpellItemEnchantment",
     "GemProperties", "RandPropPoints",
     # spell metadata (rotation dev)
     "SpellCastTimes", "SpellDuration", "SpellRadius", "SpellRange",
@@ -113,6 +117,24 @@ WORLD_TABLES = (
     "ExpectedStat", "ExpectedStatMod", "ContentTuning",
     "ContentTuningXExpected",
 )
+
+# Item stat budget rule (1.60 client): ItemSparse stores stat TYPES +
+# budget SHARES in basis points (StatPercentEditor); the client computes the
+# final values from RandPropPoints(ItemLevel)[quality column][slot tier].
+# Tier + column mapping derived by cross-checking the 2.5.5 reference client
+# (which stores final values in StatModifier_bonusAmount): spot-verified on
+# Lionheart Helm (18 Str / 28 crit / 20 hit) and Thunderfury (5 agi / 8 sta)
+# and consistent across slots/subclasses. Caveats: trinket tier is ambiguous,
+# items without ItemLevel fall back to shares only, and armor/damage are NOT
+# computed (their tables do not reproduce classic values).
+STAT_QUALITY_COL = {0: "good", 1: "good", 2: "good", 3: "superior",
+                    4: "epic", 5: "epic", 6: "epic"}
+STAT_TIER = {1: 0, 5: 0, 7: 0, 17: 0, 20: 0,          # head chest legs 2H robe
+             3: 1, 6: 1, 8: 1, 10: 1,                # shoulder waist feet hands
+             2: 2, 9: 2, 11: 2, 14: 2, 16: 2, 23: 2,  # neck wrist finger back shield holdable
+             13: 3, 21: 3, 22: 3,                     # one-hand / main / off
+             15: 4, 25: 4, 26: 4}                     # ranged / thrown / ranged-right
+STAT_TIER_DEFAULT = 1
 
 # Classic inventory-slot names (InventoryType enum) for item display.
 INV_SLOT = {
@@ -142,7 +164,10 @@ STAT_TYPE = {
     41: "spell_healing_done", 42: "spell_damage_done",
     43: "mana_regeneration", 44: "armor_penetration_rating",
     45: "spell_power", 46: "health_regen", 47: "spell_penetration",
-    48: "block_value",
+    48: "block_value", 49: "mastery", 50: "extra_armor",
+    51: "fire_resistance", 52: "frost_resistance", 53: "holy_resistance",
+    54: "shadow_resistance", 55: "nature_resistance",
+    56: "arcane_resistance",
 }
 
 # TalentTab.ClassMask / SkillLineAbility.ClassMask bit -> class (classic
@@ -572,6 +597,21 @@ def write_world_artifacts():
                 r["DisplayName_lang"] or r["VerboseName_lang"] or "")
         maps = {r["ID"]: r["MapName_lang"] for r in conn.execute(
             "SELECT ID, MapName_lang FROM Map")}
+        rpp = {}
+        for r in conn.execute(
+                "SELECT ID, Epic, Superior, Good FROM RandPropPoints"):
+            rpp[r["ID"]] = {"epic": _fvec(r["Epic"]),
+                            "superior": _fvec(r["Superior"]),
+                            "good": _fvec(r["Good"])}
+        spell_names = {r["id"]: (r["name"], r["description"] or "")
+                       for r in conn.execute(
+                           "SELECT id, name, description FROM spells")}
+        effects_by_item = {}
+        for r in conn.execute(
+                "SELECT x.ItemID, e.SpellID, e.Charges, e.CoolDownMSec"
+                " FROM ItemXItemEffect x JOIN ItemEffect e"
+                " ON e.ID = x.ItemEffectID ORDER BY x.ItemID, e.ID"):
+            effects_by_item.setdefault(r["ItemID"], []).append(r)
         with open(OUT_ITEMS, "w", encoding="utf-8") as f:
             for r in conn.execute(
                     "SELECT sp.ID, sp.Display_lang, sp.ItemLevel,"
@@ -579,21 +619,29 @@ def write_world_artifacts():
                     " sp.BuyPrice, sp.SellPrice, sp.ItemSet,"
                     " sp.StatModifier_bonusStat, sp.StatPercentEditor,"
                     " sp.SocketType, sp.ItemDelay, sp.Bonding,"
-                    " sp.ContainerSlots, i.ClassID, i.SubclassID,"
-                    " i.InventoryType, i.IconFileDataID"
+                    " sp.ContainerSlots, sp.Description_lang,"
+                    " i.ClassID, i.SubclassID, i.InventoryType,"
+                    " i.IconFileDataID"
                     " FROM ItemSparse sp LEFT JOIN Item i ON i.ID = sp.ID"
                     " WHERE sp.Display_lang IS NOT NULL"
                     " AND sp.Display_lang != '' ORDER BY sp.ID"):
                 types = [int(x) for x in _arr(r["StatModifier_bonusStat"])
                          if x.lstrip("-").isdigit()]
                 pcts = _fvec(r["StatPercentEditor"])
+                col = STAT_QUALITY_COL.get(r["OverallQualityID"] or 0, "good")
+                tier = STAT_TIER.get(r["InventoryType"], STAT_TIER_DEFAULT)
+                vals = rpp.get(r["ItemLevel"] or 0, {}).get(col) or []
+                budget = vals[tier] if tier < len(vals) else 0
                 stats = []
                 for i, t in enumerate(types):
                     if t < 0:
                         continue
                     pct = pcts[i] if i < len(pcts) else 0.0
-                    if pct > 0:
-                        stats.append([t, STAT_TYPE.get(t, "stat%d" % t), pct])
+                    if pct <= 0:
+                        continue
+                    val = round(pct / 10000.0 * budget) if budget else None
+                    stats.append([t, STAT_TYPE.get(t, "stat%d" % t),
+                                  val, int(round(pct))])
                 entry = {
                     "id": r["ID"], "name": r["Display_lang"],
                     "quality": r["OverallQualityID"], "ilvl": r["ItemLevel"],
@@ -619,6 +667,21 @@ def write_world_artifacts():
                     entry["bonding"] = r["Bonding"]
                 if stats:
                     entry["stats"] = stats
+                if r["Description_lang"]:
+                    entry["desc"] = r["Description_lang"]
+                effs = []
+                for e in effects_by_item.get(r["ID"], []):
+                    name, desc = spell_names.get(e["SpellID"], ("", ""))
+                    eff = {"spell": e["SpellID"], "name": name}
+                    if desc:
+                        eff["desc"] = desc
+                    if e["Charges"]:
+                        eff["charges"] = e["Charges"]
+                    if e["CoolDownMSec"]:
+                        eff["cd_s"] = round(e["CoolDownMSec"] / 1000.0, 2)
+                    effs.append(eff)
+                if effs:
+                    entry["effects"] = effs
                 socks = [int(x) for x in _arr(r["SocketType"])
                          if x.lstrip("-").isdigit()]
                 if any(socks):
