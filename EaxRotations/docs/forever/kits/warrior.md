@@ -96,6 +96,25 @@ resolves it** (no IDs, no rank numbers below).
 - `classes/warrior/arms_forever.lua` — Rend-proc Overpower lane
   (Bloodthrill), Improved Slam weave with the new 15s CD, Spearing Strike
   encounter-gated nuke, Weaponmaster-aware weapon assumptions.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (one nuke + one replacement)**
+  — Spearing Strike (trainer-taught under Arms) is wired as the
+  encounter-gated nuke: the DBC text is "41% weapon damage ... an additional
+  ${41*3}% weapon damage against Giants, Dragonkin, and mounted targets"
+  (the kit's "40%/+80%" corrected), so the lane fires only when the target's
+  creature type is Giant (5) or Dragonkin (2) — the mounted case has no API
+  signal and is skipped. Improved Slam ("reduces the GCD and cast time ...
+  Slam no longer interrupts your melee swing time") makes the baseline's
+  swing-window gate obsolete, so the baseline Slam lane is REPLACED with an
+  ungated version when the talent is learned (same rage/movement/Overpower
+  guards). **Bloodthrill (1289682: "melee attacks against targets afflicted
+  by your Rend have a 16% chance to activate your Overpower") needs no lane**
+  — the baseline's Overpower lane already keys off the engine readiness
+  state; whether that state includes the proc is an in-game probe (the
+  talent/aura rows are BaseLevel-0 and bridge-invisible). Sudden Death
+  (440113: "one use of Execute regardless of the target's health state")
+  likewise stays un-laned: an ungated Execute lane would shadow the whole
+  rotation if the engine's readiness did NOT include the proc — probe first.
+  Weaponmaster is a talent merge (no lane).
 - `classes/warrior/fury_forever.lua` — WW-both-weapons + cheap-Cleave AoE
   loop, OH-rage/hit economy, ambient-Enrage (drop reactive Enrage lanes),
   Bloodthirst re-tuned priority.
@@ -173,6 +192,17 @@ resolves it** (no IDs, no rank numbers below).
       Sunder Armor 7386/11597, Concussion Blow 12809, Improved Revenge
       12797, Improved Thunder Clap 12287, Focused Rage 29787 all resolve.
       The baseline's TC Battle-stance gate was the one live defect (fixed).
+- [x] Arms wave (2026-09-17): Spearing Strike 1310222@1 = "41% weapon damage
+      ... additional ${41*3}% against Giants, Dragonkin, and mounted"
+      (trainer-taught under Arms; 15 rage per spell_meta power 1); Improved
+      Slam 12862 = "reduces the global cooldown and cast time of your Slam
+      ability ... Slam no longer interrupts your melee swing time"; Mortal
+      Strike 12294/21553, Overpower 7384/11585, Rend 772/11574 resolve.
+      Bloodthrill 1289681/1289682 and Sudden Death 440113 exist (Sudden Death
+      is bridge-resolvable; Bloodthrill's rows are BaseLevel-0) — see the
+      arms status note for why neither adds a lane yet.
+      [PROBE: does the engine's Overpower readiness include the Bloodthrill
+      proc, and does Execute readiness include the Sudden Death window?]
 - [ ] Vanguard: Charge-in-defensive WITHOUT in-combat use. DONE (the lane
       gates OOC + defensive + 8-25yd).
 - [ ] RAGE FORMULA: **not resolvable from the client data** (no rage table

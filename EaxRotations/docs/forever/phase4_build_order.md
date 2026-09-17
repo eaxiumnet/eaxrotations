@@ -85,7 +85,11 @@ is_spell_learned, with the UA/Immolate slot drop). #11
 `warrior/protection_forever.lua` BUILT (the TC lane replaced with a
 stance-agnostic version — the baseline's Battle-only gate blocked the
 class-wide Defensive unlock; the Vanguard OOC Defensive charge opener added
-via is_spell_learned). #13–#14 pending.
+via is_spell_learned). #13
+`warrior/arms_forever.lua` BUILT (Spearing Strike encounter nuke above
+Mortal Strike; the Slam lane replaced under Improved Slam — the swing-window
+gate would suppress most 15s-cooldown casts; Bloodthrill/Sudden Death
+recorded as engine-readiness probes, not guessed gates). #14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

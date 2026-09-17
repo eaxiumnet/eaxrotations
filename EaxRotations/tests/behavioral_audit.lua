@@ -3570,6 +3570,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_charge",
     overrides = { in_combat = false, stance = 2, target_distance = 20, distance = 20 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_tc",
     overrides = { in_combat = true, stance = 2, rage = 40, enemy_count = 3, enemies_count = 3 } }
+-- Warrior arms: the Spearing Strike encounter window (Dragonkin = 2) and the
+-- Improved Slam weave (the sentinel makes the talent learned, so the
+-- baseline Slam lane is replaced).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_spearing",
+    overrides = { in_combat = true, target_creature_type = 2, rage = 50 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_slam",
+    overrides = { in_combat = true, rage = 50 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4443,6 +4450,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Warrior protection day-1 (2026-09-17): the Vanguard passive row
             -- (the Defensive-charge gate).
             ["Vanguard"] = 90023,
+            -- Warrior arms day-1 (2026-09-17): the Spearing Strike cast row
+            -- and the Improved Slam talent row (the Slam-replacement gate).
+            ["Spearing Strike"] = 90024,
+            ["Improved Slam"] = 90025,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
