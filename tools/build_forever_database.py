@@ -5,8 +5,9 @@ WHAT:  turns the beta-client DBC extraction (wowsims_forever.db) into a
         community-ready dataset under wowheadScrape/dbc_extract/
         forever_community/: an enriched SQLite database (forever_datamine.db),
         grep-friendly JSONL (spells.jsonl), lookup maps (by_name.json,
-        talents.json, trainers.json). Full spell descriptions are first-class
-        fields everywhere -- they are the most useful rotation-design input.
+        talents.json, trainers.json, races.json, procs.json). Full spell
+        descriptions are first-class fields everywhere -- they are the most
+        useful rotation-design input.
 WHEN:  beta day 2026-09-17+; re-run after every beta build refresh.
 WHY:   the DBC is the authoritative source of truth (AGENTS.md); this package
         is how the wider community -- humans and AI agents alike -- consumes
@@ -49,6 +50,8 @@ OUT_JSONL = os.path.join(OUT_DIR, "spells.jsonl")
 OUT_BY_NAME = os.path.join(OUT_DIR, "by_name.json")
 OUT_TALENTS = os.path.join(OUT_DIR, "talents.json")
 OUT_TRAINERS = os.path.join(OUT_DIR, "trainers.json")
+OUT_RACES = os.path.join(OUT_DIR, "races.json")
+OUT_PROCS = os.path.join(OUT_DIR, "procs.json")
 
 # TalentTab.ClassMask / SkillLineAbility.ClassMask bit -> class (classic
 # bitmask; verified against the extracted TalentTab rows, one tab per
@@ -389,16 +392,22 @@ def write_package(data, stamp):
     with open(OUT_TRAINERS, "w", encoding="utf-8") as f:
         json.dump(data["trainers"], f, ensure_ascii=False, indent=1,
                   sort_keys=True)
+    with open(OUT_RACES, "w", encoding="utf-8") as f:
+        json.dump(data["races"], f, ensure_ascii=False, indent=1)
+    with open(OUT_PROCS, "w", encoding="utf-8") as f:
+        json.dump(data["procs"], f, ensure_ascii=False, indent=1)
     return {
         "db": OUT_DB, "jsonl": OUT_JSONL, "by_name": OUT_BY_NAME,
         "talents": OUT_TALENTS, "trainers": OUT_TRAINERS,
+        "races": OUT_RACES, "procs": OUT_PROCS,
     }
 
 
 def check_package():
     """Verify a built package (exit codes mirror build_forever_bridge)."""
     missing = [p for p in (OUT_DB, OUT_JSONL, OUT_BY_NAME, OUT_TALENTS,
-                           OUT_TRAINERS) if not os.path.exists(p)]
+                           OUT_TRAINERS, OUT_RACES, OUT_PROCS)
+               if not os.path.exists(p)]
     if missing:
         print("FAIL: package files missing: %s" % missing)
         return 2

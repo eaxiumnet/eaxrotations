@@ -10,16 +10,21 @@
 
 | Artifact (under `wowheadScrape/dbc_extract/forever_community/`) | Shape | Contents |
 |---|---|---|
+| `index.html` | viewer (offline) | Self-contained Wowhead-style browser: search + class/heal/aoe filters, tooltip cards, rank ladders, talent trees, race table. Double-click to open, no server |
+| `forever-datamine-1.60.1.69893.zip` | shareable bundle | The viewer + every file below + this README + the rotation bridge, under one top folder |
 | `forever_datamine.db` | SQLite | `spells`, `spell_effects`, `spell_ranks`, `talents`, `talent_tabs`, `trainer_spells`, `races`, `procs`, `meta` tables + `player_spells` / `heals` views |
 | `spells.jsonl` | JSON lines | One object per named spell (31,308 lines): full descriptions included |
 | `by_name.json` | JSON map | Exact client name → every spell id carrying it (sorted) |
 | `talents.json` | JSON | 27 talent tabs → talents (tier/column/prereq) with rank-spell names + descriptions joined |
 | `trainers.json` | JSON | Per class: trainer spell lists (spell, level, skill line, method) |
+| `races.json` | JSON | All 58 client races (playable flag, starting level) |
+| `procs.json` | JSON | `SpellAuraOptions` proc rows (chance/charges/type) with spell names joined |
 
 Bulk files above are **local-only build output** (gitignored, like the rest
-of `wowheadScrape/`); the tracked artifacts are the generator
-(`tools/build_forever_database.py`), this README, and the rotation
-bridge (`EaxRotations/shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua`).
+of `wowheadScrape/`); the tracked artifacts are the generators
+(`tools/build_forever_database.py`, `tools/build_forever_bundle.py`), this
+README, and the rotation bridge
+(`EaxRotations/shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua`).
 
 ## Quick recipes
 
@@ -64,6 +69,8 @@ Regeneration (needs the beta installed; see `docs/forever/dbc_runbook.md`):
 dotnet DB2ToSqliteTool.dll -s appsettings.forever_full.json -o wowheadScrape/dbc_extract/wowsims_forever.db
 python tools/build_forever_database.py            # rebuild this package
 python tools/build_forever_database.py --check    # verify it
+python tools/build_forever_bundle.py              # viewer + shareable zip
+python tools/build_forever_bundle.py --check      # verify them
 ```
 
 ## Schema reference
