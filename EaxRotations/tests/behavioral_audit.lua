@@ -3520,6 +3520,15 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_missile_ba
 -- by the never-detector).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_loop_start",
     overrides = { mana_pct = 65 } }
+-- Druid cat (destructive delta): the Berserk burst needs cat form + energy +
+-- a valid enemy, and the Tiger's Fury replacement needs the buff down, in
+-- combat, and not stealthed. The scenarios also prove the DROPPED baseline
+-- lanes are gone (Powershift/TigersFury no longer exist on the forever cat
+-- list; the report's strategy count is the pin).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_berserk",
+    overrides = { form = 3, in_combat = true, energy = 60, combo_points = 2 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_tigers_fury",
+    overrides = { form = 3, in_combat = true, energy = 50, combo_points = 2 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4366,6 +4375,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- support lanes resolve the seal cast + the JoC aura/debuff ids.
             ["Seal of the Crusader"] = 90010,
             ["Judgement of the Crusader"] = 90011,
+            -- Druid cat day-1 (2026-09-17): the Berserk burst cast row and the
+            -- Tiger's Fury buff id (the replacement lane's refresh gate).
+            ["Berserk"] = 90012,
+            ["Tiger's Fury"] = 90013,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

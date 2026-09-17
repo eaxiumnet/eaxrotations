@@ -58,6 +58,14 @@ miss downgrades the lane to dormant, never a guessed ID.
 | 13 | `warrior/arms_forever.lua` | Rend-proc Overpower, Improved Slam weave, Spearing Strike encounter gate. |
 | 14 | `mage/frost_forever.lua` | FoF→Ice Lance burst lane, cheaper Shatter, Blizzard retiming — smallest DPS delta in the build order. |
 
+**Wave-1 status (2026-09-17)**: all four BUILT and beta-day verified (commits
+4e67da40f, 6a1821070, 69985c42a, 433dc6d61, b401aff58) — shaman enh/ele,
+mage fire/arcane.
+**Wave-2 status (2026-09-17)**: #5 `druid/cat_forever.lua` BUILT (destructive:
+Powershift dropped per the Furor rework, Tiger's Fury replaced, Berserk burst
+added — probe P2 #1 resolved "rework shipped" from the client text). #6–#14
+pending.
+
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
 Ranked from the completed kits; priest deltas carry a one-notch risk

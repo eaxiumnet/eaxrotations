@@ -87,6 +87,14 @@ faction on-use). Standard set — see racials-and-talents.md.
 - `classes/druid/cat_forever.lua` — POWERSHIFT LANES REMOVED (the big one):
   pure in-form energy priority, critting Rake/Rip weights, Berserk-cat
   burst (CP-generator crit window), Tiger's Fury damage+energy opener.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (destructive)** — Furor 17056's
+  client text confirms the capped-restore rework (probe P2 #1: rework
+  shipped), so the baseline Powershift lane is DROPPED; the baseline
+  Tiger's Fury lane is REPLACED (5217 is free, 30s CD, 6s +16% physical; the
+  old "+30 fits under the cap" gate would block a free CD above 70 energy);
+  Berserk 417141 (180s, 15s, +101% crit to combo-point generators, fear
+  immunity) added as the burst lane. OPEN (in-game): exact Furor X/Y/Z,
+  Berserk's crit window behavior with the bear branches in cat form.
 - `classes/druid/bear_forever.lua` — Mangle/Lacerate/Maul priority with
   Lacerate stack tracking (Pattern 11), Berserk-bear AoE window
   (no-Mangle-CD + 3-target), threat re-derivation.
@@ -100,17 +108,46 @@ faction on-use). Standard set — see racials-and-talents.md.
   early cat leveling; Omen baseline helps all specs.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `DruidSpells` only then.
-- [ ] Furor: confirm the new energy-on-shift formula from DBC effects —
-      the powershifting-verdict probe (drives cat_forever's shape).
-- [ ] Berserk: confirm one spell with form-branched effects.
-- [ ] Lacerate stack cap + threat effect; Mangle 6s CD.
+- [x] Resolve every named ability above BY NAME in the Forever bridge
+      (2026-09-17: Berserk, Tiger's Fury 5217/417045/1312152, Mangle
+      407995/1238069/1238070/1238073, Lacerate 414644/1235826/1235827,
+      Rake/Rip/Shred/FB/Claw/Pounce/Ravage ladders, Cat Form 768, Furor
+      17056, Predatory Instincts 1223242, Genesis 1223081, Rend and Tear
+      1223246, King of the Jungle 417046, Omen of Clarity 16864 — all
+      resolve; role splits below).
+- [x] Furor (2026-09-17): **rework CONFIRMED in the client** — 17056's text
+      is the capped restore formula (regain X% of stored energy + Y/second
+      out of animal forms, capped at Z), NOT the classic flat +40. The
+      powershift premise is dead → cat_forever drops the lane (probe P2 #1
+      resolved to "proceed as destructive"). OPEN: the exact X/Y/Z values
+      live behind unresolved `$` tokens — in-game pre/post-shift energy
+      comparison still listed as the numeric check.
+- [x] Berserk (complete 2026-09-17): the druid row is **417141** (class 7,
+      granted by 424759), **180s** RecoveryTime, **15s** duration. One spell,
+      form-branched: effect rows op 7 +100 (crit to CP generators), op 11
+      −100% (removes the Mangle cooldown), op 17 +3 (Mangle strikes up to 4
+      targets), aura 77 mechanic 5 (fear immunity). The bridge's cross-class
+      lowest-id dedupe would have resolved "Berserk" to the Warrior 23397
+      row — pinned in the builder's MIRROR_NAME_OVERRIDES.
+- [x] Tiger's Fury (complete 2026-09-17): 5217 has RecoveryTime **30000**,
+      a **6s** buff, and **no energy cost** (spell_meta carries no power
+      cost); the text reads "+16% physical ... [, and instantly grants
+      $417046s1 Energy]" with King of the Jungle (417046, effect base 60).
+      The lane replacement drops the vanilla energy-cap gate (which blocked
+      a FREE CD above 70 energy) and keeps the buff-down refresh gate.
+- [ ] Lacerate stack cap + threat effect; Mangle 6s CD (bear wave — the
+      ladder is 414644@42/1235826@50/1235827@58, **CategoryRecoveryTime
+      6000** on every Mangle rank, threat effect 31; the bridge's "Lacerate"
+      maxrank already lands on the druid 1235827).
 - [ ] Eclipse: stack cap 4 + Wrath/Starfire trigger shape.
 - [ ] Swiftmend: confirm non-consumption (effect no longer removes the HoT).
 - [ ] Wild Growth: party HoT effect shape + CD.
 - [ ] Moonkin/LotP buff exclusivity (aura family check).
-- [ ] Omen of Clarity: proc conditions across spells/heals/melee.
+- [x] Omen of Clarity (2026-09-17): 16864's client text confirms the
+      era-wide baseline proc ("Your spells and attacks have a chance to
+      grant you Clearcasting, reducing the Mana, Rage, or Energy cost of
+      your next damage or healing spell or offensive ability") — the
+      baseline's clearcast lanes need no delta.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on
 day 1 — strict never=0, no SoD-style retrofit.

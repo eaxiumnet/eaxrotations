@@ -90,6 +90,22 @@ DEGENERATE_NAME_TOKENS = (
 
 PASSIVE_AURAS = {24, 79}
 
+# Name-keyed mirror overrides: exact client name -> id, applied AFTER the
+# cross-class dedupe in write_bridge, for names two classes both carry where
+# the lowest-id rule picks the wrong class's row for a _forever lane. Every
+# entry verified 2026-09-17 against the 1.60.1.69893 DBC.
+MIRROR_NAME_OVERRIDES = {
+    # "Berserk": the Warrior row 23397 (class 4, empty description, not the
+    # ability lanes use) beats the Druid row 417141 on the cross-class
+    # lowest-id dedupe. The druid row is the Forever Berserk: class 7, level
+    # 1, granted by 424759, RecoveryTime 180000, 15s, form-branched text
+    # ("Causes your Mangle ability to strike up to 4 targets, removes its
+    # cooldown, and increases the critical strike chance of your Combo
+    # Point-generating abilities by 101%") - effect rows op 7 +100 (crit),
+    # op 11 -100% (cooldown), op 17 +3 targets, mechanic-5 (fear) immunity.
+    "Berserk": 417141,
+}
+
 
 def _school(mask):
     return SCHOOL_MAP.get(mask, "physical")
@@ -313,14 +329,17 @@ def write_bridge(spells, maxrank, buff_ids, all_player_ids):
     def emit_mirror(table, mapping, id_of):
         lines.append(table)
         # Deterministic emission order (by name); duplicate names across
-        # classes resolve to the lowest spell id, mirroring the rank-1 rule.
+        # classes resolve to the lowest spell id, mirroring the rank-1 rule,
+        # then MIRROR_NAME_OVERRIDES repairs the collisions where the wrong
+        # class's row would win for a _forever lane.
         by_name = {}
         for (class_name, name) in sorted(mapping):
             sid = id_of((class_name, name))
             if name not in by_name or sid < by_name[name]:
                 by_name[name] = sid
         for name in sorted(by_name):
-            lines.append("    [%s] = %d," % (lua_escape(name), by_name[name]))
+            sid = MIRROR_NAME_OVERRIDES.get(name, by_name[name])
+            lines.append("    [%s] = %d," % (lua_escape(name), sid))
         lines.append("}")
         lines.append("")
 
