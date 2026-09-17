@@ -68,7 +68,11 @@ added — probe P2 #1 resolved "rework shipped" from the client text). #6
 Swipe/Maul block, Berserk-bear window). #7 `warrior/fury_forever.lua` BUILT
 (verdict-independent subset: the CD split's Recklessness burst lane; the P2
 rage-formula probe is not client-resolvable, so no rage re-tuning and no
-demotion — the question stays open in the kit). #8–#14 pending.
+demotion — the question stays open in the kit). #8
+`hunter/survival_forever.lua` BUILT (additive + shot reorder: Mongoose
+Bite/Strider Kick melee core above Raptor Strike, MultiShot above AimedShot
+for the DBC-confirmed shared cooldown; Aspect of the Beast documented as
+blocked by the builder's BaseLevel-0 guard). #9–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

@@ -80,18 +80,67 @@ Alliance **Read Ley Line** (health/mana regen burst) vs Horde **Skysight**
 - `classes/hunter/survival_forever.lua` — near-total rewrite: melee weave
   (Mongoose core via Expose Prey/Lacerating Strikes, Strider Kick, dual-wield),
   spam-capable trap lanes, ranged filler windows.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (additive + one reorder)** —
+  Mongoose Bite (class map; 5s category CD; the react window is engine state
+  — the activation auras 5302/1310726 are classless rows the bridge cannot
+  carry, so readiness is the honest gate) and the NEW Strider Kick (1317257,
+  RecoveryTime 8000, "deals $s2% melee weapon damage") spliced above the
+  baseline's Raptor Strike, both melee-range (6yd) + combat gated; the
+  baseline's MultiShot lane is re-emitted immediately above AimedShot so the
+  DBC-confirmed SHARED 6s cooldown (both in SpellCategory 2,
+  CategoryRecoveryTime 6000) picks the right shot for the target count —
+  previously Aimed always won and the shared CD starved Multi on every
+  multi-pull. NOT landed (documented): Aspect of the Beast — its rows
+  (13161/1299445/1299446/1299447) are BaseLevel 0, so the bridge builder's
+  level guard excludes the whole aspect and the class map has no entry; a
+  by-name lane would be permanently dormant. Fix path: allow BaseLevel-0 rows
+  with a real SpellLevel in the builder (touches every mirror — its own
+  commit) or add a class-map entry with DBC evidence. Traps-in-combat needs
+  no lane change (the baseline trap lanes simply stop being pre-combat-only).
+  Resourcefulness is a COST reduction + mana-regen proc, not a cooldown cut
+  (kit said "CDs/costs").
 - `classes/hunter/leveling_forever.lua` — Aimed Shot baseline reshapes early
   rotations; trap-in-combat opens leveling tools.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into the class spell map only then.
-- [ ] Confirm Aimed/Multi shared CD + trap-in-combat semantics from the DBC
-      effects (cast-time/aura shape), not the article.
+- [x] Resolve the wave-2 names (2026-09-17): Mongoose Bite 1495/14271,
+      Raptor Strike 2973/14266, Wing Clip 2974/14268, **Strider Kick 1317257**,
+      Survival talents (Savage Strikes 19159, Predator's Edge 1310627,
+      Expose Prey 1310532, Lacerating Strikes 1310533/1310536,
+      Resourcefulness 440529), Aspects (Monkey 13163, Hawk 13165/25296),
+      Traps (Immolation 13795/14305, Explosive 13813/14317, Freezing
+      1499/14311, Frost 13809), shots (Aimed 19434/20904, Multi 2643,
+      Arcane 3044/14287), Counterattack 19306/20910.
+- [x] Aimed/Multi shared CD CONFIRMED (2026-09-17): both carry
+      CategoryRecoveryTime 6000 in **SpellCategory 2** ("Direct Damage -
+      Spell") — the same lockout, which makes the shot choice exclusive (the
+      survival delta reorders Multi above Aimed so the 2+-target gate decides
+      instead of Aimed always winning).
+- [x] Strider Kick (2026-09-17): 1317257@30, RecoveryTime 8000, effect 121
+      (weapon damage) + effect 31 (threat). No stance/form gate in the text.
+- [x] Mongoose Bite (2026-09-17): 1495@16 … 14271@58 with
+      CategoryRecoveryTime 5000, class 9; the classic "after you dodge"
+      react window plus the Expose Prey proc (1310532: "attacks against
+      targets with Hunter's Mark have a $s1% chance to activate your Mongoose
+      Bite for $5302d", trigger 1310726 = a classless self-dummy aura). The
+      delta gates on engine readiness instead of guessing an aura id.
+- [x] Resourcefulness (2026-09-17): text = trap/melee mana COST reduction +
+      a mana-regen-on-crit proc; no trap cooldown reduction (kit wording
+      corrected). Trap families: Immolation/Explosive share SpellCategory
+      411 (30s lockout), Freezing/Frost share 2183 — fire and frost traps are
+      independent.
+- [x] Aspect of the Beast (2026-09-17): exists with a 4-rank ladder
+      (13161@30 / 1299445@40 / 1299446@50 / 1299447@60, melee-AP aspect
+      text) but every row is **BaseLevel 0**, so the bridge builder's level
+      guard excludes it and the class map has no entry — see the survival
+      status note for the fix path.
+- [ ] Traps-in-combat: in-game probe (a mechanic flag, not DBC-readable).
 - [ ] Confirm hawk summon mechanics (duration, cap, shared CD) — pet-like
       entities may need pet-handler awareness (apidocs: pet-handler.md).
+      [BM delta, #9]
 - [ ] Survival melee abilities: verify melee-range lanes against unit_distance
-      gating (Pattern: squared distance).
+      gating (Pattern: squared distance). DONE for Mongoose/Strider (6yd,
+      mirroring the baseline's Raptor/WingClip gate).
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on
 day 1 — strict never=0, no SoD-style retrofit.

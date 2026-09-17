@@ -3544,6 +3544,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_lacerate_
 -- incidental to the shared combat shapes.
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fury_recklessness",
     overrides = { in_combat = true, rage = 50 } }
+-- Hunter survival: the melee core needs melee range + combat, and the shot
+-- reorder's scenario presents the 2+-target shape the shared Aimed/Multi
+-- cooldown has to choose against.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_melee",
+    overrides = { in_combat = true, target_distance = 5, distance = 5, enemy_count = 1 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_shared_shot",
+    overrides = { in_combat = true, enemy_count = 2, enemies_count = 2 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4398,6 +4405,9 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- (Lacerate's stack read is scoped by the same sentinel id).
             ["Mangle"] = 90014,
             ["Lacerate"] = 90015,
+            -- Hunter survival day-1 (2026-09-17): the new Strider Kick melee
+            -- strike (Mongoose Bite is class-map and needs no sentinel).
+            ["Strider Kick"] = 90016,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever
