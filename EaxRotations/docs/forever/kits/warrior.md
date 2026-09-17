@@ -99,6 +99,20 @@ resolves it** (no IDs, no rank numbers below).
 - `classes/warrior/fury_forever.lua` — WW-both-weapons + cheap-Cleave AoE
   loop, OH-rage/hit economy, ambient-Enrage (drop reactive Enrage lanes),
   Bloodthirst re-tuned priority.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (verdict-independent subset)**
+  — the **CD split is DBC-confirmed** (Recklessness 1719 RecoveryTime
+  1800000, Retaliation 20230 / Shield Wall 871 900000, none sharing a
+  SpellCategories row), so a Recklessness burst lane is added above the
+  baseline's DeathWish (the baseline never pressed it). The kit's other fury
+  items are passives/value changes and need no lane: ambient Enrage (no
+  baseline lane reads Enrage), cheaper Cleave / both-weapon Whirlwind
+  (talent passives; the client's WW row carries a single weapon-damage
+  effect, so both-weapon behavior is an in-game probe), Bloodthirst's 35% AP
+  (confirmed in the DBC). The P2 rage-formula probe is NOT client-resolvable
+  — every baseline rage reserve stays conservative until the in-game verdict.
+  OPEN (in-game): rage formula, WW both-weapons, whether Recklessness needs
+  a Berserker Stance gate (the client description omits it, as it does for
+  the known stance-locked Whirlwind).
 - `classes/warrior/protection_forever.lua` — shield-gated structural check,
   Shield Slam primary spender, TC-in-defensive AoE threat loop, Revenge
   damage lane, CD-split defensives (independent thresholds), Vanguard opener.
@@ -106,17 +120,39 @@ resolves it** (no IDs, no rank numbers below).
   lane, rage-formula watch (leveling is where starvation bites first).
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `WarriorSpells` only then.
-- [ ] Confirm the CD split: Recklessness/Retaliation/Shield Wall cooldown
-      groups fully independent (aura/CD shape in DBC).
-- [ ] Confirm Slam baseline 15s CD + Improved Slam interaction.
-- [ ] Confirm Bloodthirst AP coefficient (35%) and Victory Rush gating.
+- [x] Resolve the wave-2 names BY NAME / class map (2026-09-17): Retaliation
+      20230, Shield Wall 871, Whirlwind 1680, Death Wish 12328, Bloodthirst
+      23881/23894, Cleave 845/20569, Execute 5308/20662, Slam 1464/11605,
+      Overpower 7384/11585, Victory Rush 402927, Raging Blows 1310315,
+      Improved Cleave 12329, DWS 13715, Precision 456382. **Recklessness 1719
+      is NOT in the bridge** — the builder's 20-minute RecoveryTime cap
+      filters its 30-minute row — but the class map carries it (id 1719), so
+      fearless lanes use the class map. "Enrage" resolves the *druid* 5229
+      (cross-class lowest id; the warrior rows are classless 12880 / a
+      BaseLevel-0 427066) — a future Enrage lane needs a
+      MIRROR_NAME_OVERRIDE, same hazard class as Berserk.
+- [x] CD split CONFIRMED (2026-09-17): Recklessness 1719 RecoveryTime
+      1800000, Retaliation 20230 and Shield Wall 871 RecoveryTime 900000 —
+      each with **no SpellCategories row** (cat 0), so the vanilla shared-CD
+      interlock is gone. The fury delta presses Recklessness independently.
+- [x] Slam baseline 15s CD CONFIRMED (2026-09-17): CategoryRecoveryTime
+      15000 on 1464 and 11605. The baseline lanes already gate through
+      spell_ready, so the CD is honored without a delta.
+- [x] Bloodthirst coefficient CONFIRMED (2026-09-17): the rank rows
+      23881@40 / 23894@60 carry a dummy effect at base **35** (the "35% of
+      AP" kit claim) and CategoryRecoveryTime 6000; priority shape unchanged.
+- [x] Victory Rush (2026-09-17): 402927@20, text "healing you for **11%** of
+      your maximum health" (the kit said 10% — corrected), usable within
+      $402975d after a kill. No "recently killed" signal is exposed to the
+      API, so this stays a leveling/solo candidate, not a day-1 lane.
 - [ ] Shield-gated prot talents: verify condition text (shield-required
       effect) for the tank-mode structural check.
 - [ ] Vanguard: Charge-in-defensive WITHOUT in-combat use.
-- [ ] RAGE FORMULA: compare rage-per-damage against the TBC formula on
-      beta day 1 (highest-priority rotation-model probe).
+- [ ] RAGE FORMULA: **not resolvable from the client data** (no rage table
+      is extracted; the Gt* tables are absent from this build). In-game
+      probe stands: compare rage-per-damage against the TBC formula. Until
+      it lands, the fury/arms/prot deltas ship only verdict-independent
+      lanes and every baseline rage reserve stays conservative.
 - [ ] Re-read the page for the Sep-15+ spell/talent pass (changelog) and
       fold in anything new (Bloodthrill/Spearing Strike rank data etc.).
 

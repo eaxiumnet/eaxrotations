@@ -3538,6 +3538,12 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_mangle",
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_lacerate_stacks",
     overrides = { form = 1, in_combat = true, rage = 60, debuff_stacks = 3,
                   debuff_aura_ids = { 90015 }, debuff_remains_map = { [90015] = 10 } } }
+-- Warrior fury (CD split): the Recklessness burst lane is class-map based
+-- (no bridge lookup), so the scenario only has to present combat + a valid
+-- enemy -- the slot exists to make the lane's firing intentional rather than
+-- incidental to the shared combat shapes.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fury_recklessness",
+    overrides = { in_combat = true, rage = 50 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

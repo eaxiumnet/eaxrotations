@@ -65,7 +65,10 @@ mage fire/arcane.
 Powershift dropped per the Furor rework, Tiger's Fury replaced, Berserk burst
 added — probe P2 #1 resolved "rework shipped" from the client text). #6
 `druid/bear_forever.lua` BUILT (additive: Mangle/Lacerate core above the
-Swipe/Maul block, Berserk-bear window). #7–#14 pending.
+Swipe/Maul block, Berserk-bear window). #7 `warrior/fury_forever.lua` BUILT
+(verdict-independent subset: the CD split's Recklessness burst lane; the P2
+rage-formula probe is not client-resolvable, so no rage re-tuning and no
+demotion — the question stays open in the kit). #8–#14 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 
