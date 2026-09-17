@@ -3449,20 +3449,29 @@ for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1
 -- hard-fails the new never-lanes (Pattern 17). The forever-specific shapes
 -- drive the paladin holy delta lanes; every other class/spec still resolves
 -- all shared scenarios identically (vanilla-twin contract).
--- holy_forever gate recap: IoL needs buff 90003 + lowest deficit >= 30 +
--- mana >= 25; Vigil needs lowest <= 70 + mana >= 50 + long-cd allowed +
--- Holy Shock half-spent (on_cd [27180] >= 5); Holy Shock core needs mana
--- >= 20 (always ready); Holy Strike needs a healthy group (friends_hp 100s)
--- + mana >= 30 + melee distance (5yd default). Baseline preemption notes:
--- LayOnHands (lowest > 12), DivineShield (hp_pct > 18) and BoP (no
--- protection_target) stay false in these shapes; the blessing lanes see
--- blessings_up=false; CleanseTank/PurifySelf/BlessingOfFreedomSnare need
--- the afflicted/snared flags (absent); DivineFavorHolyLightFollowup needs
+-- holy_forever gate recap (day-1 promotion 2026-09-17): IoL needs buff 90003
+-- + lowest deficit >= 30 + mana >= 25 + hp > 20; Light's Vigil needs Holy
+-- Shock READY (the mark pays off on the next shock), mana >= 40 (ally: >= 50
+-- and the baseline's heavy_healing triage signal + hp in (20, 70]); ally
+-- branch skips an already-marked ally (buff mirror 90002), enemy branch (very
+-- healthy group, valid enemy) skips an already-marked enemy (debuff 90002);
+-- deficit-fit top-off needs the worse of (lowest group entry, friendly target)
+-- in the (65, 92] band with a positive deficit + mana >= 30; Holy Shock core
+-- needs mana >= 20 (ready in every scenario without an on_cd [27180] bank);
+-- Holy Strike needs a healthy group (friends_hp 100s) + mana >= 30 + melee
+-- distance (5yd default); Seal/Judgement of the Crusader support need a valid
+-- enemy + mana >= 35 + target hp >= 20 + the target free of JoC (90011) and
+-- the seal mirror free for the seal lane / set for the judgement lane (90010).
+-- Baseline preemption notes: LayOnHands (lowest > 12), DivineShield (hp_pct >
+-- 18) and BoP (no protection_target) stay false in these shapes; the blessing
+-- lanes see blessings_up=false; CleanseTank/PurifySelf/BlessingOfFreedomSnare
+-- need the afflicted/snared flags (absent); DivineFavorHolyLightFollowup needs
 -- has_divine_favor (false); HammerOfJusticeDiver needs a diver (absent);
--- ConsecrationSoloAoE needs enemy_count > 1 (absent in forever_shock_cd);
--- JudgementSolo/SealOfWisdom read state fields the deltas never touch.
--- HolyLightEmergency stays quiet (lowest 65/75 > 55) so the IoL weave owns
--- Holy Light in its window.
+-- ConsecrationSoloAoE needs enemy_count > 1; JudgementSolo/SealOfWisdom read
+-- state fields the deltas never touch. HolyLightEmergency stays quiet (lowest
+-- 58/65/75 > 55) so the IoL weave owns Holy Light in its window, and the
+-- vigil ally-branch scenario rides the baseline's own heavy_healing signal
+-- (tank 50 <= 55) instead of inventing a second hurt-party model.
 -- Wave-1 scaffolding gates (2026-09-17): enh MW weave needs buff 90004 +
 -- mana >= 30; enh SS core always matches with a valid enemy target (splices
 -- above the baseline Stormstrike lane); ele Lava Burst needs the FS debuff
@@ -3476,7 +3485,13 @@ for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_iol_weave",
     overrides = { buff_remains_map = { [90003] = 8 }, friends_hp = { 65, 100, 100 }, mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_burst",
-    overrides = { friends_hp = { 60, 100, 100 }, mana_pct = 90, on_cd = { [27180] = 5 } } }
+    overrides = { friends_hp = { 58, 50, 100 }, mana_pct = 90 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_damage",
+    overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fit_topoff",
+    overrides = { friends_hp = { 90, 100, 100 }, mana_pct = 70 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sotc_judge",
+    overrides = { buff_remains_map = { [90010] = 30 }, mana_pct = 80 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shock_cd",
     overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 60, on_cd = { [27180] = 5 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_mw_weave",
@@ -4335,6 +4350,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Hot Streak"] = 90007,
             ["Arcane Blast"] = 90008,
             ["Missile Barrage"] = 90009,
+            -- Paladin day-1 (2026-09-17): Seal/Judgement of the Crusader
+            -- support lanes resolve the seal cast + the JoC aura/debuff ids.
+            ["Seal of the Crusader"] = 90010,
+            ["Judgement of the Crusader"] = 90011,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

@@ -94,9 +94,13 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
       AB $m1%, others halved) + proc 400589 (buff lane gates on it) — mage
 - [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on 20473 AND
       1311606; live-cast id OPEN) / Light's Vigil cast 1311595@60, buff
-      1310909, no DBC cooldown row (180s estimate stands) / Holy Strike
-      10333@60 max (kit "level 6" ↔ 679@6) / Infusion of Light buff 53672
-      (talent/learn row 426065; live proc-id confirmation OPEN) — paladin
+      1310909, CategoryRecoveryTime 6000 on EVERY rank (1310911/1311590/
+      1311595 — re-probed 2026-09-17 via SpellCooldowns keyed by SpellID; the
+      earlier "no cooldown row / 180s estimate" came from the RecoveryTime
+      column only and is RETRACTED: it is a 6s rotational mark, not a burst
+      CD) / Holy Strike 10333@60 max (kit "level 6" ↔ 679@6) / Infusion of
+      Light buff 53672 (talent/learn row 426065; live proc-id confirmation
+      OPEN) — paladin
 
 Consequence: all resolved → wave-1 authoring starts; any miss → its delta
 waits, next-ranked delta moves up.

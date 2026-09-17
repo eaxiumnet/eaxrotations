@@ -33,9 +33,11 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
 - **Holy Shock on a 10s CD**: significantly more uptime than TBC's 30s —
   becomes a core rotational nuke/heal, not a niche proc.
 - **Consecrated Ground**: +Holy damage taken inside Consecration (AoE amplification).
-- **Light's Vigil**: high-cost CD; resets Holy Shock and triggers extra damage
-  or party-wide healing through an ally (burst-window candidate; wire through
-  burst_logic use_cooldowns gating).
+- **Light's Vigil**: party-heal / damage mark on a 6s category CD (beta DBC
+  re-probe 2026-09-17: CategoryRecoveryTime 6000 on all ranks; 1340 mana,
+  1.5s cast, 30s aura) — a rotational mark, not a burst CD: mark the target
+  you are about to Holy Shock so the shock triggers no cooldown and pays the
+  party heal (ally) or damage + 76% mana refund (enemy).
 
 ## Protection
 - **Improved Seal of Fury**: mana when Seal of Fury absorbs (sustain lane).
@@ -60,6 +62,18 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
 - **Twist of Light**: a new Seal echoes into the next melee swing — seal
   twisting WITHOUT a swing-timer addon (the repo's seal-twist lane can use
   engine swing timing rather than manual windows).
+  **Not a holy spell (DBC 2026-09-17)**: the beta client carries NO
+  SpellClassOptions row for 1310735 (class NULL) and its BaseLevel is 0, so
+  the bridge generator excludes it as a non-player spell; the trainer table
+  files it under the Retribution skill line. It is therefore a ret-only
+  passive and is NOT wired into holy_forever.lua (a by-name lane could never
+  resolve on the real bridge — battery-only sentinel firing would be a
+  production-dead lane). Author it in `retribution_forever.lua` when that
+  delta lands, or pin an explicit bridge override with in-game proof.
+- **Seal/Judgement of the Crusader support** (class-wide: Judgment no longer
+  consumes the seal): JoC raises the target's holy damage taken and no
+  baseline holy lane provides it, so the holy delta carries a seal+judgement
+  upkeep pair (setting `holy_forever_sotc_support`, default on).
 
 ## Spec files to author (Phase 4, post-DBC)
 - `classes/paladin/retribution_forever.lua` — Holy Strike weave, non-consuming
@@ -76,6 +90,17 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
   step 3b). Battery-proven:
   all four delta lanes fire in the forever scenarios (`forever_iol_weave`,
   `forever_vigil_burst`, `forever_shock_cd`), never-inventory unchanged at 9.
+  **Status (2026-09-17, beta day): DAY-1 ROTATION** — 7 delta lanes over the
+  32-lane baseline (39 total): IoL weave, Light's Vigil mark (DBC-corrected
+  6s CD; ally/heavy-healing branch + enemy damage/refund branch, both gated
+  on Holy Shock being ready), deficit-fit top-off (lowest group entry or
+  friendly target inside the (65, 92] band; shared HealValue ladders through
+  `NS.cast_best_heal_rank` with the Flash -> Holy Light escalation fallback;
+  zero deficit never fires), Holy Shock core, Holy Strike weave, and the
+  Seal/Judgement of the Crusader support pair. Battery-proven: all 7 lanes
+  fire in the forever scenarios (`forever_iol_weave`, `forever_vigil_burst`,
+  `forever_vigil_damage`, `forever_fit_topoff`, `forever_sotc_judge`,
+  `forever_shock_cd`), never-inventory unchanged at 9.
 - `classes/paladin/leveling_forever.lua` — Holy Strike from 6, Consecration
   from 20, first spec to feel the kit at low level.
 
@@ -93,10 +118,15 @@ Wowhead. Rank ladders verified complete against the kit's learn levels.
   the lowest id (678@12) per the rank-1 rule — the weave lane casts the
   max-rank mirror (10333@60).
 - **Light's Vigil**: cast rows 1310911@40 / 1311590@50 / 1311595@60 (lane
-  casts the max-rank 1311595); buff row 1310909. NO DBC cooldown row on any
-  rank — the 180s estimate stands, tune in-game. Mechanic text confirmed
+  casts the max-rank 1311595); buff row 1310909 (30s aura). Re-probed
+  2026-09-17 (SpellCooldowns keyed by SpellID — the earlier pass read the
+  RecoveryTime column only): CategoryRecoveryTime **6000** on every rank
+  (1310911 / 1311590 / 1311595) and 1340 mana / 1.5s cast. The 180s
+  estimate is RETRACTED: it is a 6s rotational mark. Mechanic text confirmed
   ("next Holy Shock triggers no cooldown", party-heal / damage + refund
-  branches).
+  branches). [PROBE: the applied aura's live id (1310909 vs the 1311597
+  duration row) and the in-game mark cap of 2 per paladin per party — the
+  mark-detection guard reads the buff-mirror id 1310909.]
 - **Infusion of Light**: buff 53672 (proc-shaped aura rows; lane gates on
   it) vs talent/learn row 426065 (granted by 426179). [PROBE: confirm the
   live proc aura id in-game — 53672 vs 426065.]
@@ -117,3 +147,21 @@ Wowhead. Rank ladders verified complete against the kit's learn levels.
 - Also present with kit-matching rows: Voice of Truth 1310897, Reverence
   1310899, Templar's Bulwark 1311015, Iron Creed 1311033/34, Sacred Arbiter
   1311087, Vindication 440667/68.
+
+## Day-1 holy open probes (in-game, beta day)
+
+- [ ] Holy Shock live-cast id: 20473 (class map) vs 1311606 (Forever row,
+  160 vs 225 mana). The delta keeps the class-map action; if the Forever row
+  is what the trainer grants, the class map needs the id added (era-shared
+  file — one concern per commit).
+- [ ] Infusion of Light live proc aura id: 53672 vs 426065.
+- [ ] Light's Vigil applied-aura id on allies vs enemies (1310909 assumed
+  for both) and whether the 2-per-party cap can be observed from the API.
+- [ ] Seal of the Crusader judgement debuff id applied at rank 5 (the delta
+  probes the bridge's rank-1 + max-rank ids: 20188 / 20303) and whether the
+  target's holy-damage-taken increase is visible in tooltips at all.
+- [ ] Flash/Holy Light rank ladders on the 1.60 client: the shared HealValue
+  tables carry TBC ranks at the top (27136/27135/27137); pick_castable
+  walks `NS.spell_ready`, which must report unlearned ranks false so the
+  walk lands on 25292 / 19943. Battery mocks always-ready; verify in-game
+  that a fitted cast never targets an unlearnable rank.
