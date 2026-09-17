@@ -85,6 +85,21 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/assassination_forever.lua` — Mutilate fast-CP generation,
   Venom pooling/spend window (CP-duration scaling), Expose Armor cheap
   maintenance, poison-target gating.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes, additive; energy
+  probe still unconfirmed so the vanilla energy shape is kept)** — (1)
+  Mutilate: the maxrank bridge row (ladder 1310707@30 / 399956@40 /
+  1241582@50 / 1241584@60) above the baseline builder, gated on both-hand
+  daggers (shared/dagger_set, TBC-sibling precedent), energy >= 60 and
+  combo < 5; the poison state is reported in the tag, NOT gated — the DBC
+  text makes the +20% bonus damage, not a usability requirement, and 2 CP
+  beats Sinister Strike's 1 even unbuffed. **The client text carries NO
+  "must be behind" clause** (unlike the TBC 34413 row) — recorded as an
+  in-game probe. (2) Venom: the poison window (+30% poison damage / +10%
+  application chance confirmed by the effect rows) fired at 5 CP when the
+  buff is down or within 4s of expiry, leading the finisher block. (3)
+  Improved Expose Armor: with the talent (effect rows: -10 energy, 2-CP
+  refund at 5 CP) the baseline's assigned armor-debuff lane is upgraded to
+  the 5-CP refund cast with a refresh window.
 - `classes/rogue/combat_forever.lua` — Restless Blades CD-recycling lane
   (spenders recharge cooldowns), Puncturing Wounds weapon flexibility,
   Hack-and-Slash per-weapon behavior.
@@ -95,16 +110,36 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
   early leveling pace; Mutilate from early levels (Assassination leveling).
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `RogueSpells` only then.
+- [x] Resolve every named ability above BY NAME in the Forever bridge
+      (2026-09-17, assassin day-1): Mutilate ladder 1310707@30 / 399956@40 /
+      1241582@50 / 1241584@60, Venom 1310703@40, Improved Expose Armor 14168,
+      Improved Kidney Shot 14174, Cold Blood 14177, Thousand Cuts 1310721 +
+      aura 1310723, Hemorrhage 16511, Cut to the Chase 432271, Vigor 14983,
+      the poison debuff rows (Deadly 2818 / Crippling 3408 / Wound 13218) —
+      all resolve.
 - [ ] ENERGY MODEL: confirm constant regen vs tick (highest priority —
-      re-derives every threshold lane).
-- [ ] Restless Blades: CD-reduction effect shape + CD list.
-- [ ] Venom: CP-scaled duration + poison-damage/application buffs.
-- [ ] Thousand Cuts: stack cap 5 + which generators it discounts.
-- [ ] Hemorrhage's Rupture-vulnerability debuff (aura family).
-- [ ] Cutthroat stealth-free Ambush proc.
-- [ ] Improved Expose Armor CP-refund condition.
+      re-derives every threshold lane). Still unconfirmed (P2 #3): the #20
+      delta keeps the vanilla energy shape (real-cost builder gate, pooling
+      flag on the finishers).
+- [x] Venom: CP-scaled duration + poison-damage/application buffs
+      (2026-09-17, assassin day-1) — 1310703's effect rows confirm +30%
+      poison damage (aura 108 x2) and +10% application chance (aura 107);
+      the duration text carries the 9/12/15/18/21s CP ladder. The #20 lane
+      spends at 5 CP and refreshes inside 4s.
+- [x] Improved Expose Armor CP-refund condition (2026-09-17, assassin
+      day-1) — 14168's effect rows confirm -10 energy and the 2-CP refund at
+      5 CP; the #20 lane gates on the talent + the 5-CP condition + the
+      baseline's assignment setting.
+- [x] Mutilate (2026-09-17, assassin day-1): effect rows = 2 combo points +
+      two weapon-strike triggers + a 20% dummy vs poisoned; the client text
+      has NO "must be behind" clause (the TBC 34413 row does) — the #20 lane
+      is positional-free. [PROBE: confirm in-game that a front-facing
+      Mutilate lands; if the client enforces behind, add the TBC positional
+      gate.]
+- [ ] Restless Blades: CD-reduction effect shape + CD list. [combat delta]
+- [ ] Thousand Cuts: stack cap 5 + which generators it discounts. [subtlety]
+- [ ] Hemorrhage's Rupture-vulnerability debuff (aura family). [subtlety]
+- [ ] Cutthroat stealth-free Ambush proc. [subtlety]
 - [ ] 1h axe equip-ability for rogues.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on

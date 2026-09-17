@@ -120,7 +120,12 @@ on the moderate-damage tier, and the offensive Penance inside the Power in
 Light Holy Fire window; the dual-mode cast row 1316995 pinned in the
 builder's MAXRANK_OVERRIDES and the applied Aegis shield 431624 in
 BUFF_OVERRIDES).
-#20–#26 pending.
+#20 `rogue/assassination_forever.lua` BUILT (3 lanes: the Mutilate 2-CP
+builder with the both-hand dagger gate and the poison tag, the Venom
+poison-window finisher at 5 CP, and the Improved Expose Armor 5-CP refund
+upgrade of the assigned armor lane; the energy-model probe stays
+unconfirmed, so the vanilla energy shape is kept).
+#21–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

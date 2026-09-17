@@ -3643,6 +3643,15 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_h
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_damage",
     overrides = { in_combat = true, mana_pct = 80, friends_hp = { 100, 100, 100 },
                   debuff_remains_map = { [15261] = 5 } } }
+-- Rogue assassination: the Mutilate builder (both-hand dagger mock + an
+-- empty combo bank so the builder window is open) and the Improved Expose
+-- Armor refund lane (assignment setting + the 5-cp bank). Venom rides the
+-- base scenarios (the default 5-cp / 100-energy bank opens its window).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_mutilate",
+    overrides = { in_combat = true, equipped_daggers = true, combo_points = 0, energy = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_iea",
+    overrides = { in_combat = true, combo_points = 5,
+                  setting_overrides = { assassin_expose_assigned = true } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4558,6 +4567,12 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Penance"] = 90041,
             ["Soul Warding"] = 90042,
             ["Divine Aegis"] = 90043,
+            -- Rogue assassination day-1 (2026-09-17): the Mutilate builder,
+            -- the Venom poison-window finisher and the Improved Expose Armor
+            -- talent gate (the Expose Armor cast keeps its real bridge rows).
+            ["Mutilate"] = 90044,
+            ["Venom"] = 90045,
+            ["Improved Expose Armor"] = 90046,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

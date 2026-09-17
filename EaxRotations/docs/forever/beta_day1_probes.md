@@ -206,6 +206,16 @@ waits, next-ranked delta moves up.
       −4000 ms / −15% mana; PW:S CategoryRecoveryTime 4000 → the talented
       loop is Weakened-Soul-limited. [PROBE: confirm the 4s CD is truly gone
       in-game — a category CD might not accept a full reduction.]
+- [x] **Venom + Mutilate effect shapes** (2026-09-17, assassin day-1):
+      RESOLVED by the effect dump — Venom 1310703 = +30% poison damage /
+      +10% application chance; Mutilate = 2 CP + two weapon strikes + a 20%
+      poisoned dummy. [PROBE: the Forever Mutilate text has no "must be
+      behind" clause (the TBC row does) — confirm a front-facing cast lands;
+      if the client enforces behind, add the TBC positional gate.]
+- [ ] **Rogue constant-regen energy** (P2 #3, still unconfirmed) — the #20
+      assassination delta kept the vanilla energy shape (real-cost builder
+      gate, pooling flag on finishers); if the probe lands CONFIRMED the
+      thresholds re-derive (and #22/#23 follow).
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),
