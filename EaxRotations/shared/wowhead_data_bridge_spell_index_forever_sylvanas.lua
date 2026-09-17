@@ -3426,9 +3426,10 @@ M.spell_index_by_name_forever = {
 }
 
 -- Exact client name -> max-rank spell id (highest BaseLevel per
--- (class, name); ties break to the lowest id, which verified
--- correct on the one observed tie (Fire Nova 11307 damage row vs
--- the 11311 trigger row at level 52).
+-- (class, name); ties break to the lowest id, except the
+-- MAXRANK_OVERRIDES in the builder -- Fire Nova 408345, the
+-- trainer-taught totem-detonating cast, over the internal
+-- 11307 damage row that wins the raw @52 tie by lowest id).
 M.spell_maxrank_by_name_forever = {
     [" Increased Spell Hit Chance"] = 28843,
     ["AOD"] = 13716,
@@ -3845,7 +3846,7 @@ M.spell_maxrank_by_name_forever = {
     ["Fevered Exhaustion"] = 22752,
     ["Fiery Strength"] = 449931,
     ["Fire Blast"] = 10199,
-    ["Fire Nova"] = 11307,
+    ["Fire Nova"] = 408345,
     ["Fire Power"] = 11124,
     ["Fire Resistance"] = 10535,
     ["Fire Resistance Aura"] = 19900,

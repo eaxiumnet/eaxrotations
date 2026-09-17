@@ -248,7 +248,7 @@ local function run_self_tests()
     expect(maxrank["Holy Strike"], 10333, "maxrank Holy Strike is the 60 max (not the 678 baseline)")
     expect(maxrank["Light's Vigil"], 1311595, "maxrank Light's Vigil is the 60 cast row (not the 1310909 buff row)")
     expect(maxrank["Lava Burst"], 1238300, "maxrank Lava Burst is the 60 nuke (not the 408490 rank)")
-    expect(maxrank["Fire Nova"], 11307, "maxrank Fire Nova is the 52 damage row (not the 11311 trigger row)")
+    expect(maxrank["Fire Nova"], 408345, "maxrank Fire Nova is the trainer-taught totem-detonating cast (not the internal 11307 damage row)")
     expect(maxrank["Arcane Blast"], 1239700, "maxrank Arcane Blast is the 60 nuke (not the 400573 aura row)")
     local buffmap = bridge.spell_buff_by_name_forever
     expect(buffmap["Missile Barrage"], 400589, "buff Missile Barrage is the proc (not the 400588 talent)")

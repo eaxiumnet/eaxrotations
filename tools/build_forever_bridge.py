@@ -177,6 +177,22 @@ def load_forever_spells(conn):
         "Hot Streak": 400625,
     }
 
+    # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for
+    # the names where the max-rank classification resolves an INTERNAL row
+    # instead (the classic damage row of the same name keeps the lower id on
+    # a level tie). Every entry verified 2026-09-17 against the 1.60.1.69893
+    # DBC (mana / GCD / cooldown / trainer rows + effect dump).
+    MAXRANK_OVERRIDES = {
+        # Fire Nova: 8349/11307 are totem-internal damage rows (no mana, no
+        # cast time, no GCD, no cooldown row, not trainer-taught); 408341-
+        # 408345 are the player casts ("Instantly inflicts $11307s1 fire
+        # damage to enemies within $11307a1 yd of your active Fire totem"),
+        # trainer-taught on the Forever client, 520 mana at rank 5, 1.5s GCD,
+        # CategoryRecoveryTime 6000. The @52 tie with the internal 11307
+        # breaks by lowest id to the wrong role - pin the cast row.
+        "Fire Nova": 408345,
+    }
+
     result = {}
     maxrank = {}
     # Every player-filtered spell id (not just baselines): the fail-closed
@@ -216,14 +232,18 @@ def load_forever_spells(conn):
         # through this mirror so max-level rotations cast max rank, not rank
         # 1 (e.g. Holy Strike 10333@60, not the 678@12 baseline; Light's
         # Vigil 1311595@60, the cast row, not the 1310909 buff row; Fire Nova
-        # 11307@52, the damage row -- the @52 tie with the 11311 trigger row
-        # breaks by lowest id to the correct one, verified by effect dump).
+        # 408345@52 via MAXRANK_OVERRIDES -- the internal 11307 damage row
+        # wins the raw tie by lowest id and is not a player cast).
         # Rows without a class set never reach this map (filtered above), so
         # every emitted id is a real player-spell row.
         lvl = base_level if isinstance(base_level, int) else -1
         cur_max = maxrank.get(key)
         if cur_max is None or (lvl, -spell_id) > (cur_max[0], -cur_max[1]):
             maxrank[key] = (lvl, spell_id)
+    for key in list(maxrank):
+        override = MAXRANK_OVERRIDES.get(key[1])
+        if override is not None:
+            maxrank[key] = (maxrank[key][0], override)
     buff_ids = {}
     for (class_name, name), entry in result.items():
         buff_ids[(class_name, name)] = BUFF_OVERRIDES.get(name, entry["spell_id"])
@@ -305,9 +325,10 @@ def write_bridge(spells, maxrank, buff_ids, all_player_ids):
         lines.append("")
 
     lines.append("-- Exact client name -> max-rank spell id (highest BaseLevel per")
-    lines.append("-- (class, name); ties break to the lowest id, which verified")
-    lines.append("-- correct on the one observed tie (Fire Nova 11307 damage row vs")
-    lines.append("-- the 11311 trigger row at level 52).")
+    lines.append("-- (class, name); ties break to the lowest id, except the")
+    lines.append("-- MAXRANK_OVERRIDES in the builder -- Fire Nova 408345, the")
+    lines.append("-- trainer-taught totem-detonating cast, over the internal")
+    lines.append("-- 11307 damage row that wins the raw @52 tie by lowest id).")
     emit_mirror("M.spell_maxrank_by_name_forever = {", maxrank,
                 lambda k: maxrank[k][1])
     lines.append("-- Exact client name -> buff/proc aura id for buff-gated lanes.")
