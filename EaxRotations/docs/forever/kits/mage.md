@@ -5,8 +5,8 @@
 -- WHEN:  updated as the beta DBC verifies (or corrects) each claim below.
 -- WHY:   day-1 Mage rotations must encode the confirmed deltas, not TBC
 --        assumptions; every strategy change traces to a source line here.
--- SAFETY: NO spell IDs in this file until the Forever DBC lands (2026-09-17);
---         see docs/forever/dbc_runbook.md for the verification gate.
+-- SAFETY: spell IDs below are DBC-verified (beta 1.60.1.69893, 2026-09-17)
+--         unless marked [PROBE]; see docs/forever/dbc_runbook.md.
 
 # Mage — WoW Forever kit (class overview 2026-09-13)
 
@@ -103,17 +103,39 @@ Cross-page contradiction: Blood Fury's numbers differ per class page
   resist-varying leveling targets; Hot Streak availability timing.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `MageSpells` only then.
-- [ ] Arcane Blast: confirm stack cap 4, expiry-on-other-spell, and the
-      +175%/+10% effect split (aura shape).
-- [ ] Hot Streak: confirm 3-stack cap, 15s duration, per-stack Pyro cast
-      reduction, consumption-on-cast (buff points read).
-- [ ] Frostfire Bolt: confirm the lower-resist school swap in DBC effects
-      (dual-school effect) before encoding any school-choice lane.
+- [x] Resolve every named ability above BY NAME in the Forever bridge
+      (2026-09-17: Hot Streak 48108/400625, Arcane Blast 400573/400574+,
+      Missile Barrage 400588/400589, Wake of Fire 11078/1312934, Frostfire
+      Bolt 401502 — all resolve; role splits documented below).
+- [x] Arcane Blast (partial 2026-09-17): +175%/+10% effect split CONFIRMED
+      in the 400573 aura rows (EffectBasePointsF 175.0 / 10.0); nuke text
+      references the 400573 stack rows by id; expiry-on-other-spell text
+      CONFIRMED ("or until a[nother spell is cast]"). OPEN: stack cap (kit:
+      4) + duration live in 400573's aura points — in-game buff-points read.
+- [x] Hot Streak (partial 2026-09-17): buff row identified as 400625 (the
+      Forever stacking proc: "grant Hot Streak ... stacking up to $s2
+      times", granted by talent 400624; lane gates on the buff mirror).
+      CONTRADICTION RECORDED: the kit's "3-stack" number is unconfirmed
+      ($s2 lives in aura points), and the legacy 48108 row says "2 spell
+      criticals in a row" — do NOT overwrite the kit number from the legacy
+      row. OPEN: stack cap + 15s duration + per-stack Pyro reduction +
+      consumption-on-cast, all in-game.
+- [x] Frostfire Bolt: dual-school CONFIRMED in DBC (SchoolMask 20 =
+      frost+fire on 401502; castable Effect-2 row present). School-choice
+      lanes stay un-authored pending the lower-resist mechanic proof
+      (in-gameresist behavior, not DBC-shape).
 - [ ] Ice Lance: confirm 300% frozen multiplier + FoF interaction.
-- [ ] Missile Barrage: confirm trigger set (AB 40% / Fball/Fbolt/FFB 20%).
-- [ ] Wake of Fire: confirm the kill-triggered crit buff (aura + trigger).
+- [x] Missile Barrage: trigger-set STRUCTURE confirmed in 400588's text
+      (Arcane Blast $m1% chance, Fireball/Frostbolt/Frostfire Bolt halved
+      via ${$m1/2} — matches the kit's AB 40% / others 20% shape); exact
+      $m1 lives in aura points. Proc buff is 400589 (triggered BY 400588);
+      lane gates on the buff mirror.
+- [x] Wake of Fire (partial 2026-09-17): buff 11078 + window 1312934
+      ("Fire Blast critical strike chance increased") both resolve; full
+      mechanic text confirmed (FB CDR + kill-triggered FB crit window with
+      duration ref $1312934d). Lane stays ABSENT per the file's discipline
+      (trigger wiring unconfirmed) — add it once in-game observation shows
+      what applies the window on kill.
 - [ ] Re-read the page for the Sep-15+ spell/talent pass and fold in
       anything new.
 

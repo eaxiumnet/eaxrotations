@@ -48,10 +48,12 @@ local FAKE_BASELINE = {
 }
 
 local orig_require = require
-local pending_bridge_by_name = {}
+local pending_by_name, pending_maxrank, pending_buff = {}, {}, {}
 function require(path)
     if path == "shared/wowhead_data_bridge_spell_index_forever_sylvanas" then
-        return { spell_index_by_name_forever = pending_bridge_by_name }
+        return { spell_index_by_name_forever = pending_by_name,
+                 spell_maxrank_by_name_forever = pending_maxrank,
+                 spell_buff_by_name_forever = pending_buff }
     end
     if path == "classes/mage/fire_vanilla" then
         if FAKE_BASELINE then
@@ -66,8 +68,10 @@ function require(path)
     return orig_require(path)
 end
 
-local function load_delta(bridge_by_name)
-    pending_bridge_by_name = bridge_by_name or {}
+local function load_delta(by_name, maxrank, buff)
+    pending_by_name = by_name or {}
+    pending_maxrank = maxrank or {}
+    pending_buff = buff or {}
     registered = nil
     local chunk, err = loadfile("EaxRotations/classes/mage/fire_forever.lua")
     if not chunk then error("cannot load delta: " .. tostring(err)) end
@@ -83,7 +87,7 @@ end
 
 -- A. Full kit: Hot Streak resolves; splice + registration shape.
 do
-    local combined = load_delta({ ["Hot Streak"] = 19007 })
+    local combined = load_delta({}, {}, { ["Hot Streak"] = 19207 })
     assert_eq(registered and registered.name, "fire", "A: re-registers the fire playstyle")
     assert_eq(registered.strategies, combined, "A: registered strategies are the combined table")
     assert_eq(registered.options.get_state, FAKE_BASELINE.options.get_state, "A: baseline get_state passed through")
@@ -96,7 +100,7 @@ end
 
 -- B. Matcher behavior: buff-gated spend.
 do
-    local combined = load_delta({ ["Hot Streak"] = 19007 })
+    local combined = load_delta({}, {}, { ["Hot Streak"] = 19207 })
     local state = { mana_pct = 80 }
     local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
 
@@ -113,10 +117,10 @@ do
     assert_true(not hs.matches(no_target, state), "B: Hot Streak holds without an enemy")
 end
 
--- C. Dormancy before the beta DBC: zero delta lanes pre-beta.
+-- C. Dormancy on nil lookups: zero delta lanes on empty mirrors.
 do
-    local combined = load_delta({})
-    assert_eq(#combined, #FAKE_BASELINE.strategies, "C: zero delta lanes pre-beta")
+    local combined = load_delta({}, {}, {})
+    assert_eq(#combined, #FAKE_BASELINE.strategies, "C: zero delta lanes on empty mirrors")
     assert_true(not find_lane(combined, "Forever_HotStreakPyro"), "C: Hot Streak dormant")
     assert_eq(find_lane(combined, "Pyroblast"), 2, "C: baseline order unchanged")
 end
@@ -126,8 +130,22 @@ do
     FAKE_BASELINE.strategies = {
         { name = "Fireball", matches = function() return false end, execute = function() return false end },
     }
-    local combined = load_delta({ ["Hot Streak"] = 19007 })
+    local combined = load_delta({}, {}, { ["Hot Streak"] = 19207 })
     assert_eq(find_lane(combined, "Forever_HotStreakPyro"), #combined, "D: Hot Streak appends when the anchor lane is absent")
+end
+
+-- G. Mirror selection: the Hot Streak gate reads the buff mirror (the
+-- Forever stacking proc 400625), never the rank-1 baseline.
+do
+    local combined = load_delta({}, {}, { ["Hot Streak"] = 19207 })
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+    local hs = combined[find_lane(combined, "Forever_HotStreakPyro")]
+    NS.has_player_buff = function(id) return id == 19207 end
+    assert_true(hs.matches(ctx, state), "G: Hot Streak matches on the buff-mirror sentinel")
+    NS.has_player_buff = function(id) return id == 19007 end
+    assert_true(not hs.matches(ctx, state), "G: Hot Streak ignores the rank-1 baseline sentinel")
+    NS.has_player_buff = function() return false end
 end
 
 -- E. Zero numeric spell-ID literals (audit contract).

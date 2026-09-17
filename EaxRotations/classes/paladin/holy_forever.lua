@@ -60,12 +60,13 @@ if not baseline_ok or type(baseline) ~= "table" or type(baseline.strategies) ~= 
 end
 
 -- ---------------------------------------------------------------------------
--- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
--- bridge is empty until the beta DBC lands, so before beta day the
--- bridge-resolved lanes stay dormant. Exact client names come from
--- docs/forever/kits/paladin.md; sentinel stand-ins for these names are
--- seeded by the battery's build_ns so the lanes are observable (Pattern 17)
--- today and byte-identical in production once the real bridge arrives.
+-- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): cast
+-- lanes resolve through the max-rank mirror (max-level rotations cast max
+-- rank, not rank 1) and buff lanes through the buff mirror; a nil lookup in
+-- either mirror leaves the lane dormant -- never a guessed ID. Exact client
+-- names come from docs/forever/kits/paladin.md; sentinel stand-ins for these
+-- names are seeded per mirror by the battery's build_ns so the lanes are
+-- observable (Pattern 17) and mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
 local ok_bridge, ForeverBridge = pcall(require,
     "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
@@ -73,16 +74,27 @@ if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
 local by_name = (ForeverBridge
     and type(ForeverBridge.spell_index_by_name_forever) == "table")
     and ForeverBridge.spell_index_by_name_forever or {}
+local by_maxrank = (ForeverBridge
+    and type(ForeverBridge.spell_maxrank_by_name_forever) == "table")
+    and ForeverBridge.spell_maxrank_by_name_forever or {}
+local by_buff = (ForeverBridge
+    and type(ForeverBridge.spell_buff_by_name_forever) == "table")
+    and ForeverBridge.spell_buff_by_name_forever or {}
 
-local function resolve_id(client_name)
-    local id = by_name[client_name]
+local function resolve_id(map, client_name)
+    local id = map[client_name]
     if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
     return id
 end
 
-local HOLY_STRIKE = resolve_id("Holy Strike")
-local LIGHTS_VIGIL = resolve_id("Light's Vigil")
-local INFUSION_OF_LIGHT_BUFF = resolve_id("Infusion of Light")
+-- Holy Strike / Light's Vigil are CASTS: max-rank mirror (10333@60 /
+-- 1311595@60 in the beta DBC, not the 678 / 1310909 rank-1 baselines).
+-- Infusion of Light is a BUFF check: buff mirror (53672, the proc-shaped
+-- aura rows; 426065 is the talent/learn row per the 426179 grant chain --
+-- in-game proc-id confirmation is a kit checklist item).
+local HOLY_STRIKE = resolve_id(by_maxrank, "Holy Strike")
+local LIGHTS_VIGIL = resolve_id(by_maxrank, "Light's Vigil")
+local INFUSION_OF_LIGHT_BUFF = resolve_id(by_buff, "Infusion of Light")
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers (mirror the baseline's local semantics; file-locals there
@@ -93,13 +105,17 @@ local format = string.format
 local EMPTY_OPTS = {}
 local SELF_OPTS = { skip_range = true }
 
-local FOREVER_HOLY_SHOCK_CD = 10        -- Deep Dive: 30s in TBC -> 10s in Forever
+-- DBC-confirmed: CategoryRecoveryTime 10000 on both Holy Shock rows
+-- (20473 + 1311606); the kit's 10s claim holds.
+local FOREVER_HOLY_SHOCK_CD = 10
 local FOREVER_HOLY_SHOCK_MANA_FLOOR = 20
 local FOREVER_IOL_HL_DEFICIT = 30       -- fast big heal only when it matters
 local FOREVER_IOL_MANA_FLOOR = 25
 local FOREVER_VIGIL_HP_GATE = 70        -- burst window: someone actually hurt
 local FOREVER_VIGIL_MANA_FLOOR = 50     -- high-cost CD: never at starvation
-local FOREVER_VIGIL_CD_ESTIMATE = 180   -- estimated until DBC; tune on beta day
+-- Estimated: the DBC carries NO cooldown row for Light's Vigil ranks;
+-- tune in-game on beta day.
+local FOREVER_VIGIL_CD_ESTIMATE = 180
 local FOREVER_HOLY_STRIKE_MANA_FLOOR = 30
 local FOREVER_HOLY_STRIKE_RANGE = 5     -- melee range in yards
 

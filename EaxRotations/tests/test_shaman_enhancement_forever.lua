@@ -19,6 +19,7 @@ local function assert_eq(a, b, label)
 end
 
 local registered = nil
+local cast_log = {}
 local NS = {
     settings = {},
     log = function() end,
@@ -34,7 +35,10 @@ local NS = {
     },
     has_player_buff = function() return false end,
     spell_ready = function() return true end,
-    try_cast = function() return true end,
+    try_cast = function(spell, target, reason, opts)
+        cast_log[#cast_log + 1] = { spell = spell, target = target }
+        return true
+    end,
     cooldown_remains = function() return 0 end,
 }
 _G.EaxRotations = NS
@@ -51,10 +55,12 @@ local FAKE_BASELINE = {
 }
 
 local orig_require = require
-local pending_bridge_by_name = {}
+local pending_by_name, pending_maxrank, pending_buff = {}, {}, {}
 function require(path)
     if path == "shared/wowhead_data_bridge_spell_index_forever_sylvanas" then
-        return { spell_index_by_name_forever = pending_bridge_by_name }
+        return { spell_index_by_name_forever = pending_by_name,
+                 spell_maxrank_by_name_forever = pending_maxrank,
+                 spell_buff_by_name_forever = pending_buff }
     end
     if path == "classes/shaman/enhancement_vanilla" then
         if FAKE_BASELINE then
@@ -69,8 +75,10 @@ function require(path)
     return orig_require(path)
 end
 
-local function load_delta(bridge_by_name)
-    pending_bridge_by_name = bridge_by_name or {}
+local function load_delta(by_name, maxrank, buff)
+    pending_by_name = by_name or {}
+    pending_maxrank = maxrank or {}
+    pending_buff = buff or {}
     registered = nil
     local chunk, err = loadfile("EaxRotations/classes/shaman/enhancement_forever.lua")
     if not chunk then error("cannot load delta: " .. tostring(err)) end
@@ -84,9 +92,10 @@ local function find_lane(list, name)
     return nil
 end
 
--- A. Full kit: bridge names resolve; splice + registration shape.
+-- A. Full kit: bridge names resolve in every mirror; splice + registration shape.
 do
-    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 })
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 },
+        { ["Fire Nova"] = 19105 }, { ["Maelstrom Weapon"] = 19204 })
     assert_eq(registered and registered.name, "enhancement", "A: re-registers the enhancement playstyle")
     assert_eq(registered.strategies, combined, "A: registered strategies are the combined table")
     assert_eq(registered.options.get_state, FAKE_BASELINE.options.get_state, "A: baseline get_state passed through")
@@ -101,7 +110,8 @@ end
 
 -- B. Matcher behavior.
 do
-    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 })
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 },
+        { ["Fire Nova"] = 19105 }, { ["Maelstrom Weapon"] = 19204 })
     local state = { mana_pct = 80 }
     local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
 
@@ -127,10 +137,10 @@ do
     state.mana_pct = 80
 end
 
--- C. Dormancy before the beta DBC: nil bridge lookups leave lanes out.
+-- C. Dormancy on nil lookups: empty mirrors leave lanes out.
 do
-    local combined = load_delta({})
-    assert_eq(#combined, #FAKE_BASELINE.strategies + 1, "C: only the always-resolvable SS core exists pre-beta")
+    local combined = load_delta({}, {}, {})
+    assert_eq(#combined, #FAKE_BASELINE.strategies + 1, "C: only the always-resolvable SS core exists on empty mirrors")
     assert_true(find_lane(combined, "Forever_StormstrikeCore"), "C: SS core present")
     assert_true(not find_lane(combined, "Forever_MaelstromWeave"), "C: MW weave dormant")
     assert_true(not find_lane(combined, "Forever_FireNovaSpell"), "C: Fire Nova dormant")
@@ -143,9 +153,31 @@ do
     FAKE_BASELINE.strategies = {
         { name = "AutoAttack", matches = function() return false end, execute = function() return false end },
     }
-    local combined = load_delta({ ["Maelstrom Weapon"] = 19004 })
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004 }, {}, { ["Maelstrom Weapon"] = 19204 })
     assert_eq(find_lane(combined, "Forever_MaelstromWeave"), #combined - 1, "D: weave appends after nova, MW above core")
     assert_eq(find_lane(combined, "Forever_StormstrikeCore"), #combined, "D: core appends last")
+end
+
+-- G. Mirror selection: the MW weave gates on the buff-mirror sentinel and
+-- the Fire Nova lane casts the maxrank sentinel -- never the rank-1 baseline
+-- (distinct sentinels per mirror prove which table each lane read).
+do
+    local combined = load_delta({ ["Maelstrom Weapon"] = 19004, ["Fire Nova"] = 19005 },
+        { ["Fire Nova"] = 19105 }, { ["Maelstrom Weapon"] = 19204 })
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+
+    local mw = combined[find_lane(combined, "Forever_MaelstromWeave")]
+    NS.has_player_buff = function(id) return id == 19204 end
+    assert_true(mw.matches(ctx, state), "G: MW matches on the buff-mirror sentinel")
+    NS.has_player_buff = function(id) return id == 19004 end
+    assert_true(not mw.matches(ctx, state), "G: MW ignores the rank-1 baseline sentinel")
+    NS.has_player_buff = function() return false end
+
+    local nova = combined[find_lane(combined, "Forever_FireNovaSpell")]
+    cast_log = {}
+    assert_true(nova.execute(ctx, state), "G: Fire Nova executes")
+    assert_eq(cast_log[1] and cast_log[1].spell, 19105, "G: Fire Nova casts the maxrank sentinel (not the 19005 baseline)")
 end
 
 -- E. Zero numeric spell-ID literals (audit contract).

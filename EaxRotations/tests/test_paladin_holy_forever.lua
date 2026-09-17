@@ -1,7 +1,7 @@
 -- test_paladin_holy_forever.lua -- unit pins for the first _forever delta spec.
 -- WHAT:  holy_forever.lua contract: baseline capture + re-register splice,
 --        lane set and ordering (healing-priority head, fillers above the
---        solo block), by-name dormancy before the beta DBC, matcher
+--        solo block), by-name dormancy on nil lookups, matcher
 --        behavior, and the zero-numeric-literal audit contract.
 -- WHEN:  standalone -- lua EaxRotations/tests/test_paladin_holy_forever.lua
 --        or via run_rotation_tests.lua.
@@ -29,6 +29,7 @@ end
 -- splice anchor lane and an emergency lane.
 -- ---------------------------------------------------------------------------
 local registered = nil
+local cast_log = {}
 local NS = {
     settings = {},
     log = function() end,
@@ -44,7 +45,10 @@ local NS = {
     },
     has_player_buff = function() return false end,
     spell_ready = function() return true end,
-    try_cast = function() return true end,
+    try_cast = function(spell, target, reason, opts)
+        cast_log[#cast_log + 1] = { spell = spell, target = target }
+        return true
+    end,
     cooldown_remains = function() return 0 end,
     should_use_long_cd = function() return true end,
     unit_distance = function() return 5 end,
@@ -61,10 +65,12 @@ local FAKE_BASELINE = {
 }
 
 local orig_require = require
-local pending_bridge_by_name = {}
+local pending_by_name, pending_maxrank, pending_buff = {}, {}, {}
 function require(path)
     if path == "shared/wowhead_data_bridge_spell_index_forever_sylvanas" then
-        return { spell_index_by_name_forever = pending_bridge_by_name }
+        return { spell_index_by_name_forever = pending_by_name,
+                 spell_maxrank_by_name_forever = pending_maxrank,
+                 spell_buff_by_name_forever = pending_buff }
     end
     if path == "classes/paladin/holy_vanilla" then
         if FAKE_BASELINE then
@@ -79,12 +85,16 @@ function require(path)
     return orig_require(path)
 end
 
-local function load_delta(bridge_by_name)
+local function load_delta(by_name, maxrank, buff)
     -- The delta pcall-requires the bridge module (Pattern 9 optional-module
     -- shape) instead of reading a never-assigned NS member; the intercepted
-    -- require above hands it pending_bridge_by_name (a closure capture —
-    -- load_delta's parameter itself would resolve as a nil global there).
-    pending_bridge_by_name = bridge_by_name or {}
+    -- require above hands it the three pending mirrors (closure captures --
+    -- load_delta's parameters themselves would resolve as nil globals
+    -- there). Distinct sentinels per mirror pin MIRROR SELECTION, not just
+    -- resolution: a lane reading the wrong mirror sees a different id.
+    pending_by_name = by_name or {}
+    pending_maxrank = maxrank or {}
+    pending_buff = buff or {}
     registered = nil
     local chunk, err = loadfile("EaxRotations/classes/paladin/holy_forever.lua")
     if not chunk then error("cannot load delta: " .. tostring(err)) end
@@ -98,12 +108,18 @@ local function find_lane(list, name)
     return nil
 end
 
--- A. Full kit: all three bridge names resolve; splice + registration shape.
+-- A. Full kit: all three bridge names resolve in every mirror; splice +
+-- registration shape.
 do
     local combined = load_delta({
         ["Holy Strike"] = 19000,
         ["Light's Vigil"] = 19001,
         ["Infusion of Light"] = 19002,
+    }, {
+        ["Holy Strike"] = 19100,
+        ["Light's Vigil"] = 19101,
+    }, {
+        ["Infusion of Light"] = 19202,
     })
     assert_eq(registered and registered.name, "holy", "A: re-registers the holy playstyle")
     assert_eq(registered.strategies, combined, "A: registered strategies are the combined table")
@@ -123,6 +139,11 @@ do
         ["Holy Strike"] = 19000,
         ["Light's Vigil"] = 19001,
         ["Infusion of Light"] = 19002,
+    }, {
+        ["Holy Strike"] = 19100,
+        ["Light's Vigil"] = 19101,
+    }, {
+        ["Infusion of Light"] = 19202,
     })
     local state = { lowest = { unit = {}, hp = 60 }, mana_pct = 100, entries = {}, count = 0 }
     local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
@@ -160,11 +181,11 @@ do
     assert_true(not weave.matches(ctx, state), "B: Holy Strike weave never outranks healing")
 end
 
--- C. Dormancy before the beta DBC: nil bridge lookups leave lanes out, never
--- guessed; the always-resolvable Holy Shock core still splices in.
+-- C. Dormancy on nil lookups: empty mirrors leave lanes out, never guessed;
+-- the always-resolvable Holy Shock core still splices in.
 do
-    local combined = load_delta({})
-    assert_eq(#combined, #FAKE_BASELINE.strategies + 1, "C: only the Holy Shock core delta exists pre-beta")
+    local combined = load_delta({}, {}, {})
+    assert_eq(#combined, #FAKE_BASELINE.strategies + 1, "C: only the Holy Shock core delta exists on empty mirrors")
     assert_true(find_lane(combined, "Forever_HolyShockCore"), "C: core lane present")
     assert_true(not find_lane(combined, "Forever_HolyStrikeWeave"), "C: Holy Strike dormant")
     assert_true(not find_lane(combined, "Forever_LightsVigilBurst"), "C: Light's Vigil dormant")
@@ -178,9 +199,47 @@ do
     FAKE_BASELINE.strategies = {
         { name = "FakeEmergencyLane", matches = function() return false end, execute = function() return false end },
     }
-    local combined = load_delta({ ["Holy Strike"] = 19000 })
+    local combined = load_delta({ ["Holy Strike"] = 19000 }, { ["Holy Strike"] = 19100 }, {})
     assert_eq(find_lane(combined, "Forever_HolyStrikeWeave"), #combined, "D: weave appends when the anchor lane is absent")
     assert_eq(find_lane(combined, "Forever_HolyShockCore"), #combined - 1, "D: core appends before the weave")
+end
+
+-- G. Mirror selection: cast lanes resolve max-rank ids, the buff lane
+-- resolves the buff-mirror id -- never the rank-1 baseline (distinct
+-- sentinels per mirror prove which table each lane read).
+do
+    local combined = load_delta({
+        ["Holy Strike"] = 19000,
+        ["Light's Vigil"] = 19001,
+        ["Infusion of Light"] = 19002,
+    }, {
+        ["Holy Strike"] = 19100,
+        ["Light's Vigil"] = 19101,
+    }, {
+        ["Infusion of Light"] = 19202,
+    })
+    local state = { lowest = { unit = {}, hp = 60 }, mana_pct = 100, entries = {}, count = 0 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+
+    local weave = combined[find_lane(combined, "Forever_HolyStrikeWeave")]
+    state.lowest.hp = 96
+    assert_true(weave.matches(ctx, state), "G: weave matches")
+    cast_log = {}
+    assert_true(weave.execute(ctx, state), "G: weave executes")
+    assert_eq(cast_log[1] and cast_log[1].spell, 19100, "G: weave casts the maxrank sentinel (not the 19000 baseline)")
+
+    local vigil = combined[find_lane(combined, "Forever_LightsVigilBurst")]
+    state.lowest.hp = 60
+    cast_log = {}
+    assert_true(vigil.execute(ctx, state), "G: vigil executes")
+    assert_eq(cast_log[1] and cast_log[1].spell, 19101, "G: vigil casts the maxrank sentinel")
+
+    local iol = combined[find_lane(combined, "Forever_InfusionOfLightWeave")]
+    NS.has_player_buff = function(id) return id == 19202 end
+    assert_true(iol.matches(ctx, state), "G: IoL matches on the buff-mirror sentinel")
+    NS.has_player_buff = function(id) return id == 19002 end
+    assert_true(not iol.matches(ctx, state), "G: IoL ignores the rank-1 baseline sentinel")
+    NS.has_player_buff = function() return false end
 end
 
 -- E. Zero numeric spell-ID literals (audit contract): no digits-only table

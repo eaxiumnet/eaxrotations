@@ -59,26 +59,26 @@ end
 
 -- ---------------------------------------------------------------------------
 -- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
--- bridge is empty until the beta DBC lands, so before beta day the
--- bridge-resolved lanes stay dormant. Exact client names come from
--- docs/forever/kits/mage.md; sentinel stand-ins for these names are
--- seeded by the battery's build_ns so the lanes are observable (Pattern 17)
--- today and byte-identical in production once the real bridge arrives.
+-- Hot Streak gate resolves through the BUFF mirror (400625, the Forever
+-- stacking proc per its own description text -- the 48108 baseline is the
+-- legacy 2-in-a-row row). A nil lookup leaves the lane dormant -- never a
+-- guessed ID. Sentinel stand-ins are seeded per mirror by the battery's
+-- build_ns so mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
 local ok_bridge, ForeverBridge = pcall(require,
     "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
 if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
-local by_name = (ForeverBridge
-    and type(ForeverBridge.spell_index_by_name_forever) == "table")
-    and ForeverBridge.spell_index_by_name_forever or {}
+local by_buff = (ForeverBridge
+    and type(ForeverBridge.spell_buff_by_name_forever) == "table")
+    and ForeverBridge.spell_buff_by_name_forever or {}
 
-local function resolve_id(client_name)
-    local id = by_name[client_name]
+local function resolve_id(map, client_name)
+    local id = map[client_name]
     if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
     return id
 end
 
-local HOT_STREAK_BUFF = resolve_id("Hot Streak")
+local HOT_STREAK_BUFF = resolve_id(by_buff, "Hot Streak")
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers and Forever constants. Thresholds are menu-tunable via

@@ -6,8 +6,8 @@
 -- WHEN:  updated as the beta DBC verifies (or corrects) each claim below.
 -- WHY:   day-1 Shaman rotations must encode the confirmed deltas, not TBC
 --        assumptions; every strategy change traces to a source line here.
--- SAFETY: NO spell IDs in this file until the Forever DBC lands (2026-09-17);
---         see docs/forever/dbc_runbook.md for the verification gate.
+-- SAFETY: spell IDs below are DBC-verified (beta 1.60.1.69893, 2026-09-17)
+--         unless marked [PROBE]; see docs/forever/dbc_runbook.md.
 
 # Shaman — WoW Forever kit (class overview 2026-09-15)
 
@@ -126,19 +126,34 @@ not encode either.
   loop per the page's build sketch, instant Ghost Wolf mobility, early imbues.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
-- [ ] Resolve every named ability above BY NAME in the Forever bridge
-      (zero-literal rule); record IDs into `ShamanSpells` only then.
-- [ ] Fire Nova: confirm it is a standalone spell whose effect references
-      the Fire Totem (effect/aura shape), not a totem entity.
-- [ ] Lava Burst: confirm the Flame Shock dependency (bonus-against-aura
-      effect) — this drives the hard lane gate.
-- [ ] Maelstrom Weapon: confirm stack cap + per-stack effect via buff
-      points (Pattern 11).
-- [ ] Stormstrike CD 8s + Improved reset/dodge-parry semantics.
+- [x] Resolve every named ability above BY NAME in the Forever bridge
+      (2026-09-17: all P1 shaman names resolve — Maelstrom Weapon 408498/
+      408505, Stormstrike 17364, Fire Nova 8349/11307, Totemic Projection
+      437009, Totemic Recall 36936, Call of the Elements 66842, Lava Burst
+      408490/1238300, Flame Shock 8050).
+- [x] Fire Nova: standalone spell rows confirmed (damage ranks 8349@12 …
+      11307@52 with Effect-2 AoE shapes + paired trigger rows 8504 … 11311;
+      max-rank mirror resolves 11307). No DBC cooldown row on any rank —
+      readiness is engine-gated.
+- [x] Lava Burst: Flame Shock dependency confirmed in description text
+      ("If your Flame Shock is on the target") + EffectBasePoints 20 on the
+      bonus effect (+20%); max rank 1238300@60 (10s category CD on both
+      408490 and 1238300); lane casts the max-rank mirror.
+- [x] Maelstrom Weapon (partial 2026-09-17): buff row identified as 408505
+      ("Reduces the cast time and Mana cost of your next Lightning Bolt
+      spell" — baseline 408498 is the talent text); weave lane gates on the
+      buff mirror. OPEN: stack cap + proc chance live in aura points —
+      in-game buff-points read (Pattern 11).
+- [x] Stormstrike CD 8s confirmed (RecoveryTime 8000 on 17364; bridge
+      cooldown field reads 8.0). OPEN: Improved Stormstrike reset/
+      dodge-parry semantics (talent-side, wave 2).
 - [ ] Rockbiter threat modifier (+30% with Spirit Weapons) — threat-logic
       branch flag.
-- [ ] Totemic Projection/Recall/Call of the Elements spell shapes (cast
-      time, range, mana model) for the totem scheduler rework.
+- [x] Totemic Projection/Recall/Call of the Elements spell shapes
+      (2026-09-17): 437009 (60s CD, effect-28 target [87,0]), 36936
+      (effect-110 self), 66842 (effect-97 self). Cast-time index → seconds
+      mapping needs the SpellCastTimes table (not extracted) — ranges/mana
+      per tooltip when read live.
 - [ ] Blood Fury numbers (pages disagree) + Berserking duration/CD.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on

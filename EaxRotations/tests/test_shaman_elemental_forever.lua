@@ -20,6 +20,7 @@ local function assert_eq(a, b, label)
 end
 
 local registered = nil
+local cast_log = {}
 local NS = {
     settings = {},
     log = function() end,
@@ -33,7 +34,10 @@ local NS = {
         FlameShock = { ids = { 25457, 29228, 10448 } },
     },
     spell_ready = function() return true end,
-    try_cast = function() return true end,
+    try_cast = function(spell, target, reason, opts)
+        cast_log[#cast_log + 1] = { spell = spell, target = target }
+        return true
+    end,
     debuff_remains = function() return 0 end,
 }
 _G.EaxRotations = NS
@@ -49,10 +53,12 @@ local FAKE_BASELINE = {
 }
 
 local orig_require = require
-local pending_bridge_by_name = {}
+local pending_by_name, pending_maxrank, pending_buff = {}, {}, {}
 function require(path)
     if path == "shared/wowhead_data_bridge_spell_index_forever_sylvanas" then
-        return { spell_index_by_name_forever = pending_bridge_by_name }
+        return { spell_index_by_name_forever = pending_by_name,
+                 spell_maxrank_by_name_forever = pending_maxrank,
+                 spell_buff_by_name_forever = pending_buff }
     end
     if path == "classes/shaman/elemental_vanilla" then
         if FAKE_BASELINE then
@@ -67,8 +73,10 @@ function require(path)
     return orig_require(path)
 end
 
-local function load_delta(bridge_by_name)
-    pending_bridge_by_name = bridge_by_name or {}
+local function load_delta(by_name, maxrank, buff)
+    pending_by_name = by_name or {}
+    pending_maxrank = maxrank or {}
+    pending_buff = buff or {}
     registered = nil
     local chunk, err = loadfile("EaxRotations/classes/shaman/elemental_forever.lua")
     if not chunk then error("cannot load delta: " .. tostring(err)) end
@@ -82,9 +90,10 @@ local function find_lane(list, name)
     return nil
 end
 
--- A. Full kit: both bridge names resolve; splice + registration shape.
+-- A. Full kit: both bridge names resolve in the maxrank mirror; splice +
+-- registration shape.
 do
-    local combined = load_delta({ ["Lava Burst"] = 19006, ["Fire Nova"] = 19005 })
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
     assert_eq(registered and registered.name, "elemental", "A: re-registers the elemental playstyle")
     assert_eq(registered.strategies, combined, "A: registered strategies are the combined table")
     assert_eq(registered.options.get_state, FAKE_BASELINE.options.get_state, "A: baseline get_state passed through")
@@ -98,7 +107,7 @@ end
 
 -- B. Matcher behavior: the FS dependency is the point of the lane.
 do
-    local combined = load_delta({ ["Lava Burst"] = 19006, ["Fire Nova"] = 19005 })
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
     local state = { mana_pct = 80 }
     local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
 
@@ -121,10 +130,10 @@ do
     state.mana_pct = 80
 end
 
--- C. Dormancy before the beta DBC: both lanes dormant pre-beta.
+-- C. Dormancy on nil lookups: both lanes dormant on empty mirrors.
 do
-    local combined = load_delta({})
-    assert_eq(#combined, #FAKE_BASELINE.strategies, "C: zero delta lanes pre-beta (all name-resolved)")
+    local combined = load_delta({}, {}, {})
+    assert_eq(#combined, #FAKE_BASELINE.strategies, "C: zero delta lanes on empty mirrors (all name-resolved)")
     assert_true(not find_lane(combined, "Forever_LavaBurstShocked"), "C: Lava Burst dormant")
     assert_true(not find_lane(combined, "Forever_FireNovaSpell"), "C: Fire Nova dormant")
     assert_eq(find_lane(combined, "ChainLightning"), 2, "C: baseline order unchanged")
@@ -135,9 +144,27 @@ do
     FAKE_BASELINE.strategies = {
         { name = "ManaPotion", matches = function() return false end, execute = function() return false end },
     }
-    local combined = load_delta({ ["Lava Burst"] = 19006, ["Fire Nova"] = 19005 })
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
     assert_eq(find_lane(combined, "Forever_LavaBurstShocked"), #combined - 1, "D: Lava Burst appends before Fire Nova")
     assert_eq(find_lane(combined, "Forever_FireNovaSpell"), #combined, "D: Fire Nova appends last")
+end
+
+-- G. Mirror selection: both nuke lanes cast maxrank sentinels -- never the
+-- rank-1 baseline (distinct sentinels per mirror prove which table was read).
+do
+    local combined = load_delta({}, { ["Lava Burst"] = 19106, ["Fire Nova"] = 19105 }, {})
+    local state = { mana_pct = 80 }
+    local ctx = { in_combat = true, target = {}, has_valid_enemy_target = true, me = {}, settings = {} }
+
+    local lb = combined[find_lane(combined, "Forever_LavaBurstShocked")]
+    cast_log = {}
+    assert_true(lb.execute(ctx, state), "G: Lava Burst executes")
+    assert_eq(cast_log[1] and cast_log[1].spell, 19106, "G: Lava Burst casts the maxrank sentinel (not the 19006 baseline)")
+
+    local nova = combined[find_lane(combined, "Forever_FireNovaSpell")]
+    cast_log = {}
+    assert_true(nova.execute(ctx, state), "G: Fire Nova executes")
+    assert_eq(cast_log[1] and cast_log[1].spell, 19105, "G: Fire Nova casts the maxrank sentinel")
 end
 
 -- E. Zero numeric spell-ID literals (audit contract).

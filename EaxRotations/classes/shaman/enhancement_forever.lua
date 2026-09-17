@@ -59,28 +59,35 @@ if not baseline_ok or type(baseline) ~= "table" or type(baseline.strategies) ~= 
 end
 
 -- ---------------------------------------------------------------------------
--- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
--- bridge is empty until the beta DBC lands, so before beta day the
--- bridge-resolved lanes stay dormant. Exact client names come from
--- docs/forever/kits/shaman.md; sentinel stand-ins for these names are
--- seeded by the battery's build_ns so the lanes are observable (Pattern 17)
--- today and byte-identical in production once the real bridge arrives.
+-- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): cast
+-- lanes resolve through the max-rank mirror and buff lanes through the buff
+-- mirror; a nil lookup in either mirror leaves the lane dormant -- never a
+-- guessed ID. Maelstrom Weapon gates on the BUFF row (408505, "Reduces the
+-- cast time ... of your next Lightning Bolt" -- the 408498 baseline is the
+-- talent text); Fire Nova casts the max-rank damage row (11307@52 -- the
+-- @52 tie with the 11311 trigger row breaks by lowest id to the correct
+-- one, verified by effect dump). Exact client names come from
+-- docs/forever/kits/shaman.md; sentinel stand-ins are seeded per mirror by
+-- the battery's build_ns so mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
 local ok_bridge, ForeverBridge = pcall(require,
     "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
 if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
-local by_name = (ForeverBridge
-    and type(ForeverBridge.spell_index_by_name_forever) == "table")
-    and ForeverBridge.spell_index_by_name_forever or {}
+local by_maxrank = (ForeverBridge
+    and type(ForeverBridge.spell_maxrank_by_name_forever) == "table")
+    and ForeverBridge.spell_maxrank_by_name_forever or {}
+local by_buff = (ForeverBridge
+    and type(ForeverBridge.spell_buff_by_name_forever) == "table")
+    and ForeverBridge.spell_buff_by_name_forever or {}
 
-local function resolve_id(client_name)
-    local id = by_name[client_name]
+local function resolve_id(map, client_name)
+    local id = map[client_name]
     if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
     return id
 end
 
-local MAELSTROM_WEAPON_BUFF = resolve_id("Maelstrom Weapon")
-local FIRE_NOVA_SPELL = resolve_id("Fire Nova")
+local MAELSTROM_WEAPON_BUFF = resolve_id(by_buff, "Maelstrom Weapon")
+local FIRE_NOVA_SPELL = resolve_id(by_maxrank, "Fire Nova")
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers and Forever constants. Thresholds are menu-tunable via
@@ -90,7 +97,8 @@ local format = string.format
 local EMPTY_OPTS = {}
 
 local FOREVER_MW_LB_MANA_FLOOR = 30    -- weave filler: never at starvation
-local FOREVER_STORMSTRIKE_CD_ESTIMATE = 8  -- kit: 8s baseline (was 20s)
+-- DBC-confirmed: RecoveryTime 8000 on Stormstrike 17364 (kit: 8s baseline).
+local FOREVER_STORMSTRIKE_CD_ESTIMATE = 8
 local FOREVER_FIRE_NOVA_MANA_FLOOR = 30
 
 local function setting(context, key, default)

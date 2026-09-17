@@ -5,8 +5,8 @@
 -- WHEN:  updated as Blizzard's class-identity article/video series adds detail.
 -- WHY:   day-1 Paladin rotations must encode the confirmed deltas, not TBC
 --        assumptions; every strategy change traces to a source line here.
--- SAFETY: NO spell IDs in this file until the Forever DBC lands (2026-09-17);
---         see docs/forever/dbc_runbook.md for the verification gate.
+-- SAFETY: spell IDs below are DBC-verified (beta 1.60.1.69893, 2026-09-17)
+--         unless marked [PROBE]; see docs/forever/dbc_runbook.md.
 
 # Paladin — WoW Forever kit (Deep Dive 2026-09-13)
 
@@ -81,3 +81,39 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on
 day 1 — strict never=0, no SoD-style retrofit.
+
+## Beta DBC evidence (2026-09-17, client 1.60.1.69893)
+
+All rows below read off the extracted DBC (`wowsims_forever.db`), not
+Wowhead. Rank ladders verified complete against the kit's learn levels.
+
+- **Holy Strike**: castable rows 678@12 / 679@6 / 680@28 / 1866@20 / 2495@36
+  / 5569@44 / 10332@52 / 10333@60, every rank CategoryRecoveryTime 12000
+  (kit's 12s CD confirmed). Kit "level 6" ↔ 679@6; the bridge baseline keeps
+  the lowest id (678@12) per the rank-1 rule — the weave lane casts the
+  max-rank mirror (10333@60).
+- **Light's Vigil**: cast rows 1310911@40 / 1311590@50 / 1311595@60 (lane
+  casts the max-rank 1311595); buff row 1310909. NO DBC cooldown row on any
+  rank — the 180s estimate stands, tune in-game. Mechanic text confirmed
+  ("next Holy Shock triggers no cooldown", party-heal / damage + refund
+  branches).
+- **Infusion of Light**: buff 53672 (proc-shaped aura rows; lane gates on
+  it) vs talent/learn row 426065 (granted by 426179). [PROBE: confirm the
+  live proc aura id in-game — 53672 vs 426065.]
+- **Holy Shock**: legacy rows 20473@40 / 20929@48 / 20930@56 AND the Forever
+  row 1311606@30 (new damage/heal sub-spells 1311604/1311605) — BOTH shapes
+  carry CategoryRecoveryTime 10000 (kit's 10s CD confirmed on both). The
+  delta lane keeps the class-map id; [PROBE: confirm the live-cast id
+  in-game, 20473 vs 1311606.]
+- **Seal of Fury** (prot wave): ladder 1311649@10 / 1311656@18 / 20163@25 /
+  20419@34 / 20421@42 / 20422@50 / 20423@58, triggers point at the Judgement
+  ids (20231 etc.); absorb text confirmed ("grants an absorb shield equal
+  to $m2%"). Bridge maxrank → 20423.
+- **Consecration**: true rank 1 is 26573@20 (kit's "baseline at 20"
+  confirmed); the bridge baseline reports 20116@30 (lowest-id rule quirk —
+  same class as the Holy Strike 678/679 case, documented not fixed).
+- **Judgment** 20271: "Does not consume the Seal" text confirmed
+  (RecoveryTime 10000 — note: 10s Judgement CD in the DBC).
+- Also present with kit-matching rows: Voice of Truth 1310897, Reverence
+  1310899, Templar's Bulwark 1311015, Iron Creed 1311033/34, Sacred Arbiter
+  1311087, Vindication 440667/68.

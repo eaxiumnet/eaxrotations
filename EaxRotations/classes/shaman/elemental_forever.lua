@@ -59,28 +59,28 @@ if not baseline_ok or type(baseline) ~= "table" or type(baseline.strategies) ~= 
 end
 
 -- ---------------------------------------------------------------------------
--- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
--- bridge is empty until the beta DBC lands, so before beta day the
--- bridge-resolved lanes stay dormant. Exact client names come from
--- docs/forever/kits/shaman.md; sentinel stand-ins for these names are
--- seeded by the battery's build_ns so the lanes are observable (Pattern 17)
--- today and byte-identical in production once the real bridge arrives.
+-- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): both
+-- lanes CAST, so both resolve through the max-rank mirror (Lava Burst
+-- 1238300@60 with the +20% Flame Shock bonus in its description text;
+-- Fire Nova 11307@52, the damage row). A nil lookup leaves the lane
+-- dormant -- never a guessed ID. Sentinel stand-ins are seeded per mirror
+-- by the battery's build_ns so mirror selection itself is pinned.
 -- ---------------------------------------------------------------------------
 local ok_bridge, ForeverBridge = pcall(require,
     "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
 if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
-local by_name = (ForeverBridge
-    and type(ForeverBridge.spell_index_by_name_forever) == "table")
-    and ForeverBridge.spell_index_by_name_forever or {}
+local by_maxrank = (ForeverBridge
+    and type(ForeverBridge.spell_maxrank_by_name_forever) == "table")
+    and ForeverBridge.spell_maxrank_by_name_forever or {}
 
-local function resolve_id(client_name)
-    local id = by_name[client_name]
+local function resolve_id(map, client_name)
+    local id = map[client_name]
     if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
     return id
 end
 
-local LAVA_BURST_SPELL = resolve_id("Lava Burst")
-local FIRE_NOVA_SPELL = resolve_id("Fire Nova")
+local LAVA_BURST_SPELL = resolve_id(by_maxrank, "Lava Burst")
+local FIRE_NOVA_SPELL = resolve_id(by_maxrank, "Fire Nova")
 
 -- Zero-literal Flame Shock debuff table: reuse the class map's rank list.
 local FLAME_SHOCK_DEBUFF = SPELLS.FlameShock and SPELLS.FlameShock.ids or nil
