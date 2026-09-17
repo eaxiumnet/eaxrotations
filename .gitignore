@@ -31,6 +31,9 @@
 # files under wowheadScrape/dbc_extract/forever_community/ stay local-only).
 !/tools/build_forever_database.py
 !/tools/build_forever_bundle.py
+!/tools/build_forever_icons.py
+!/tools/build_forever_models.py
+!/tools/viewer3d_template.html
 # Forever DB2 table probe (run after every beta client patch, per
 # docs/forever/dbc_runbook.md).
 !/tools/probe_forever_tables.py
