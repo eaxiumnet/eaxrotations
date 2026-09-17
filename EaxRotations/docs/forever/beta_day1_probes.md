@@ -253,6 +253,13 @@ waits, next-ranked delta moves up.
       cast-on-cooldown lane. [PROBE: whether the +15% applies per Penance
       tick and whether the HF debuff refresh window matches the DoT
       duration in-game.]
+- [x] **Paladin Holy Strike ladder** (2026-09-17, paladin leveling day-1):
+      679@6 / 678@12 / 1866@20 / 680@28 / 2495@36 / 5569@44 / 10332@52 /
+      10333@60, trainer-taught under Retribution; the leveling lane casts a
+      {maxrank, rank-1} ladder (levels 12-60). [PROBE: the exact 12s
+      cooldown at the low ranks and the @6 rank id — the bridge mirrors
+      carry one id per name, so a rank-ladder mirror is a close-out
+      candidate.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

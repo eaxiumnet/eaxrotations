@@ -147,7 +147,12 @@ the @60 PoM aura 1240849 pinned in BUFF_OVERRIDES).
 nuke inside the Power in Light Holy Fire window and the debuff-driven Holy
 Fire upkeep replacing the baseline's cast-on-cooldown lane; both
 talent-gated, fail-closed to the baseline).
-#26 pending.
+#26 `*/leveling_forever.lua` fillers IN PROGRESS: paladin BUILT (the Holy
+Strike strike lane from the re-added Retribution ladder, woven between
+Exorcism and Consecration; the rank-ladder mirror recorded as a close-out
+candidate); the remaining classes (druid form-energy, rogue energy pace,
+warlock Bane-slot math, warrior Victory Rush, hunter Aimed Shot, mage
+Frostfire, shaman early Stormstrike, priest Fear Ward/DP) follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

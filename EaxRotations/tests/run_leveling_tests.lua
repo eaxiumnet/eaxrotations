@@ -53,6 +53,7 @@ local tests = {
     "test_leveling_warrior.lua",
     "test_leveling_druid.lua",
     "test_leveling_hunter.lua",
+    "test_paladin_leveling_forever.lua",
     "test_leveling_paladin.lua",
     "test_leveling_load.lua",
     "test_leveling_shared.lua",

@@ -3694,6 +3694,11 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_binding",
 -- rides the base scenarios (an absent debuff is the default).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_smite_penance",
     overrides = { in_combat = true, debuff_remains_map = { [15261] = 5 } } }
+-- Paladin leveling: the Holy Strike weave needs the seal-up gate satisfied
+-- (the baseline's ANY_SEAL_BUFF bank carries the vanilla Seal of Righteousness
+-- id, a test-only literal in the scenario).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_leveling_strike",
+    overrides = { in_combat = true, buff_remains_map = { [21084] = 600 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.

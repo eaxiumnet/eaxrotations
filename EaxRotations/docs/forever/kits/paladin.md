@@ -103,6 +103,17 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
   `forever_shock_cd`), never-inventory unchanged at 9.
 - `classes/paladin/leveling_forever.lua` — Holy Strike from 6, Consecration
   from 20, first spec to feel the kit at low level.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the Holy Strike
+  strike lane (ladder 679@6 / 678@12 / 1866@20 / 680@28 / 2495@36 /
+  5569@44 / 10332@52 / 10333@60, trainer-taught under Retribution) woven
+  into the leveling damage block between Exorcism and Consecration, with the
+  baseline's guards (context guard, combat, movement, the seal-up
+  damage-lane gate). RANK NOTE: the bridge mirrors carry one id per name, so
+  the lane casts a {maxrank 10333, rank-1 678} ladder — NS.get_spell_id
+  picks the highest LEARNED rung, covering levels 12-60; the @6 rank 679
+  and the intermediate ranks are not name-reachable (a rank-ladder mirror
+  is recorded as a close-out candidate). Consecration (26573@20 ... 20924@60)
+  already has a baseline lane (2+ enemies) — no delta needed.
 
 Battery rule (Pattern 17): every new lane must fire in a battery scenario on
 day 1 — strict never=0, no SoD-style retrofit.
