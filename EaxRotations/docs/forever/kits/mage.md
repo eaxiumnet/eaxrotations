@@ -69,13 +69,31 @@ Historically unplayable in Vanilla; the article expects it competitive:
 ## Frost
 - **Fingers of Frost**: chill effects 30% chance to grant FoF (15s) — next
   spell treats the target as frozen. Ice Lance's 300% payoff lane.
+  **DBC NOTE (2026-09-17)**: the rows exist (talent 400647, buffs
+  400669/400670, "Lasts 15") but every one is **BaseLevel 0**, so the bridge
+  builder's level guard excludes the whole proc and the lane cannot resolve
+  its buff id by name — recorded as a probe (fixing the guard touches every
+  mirror and needs its own commit).
 - **Shatter**: 50% crit vs frozen in 3 points (was 5) and no longer depends
-  on Improved Frost Nova — cheaper, freer.
-- **Winter's Chill**: now benefits ONLY Frostbolt + Ice Lance (was all
-  crit-capable frost spells) — snapshot logic narrows.
-- **Improved Blizzard**: chill now 45% for 1.5s (was 65% for 2s) — AoE
-  crowd-control window shrinks; kite-loop timing changes.
-- **Elemental Precision**: 5% hit Frost+Fire (was 6%) — hit-cap math.
+  on Improved Frost Nova — cheaper, freer. CONFIRMED in the talent tree
+  (11170, tier 3) with the client text "Increases the critical strike chance
+  of all your spells against Frozen targets"; the "no Improved Frost Nova
+  dependency" part is structural (talent prereq rows) — probe tier.
+- **Winter's Chill**: now benefits ONLY Frostbolt + Ice Lance — CONFIRMED in
+  the client text ("increases the chance your Ice Lance and Frostbolt spells
+  will critically hit ... Stacks up to 6 times"), and the APPLIED row is
+  12579 (pinned in the bridge's BUFF_OVERRIDES: the name's lowest-id row
+  11180 is the talent, so the baseline's stack read always returned 0).
+- **Improved Blizzard**: chill now 45% for 1.5s (was 65% for 2s) — the
+  talent text ("Adds a Chill effect to your Blizzard ... for $12484d") is
+  value-level; the AoE kite-loop timing change needs no lane.
+- **Elemental Precision**: 5% hit Frost+Fire (was 6%) — hit-cap math, no lane.
+- **Icy Veins** (client-side reality check): 429125 exists and is
+  trainer-taught under Frost ("Hastens your spellcasting, increasing spell
+  casting speed by 21% ... Lasts 20", RecoveryTime 180000) — the kit's frost
+  section omits it, and the class map's `IcyVeins` action points at 12472
+  which is **Cold Snap** on this client, so the day-1 lane resolves the name
+  through the bridge.
 
 ## Mage-relevant racial detail (per-class page; numbers = press tier)
 | Race | Detail relevant to mage rotations |
@@ -118,6 +136,15 @@ Cross-page contradiction: Blood Fury's numbers differ per class page
 - `classes/mage/frost_forever.lua` — FoF→Ice Lance 300% burst lane,
   cheaper Shatter, narrowed Winter's Chill snapshot, Blizzard chill-window
   retiming.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes + 1 replacement)** —
+  Ice Lance (400640@28 … 1240047@56, "Deals 301% increased damage to Frozen
+  targets", ENGRAVING-granted) is a burst lane fired inside the Frost Nova
+  root window (the class-map rank list + the bridge id as the debuff probe);
+  Icy Veins (429125, 180s, +21% cast speed) joins the cooldown block; and the
+  baseline's Winter's Chill lane is REPLACED with one whose stack/refresh
+  read uses the applied debuff row 12579 (the bridge BUFF_OVERRIDES pin) —
+  the baseline read the talent id 11180 and therefore never saw stacks.
+  Fingers of Frost stays un-laned (BaseLevel-0 bridge gap, probe recorded).
 - `classes/mage/leveling_forever.lua` — school-swap Frostfire for
   resist-varying leveling targets; Hot Streak availability timing.
 
@@ -150,6 +177,10 @@ Cross-page contradiction: Blood Fury's numbers differ per class page
       lanes stay un-authored pending the lower-resist mechanic proof
       (in-gameresist behavior, not DBC-shape).
 - [ ] Ice Lance: confirm 300% frozen multiplier + FoF interaction.
+      **DONE (2026-09-17)**: the client text says "Deals 301% increased
+      damage to Frozen targets" (rank ladder 400640@28 … 1240047@56, plus
+      1312002@20) and the lane ships against the Frost Nova root window; the
+      FoF interaction stays a probe (BaseLevel-0 rows).
 - [x] Missile Barrage (complete 2026-09-17): talent 400588 rolls 40% on
       Arcane Blast (aura 42 base 40, trigger 400589) with Fireball/Frostbolt/
       Frostfire halved via `${$m1/2}`; proc 400589 = **15s**

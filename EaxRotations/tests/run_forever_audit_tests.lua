@@ -255,6 +255,7 @@ local function run_self_tests()
     expect(buffmap["Missile Barrage"], 400589, "buff Missile Barrage is the proc (not the 400588 talent)")
     expect(buffmap["Maelstrom Weapon"], 408505, "buff Maelstrom Weapon is the buff text row (not the 408498 talent)")
     expect(buffmap["Hot Streak"], 400625, "buff Hot Streak is the Forever stacking proc (not the legacy 48108 row)")
+    expect(buffmap["Winter's Chill"], 12579, "buff Winter's Chill is the applied debuff row (not the 11180 talent)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")

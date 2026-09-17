@@ -3577,6 +3577,14 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_spearing"
     overrides = { in_combat = true, target_creature_type = 2, rage = 50 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_slam",
     overrides = { in_combat = true, rage = 50 } }
+-- Mage frost: the Ice Lance Frozen window (the bridge Frost Nova sentinel in
+-- the debuff map), the Winter's Chill stack read (id-scoped bank) and Icy
+-- Veins (a plain combat CD).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_icelance",
+    overrides = { in_combat = true, mana_pct = 80, debuff_remains_map = { [90029] = 4 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_winters_chill",
+    overrides = { in_combat = true, mana_pct = 80, debuff_stacks = 2, debuff_aura_ids = { 90028 },
+                  debuff_remains_map = { [90028] = 12 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4454,6 +4462,14 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- and the Improved Slam talent row (the Slam-replacement gate).
             ["Spearing Strike"] = 90024,
             ["Improved Slam"] = 90025,
+            -- Mage frost day-1 (2026-09-17): the engraving-granted Ice Lance
+            -- row, Icy Veins, the Winter's Chill applied-debuff row (the
+            -- builder's BUFF_OVERRIDES pin) and Frost Nova (the Frozen
+            -- window probe's bridge id).
+            ["Ice Lance"] = 90026,
+            ["Icy Veins"] = 90027,
+            ["Winter's Chill"] = 90028,
+            ["Frost Nova"] = 90029,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

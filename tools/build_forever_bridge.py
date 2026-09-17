@@ -191,6 +191,11 @@ def load_forever_spells(conn):
         # in a row..."). Kit's "3-stack" number itself is still unconfirmed
         # (lives in aura points) -- recorded as an in-game probe, not here.
         "Hot Streak": 400625,
+        # Applied debuff row ("increases the chance your Ice Lance and
+        # Frostbolt spells will critically hit ... Stacks up to 6 times",
+        # referenced by the talent text as $12579s1/$12579d); baseline 11180
+        # is the TALENT row, so a stack read against it always returns 0.
+        "Winter's Chill": 12579,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for
