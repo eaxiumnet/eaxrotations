@@ -3387,6 +3387,26 @@ M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
     { name = "sod_cleave_cd", overrides = { in_combat = true, enemy_count = 2, enemies_count = 2, ttd = 60, target_ttd = 60, setting_overrides = { use_cooldowns = true } } }
 
+-- SoD interrupt-lane close-out (2026-09-16): the 14 per-class Interrupt lanes
+-- (shared interrupt_manager strategy #1: druid feral/tank SkullBash, mage
+-- Counterspell, rogue combat/tank Kick, warrior dps Pummel / tank ShieldBash,
+-- shaman x4 EarthShock, priest Silence, paladin prot/ret HammerOfJustice)
+-- held in every battery scenario because cast_has_interrupt_window reads the
+-- TARGET's cast progress: the scenario target reported get_cast_pct = 60
+-- (the enh-EarthShock-kick-window default, behavioral_audit.lua:3534) which
+-- sits OUTSIDE the manager's <50 default window, so the lane never matched.
+-- The scorecard's bucket-c rationale ("no try_interrupt/gcd_remains stubs")
+-- was stale — both stubs existed (lines ~736/~1553). Two honest fixtures:
+-- sod_interrupt_window presents a casting target EARLY in its cast (pct 20,
+-- inside the window, humanize off so the 2s-scenario-tick clock can't hold
+-- the jitter gate); sod_interrupt_berserker widens it with stance = 3 so
+-- warrior dps Pummel (manager required = 3) fires too — tank ShieldBash's
+-- wrapper excludes berserker by design, so it fires in the first scenario.
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_interrupt_window", overrides = { target_is_casting = true, target_cast_pct = 20, setting_overrides = { interrupt_humanize_enabled = false } } }
+M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
+    { name = "sod_interrupt_berserker", overrides = { target_is_casting = true, target_cast_pct = 20, stance = 3, setting_overrides = { interrupt_humanize_enabled = false } } }
+
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
 local function _scenario_me(profile, ctx)
