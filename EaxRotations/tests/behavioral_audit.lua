@@ -3620,6 +3620,18 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_pact_part
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_decimation",
     overrides = { in_combat = true, mana_pct = 80,
                   buff_remains_map = { [90034] = 10 } } }
+-- Warlock destruction: the Immolate-kept Incinerate (the debuff bank holds
+-- the baseline's max-rank Immolate id on the primary target), the Shadow and
+-- Flame fire window, and the two-target Bane of Havoc placement (the 3-enemy
+-- bank materializes ctx.enemies with an off-target to bane).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_incinerate",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 1,
+                  debuff_remains_map = { [11668] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_window",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 1,
+                  buff_remains_map = { [90039] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_boh_cleave",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 3, enemies_count = 3 } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4521,6 +4533,14 @@ function M.load_spec(class_key, spec_key, era, race_override)
             ["Decimation"] = 90034,
             ["Burning Shadow"] = 90035,
             ["Touch of Fire"] = 90036,
+            -- Warlock destruction day-1 (2026-09-17): the Incinerate nuke,
+            -- the Bane of Havoc cleave curse, and the two class-less Shadow
+            -- and Flame window rows (Flame = Conflagrate's fire window,
+            -- Shadow = Shadowburn's shadow window).
+            ["Incinerate"] = 90037,
+            ["Bane of Havoc"] = 90038,
+            ["Flame"] = 90039,
+            ["Shadow"] = 90040,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

@@ -106,6 +106,22 @@ MIRROR_NAME_OVERRIDES = {
     "Berserk": 417141,
 }
 
+# Class-less aura rows that _forever buff lanes read by name (2026-09-17).
+# The SpellClassOptions filter in load_forever_spells drops rows the client
+# grants only as an effect of a classed talent/engraving, so they cannot ride
+# the rank-1 baseline: pin them here and admit their ids to the fail-closed
+# mirror check below. Every entry verified against the 1.60.1.69893 DBC
+# (effect dump + the talent text that references the row by id).
+CLASS_LESS_BUFF_NAMES = {
+    # Shadow and Flame 426316: "Hitting an enemy with Conflagrate increases
+    # all Shadow damage you deal by $m3% for $1293816d, and hitting an enemy
+    # with Shadowburn increases all Fire damage you deal by $m4% for
+    # $426311d" -- both window rows (aura 79 = mod damage percent, base +10,
+    # caster target) carry no SpellClassOptions row.
+    "Shadow": 1293816,
+    "Flame": 426311,
+}
+
 
 def _school(mask):
     return SCHOOL_MAP.get(mask, "physical")
@@ -279,6 +295,12 @@ def load_forever_spells(conn):
     buff_ids = {}
     for (class_name, name), entry in result.items():
         buff_ids[(class_name, name)] = BUFF_OVERRIDES.get(name, entry["spell_id"])
+    # Class-less aura rows the buff mirror must carry anyway (see
+    # CLASS_LESS_BUFF_NAMES). Keyed under their real class so the mirror's
+    # lowest-id dedupe cannot drop them; the orphan check in write_bridge
+    # admits their ids explicitly.
+    for name, sid in CLASS_LESS_BUFF_NAMES.items():
+        buff_ids[("Warlock", name)] = sid
     return result, maxrank, buff_ids, all_player_ids
 
 
@@ -379,11 +401,14 @@ def write_bridge(spells, maxrank, buff_ids, all_player_ids):
     # Every mirror id must be a real player-filtered spell row in the DBC.
     # (Checked against all_player_ids, NOT spell_index_forever: the index is
     # rank-1 baselines by contract, while maxrank ids are higher ranks of the
-    # same ladders by design.)
+    # same ladders by design.) The explicitly pinned class-less aura rows
+    # (CLASS_LESS_BUFF_NAMES) are admitted here by id -- they are player-side
+    # effects the class filter cannot see, not foreign spells.
+    class_less_ids = set(CLASS_LESS_BUFF_NAMES.values())
     for label, mapping, id_of in (
             ("maxrank", maxrank, lambda k: maxrank[k][1]),
             ("buff", buff_ids, lambda k: buff_ids[k])):
-        orphans = sorted({id_of(k) for k in mapping} - all_player_ids)
+        orphans = sorted({id_of(k) for k in mapping} - all_player_ids - class_less_ids)
         if orphans:
             print("ERROR: %s mirror ids with no player-filtered DBC row: %s"
                   % (label, orphans))

@@ -183,8 +183,21 @@ waits, next-ranked delta moves up.
 - [ ] **Demonic Brand pet-tank window** (Searing Pain threat reduction + the
       pet's next 2 attacks "generate high threat") — no threat API surface;
       world/solo lane, not automated in #17.
-- [ ] **Conflagrate no longer consumes Immolate at max Shadow and Flame**
-      — destruction rotation (#18).
+- [ ] **Bane of Havoc rules** (one Bane per warlock; does a Bane share the
+      Curse slot on the same target?) + the mirror-damage attribution — the
+      #18 cleave lane banes an off-target and aborts when one Bane is
+      already placed. Recorded 2026-09-17.
+- [x] **Shadow and Flame windows** (2026-09-17, destro day-1): RESOLVED by
+      the client text + effect dump — 426316 applies 1293816 ("Shadow",
+      +10% shadow after Conflagrate) and 426311 ("Flame", +10% fire after
+      Shadowburn); both rows are class-less and now pinned through the
+      builder's CLASS_LESS_BUFF_NAMES. The max-rank no-consume claim is
+      CORRECTED to Backdraft 427713 / S&F's 20% chance.
+- [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
+      CORRECTED — the max-rank Conflagrate 18932 still consumes; the
+      unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),
+      and Shadow and Flame 426316 carries a 20% chance. No lane needed (the
+      baseline Conflagrate lane's gates are unaffected).
 - [ ] **Restless Blades CD-discount shape** (2s per CP spent; exact CD
       list) — combat CD-recycling lane (#23).
 

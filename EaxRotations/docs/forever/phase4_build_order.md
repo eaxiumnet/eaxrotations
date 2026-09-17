@@ -108,7 +108,13 @@ maintenance — summon the other demon while a sacrifice aura is up, per the
 425464 persistence text — and the Decimation Soul Fire window, with the
 applied proc 440873 pinned in the builder's BUFF_OVERRIDES; Demonic
 Sacrifice's class-less 18788 row keeps the sacrifice cast manual).
-#18–#26 pending.
+#18 `warlock/destruction_forever.lua` BUILT (3 lanes: the Immolate-kept
+Incinerate nuke, the Shadow and Flame window lane choosing Incinerate or
+Shadow Bolt by the fire/shadow window aura — both window rows class-less and
+now pinned in the builder's CLASS_LESS_BUFF_NAMES — and the off-target Bane
+of Havoc cleave, respecting the one-Bane limit; the kit's max-rank
+no-consume claim corrected to Backdraft/S&F).
+#19–#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

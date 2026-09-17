@@ -138,6 +138,22 @@ ranks, "even entire mechanics" to change).
 - `classes/warlock/destruction_forever.lua` — Immolate→Incinerate hard
   dependency, Shadow and Flame cross-school windows + non-consuming
   Conflagrate, Bane of Havoc cleave placement, shard-free execute.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes, additive)** — (1)
+  Incinerate (412758@40 / 1293812@50 / 1293813@60, the +25% dummy confirmed)
+  with the hard Immolate-kept gate, above the baseline Shadow Bolt filler;
+  (2) the Shadow and Flame window lane: the fire window (426311 "Flame")
+  picks Incinerate, the shadow window (1293816 "Shadow") picks Shadow Bolt —
+  both window rows are CLASS-LESS auras and now ride the builder's new
+  CLASS_LESS_BUFF_NAMES pin; (3) Bane of Havoc (1225228, the 15%-mirror aura)
+  placed on an OFF-target while >= 2 enemies live, respecting the one-Bane
+  limit. **KIT CORRECTIONS**: the max-rank Conflagrate (18932) STILL reads
+  "consuming your Immolate effect" — the no-consume effects are **Backdraft
+  427713** ("no longer consumes Immolate", + the 427714 haste buff) and
+  Shadow and Flame's 20% chance; the Shadowburn shard refund is likewise an
+  S&F *chance*, not a max-rank guarantee. Neither needs a lane (the
+  baseline's Conflagrate/Shadowburn lanes already cast on their own gates).
+  OPEN (in-game): the Bane of Havoc 1-target enforcement + whether a Bane
+  competes with the Curse slot on the same target.
 - `classes/warlock/leveling_forever.lua` — Banes-not-curses slot math from
   early levels; pet Move To for leveling control.
 
@@ -190,8 +206,22 @@ ranks, "even entire mechanics" to change).
 - [ ] Demonic Brand pet-tank window (Searing Pain threat −17/34/51%, pet's
       next 2 attacks "generate high threat") — no threat API; world/solo lane,
       not automated on day 1.
-- [ ] Incinerate +25% vs Immolate; Shadow and Flame windows + non-consuming
-      Conflagrate.
+- [x] Incinerate +25% vs Immolate; Shadow and Flame windows + non-consuming
+      Conflagrate (2026-09-17, destro day-1): Incinerate's effect dump shows
+      the +25% dummy (effect 3, base 25) and the ladder 412758/1293812/
+      1293813 — the #18 lane gates on Immolate. S&F 426316 applies the two
+      windows **1293816 ("Shadow")** / **426311 ("Flame")**, both aura 79
+      +10% and both CLASS-LESS (they now ride the builder's
+      CLASS_LESS_BUFF_NAMES). The no-consume claim is CORRECTED: the
+      max-rank Conflagrate still consumes; Backdraft 427713 is the
+      unconditional no-consume (+haste 427714), S&F is a 20% chance.
+- [x] Bane of Havoc (2026-09-17, destro day-1): 1225228 is the cast/aura row
+      (effect 6 dummy aura base 15 = the 15% mirror), text "Bane of Havoc is
+      limited to 1 target, and only one Bane per Warlock can be active on any
+      one target". The #18 lane banes a NON-focus enemy and aborts the scan
+      when the one Bane is already placed. [PROBE: in-game confirm a Bane
+      does not collide with the Curse slot, and that the mirror damage
+      attributes correctly.]
 - [ ] Spellstone/Firestone as weapon oils (item-effect shape, not wand).
 - [ ] Talent-granted ranks (Siphon Life etc.) resolve in the rank ladders.
 

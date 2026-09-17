@@ -258,6 +258,10 @@ local function run_self_tests()
     expect(buffmap["Winter's Chill"], 12579, "buff Winter's Chill is the applied debuff row (not the 11180 talent)")
     expect(buffmap["Eclipse"], 408255, "buff Eclipse is the charge buff row (not the 408248 talent text)")
     expect(buffmap["Decimation"], 440873, "buff Decimation is the Soul Fire proc row (not the 440870 talent text)")
+    -- Class-less aura rows (builder CLASS_LESS_BUFF_NAMES): the Shadow and
+    -- Flame windows are applied by 426316 but carry no class row themselves.
+    expect(buffmap["Shadow"], 1293816, "buff Shadow is the Shadow and Flame shadow window row (class-less, pinned)")
+    expect(buffmap["Flame"], 426311, "buff Flame is the Shadow and Flame fire window row (class-less, pinned)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")
