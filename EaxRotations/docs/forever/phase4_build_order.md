@@ -155,9 +155,12 @@ flat energy floors inside the free-cast window; the form-energy half needs
 no lane — Furor is a capped restore and the leveling file has no
 powershift lane); warrior BUILT (the Victory Rush kill-window sustain lane
 above Execute, rune-learn-gated); hunter BUILT (the shared Aimed/Multi
-cooldown reorder — the pair re-emitted Multi-first, no new lanes); the
-remaining classes (rogue energy pace, warlock Bane-slot math, mage
-Frostfire, shaman early Stormstrike, priest Fear Ward/DP) follow.
+cooldown reorder — the pair re-emitted Multi-first, no new lanes); warlock
+BUILT (the Banes-not-curses pair — Curse of the Elements alongside the
+baseline's Bane of Agony, Bane-present precondition + mana floor; the
+pet-Move-To half is no rotation-lane impact); the remaining classes (rogue
+energy pace, mage Frostfire, shaman early Stormstrike, priest Fear Ward/DP)
+follow.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

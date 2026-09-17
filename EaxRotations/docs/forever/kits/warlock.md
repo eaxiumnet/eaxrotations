@@ -156,6 +156,18 @@ ranks, "even entire mechanics" to change).
   competes with the Curse slot on the same target.
 - `classes/warlock/leveling_forever.lua` — Banes-not-curses slot math from
   early levels; pet Move To for leveling control.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the
+  Banes-not-curses pair: with Banes and Curses in separate families (the
+  family texts name Banes, not Curses), the baseline's Bane of Agony dot
+  lane stays and the delta applies CURSE OF THE ELEMENTS alongside it
+  (bridge 440892/1311680) directly below the Bane lane — the amp requires
+  the Bane to be rolling first, respects a 25% mana floor and a 2s refresh
+  window, and mirrors the baseline's leveling context guard. The Bane read
+  uses the class-map CurseOfAgony ladder (every leveling rank). The kit's
+  pet-Move-To half is explicitly "no rotation-lane impact" (the API exposes
+  no move command) — recorded, no lane. [PROBE (P3): the in-game slot
+  mechanics — if a Bane and a Curse share one slot after all, the amp lane
+  would churn against the baseline's Bane lane and must be removed.]
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Affliction names resolved (2026-09-17): Corruption 172, Bane of Agony

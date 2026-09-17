@@ -3708,6 +3708,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_druid_leveling
 -- enabler id in the buff map; the melee/combat defaults hold).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warrior_leveling_vr",
     overrides = { in_combat = true, buff_remains_map = { [402975] = 15 } } }
+-- Warlock leveling: the Bane+Curse pair (the Bane-of-Agony rank-1 id from
+-- the class-map ladder in the debuff bank, Curse of the Elements absent).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warlock_leveling_coe",
+    overrides = { in_combat = true, debuff_remains_map = { [980] = 10 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4650,6 +4654,9 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- (Penance's sentinel 90041 from the discipline day-1 serves the
             -- cast resolution).
             ["Power in Light"] = 90055,
+            -- Warlock leveling day-1 (2026-09-17): the Curse of the Elements
+            -- amp lane (the Bane read uses the class-map CurseOfAgony ladder).
+            ["Curse of the Elements"] = 90056,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

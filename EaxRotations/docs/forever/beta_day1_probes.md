@@ -186,7 +186,10 @@ waits, next-ranked delta moves up.
 - [ ] **Bane of Havoc rules** (one Bane per warlock; does a Bane share the
       Curse slot on the same target?) + the mirror-damage attribution — the
       #18 cleave lane banes an off-target and aborts when one Bane is
-      already placed. Recorded 2026-09-17.
+      already placed. Recorded 2026-09-17. **Extended 2026-09-17 (warlock
+      leveling)**: the #26 amp lane maintains Bane of Agony + Curse of the
+      Elements simultaneously per the kit's family texts — if the in-game
+      slot turns out shared, that lane churns and must be removed.
 - [x] **Shadow and Flame windows** (2026-09-17, destro day-1): RESOLVED by
       the client text + effect dump — 426316 applies 1293816 ("Shadow",
       +10% shadow after Conflagrate) and 426311 ("Flame", +10% fire after
