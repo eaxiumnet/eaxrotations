@@ -138,6 +138,17 @@ Eureka!) carry from racials-and-talents.md.
   are recorded as a probe.
 - `classes/priest/smite_forever.lua` — Power in Light makes the smite
   build real: Holy Fire upkeep + Penance/Smite core.
+  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes + 1 replacement)** —
+  (1) Penance (the dual-mode cast 1316995, 12s category cooldown) fired in
+  its damage mode only while the Holy Fire debuff holds — the Power in
+  Light window (+15% per the effect dump), above the baseline's MindBlast
+  nuke. (2) Holy Fire UPKEEP: with the talent the debuff (not the cast) is
+  the Smite/Penance multiplier, so the baseline's cast-on-cooldown
+  "HolyFire" lane is REPLACED by a debuff-driven refresh (missing or inside
+  2s of expiry) at the same position. Smite itself needs no lane — the +15%
+  applies automatically to every cast while the debuff holds. Both lanes
+  are gated on Power in Light 1309969 being learned (fail-closed to the
+  baseline otherwise).
 - `classes/priest/leveling_forever.lua` — Fear Ward/DP universal access
   reshape early leveling for all races.
 
@@ -167,12 +178,15 @@ Eureka!) carry from racials-and-talents.md.
       effect rows confirm exactly −4000 ms and −15% mana; PW:S itself carries
       CategoryRecoveryTime 4000, so with the talent the loop becomes
       Weakened-Soul-limited. The #19 shield lane is gated on the talent.
-- [x] Power in Light (2026-09-17, disc day-1): 1309969 reads "+15% damage to
-      targets afflicted with your Holy Fire" — the kit's "up to +10%" is
-      CORRECTED to 15%; the #19 offensive Penance lane gates on the Holy
-      Fire debuff. Renewed Hope shaves 5s of Weakened Soul (the kit's
-      "shave" is now quantified) and Twin Disciplines gives +5% instant
-      casts — both passive on existing lanes, no new lane.
+- [x] Power in Light (2026-09-17, disc + smite day-1): 1309969 reads "+15%
+      damage to targets afflicted with your Holy Fire" — the kit's "up to
+      +10%" is CORRECTED to 15%; the disc offensive-Penance lane and the
+      #25 smite lanes both gate on the debuff. The smite delta also replaces
+      the baseline's cast-on-cooldown HolyFire lane with the debuff-driven
+      upkeep. [PROBE: whether the +15% applies to Penance's channel ticks
+      individually.]
+- [x] Renewed Hope shaves 5s of Weakened Soul and Twin Disciplines gives
+      +5% instant casts — both passive on existing lanes, no new lane.
 - [x] PoM: trigger-on-damage buff + jump chain (2026-09-17, holy day-1) —
       the cast ladder 401859@40 / 1240826@50 / 1240827@60 (10s
       CategoryRecoveryTime) applies the @60 aura 1240849 ("Heals upon taking

@@ -248,6 +248,11 @@ waits, next-ranked delta moves up.
       different-spell heal. [PROBE: the PoM jump count/radius, the Litany
       refund %, and Binding Heal's threat reduction; Twilight Focus 14913
       is a passive.]
+- [x] **Power in Light smite core** (2026-09-17, smite day-1): the Penance
+      damage lane + the debuff-driven Holy Fire upkeep replace the
+      cast-on-cooldown lane. [PROBE: whether the +15% applies per Penance
+      tick and whether the HF debuff refresh window matches the DoT
+      duration in-game.]
 - [x] **Conflagrate no longer consumes Immolate** (2026-09-17, destro day-1):
       CORRECTED — the max-rank Conflagrate 18932 still consumes; the
       unconditional no-consume is Backdraft 427713 (+ the 427714 haste buff),

@@ -3689,6 +3689,11 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_pom",
     overrides = { in_combat = true, friends_hp = { 55, 70, 100 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_binding",
     overrides = { in_combat = true, hp = 60, friends_hp = { 55, 70, 100 } } }
+-- Priest smite: the Penance nuke inside the Power in Light window (the
+-- Holy Fire debuff bank on the primary target). The Holy Fire upkeep lane
+-- rides the base scenarios (an absent debuff is the default).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_smite_penance",
+    overrides = { in_combat = true, debuff_remains_map = { [15261] = 5 } } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
@@ -4627,6 +4632,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- (and its pinned @60 aura id) and the Binding Heal pair heal.
             ["Prayer of Mending"] = 90053,
             ["Binding Heal"] = 90054,
+            -- Priest smite day-1 (2026-09-17): the Power in Light talent gate
+            -- (Penance's sentinel 90041 from the discipline day-1 serves the
+            -- cast resolution).
+            ["Power in Light"] = 90055,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

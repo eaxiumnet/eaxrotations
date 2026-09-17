@@ -143,7 +143,11 @@ class-less bridge gap + Blade Dance as a rune-granted backlog candidate).
 placement with party-wide jump tracking, the Binding Heal pair-heal gated
 on both parties hurt, and the Litany of Light cast-variability alternation;
 the @60 PoM aura 1240849 pinned in BUFF_OVERRIDES).
-#25–#26 pending.
+#25 `priest/smite_forever.lua` BUILT (2 lanes + 1 replacement: the Penance
+nuke inside the Power in Light Holy Fire window and the debuff-driven Holy
+Fire upkeep replacing the baseline's cast-on-cooldown lane; both
+talent-gated, fail-closed to the baseline).
+#26 pending.
 
 ## Wave 3 — beta week 2+ (all kits transcribed, fully ranked)
 

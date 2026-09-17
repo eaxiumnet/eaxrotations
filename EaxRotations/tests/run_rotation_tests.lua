@@ -77,6 +77,7 @@ local tests = {
  "test_rogue_subtlety_forever.lua",
  "test_rogue_combat_forever.lua",
  "test_priest_holy_forever.lua",
+ "test_priest_smite_forever.lua",
  "test_warrior_protection_forever.lua",
  "test_warrior_arms_forever.lua",
  "test_mage_frost_forever.lua",
