@@ -58,6 +58,7 @@ local tests = {
     "test_warrior_leveling_forever.lua",
     "test_hunter_leveling_forever.lua",
     "test_warlock_leveling_forever.lua",
+    "test_rogue_leveling_forever.lua",
     "test_leveling_paladin.lua",
     "test_leveling_load.lua",
     "test_leveling_shared.lua",

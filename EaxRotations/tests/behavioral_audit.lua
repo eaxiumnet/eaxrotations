@@ -3712,6 +3712,10 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warrior_leveli
 -- the class-map ladder in the debuff bank, Curse of the Elements absent).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warlock_leveling_coe",
     overrides = { in_combat = true, debuff_remains_map = { [980] = 10 } } }
+-- Rogue leveling: the Mutilate 2-CP builder (both-hand dagger mock + an
+-- open combo bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_rogue_leveling_mutilate",
+    overrides = { in_combat = true, combo_points = 2, equipped_daggers = true } }
 
 -- Scenario-aware player unit: every health/power read reflects the CURRENT
 -- scenario numeric values instead of fixed 100s.
