@@ -78,6 +78,24 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
 ## Spec files to author (Phase 4, post-DBC)
 - `classes/paladin/retribution_forever.lua` — Holy Strike weave, non-consuming
   Judgment seal upkeep, Twist of Light echo lane.
+  **Status (2026-09-18, day-1 completion): LANED (1 lane)** — the
+  Holy Strike weave (max-rank mirror 10333@60, melee range, mana
+  floor 25, setting `ret_forever_holy_strike`) spliced immediately
+  above the baseline's Ret_SealRighteousness_Filler. The kit's OTHER
+  ret items need no delta: "Judgement no longer consumes the seal"
+  is already correct in the baseline (seal lanes re-apply only when
+  the buff is missing — a non-consuming Judgement gains uptime for
+  free); Vindication/Templar's Bulwark are passives. **Twist of
+  Light is deliberately NOT laned**: the beta client carries no
+  SpellClassOptions row for 1310735 (class NULL), the bridge
+  excludes it, so a by-name lane could never fire live — a
+  battery-only sentinel firing would be a production-dead lane
+  (Pattern 17). Revisit only with an explicit bridge override
+  backed by in-game proof. Unit pins: test_paladin_retribution_forever
+  (mirror selection 19060/19160, splice position, gate discipline,
+  dormant no-op path), load-bearing proven by file-revert. Battery
+  scenario: forever_pal_ret_strike (weave fires; the SoR filler
+  keeps firing — no shadowing).
 - `classes/paladin/protection_forever.lua` — Seal of Fury taunt, Consecration
   threat, block-Reckoning, Templar's Bulwark with Forbearance tracking.
   **Status (2026-09-18, day-1 completion): LANED (2 lanes + wrap)** — the

@@ -170,3 +170,19 @@ fallbacks (retribution, druid caster, warrior kebab). Suites: 600 rotation
 (+1) / 48 leveling / 82 WotLK. All five era batteries re-run green (0 load
 failures), era never-pins unchanged (tbc=11, wotlk=0, vanilla=9, sod=14,
 forever=9).
+
+---
+
+## Day-1 completion unit — paladin retribution (2026-09-18)
+
+`retribution_forever.lua` lanes the Holy Strike weave (max-rank mirror
+10333@60; melee range; mana floor 25) spliced above the baseline's SoR
+filler. The kit's non-consuming-Judgement item needs no delta — the
+baseline's seal lanes already re-apply only when the buff is missing, so
+Judgement's new no-consume behavior yields free uptime. Twist of Light is
+deliberately NOT laned (no SpellClassOptions row on the beta client — a
+by-name lane could never fire live; Pattern-17 doctrine). Unit suite
+`test_paladin_retribution_forever.lua` (4 pins) load-bearing by
+file-revert; battery scenario `forever_pal_ret_strike`. Coverage contract:
+38 deltas + 2 deliberate fallbacks (druid caster, warrior kebab). Suites:
+601 rotation (+1) / 48 leveling / 82 WotLK; era never-pins unchanged.

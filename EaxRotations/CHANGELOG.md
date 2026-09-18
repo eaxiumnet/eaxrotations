@@ -56,6 +56,13 @@
   suite pins the baseline-vs-wrapped matcher behavior; battery scenarios
   forever_pal_prot_fury / forever_pal_prot_judgement_taunt prove the
   fire/hold split). Coverage contract now 37 deltas + 3 fallbacks.
+- **Paladin retribution joins the delta set (day-1 completion).**
+  `retribution_forever.lua` lanes the Holy Strike weave (max-rank mirror
+  10333@60) above the baseline's SoR filler; non-consuming Judgement needs
+  no delta (baseline seal lanes already re-apply only when missing);
+  Twist of Light deliberately not laned (no bridge row — a by-name lane
+  could never fire live; Pattern-17 doctrine). Coverage contract now
+  38 deltas + 2 fallbacks.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

@@ -3778,6 +3778,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_judge
     overrides = { in_combat = true, mana_pct = 80,
                   buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
                   debuff_remains_map = { [20924] = 10 } } }
+-- Paladin retribution day-1 completion (2026-09-18): the Holy Strike weave
+-- (melee filler — the baseline predates the spell and has no lane). The
+-- strike must fire in-band; the Seal of Righteousness filler must NOT lose
+-- its scenario record (the weave inserts above it but the filler keeps
+-- firing everywhere the strike's own gates hold it).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_ret_strike",
+    overrides = { in_combat = true, mana_pct = 80 } }
 
 -- Priest leveling: the universal pair — Devouring Plague in combat (the
 -- debuff absent by default) and Fear Ward out of combat.
