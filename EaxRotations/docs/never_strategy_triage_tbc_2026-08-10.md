@@ -607,3 +607,64 @@ at its pinned value.
 - **Pins**: caster/kebab/smite DSL priority suites extended with fire + hold
   sides for every new lane. Sylvanas spell audit 81/81 clean (all ids
   bridge-present, no alias pins needed).
+
+---
+
+# Addendum 2026-09-19 — the OOC/pre-pull family: executable plan
+
+The 11 live TBC pins are 9 OOC/disabled lanes + `EncounterReactions`
+(declined) + 1 module-local. Three of the OOC lanes are **real rotation
+value** — the bear pull openers bank rage, apply the armor debuff and close
+the gap before the first auto-attack lands — and the 2026-08-13 vanilla sweep
+declined to model the family only because one scenario fires the era siblings
+and moves two pin sets at once. That is a bookkeeping coupling, not an
+exploratory unknown, so the item kept getting re-deferred with no written
+plan. This addendum is the plan.
+
+## The lanes and the scenario each one needs
+
+| Era files | Lane | Scenario overrides required |
+|-----------|------|------------------------------|
+| bear (TBC + vanilla) | `PrePullEnrage` | `in_combat=false`, bear form, target present, rage below pool |
+| bear | `FaerieFirePull` | `in_combat=false`, bear form, target at pull range, no FaerieFire on target |
+| bear | `FeralChargePull` | `in_combat=false`, bear form, target in charge band |
+| cat | `TrackHumanoids` / `TravelForm` | `in_combat=false`, cat form, no target |
+| mage fire/frost | `ManaGemConjure` | `in_combat=false`, mana gem unavailable in the item mock |
+| priest holy | `MountedProtection` | `in_combat=false`, mounted flag set |
+| priest holy (both eras) | `EncounterReactions` | **stays pinned** — Karazhan encounter data is TBC-only by design |
+| priest shadow | `DispelMagic` | **stays pinned** — disabled on purpose; the middleware owns party dispel |
+| shaman enhancement | `FireNovaReplacement` | **stays pinned** — module-local totem lifecycle |
+| druid cat | `RakeSnapshot` / `RipSnapshot` | **stays pinned** — module-local cast-time snapshots |
+
+**No new harness machinery is needed.** OOC is already expressible as
+`overrides = { in_combat = false, ... }` with precedents at
+`behavioral_audit.lua` (`leveling_warrior_ooc` :2139, `out_of_combat` :2393,
+`pvp_ooc` :2481). The only mock work is a "no mana gem available" item-ready
+shape and a mounted flag — both channels the context mock already carries;
+confirm per scenario while implementing rather than adding mock surface.
+
+## The pin set that must move together
+
+1. `EaxRotations/tests/behavioral_audit.lua` — the new scenarios land in the
+   shared scenario table (they apply per era to whatever spec list matches, so
+   TBC and the vanilla/forever twin change in the same run).
+2. `EaxRotations/tests/test_tbc_battery_regression.lua` (or whichever suite
+   owns this era's `EXPECTED_NEVER`) — re-key the never list.
+3. `EaxRotations/tests/test_vanilla_sweep_regression.lua` — `EXPECTED_NEVER`.
+4. `tools/spec_scorecard.lua` `LANE_CLASS` / `LANE_NOTES`, then regenerate
+   `docs/scorecard.md` and run `--check`.
+5. `run_verify_all.lua`'s battery pin line, this doc's table, and the vanilla
+   triage doc's table (all three now record the same movement).
+6. A gate-level unit pin per newly-firing lane, so the lane's own thresholds
+   stay provable independently of the battery.
+
+## Why it is worth doing
+
+It is the only outstanding TBC item where a proven-firing lane is also a
+rotation gain rather than test hygiene: every other pin is either correctly
+silent (mounted tracking, OOC conjure) or genuinely unpinnable from fixtures
+(module-local totem/snapshot state). Sequencing note: do it as one concern with
+all six pin updates in the same commit — a partial landing leaves the battery
+and the scorecard disagreeing, which is exactly the failure the strict pins
+exist to catch.
+
