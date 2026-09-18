@@ -435,5 +435,156 @@ do
     print("  S18 PASS: cooldown prevents spam — 3 rapid runs → 1 set_target (loop stopped)")
 end
 
+-- ============================================================================
+-- Phase 1 ports — kill preference (item 8), talk ladder (item 9), progressive
+-- pacing (item 10). Moved from the deleted monolith; the contract lives here.
+-- ============================================================================
+
+local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+
+local function new_shared(goal_type)
+    return {
+        _area_wait_timer = 0,
+        _action_pause_timer = 0,
+        _area_fail_count = 0,
+        _area_last_target_guid = nil,
+        _last_step_num = 1,
+        _last_goal_type = goal_type,
+        _nav_destination = nil,
+    }
+end
+
+local function count_calls(kind, obj)
+    local n = 0
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == kind and (obj == nil or call[2] == obj) then n = n + 1 end
+    end
+    return n
+end
+
+-- P8a — a kill goal targets the goal's own quest mob, not the closer generic enemy
+do
+    local quest_mob = mock.create_object({ pos = { x = 30, y = 0, z = 0 },
+        name = "Elder Stranglethorn Tiger", npc_id = 4242, unit = true, valid = true,
+        guid = "qm_4242" })
+    local generic = mock.create_object({ pos = { x = 5, y = 0, z = 0 },
+        name = "Stranglethorn Tiger", npc_id = 999, unit = true, valid = true,
+        attackable = true, guid = "gen_999" })
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "kill", npc_id = 4242 } } }
+    local ctx = build_ctx(step, nil, { generic, quest_mob })
+    ctx.combat_helper = { is_current_target_valid = function() return false end }
+    local shared = new_shared("kill")
+    do_action.run(shared, ctx)
+    assert(count_calls("set_target", quest_mob) == 1,
+        "P8a FAIL: kill goal should target its own quest NPC (npc_id 4242)")
+    assert(count_calls("set_target", generic) == 0,
+        "P8a FAIL: the nearer generic tiger must not win over the quest mob")
+    print("  P8a PASS: kill goal — quest NPC preferred over the closer generic enemy")
+end
+
+-- P8b — already fighting a valid target → no re-tag at all
+do
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "kill", npc_id = 4242 } } }
+    local enemy = mock.create_object({ pos = { x = 3, y = 0, z = 0 }, name = "Tiger",
+        npc_id = 999, unit = true, valid = true, attackable = true, guid = "tg" })
+    local ctx = build_ctx(step, nil, { enemy })
+    ctx.combat_helper = { is_current_target_valid = function() return true end }
+    local shared = new_shared("kill")
+    assert(do_action.run(shared, ctx) == "IDLE", "P8b: kill run returns IDLE")
+    assert(count_calls("set_target", nil) == 0,
+        "P8b FAIL: a valid current target must not be re-tagged")
+    print("  P8b PASS: kill goal + valid target → no re-tag")
+end
+
+-- P9a — talk ladder rung 2: goal names an NPC that no Questie id knows
+do
+    local dugan = mock.create_object({ pos = { x = 4, y = 0, z = 0 },
+        name = "Marshal Dughan", npc_id = 7000, unit = true, valid = true, guid = "dugan" })
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "talk", npc_id = 0, target = "Marshal Dughan" } } }
+    local ctx = build_ctx(step, nil, { dugan })   -- Questie OFF: ids cannot help
+    local shared = new_shared("talk")
+    local next_state = do_action.run(shared, ctx)
+    assert(count_calls("set_target", dugan) == 1,
+        "P9a FAIL: a goal-named NPC must be found without Questie ids")
+    assert(count_calls("interact_with_object", dugan) == 1,
+        "P9a FAIL: the goal-named NPC must be interacted with")
+    assert(next_state == "INTERACT",
+        "P9a FAIL: talk must route dialog handling through the INTERACT state (got " ..
+        tostring(next_state) .. ")")
+    print("  P9a PASS: talk ladder — goal-name rung reaches an NPC with no Questie id")
+end
+
+-- P9b — talk ladder rung 6: proximity fallback for a goal naming nobody
+do
+    -- 4yd: inside the 6yd interaction range, so this exercises the interact path
+    -- of the proximity rung rather than its "navigate closer" hand-off.
+    local stranger = mock.create_object({ pos = { x = 4, y = 0, z = 0 },
+        name = "Generic Questgiver", npc_id = 1234, unit = true, valid = true, guid = "stranger" })
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "talk", npc_id = 0, target = "Turn In Here" } } }
+    local ctx = build_ctx(step, nil, { stranger })
+    local shared = new_shared("talk")
+    local next_state = do_action.run(shared, ctx)
+    assert(count_calls("set_target", stranger) == 1,
+        "P9b FAIL: proximity rung should accept a living unit within 30yd")
+    assert(next_state == "INTERACT",
+        "P9b FAIL: proximity talk must hand dialog to INTERACT (got " .. tostring(next_state) .. ")")
+    print("  P9b PASS: talk ladder — proximity rung catches an unidentified questgiver")
+end
+
+-- P9c — a talk target out of interaction range hands the walk to IDLE/NAV
+do
+    local far = mock.create_object({ pos = { x = 30, y = 0, z = 0 },
+        name = "Marshal Dughan", npc_id = 7000, unit = true, valid = true, guid = "far_dugan" })
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "talk", npc_id = 0, target = "Marshal Dughan" } } }
+    local ctx = build_ctx(step, nil, { far })
+    local shared = new_shared("talk")
+    do_action.run(shared, ctx)
+    assert(count_calls("interact_with_object", nil) == 0,
+        "P9c FAIL: an NPC 30yd away must not be interacted with")
+    assert(shared._nav_destination ~= nil and math.abs(shared._nav_destination.x - 30) < 1,
+        "P9c FAIL: out-of-range talk target should set the nav destination to the NPC")
+    print("  P9c PASS: talk target out of range → NAV to the NPC (no remote interact)")
+end
+
+-- P10a — repeating the same action type doubles the pause (0.5s → 1s)
+do
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "kill", npc_id = 0 } } }
+    local ctx = build_ctx(step, nil, {})
+    ctx.combat_helper = { is_current_target_valid = function() return false end }
+    local shared = new_shared("kill")
+
+    do_action.run(shared, ctx)
+    local first = shared._action_pause_timer - ctx.now
+    assert(first >= 0.475 and first <= 0.55,
+        "P10a FAIL: first repetition should pause ~0.5s (got " .. tostring(first) .. ")")
+
+    ctx.now = ctx.now + 5.0   -- let the pause expire, same action type again
+    do_action.run(shared, ctx)
+    local second = shared._action_pause_timer - ctx.now
+    assert(second >= 0.95 and second <= 1.1,
+        "P10a FAIL: repeated action type should back off to ~1s (got " .. tostring(second) .. ")")
+    assert(shared._action_loop_count == 1, "P10a FAIL: loop counter should be 1")
+    print("  P10a PASS: progressive pacing — 0.5s then 1.0s for repeated action types")
+end
+
+-- P10b — talk/gossip uses the short 0.3s frame wait, not the general pause
+do
+    local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "talk", npc_id = 0, target = "Nobody Here" } } }
+    local ctx = build_ctx(step, nil, {})
+    local shared = new_shared("talk")
+    do_action.run(shared, ctx)
+    assert(shared._action_pause_timer == ctx.now + 0.3,
+        "P10b FAIL: talk should wait 0.3s for the dialog frame (got " ..
+        tostring(shared._action_pause_timer - ctx.now) .. ")")
+    print("  P10b PASS: talk pacing — 0.3s frame wait")
+end
+
 print("PASS test_do_action_state")
 os.exit(0)

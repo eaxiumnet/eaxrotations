@@ -13,6 +13,189 @@ local goal_resolver_ok, goal_resolver = pcall(require, "EaxAutoQuester/goal_reso
 local quest_blacklist_ok, quest_blacklist = pcall(require, "EaxAutoQuester/quest_blacklist_sylvanas")
 
 -- ============================================================================
+-- Talk-target discovery ladder — ported from the monolith's live talk branch
+-- (docs/phase1_port_list.md item 9). The modular talk branch only knew has a
+-- quest-NPC-id lookup at 20yd; goals whose NPC carries no Questie/Zygor id
+-- ("Marshal Dughan"-class) were unreachable.
+-- ============================================================================
+
+--- Non-empty string or nil. Zygor's goal.target is often "" — truthy but useless.
+--- @param s string|nil
+--- @return string|nil
+local function nonempty(s)
+    return (s and s ~= "") and s or nil
+end
+
+--- Walk the discovery ladder and return the best talk target.
+--- Rung order is the monolith's: quest-NPC ids (50yd) → goal-name match →
+--- engine quest-unit flag → brute-force quest-relevant scan (30yd) → wide name
+--- scan (100yd) → proximity fallback (30yd, name match preferred).
+--- @param ctx table Per-tick context
+--- @param goal table|number Zygor goal
+--- @param goal_name string|nil Name extracted from the goal
+--- @param npc_ids number[]|nil Questie/Zygor quest NPC ids
+--- @return game_object|nil target, number|nil dist_sq, string|nil rung
+local function discover_talk_target(ctx, goal, goal_name, npc_ids)
+    local npc = ctx.npc_manager
+    local me = ctx.me
+    if not npc or not me then return nil end
+    local pos_ok, pos = pcall(function() return me:get_position() end)
+    if not pos_ok or not pos then return nil end
+
+    local function visible_objects()
+        if ctx.object_scanner and ctx.object_scanner.get_visible_objects then
+            local ok, objs = pcall(ctx.object_scanner.get_visible_objects)
+            if ok and objs then return objs end
+        end
+        local ok, objs = pcall(core.object_manager.get_visible_objects)
+        if ok then return objs end
+        return nil
+    end
+
+    local function dist_sq_of(obj)
+        local ok, opos = pcall(function() return obj:get_position() end)
+        if not ok or not opos then return nil end
+        if ctx.utils and ctx.utils.squared_distance then
+            return ctx.utils.squared_distance(pos, opos)
+        end
+        local dx = (opos.x or 0) - (pos.x or 0)
+        local dy = (opos.y or 0) - (pos.y or 0)
+        return dx * dx + dy * dy
+    end
+
+    local function is_player(obj)
+        local ok, flag = pcall(function() return obj:is_player() end)
+        return ok and flag
+    end
+
+    local function is_dead(obj)
+        local ok, flag = pcall(function() return obj:is_dead() end)
+        return ok and flag
+    end
+
+    -- Rung 1: quest NPC ids from Questie/Zygor (widened 20yd → 50yd)
+    if npc_ids and #npc_ids > 0 and npc.find_nearest_npc then
+        local nearest = npc.find_nearest_npc(npc_ids, 50, nil, ctx.object_scanner)
+        if nearest then
+            local d = dist_sq_of(nearest)
+            if d then return nearest, d, "quest-npc-id" end
+        end
+    end
+
+    -- Rung 2: goal name straight from the world (first match, as the monolith did)
+    if goal_name and npc.find_interactable_objects then
+        local found = npc.find_interactable_objects(goal_name, ctx.object_scanner)
+        if found and found[1] then
+            local d = dist_sq_of(found[1])
+            if d then return found[1], d, "goal-name" end
+        end
+    end
+
+    -- Rung 3: the engine's own quest-unit flag
+    if npc.find_nearest_quest_unit then
+        local nearest = npc.find_nearest_quest_unit(50, true)
+        if nearest then
+            local d = dist_sq_of(nearest)
+            if d then return nearest, d, "is_quest_unit" end
+        end
+    end
+
+    local id_set = {}
+    if npc_ids then
+        for i = 1, #npc_ids do id_set[npc_ids[i]] = true end
+    end
+
+    -- Rung 4: brute-force scan for quest-relevant units only (30yd)
+    do
+        local objs = visible_objects()
+        if objs then
+            local best, best_sq = nil, 900
+            local limit = #objs > 50 and 50 or #objs
+            for i = 1, limit do
+                local obj = objs[i]
+                if obj and not is_player(obj) and not is_dead(obj) then
+                    local relevant = false
+                    local ok_q, quest_flag = pcall(function() return obj:is_quest_unit() end)
+                    if ok_q and quest_flag then
+                        relevant = true
+                    elseif next(id_set) then
+                        local ok_id, obj_npc_id = pcall(function() return obj:get_npc_id() end)
+                        if ok_id and obj_npc_id and id_set[obj_npc_id] then relevant = true end
+                    end
+                    if relevant then
+                        local d = dist_sq_of(obj)
+                        if d and d < best_sq then best, best_sq = obj, d end
+                    end
+                end
+            end
+            if best then return best, best_sq, "quest-scan" end
+        end
+    end
+
+    -- Rung 5: wide name scan (100yd) for units named in the goal
+    if goal_name then
+        local objs = visible_objects()
+        if objs then
+            local best, best_sq = nil, 10000
+            local limit = #objs > 100 and 100 or #objs
+            local glower = goal_name:lower()
+            for i = 1, limit do
+                local obj = objs[i]
+                if obj and not is_player(obj) then
+                    local ok_u, is_unit = pcall(function() return obj:is_unit() end)
+                    if ok_u and is_unit then
+                        local ok_n, name = pcall(function() return obj:get_name() end)
+                        if ok_n and name then
+                            local nlower = name:lower()
+                            if nlower:find(glower, 1, true) or glower:find(nlower, 1, true) then
+                                local d = dist_sq_of(obj)
+                                if d and d < best_sq then best, best_sq = obj, d end
+                            end
+                        end
+                    end
+                end
+            end
+            if best then return best, best_sq, "name-scan" end
+        end
+    end
+
+    -- Rung 6: proximity fallback (30yd) — any non-player living unit, a name
+    -- match always winning over the closest unrelated one
+    do
+        local objs = visible_objects()
+        if objs then
+            local best, best_sq, named_found = nil, 900, false
+            local limit = #objs > 50 and 50 or #objs
+            local glower = goal_name and goal_name:lower() or nil
+            for i = 1, limit do
+                local obj = objs[i]
+                if obj and not is_player(obj) and not is_dead(obj) then
+                    local d = dist_sq_of(obj)
+                    if d and d < best_sq then
+                        local ok_n, name = pcall(function() return obj:get_name() end)
+                        local named = false
+                        if ok_n and name and glower then
+                            local nlower = name:lower()
+                            named = nlower:find(glower, 1, true) or glower:find(nlower, 1, true)
+                        end
+                        if named then
+                            if not named_found or d < best_sq then
+                                named_found, best, best_sq = true, obj, d
+                            end
+                        elseif not named_found then
+                            best, best_sq = obj, d
+                        end
+                    end
+                end
+            end
+            if best then return best, best_sq, "proximity" end
+        end
+    end
+
+    return nil
+end
+
+-- ============================================================================
 -- Goal Execution — Execute a single goal action based on its type
 -- ============================================================================
 
@@ -86,6 +269,34 @@ local function execute_goal_action(shared, ctx, action_type, goal)
 
     if action_type == "kill" then
         local npc = ctx.npc_manager
+        -- Skip re-tagging while already fighting a valid target: re-entering the
+        -- kill branch every cycle thrashes the target and can pull extra mobs.
+        -- (Ported: docs/phase1_port_list.md item 8.)
+        if combat and combat.is_current_target_valid and combat.is_current_target_valid(50) then
+            ctx.debug_log("DO_ACTION: kill — target still valid, skip re-tag")
+            return true
+        end
+        -- Prefer the goal's own quest NPC (e.g. Elder Stranglethorn Tiger over a
+        -- generic tiger): killing the generic mob does not advance the quest.
+        local goal_npc_id = nil
+        if type(goal) == "table" then
+            local raw_id = ctx.safe(goal.npc_id, 0)
+            if not raw_id or raw_id <= 0 then raw_id = ctx.safe(goal.target_id, 0) end
+            if raw_id and raw_id > 0 then goal_npc_id = raw_id end
+        end
+        if npc and goal_npc_id and npc.find_nearest_npc then
+            local quest_mob = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
+            if quest_mob then
+                shared._respawn_wait_until = 0
+                shared._respawn_target_name = nil
+                pcall(core.input.set_target, quest_mob)
+                pcall(core.input.interact_with_object, quest_mob)
+                local _, npos = pcall(function() return quest_mob:get_position() end)
+                if npos then pcall(core.input.look_at_3d, npos) end
+                ctx.debug_log("DO_ACTION: kill — targeted quest NPC " .. tostring(goal_npc_id))
+                return true
+            end
+        end
         if npc then
             local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
             if enemy then
@@ -140,17 +351,34 @@ local function execute_goal_action(shared, ctx, action_type, goal)
     if action_type == "talk" or action_type == "gossip" then
         if npc then
             local npc_ids = npc.find_quest_npcs()
-            if npc_ids then
-                local nearest = npc.find_nearest_npc(npc_ids, 20, nil, ctx.object_scanner)
-                if nearest then
-                    pcall(core.input.set_target, nearest)
-                    pcall(core.input.interact_with_object, nearest)
-                    ctx.debug_log("DO_ACTION: targeted and interacted with quest NPC for talk")
+            local goal_name = nil
+            if type(goal) == "table" then
+                goal_name = nonempty(goal.npc) or nonempty(goal.target)
+                    or nonempty(goal.npc_name) or nonempty(goal.text) or nonempty(goal.name)
+            end
+            local target, dist_sq, rung = discover_talk_target(ctx, goal, goal_name, npc_ids)
+            if target then
+                if dist_sq and dist_sq > 36 then
+                    -- Too far to interact — hand the walk back to IDLE, which NAVs
+                    -- any pending _nav_destination. The monolith logged
+                    -- "navigating closer" and called utils.move_to, which does not
+                    -- exist anywhere in this plugin, so that branch never moved.
+                    local _, npos = pcall(function() return target:get_position() end)
+                    if npos then
+                        shared._nav_destination = npos
+                        ctx.debug_log("DO_ACTION: talk target [" .. tostring(rung) ..
+                            "] out of range → NAV")
+                        return false
+                    end
+                end
+                pcall(core.input.set_target, target)
+                if pcall(core.input.interact_with_object, target) then
+                    ctx.debug_log("DO_ACTION: targeted quest NPC for talk [" .. tostring(rung) .. "]")
                     shared._post_interact_timer = ctx.now + 0.5
                     shared._interact_start_time = ctx.now
                     shared._should_enter_interact = true
-                    return true
                 end
+                return true
             end
         end
         ctx.debug_log("DO_ACTION: no quest NPC to talk to")
@@ -853,7 +1081,27 @@ function M.run(shared, ctx)
         return "INTERACT"
     end
 
-    shared._action_pause_timer = ctx.now + 0.5
+    -- Talk/gossip: do not wait out the general pause — give the server 0.3s to
+    -- open the dialog frame, then let INTERACT process it.
+    -- (Ported: docs/phase1_port_list.md item 10.)
+    if action_type == "talk" or action_type == "gossip" then
+        shared._action_pause_timer = ctx.now + 0.3
+        return "IDLE"
+    end
+
+    -- Progressive action pacing: repeating the same action type doubles the
+    -- pause (0.5s → 1s → 2s, capped at 2s) with ±10% jitter, so a goal that
+    -- cannot advance cannot spin the state machine at 2Hz.
+    -- (Ported: docs/phase1_port_list.md item 10.)
+    local pause = 0.5
+    if action_type == shared._last_action_type then
+        shared._action_loop_count = (shared._action_loop_count or 0) + 1
+        pause = math.min(0.5 * math.pow(2, shared._action_loop_count), 2.0)
+    else
+        shared._action_loop_count = 0
+    end
+    shared._last_action_type = action_type
+    shared._action_pause_timer = ctx.now + pause + math.random() * 0.1 * pause - 0.05 * pause
     return "IDLE"
 end
 
