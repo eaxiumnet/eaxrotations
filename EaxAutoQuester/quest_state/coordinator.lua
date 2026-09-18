@@ -463,7 +463,7 @@ function M.update()
     if next_state == "IDLE" and shared._state ~= "INTERACT" then
         local ns = _G.EaxAutoQuester
         if ns and ns._force_vendor_soon then
-            local npc_db_ok, npc_db = pcall(require, "EaxAutoQuester.npc_db_sylvanas")
+            local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
             if npc_db_ok and npc_db and npc_db.find_transport_npc then
                 local vendor_pos = npc_db.find_transport_npc("vendor")
                 if vendor_pos then

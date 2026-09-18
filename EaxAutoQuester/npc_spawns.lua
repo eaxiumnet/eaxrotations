@@ -9,7 +9,12 @@ M.chunk_size = 2000
 
 local function load_chunk(chunk_idx)
   if _loaded_chunks[chunk_idx] then return _loaded_chunks[chunk_idx] end
-  local path = "EaxAutoQuester.npc_spawns.chunk_" .. string.format("%03d", chunk_idx)
+  -- Slash-separated module path on purpose: it resolves through the package.path
+  -- entry "./EaxAutoQuester/?.lua", so it works wherever the plugin tree is mounted.
+  -- The dotted form "EaxAutoQuester.npc_spawns.chunk_000" only resolves when the
+  -- plugin's PARENT directory is on package.path, which made every spawn lookup
+  -- silently return nil under a differently-rooted checkout.
+  local path = "npc_spawns/chunk_" .. string.format("%03d", chunk_idx)
   local ok, chunk = pcall(require, path)
   if ok and chunk and chunk.by_entry then
     _loaded_chunks[chunk_idx] = chunk.by_entry
