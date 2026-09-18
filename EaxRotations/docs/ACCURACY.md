@@ -10,14 +10,14 @@ A **strategy** is one decision rule in a spec’s rotation: “when the enemy is
 
 | Claim | Value |
 |---|---|
-| Game eras covered | 4 — TBC · WotLK · Vanilla · Season of Discovery |
-| Specs rated | 132 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
-| Decision rules exercised by the test rig | 2633 |
+| Game eras covered | 5 — TBC · WotLK · Vanilla · Season of Discovery · Forever |
+| Specs rated | 172 (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD) |
+| Decision rules exercised by the test rig | 3616 |
 | Rules that could never fire in live play (dead code) | 0 — the gate fails if this is ever above 0 |
-| Rules the rig never triggers, each with a filed written reason | 20 |
-| Behavioral test battery | 569 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
+| Rules the rig never triggers, each with a filed written reason | 29 |
+| Behavioral test battery | 601 rotation suites — every one must pass or the release gate fails (plus leveling and per-era gates) |
 | Cast order machine-checked against simulators | 50 of 50 pinned specs (where a simulator exists) |
-| Unreachable-rule gate | strict in all 4 eras — an unexplained unreachable rule fails the release |
+| Unreachable-rule gate | strict in all 5 eras — an unexplained unreachable rule fails the release |
 
 Every era’s battery is **strict**: if a decision rule ever becomes unreachable without a filed reason, `run_verify_all` fails. That is why “0 dead code” and the “unreachable” list below are guarantees, not marketing.
 
@@ -191,6 +191,53 @@ A rating below S is never silent: every non-firing rule is individually document
 
 “Rules the rig never triggers” is 0 for every healthy spec. A non-zero value means the rig cannot construct that exact moment; the reason is on file and visible in the scorecard.
 
+## Ratings — WoW Forever
+
+| Spec | Rating | Rules the rig never triggers | Sim-checked |
+|---|---|---|---|
+| druid/balance | S | 0 |  |
+| druid/bear | A | 2 |  |
+| druid/caster | S | 0 |  |
+| druid/cat | S | 0 |  |
+| druid/leveling | S | 0 |  |
+| druid/resto | S | 0 |  |
+| hunter/beast_mastery | S | 0 |  |
+| hunter/leveling | S | 0 |  |
+| hunter/marksmanship | S | 0 |  |
+| hunter/survival | S | 0 |  |
+| mage/arcane | S | 0 |  |
+| mage/fire | A | 1 |  |
+| mage/frost | A | 1 |  |
+| mage/leveling | A | 1 |  |
+| paladin/holy | S | 0 |  |
+| paladin/leveling | S | 0 |  |
+| paladin/protection | S | 0 |  |
+| paladin/retribution | S | 0 |  |
+| priest/discipline | S | 0 |  |
+| priest/holy | A | 1 |  |
+| priest/leveling | A | 1 |  |
+| priest/shadow | S | 0 |  |
+| priest/smite | S | 0 |  |
+| rogue/assassination | S | 0 |  |
+| rogue/combat | S | 0 |  |
+| rogue/leveling | S | 0 |  |
+| rogue/subtlety | S | 0 |  |
+| shaman/elemental | A | 1 |  |
+| shaman/enhancement | S | 0 |  |
+| shaman/leveling | S | 0 |  |
+| shaman/restoration | S | 0 |  |
+| warlock/affliction | A | 1 |  |
+| warlock/demonology | S | 0 |  |
+| warlock/destruction | S | 0 |  |
+| warlock/leveling | S | 0 |  |
+| warrior/arms | S | 0 |  |
+| warrior/fury | S | 0 |  |
+| warrior/kebab | S | 0 |  |
+| warrior/leveling | S | 0 |  |
+| warrior/protection | S | 0 |  |
+
+“Rules the rig never triggers” is 0 for every healthy spec. A non-zero value means the rig cannot construct that exact moment; the reason is on file and visible in the scorecard.
+
 ## Known limits (honest)
 
 1. **Two niche rules are filed as “the rig cannot construct the moment”.** An Alliance-only retribution paladin damage-seal path in TBC (the rig never plays an Alliance paladin with that seal armed), and a priest’s lethal-threat escape (Fade) in Vanilla leveling (building ≥99% threat would break another rule’s test contract). Both are deliberately classified with written reasons rather than forced.
@@ -202,5 +249,5 @@ A rating below S is never silent: every non-firing rule is individually document
 ## How to check this yourself
 
 - Full engineering detail (every rule, every reason): `docs/scorecard.md`.
-- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (569 rotation suites + leveling + four era batteries + this page’s drift check).
+- Run the whole release gate yourself: `lua EaxRotations/tests/run_verify_all.lua` (601 rotation suites + leveling + five era batteries + this page’s drift check).
 - Regenerate this page and the scorecard: `lua tools/spec_scorecard.lua`.
