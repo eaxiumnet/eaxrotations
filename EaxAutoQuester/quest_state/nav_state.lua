@@ -51,6 +51,47 @@ function M.run(shared, ctx)
         end
     end
 
+    -- Continuous side scan: pre-tag the current goal's quest NPC while walking
+    -- (every 1.5s). Starts the fight on arrival instead of after a target scan,
+    -- and the interact half covers NPCs that are reachable without combat.
+    -- (Ported: docs/phase1_port_list.md item 6. The monolith re-checked combat
+    -- here; by this point the handler has already returned IDLE for combat, so
+    -- the check is structurally impossible and is omitted.)
+    local utils = ctx.utils
+    if utils and utils.throttle and utils.throttle("nav_target_scan", 1.5) then
+        local zygor = ctx.zygor
+        local npc = ctx.npc_manager
+        if zygor and npc and npc.find_nearest_npc and zygor.has_current_step
+            and zygor.has_current_step() then
+            local step = zygor.get_current_step_info()
+            local goals = step and ctx.safe(step.goals, nil)
+            if goals then
+                for i = 1, #goals do
+                    local g = goals[i]
+                    if type(g) == "table" and not ctx.safe(g.is_complete, false) then
+                        local nid = ctx.safe(g.npc_id, 0)
+                        if not nid or nid <= 0 then nid = ctx.safe(g.target_id, 0) end
+                        if nid and nid > 0 then
+                            local nearest = npc.find_nearest_npc({ nid }, 50, nil, ctx.object_scanner)
+                            if nearest then
+                                pcall(core.input.set_target, nearest)
+                                pcall(core.input.interact_with_object, nearest)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Anti-cheat: random jump every 10-25s while navigating. anti_detection
+    -- covers delays, jitter and proximity but has no movement action, so this is
+    -- the only idle-motion humanizer. (Ported: docs/phase1_port_list.md item 7.)
+    if utils and utils.throttle and utils.throttle("random_jump_nav", math.random(10, 25)) then
+        pcall(core.input.jump)
+    end
+
     local nav_state_val = nav.get_state()
 
     -- Check if retry timer is active and waiting
@@ -125,6 +166,10 @@ function M.run(shared, ctx)
         shared._nav_wp_fallback = false
         shared._nav_mesh_fallback = false
         shared._just_arrived = true
+        -- Settle pause before IDLE re-evaluates: arriving and immediately
+        -- re-deciding can miss an NPC that has not rendered yet.
+        -- (Ported: docs/phase1_port_list.md item 5.)
+        shared._action_pause_timer = ctx.now + 1.5
         nav.stop()
         return "IDLE"
     end
@@ -187,6 +232,23 @@ function M.run(shared, ctx)
             shared._nav_destination = nil
             shared._nav_retries = 0
             return "IDLE"
+        end
+
+        -- Progressive stuck recovery: a character wedged on geometry never frees
+        -- itself from a plain wait, so escalate before the 2s backoff — retry 1
+        -- jumps, retry 2 jumps and taps a random turn. (Ported:
+        -- docs/phase1_port_list.md item 4.)
+        if shared._nav_retries == 1 then
+            pcall(core.input.jump)
+        elseif shared._nav_retries == 2 then
+            pcall(core.input.jump)
+            if math.random(2) == 1 then
+                pcall(core.input.turn_left_start)
+                pcall(core.input.turn_left_stop)  -- brief tap
+            else
+                pcall(core.input.turn_right_start)
+                pcall(core.input.turn_right_stop)
+            end
         end
 
         -- 2s pause on stuck
