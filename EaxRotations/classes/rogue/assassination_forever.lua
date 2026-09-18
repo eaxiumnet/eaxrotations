@@ -25,25 +25,35 @@
 --        1310703@40: effect rows confirm +30% poison damage (aura 108 x2)
 --        and +10% application chance (aura 107) — the kit's numbers exactly.
 --        Improved Expose Armor 14168: effect rows confirm -10 energy and a
---        2-CP refund at 5 combo points. The P2 energy-model probe stays
---        unconfirmed (tick-pulse regen), so the delta keeps the vanilla
---        energy shape: builders gate on the real cost (60), finishers use
---        the baseline's pooling flag.
+--        2-CP refund at 5 combo points. BETA-VERIFICATION PASS (2026-09-18,
+--        P2 #3 CLOSED): Icy Veins' per-spec guides + the class overview
+--        confirm CONSTANT-REGEN energy — the tick-clock pooling fiction is
+--        dead, so energy gates re-derive to DBC power costs (SpellPower):
+--        Mutilate 60 energy on every rank (rows 170015..314523, PowerType 3),
+--        Venom 25 energy + 1 combo point (rows 314521/314522 — the CP cost
+--        is a second SpellPower row, PowerType 4). Venom's 25-energy cost
+--        EQUALS the baseline's finisher pooling floor, so the old
+--        energy_pool_finisher read held the window at its own cost
+--        boundary forever; the lane now gates on the DBC cost directly and
+--        a 20-energy CP-buffer — the window readiness IS the affordability.
 -- SAFETY: ZERO numeric spell-ID literals — Mutilate, Venom and Improved
 --        Expose Armor resolve BY NAME through the bridge mirrors; the poison
 --        and Expose Armor debuff reads use the bridge buff mirror and the
 --        class-map ladder. A nil lookup leaves the lane dormant — never a
---        guessed ID. The vanilla baseline is loaded through an intercepted
---        registration (affliction/demonology_forever template) so this file
---        edits nothing in assassination_vanilla.lua and its safe_state-backed
---        get_state is reused unchanged. The Mutilate lane mirrors the TBC
---        sibling's dagger eligibility (both hands, shared/dagger_set) and
---        reports the poisoned state in its tag without gating on it — 2 CP
---        beats Sinister Strike's 1 CP even unbuffed (the DBC text makes the
---        poison bonus damage, not a usability requirement). Splice geometry:
---        Mutilate leads the builder ("LevelingSinisterStrike"), Venom leads
---        the finisher block ("SliceAndDice") and Improved Expose Armor sits
---        directly above the baseline's "ExposeArmor" lane.
+--        guessed ID. Energy gates read the DBC SpellPower costs (constant-
+--        regen re-derivation); every state read rides the baseline's
+--        safe_state-backed get_state. The vanilla baseline is loaded through
+--        an intercepted registration (affliction/demonology_forever
+--        template) so this file edits nothing in assassination_vanilla.lua
+--        and its safe_state-backed get_state is reused unchanged. The
+--        Mutilate lane mirrors the TBC sibling's dagger eligibility (both
+--        hands, shared/dagger_set) and reports the poisoned state in its tag
+--        without gating on it — 2 CP beats Sinister Strike's 1 CP even
+--        unbuffed (the DBC text makes the poison bonus damage, not a
+--        usability requirement). Splice geometry: Mutilate leads the builder
+--        ("LevelingSinisterStrike"), Venom leads the finisher block
+--        ("SliceAndDice") and Improved Expose Armor sits directly above the
+--        baseline's "ExposeArmor" lane.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -123,11 +133,16 @@ local POISON_IDS = {
 }
 
 -- ---------------------------------------------------------------------------
--- Shared helpers. Mutilate's base cost is 60 energy (the TBC sibling's
--- constant; the Forever effect dump carries no power cost), Venom is a
--- finisher that rides the baseline's pooling flag.
+-- Shared helpers. DBC power costs (SpellPower rows, beta 1.60.1.69893):
+-- Mutilate 60 energy on every rank; Venom 25 energy + 1 combo point (the
+-- CP row is SpellPower PowerType 4 — the combo-point spend). The Venom
+-- energy gate is the cost plus a small CP-buffer so the window never opens
+-- with the energy the very next finisher needs; under constant regen that
+-- is affordability, not pooling.
 -- ---------------------------------------------------------------------------
 local MUTILATE_ENERGY = 60
+local VENOM_ENERGY = 25
+local VENOM_CP_BUFFER = 20
 local VENOM_REFRESH = 4
 local EA_REFRESH = 4
 
@@ -240,7 +255,15 @@ if VENOM and VENOM_BUFF then
         name = "Forever_Venom",
         matches = function(context, s)
             if not has_valid_enemy(context) then return false end
-            if s.energy_pool_finisher then return false end  -- pool energy like Rupture
+            -- DBC cost + CP-buffer: the pooling-floor flag is NOT consulted
+            -- (constant-regen energy; the floor's 25 boundary equals Venom's
+            -- own cost, so the old gate held the window closed at exactly
+            -- the energy the cast spends).
+            if (s.energy or 0)
+                < setting(context, "assassin_forever_venom_energy", VENOM_ENERGY)
+                    + setting(context, "assassin_forever_venom_cp_buffer", VENOM_CP_BUFFER) then
+                return false
+            end
             if (s.combo or 0) < setting(context, "assassin_forever_venom_cp", 5) then return false end
             if player_buff_up(VENOM_BUFF) then
                 local remains = player_buff_remains(VENOM_BUFF)

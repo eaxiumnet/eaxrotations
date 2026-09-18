@@ -130,7 +130,7 @@ waits, next-ranked delta moves up.
 |---|---|---|---|---|
 | 1 | **Furor energy-on-shift formula** (cat entry = f(elapsed time, energy on exit), never net gain) | druid cat (PROMOTED #5) + bear (#6) + leveling | **DBC-CONFIRMED 2026-09-17 (rework shipped)**: Furor 17056's client text is now "you will regain [X]% of the Energy you had when you were last in Cat Form, plus [Y] Energy for each second you spent not in Bear Form, Cat Form, or Dire Bear Form, up to a maximum of [Z] Energy" — a capped restore, not the classic flat +40, so a shift can never net energy. cat_forever REMOVED the vanilla Powershift lane on that basis. Remaining in-game check: the exact X/Y/Z (behind unresolved $ tokens) and the pre-shift-bar comparison | If powershifting still nets energy → cat keeps vanilla powershift lanes; cat_forever becomes additive instead of destructive; re-rank |
 | 2 | **Warrior rage-from-damage formula** (TBC-formula expectation) | fury (#7) + arms (#13) + prot (#11) | **NOT client-resolvable (2026-09-17)**: rage math lives in no extracted table (the Gt* game tables are absent from this build), so the DBC cannot answer it. fury_forever shipped only the verdict-independent subset (the DBC-confirmed Recklessness CD-split lane; passives documented) and every baseline rage reserve stays conservative. In-game method stands: hit a training dummy at known AP, compare rage gain vs vanilla/TBC curves | If vanilla formula → fury/arms vanilla rage lanes survive; wave-2 slot frees up |
-| 3 | **Rogue constant-regen energy** (vs tick-pulse) | ALL rogue deltas (#20/22/23) | In-game: watch energy bar smoothness at rest; two samples 1s apart | If still tick-pulse → vanilla tick-sync logic stays; rogue deltas demote a notch |
+| 3 | **Rogue constant-regen energy** (vs tick-pulse) | ALL rogue deltas (#20/22/23) | **CONFIRMED 2026-09-18 (beta-verification pass)**: Icy Veins' per-spec PvE guides (Assassination/Combat/Subtlety) + the 2026-09-15 class overview state constant-regen energy; the guides now UPDATE consistently, treating the earlier BlizCon-demo caveat as resolved. Threshold lanes re-derive to DBC SpellPower costs: Mutilate 60 (all ranks), Venom 25+1CP, Eviscerate 35, Rupture/SnD/Expose/Kidney 25, Sinister Strike 45, Backstab/Ambush/Garrote 60/60/50, Hemorrhage 35 | If still tick-pulse → vanilla tick-sync logic stays; rogue deltas demote a notch |
 | 4 | **Haste does NOT affect DoTs/drains/channels** (warlock, current demo build) | affliction (#10) + demo/destro stat lanes | Bridge periodic-effect read; in-game: haste buff active, count dot tick rate | If haste applies → affliction stat lanes change shape; Pandemic value rises |
 
 ## P3 — flip-risk claims (verify before their lanes are authored)
@@ -215,10 +215,12 @@ waits, next-ranked delta moves up.
       poisoned dummy. [PROBE: the Forever Mutilate text has no "must be
       behind" clause (the TBC row does) — confirm a front-facing cast lands;
       if the client enforces behind, add the TBC positional gate.]
-- [ ] **Rogue constant-regen energy** (P2 #3, still unconfirmed) — the #20
-      assassination delta kept the vanilla energy shape (real-cost builder
-      gate, pooling flag on finishers); if the probe lands CONFIRMED the
-      thresholds re-derive (and #22/#23 follow).
+- [x] **Rogue constant-regen energy** (P2 #3, CLOSED 2026-09-18):
+      CONFIRMED constant regen via the updated Icy Veins per-spec guides +
+      class overview. The #20 assassination Venom lane re-derived to the DBC
+      SpellPower cost (25 energy + 1 combo point, rows 314521/314522) + a
+      20-energy CP-buffer — the baseline pooling flag held the window at its
+      own cost boundary. #22/#23 re-derivation follows as its own unit.
 - [x] **Devouring Contagion spread + universal DP** (2026-09-17, shadow
       day-1): RESOLVED by the client text/effects — 1309950 = −50% DP mana
       + a 10y on-death jump; DP is rune-granted ("Gain the Devouring Plague

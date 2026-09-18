@@ -85,8 +85,16 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/assassination_forever.lua` — Mutilate fast-CP generation,
   Venom pooling/spend window (CP-duration scaling), Expose Armor cheap
   maintenance, poison-target gating.
-  **Status (2026-09-17, beta day): DAY-1 BUILT (3 lanes, additive; energy
-  probe still unconfirmed so the vanilla energy shape is kept)** — (1)
+  **Status (2026-09-18, beta-verification pass): LANES RE-DERIVED for
+  constant-regen energy (P2 #3 CLOSED — Icy Veins per-spec guides + the
+  2026-09-15 overview confirm constant regen). Venom's DBC SpellPower rows
+  (314521/314522: 25 energy + 1 combo point) replace the baseline pooling-
+  floor read, which sat at Venom's own cost boundary (25) and held the
+  window closed at exactly the cast's spend; the lane now gates on the DBC
+  cost + a 20-energy CP-buffer (settings assassin_forever_venom_energy /
+  _cp_buffer). Mutilate keeps its 60-energy DBC cost (rows 170015..314523,
+  all five ranks). Original day-1 status: DAY-1 BUILT (3 lanes, additive;
+  energy probe still unconfirmed so the vanilla energy shape is kept)** — (1)
   Mutilate: the maxrank bridge row (ladder 1310707@30 / 399956@40 /
   1241582@50 / 1241584@60) above the baseline builder, gated on both-hand
   daggers (shared/dagger_set, TBC-sibling precedent), energy >= 60 and
@@ -149,10 +157,14 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
       aura 1310723, Hemorrhage 16511, Cut to the Chase 432271, Vigor 14983,
       the poison debuff rows (Deadly 2818 / Crippling 3408 / Wound 13218) —
       all resolve.
-- [ ] ENERGY MODEL: confirm constant regen vs tick (highest priority —
-      re-derives every threshold lane). Still unconfirmed (P2 #3): the #20
-      delta keeps the vanilla energy shape (real-cost builder gate, pooling
-      flag on the finishers).
+- [x] ENERGY MODEL: confirm constant regen vs tick (2026-09-18,
+      beta-verification pass): CONFIRMED constant regen — Icy Veins' per-spec
+      PvE guides (Assassination/Combat/Subtlety) + the class overview state
+      constant-regen energy; no in-game probe needed for the gating model.
+      The #20 Venom lane re-derived to the DBC SpellPower cost (25 energy +
+      1 CP) + a 20-energy CP-buffer, replacing the baseline pooling flag;
+      Mutilate's 60 gate is DBC-verified across all five ranks. #22/#23
+      deltas follow (combat/subtlety re-derivation pass).
 - [x] Venom: CP-scaled duration + poison-damage/application buffs
       (2026-09-17, assassin day-1) — 1310703's effect rows confirm +30%
       poison damage (aura 108 x2) and +10% application chance (aura 107);

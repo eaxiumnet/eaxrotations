@@ -3654,10 +3654,19 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_d
                   debuff_remains_map = { [15261] = 5 } } }
 -- Rogue assassination: the Mutilate builder (both-hand dagger mock + an
 -- empty combo bank so the builder window is open) and the Improved Expose
--- Armor refund lane (assignment setting + the 5-cp bank). Venom rides the
--- base scenarios (the default 5-cp / 100-energy bank opens its window).
+-- Armor refund lane (assignment setting + the 5-cp bank). Venom gets its
+-- own scenario (beta-verification pass 2026-09-18): 5 cp at 40 energy —
+-- inside the 25..44 band where the OLD pooling-flag shape FIRED the window
+-- (its only energy gate was the < 25 flag) but the re-derived DBC-cost gate
+-- (25 energy + 20 CP-buffer = 45) HOLDS. The scenario is the two-gate
+-- discriminator: on the re-derived lane it must NOT fire (no CP-buffered
+-- window at 40), and the base scenarios (100 energy) still prove it fires.
+-- Stealth bank keeps the opener preference quiet.
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_mutilate",
     overrides = { in_combat = true, equipped_daggers = true, combo_points = 0, energy = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_venom",
+    overrides = { in_combat = true, combo_points = 5, energy = 40,
+                  buff_remains_map = { [1784] = 10 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_iea",
     overrides = { in_combat = true, combo_points = 5,
                   setting_overrides = { assassin_expose_assigned = true } } }

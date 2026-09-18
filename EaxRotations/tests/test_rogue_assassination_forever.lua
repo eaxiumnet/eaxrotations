@@ -4,7 +4,11 @@
 --        Improved Expose Armor above the baseline's ExposeArmor), the dagger
 --        eligibility gate, the poison label read, the Venom CP/refresh
 --        window, the assignment/refund gates, by-name dormancy, mirror
---        selection, zero-numeric-literal contract.
+--        selection, zero-numeric-literal contract. BETA VERIFICATION
+--        (2026-09-18): Venom's energy gate re-derived to the DBC SpellPower
+--        cost (25 energy + a 20 CP-buffer) — the old pooling-floor read
+--        held the window at its own cost boundary; these pins prove the
+--        gate is the DBC cost, not the baseline pooling flag.
 -- WHEN:  standalone or via run_rotation_tests.lua.
 -- WHY:   Mutilate without the dagger gate would fail every cast (both
 --        weapons required) and stall the builder; Venom without the CP gate
@@ -231,7 +235,19 @@ do
     local ctx = fresh_ctx()
     assert_true(venom.matches(ctx, fresh_state()), "B2: 5 cp + no window fires Venom")
     assert_true(not venom.matches(ctx, fresh_state({ combo = 3 })), "B2: the CP gate holds")
-    assert_true(not venom.matches(ctx, fresh_state({ energy_pool_finisher = true })), "B2: energy pooling holds Venom")
+    -- Beta verification (2026-09-18): the gate is the DBC SpellPower cost
+    -- (25) + the 20 CP-buffer = 45 — NOT the baseline pooling flag (which
+    -- sits at Venom's own 25-energy cost boundary and would hold the
+    -- window closed at exactly the cast's spend).
+    assert_true(not venom.matches(ctx, fresh_state({ energy = 44 })), "B2: below the 25+20 DBC-cost gate holds")
+    assert_true(venom.matches(ctx, fresh_state({ energy = 45 })), "B2: at 45 energy (DBC cost + buffer) the window opens")
+    -- The pooling flag no longer contributes to the gate: with the flag UP
+    -- and energy inside the old pooling band but above the DBC gate, the
+    -- window still opens (and energy 30 holds purely on the DBC gate).
+    assert_true(venom.matches(ctx, fresh_state({ energy = 50, energy_pool_finisher = true })),
+        "B2: the pooling flag no longer holds Venom (constant-regen re-derivation)")
+    assert_true(not venom.matches(ctx, fresh_state({ energy = 30, energy_pool_finisher = true })),
+        "B2: the DBC-cost gate holds regardless of the pooling flag")
     player_buffs = { [VENOM_BUFF] = 10 }
     assert_true(not venom.matches(ctx, fresh_state()), "B2: a fresh window holds Venom")
     player_buffs = { [VENOM_BUFF] = 2 }
