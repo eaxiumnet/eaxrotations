@@ -49,6 +49,14 @@ delta files deletable duplication — since resolved: −1,136 lines via
   walk that *does* fire the captured original matcher (proves the wrap is
   what holds silence). Rotation suite + both batteries green after.
 - **Estimate**: one session.
+- **DONE 2026-09-19** -- `6a72ecf3a` (retribution), `e5bec5f4f` (holy),
+  `0177f8231` (resto). Scope correction found on execution: protection
+  is the ONLY wrapped delta (the audit's 'wrapped deltas' premise was
+  wrong), so the spread generalized to the three splice-only deltas as
+  dispatch-walk combination proofs (slot ownership, tier handovers)
+  plus degradation walks over each delta's real fallback branch
+  (ret 6b/6c, holy 7b2/7c, resto 8b/8b2/8c); all three revert proofs
+  re-verified. Protection's Pin 8 remains the wrapped-lane proof.
 
 ### 2. Run the smoke checklist's Block 0 engine-truth probes on the live client
 - **Audit finding**: correctness gap 2 — "tuning thresholds are estimates,
