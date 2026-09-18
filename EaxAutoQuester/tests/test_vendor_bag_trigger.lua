@@ -109,8 +109,11 @@ do
     package.loaded["quest_state/waiting_state"] = noop_handler
     package.loaded["quest_state/dead_state"] = noop_handler
 
-    -- Pre-load mock npc_db with find_transport_npc
-    package.loaded["EaxAutoQuester.npc_db_sylvanas"] = {
+    -- Pre-load mock npc_db with find_transport_npc.
+    -- Key must match the name production requires (bare module name, as used by
+    -- coordinator/idle_state/do_action_state); the old dotted key was never read,
+    -- so the stub was dead and the coordinator fell through to the real npc_db.
+    package.loaded["npc_db_sylvanas"] = {
         find_transport_npc = function(kind)
             if kind == "vendor" then
                 return { x = 100, y = 200, z = 0 }

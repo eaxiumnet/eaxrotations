@@ -92,20 +92,37 @@ end
 -- Internal: compute bag fullness percentage (0-100)
 -- ============================================================================
 
-local function get_bag_fullness_pct()
+--- Bag capacity snapshot from the two inventory APIs that actually exist
+--- (core.inventory.get_num_bag_slots / get_items_in_bag — there is no
+--- get_num_free_slots in the runtime API surface).
+--- Returns nil when the inventory cannot be read, so callers can tell
+--- "unknown" apart from "known empty".
+--- @return integer|nil free_slots
+--- @return integer|nil total_slots
+--- @return integer|nil used_slots
+local function get_bag_space()
     local total_slots = 0
     local used_slots = 0
     for bag_id = 0, 4 do
         local ok, slots = pcall(core.inventory.get_num_bag_slots, bag_id)
-        if ok and slots then
+        if ok and type(slots) == "number" then
             total_slots = total_slots + slots
             local ok_items, items = pcall(core.inventory.get_items_in_bag, bag_id)
-            if ok_items and items then
+            if ok_items and type(items) == "table" then
                 used_slots = used_slots + #items
             end
         end
     end
-    if total_slots <= 0 then return 0 end
+    if total_slots <= 0 then return nil, nil, nil end
+    local free_slots = total_slots - used_slots
+    if free_slots < 0 then free_slots = 0 end
+    return free_slots, total_slots, used_slots
+end
+
+--- Internal: compute bag fullness percentage (0-100)
+local function get_bag_fullness_pct()
+    local _, total_slots, used_slots = get_bag_space()
+    if not total_slots or total_slots <= 0 then return 0 end
     return math.floor((used_slots / total_slots) * 100)
 end
 
@@ -122,8 +139,13 @@ function M.auto_loot_all(range)
     if not ensure_utils() then return false end
     if not _utils.throttle("loot_cycle", 0.5) then return false end
 
-    -- Check bag space — skip if nearly full (leave room for quest items)
-    local _, free_slots = pcall(function() return core.inventory.get_num_free_slots() end)
+    -- Check bag space — skip if nearly full (leave room for quest items).
+    -- The old code called core.inventory.get_num_free_slots, which the runtime does
+    -- not expose: pcall failed, the second return was the ERROR STRING, and
+    -- `free_slots < 4` then threw "attempt to compare string with number" on every
+    -- loot cycle. get_bag_space() returns nil when the inventory is unreadable, so
+    -- an unknown bag state means "loot anyway" instead of a crash.
+    local free_slots = get_bag_space()
     if free_slots and free_slots < 4 then
         _core_log("[EaxAutoQuester] Bags full — skipping loot")
         return false
