@@ -1,10 +1,14 @@
 -- docs/forever/kits/priest.md -- WoW Forever Priest kit research.
--- WHAT:  sixth kit transcription — NOTE: the Icy Veins class-overview
---        series has NO priest page yet (404; only the JS-gated talent
---        calculator). Source below is Zockify's demo-derived summary
---        (2026-09-14); source tier is LOWER than the other kit docs.
--- WHEN:  refresh when the Icy Veins priest overview lands or the beta DBC
---        verifies/corrects each claim (dbc_runbook.md).
+-- WHAT:  sixth kit transcription — SOURCE REFRESH (2026-09-18, beta-
+--        verification pass): the Icy Veins Priest Class Overview is NOW
+--        LIVE (icy-veins.com/wow-forever/priest-class-overview, Rainy,
+--        updated 2026-09-16) and confirms/corrects the Zockify-derived
+--        rows below; the per-race priest-spell table and the Power
+--        Infusion / Improved Healing changes are verified against the DBC
+--        in the checklist. The original Zockify demo-tier notes are kept
+--        inline for provenance.
+-- WHEN:  beta verification continues; the IV page remains BlizCon-demo
+--        based and updates through the beta window.
 -- WHY:   day-1 Priest rotations must encode the confirmed deltas, not TBC
 --        assumptions; every strategy change traces to a source line here.
 -- SAFETY: NO spell IDs in this file until the Forever DBC lands (2026-09-17);
@@ -80,6 +84,29 @@ Gnome joins Human/Dwarf/NE (Alliance) and Undead/Troll (Horde) — the
 Dwarf Fear Ward exclusivity that structured Vanilla priest race choice is
 gone (baseline). Racial acts (Elune's Light crit burst, Berserking haste,
 Eureka!) carry from racials-and-talents.md.
+
+**Race-gated priest spells (NEW, verified 2026-09-18 against the DBC +
+the Icy Veins priest overview):** the era replaces the old race-spell
+matrix with a NEW set of race-specific priest spells. All four resolve in
+the Forever bridge (by name):
+
+| Race | Spell | What it does | Replaces | Bridge |
+|---|---|---|---|---|
+| Gnome (new priest combo) | **Contingency Plan** | emergency ally save ("second chance at life"; IV flags a possible rework vs Guardian Spirit) | — (Gnome had none) | 1277456..1277460, ladder @20..@60 |
+| Human | **Divine Grace** | instant heal on an ally below 50% HP + removes Weakened Soul; NOT self-castable | Desperate Prayer | 1277370..1277378, @10..@58 |
+| Dwarf | **Chastise** | Holy damage + immobilize vs Humanoids, low threat | Fear Ward (now baseline) | 1277331..1277335, @20..@60 |
+| Undead | **Dark Sacrifice** | cannibalize own Health over 15s to restore Mana | Devouring Plague (now baseline) | 1277324..1277328, @20..@60 |
+
+**Rotation impact (leveling + racial-lane coverage):** these are the
+successors of the Desperate Prayer/Starshards/Fear Ward/DP race matrix —
+self-sustain and utility buttons a race-aware leveling rotation can fire
+(Mana economy for Undead: Dark Sacrifice is an OOC mana lane; emergency
+saves for Gnome/Human). The class map carries NO rows for them (they are
+Forever-new, bridge-only) — any lane must resolve by name through the
+bridge mirrors and stays dormant on other races. Recorded as lane
+candidates, NOT laned day-1 (race detection + the exact heal/save numbers
+need in-game confirmation; IV itself flags Contingency Plan as
+likely-to-change).
 
 ## Flagged as unconfirmed (demo tier)
 - Exact Penance damage/heal split and channel behavior (ticks/1s x2?).
@@ -211,6 +238,28 @@ Eureka!) carry from racials-and-talents.md.
       (aura 42) refunding mana when the previous heal was a different spell;
       the #24 variety lane alternates Greater Heal / Flash Heal. [PROBE: the
       refund % (kit: 5-10%) in-game.]
+- [x] Power Infusion "requires Penance" (2026-09-18, beta-verification
+      pass): CONFIRMED as a talent-tree prerequisite, not a cast condition —
+      Power Infusion 10060's own row is unchanged in shape (21% spell
+      damage/healing per the rendered DBC text, 180s cooldown, the two
+      aura-136/79 effect rows), and the baseline's PowerInfusion lane needs
+      no change: it casts the class-map action and the talent gate lives in
+      the tree (the lane stays dormant until the talent is learned, exactly
+      as the vanilla baseline resolves it).
+- [x] Improved Healing covers Penance + PoM (2026-09-18,
+      beta-verification pass): CONFIRMED by the DBC rendered text — 14912
+      reads "Reduces the Mana cost of your Lesser Heal, Heal, Greater Heal,
+      Penance, and Prayer of Mending spells by -14%" (the rendered -14% is
+      the rank value; the DBC token is $s1). Pure passive mana efficiency on
+      lanes the rotation already casts — no lane change.
+- [x] Race-gated priest spells (2026-09-18): Contingency Plan
+      1277456..60, Divine Grace 1277370..78, Chastise 1277331..35, Dark
+      Sacrifice 1277324..28 all resolve in the bridge mirrors (checked
+      spell_index_by_name_forever); recorded as lane candidates in the
+      racial section above, not laned until race detection is confirmed
+      in-game. The Icy Veins priest overview (now live) confirms the
+      race-replacement mapping (Divine Grace replaces Desperate Prayer,
+      Chastise replaces Fear Ward, Dark Sacrifice replaces DP).
 - [ ] Twilight Focus (14913: pushback protection %) — pure passive,
       recorded; confirm the in-game value.
 - [ ] DP + Fear Ward: baseline (non-racial) availability.
