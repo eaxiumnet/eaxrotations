@@ -186,3 +186,27 @@ by-name lane could never fire live; Pattern-17 doctrine). Unit suite
 file-revert; battery scenario `forever_pal_ret_strike`. Coverage contract:
 38 deltas + 2 deliberate fallbacks (druid caster, warrior kebab). Suites:
 601 rotation (+1) / 48 leveling / 82 WotLK; era never-pins unchanged.
+
+---
+
+## Remaining-fallback audit (2026-09-18, closes the day-1 completion wave)
+
+Both deliberate fallbacks re-checked against the beta kits and DBC:
+
+- **druid caster** — the kit's class-wide Forever items are all passives
+  (Omen of Clarity baseline = proc, already handled in cat/leveling lanes;
+  Nature's Grace + Dreamstate = no cast lane; DoTs-crit = gear weighting;
+  Moonkin party-crit = buff-role accounting) and the spec-specific Eclipse/
+  Balance-of-Nature work lives in `balance_forever.lua`. The caster hybrid
+  (Moonfire/Starfire/Wrath + self-heals) needs no Forever delta. Fallback
+  stands.
+- **warrior kebab** — the warrior kit's Forever items were spec-scoped:
+  Vanguard (protection), Spearing Strike + Improved Slam (arms), Thunder
+  Clap defensive replacement (protection). Kebab's kit section flags no
+  mechanic that requires a lane. Fallback stands.
+
+Day-1 completion wave end state: **38 of 40 vanilla rotation specs carry a
+_forever delta** (plus all 9 leveling deltas = 47 delta files total
+including the paladin holy one); rotation suites 601 / leveling 48 /
+WotLK 82; era never-pins strict and unchanged (tbc=11, wotlk=0, vanilla=9,
+sod=14, forever=9); verify_all exit 0 at 37abef793.
