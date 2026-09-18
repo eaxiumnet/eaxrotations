@@ -167,6 +167,15 @@ lua EaxRotations/tests/run_rotation_tests.lua --quiet
 # Harness self-test (synthetic old/new DBs in TEMP -- never the
 # canonical fixture path -- plus a real-DBC self-diff = 0):
 python tools/forever_dbc_diff.py --self-test
+
+# Committed-fixture gate (the synthetic pair in
+# EaxRotations/tests/fixtures/forever_dbc/ through the real end-to-end
+# path incl. the lane-impact scan over the live call sites; also a
+# verify_all component + a named CI step):
+python tools/forever_dbc_diff.py --check-fixtures
+# Regenerate the pair (provenance = the harness's own seed rows) when
+# the seeded shapes move:
+python tools/forever_dbc_diff.py --write-fixtures
 ```
 
 The diff extracts through `tools/build_forever_bridge.py`'s own
