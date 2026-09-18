@@ -305,3 +305,6 @@ Ride-along items; tick as they become visible.
 4. Re-run `lua EaxRotations/tests/run_forever_audit_tests.lua` after any
    lane change the verdict forces; the audit must stay 38 files / 0
    invalid.
+5. Post-launch (game live 2026-10-22): open
+   `post_launch_hardening_backlog.md` -- the week-1 day map consumes
+   these verdicts (P0 #2 closes only with the live Block 0/1 numbers).

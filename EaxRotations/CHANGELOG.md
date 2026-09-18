@@ -255,6 +255,16 @@
   `--self-test` proves every finding shape on synthetic temp DBs (never
   the canonical fixture path) plus a real-DBC self-diff = 0. Beta-day
   procedure: `dbc_runbook.md` "Beta-day diff".
+- **The audit's open findings became a prioritized hardening backlog.**
+  `docs/forever/post_launch_hardening_backlog.md` re-cuts the
+  four-dimension audit's remaining structural notes into nine items
+  (P0/P1/P2) with a "done looks like" proof gate per item and a
+  week-1 day map: P0 is the dispatch-walk spread to the remaining
+  wrapped deltas, the live Block 0/1 engine-truth session, and
+  CI-wiring the DBC diff with committed fixtures; P1 carries the
+  docs-claim diff, the battery mock generalization, and the
+  seal-ownership seam; P2 holds the parked backlog items with their
+  named triggers.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44
