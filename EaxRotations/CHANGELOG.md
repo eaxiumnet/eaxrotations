@@ -265,6 +265,17 @@
   docs-claim diff, the battery mock generalization, and the
   seal-ownership seam; P2 holds the parked backlog items with their
   named triggers.
+- **The DBC diff is wired into CI with committed fixture DBs.**
+  `EaxRotations/tests/fixtures/forever_dbc/` carries a committed synthetic
+  build pair (32 KB each; regenerate with `--write-fixtures`, provenance =
+  the harness's own seed rows) and the harness gained `--check-fixtures`,
+  which runs that pair through the real end-to-end path — extraction, diff,
+  the lane-impact scan over the actual `_forever` resolve_id call sites, the
+  JSON report and the exit contract — so the launch-day guard no longer
+  depends on a local client extraction. `run_forever_dbc_diff_tests.lua`
+  gates both modes as a verify_all component (python3 on CI, python3/python
+  probed locally with an explicit SKIP marker when neither exists) and the
+  CI job runs the same two invocations as a named step.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

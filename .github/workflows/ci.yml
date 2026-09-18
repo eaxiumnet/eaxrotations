@@ -87,6 +87,18 @@ jobs:
         # needed on a clean checkout.
         run: lua EaxRotations/tests/run_verify_all.lua
 
+      - name: Forever DBC diff harness (self-test + committed fixtures)
+        # Mirrors the "forever DBC diff harness" component inside
+        # run_verify_all above (same two invocations, run with python3) so a
+        # failure names the harness directly instead of appearing inside the
+        # matrix. python3 is preinstalled on ubuntu-latest (same as the
+        # release guard below). This is the launch-day guard: when a new beta
+        # build lands, --old/--new diff two client extractions through the
+        # lane surface and name the _forever lanes each change touches.
+        run: |
+          python3 tools/forever_dbc_diff.py --self-test
+          python3 tools/forever_dbc_diff.py --check-fixtures
+
       - name: release-staleness guard (shipped version vs newest published tag)
         # Fails when header.lua ships a version that was never published — i.e.
         # a `release: vX.Y.Z` commit is on master but the tag/Release users

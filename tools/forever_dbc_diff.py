@@ -29,6 +29,8 @@ Usage:
         [--impact-dir EaxRotations/classes]  # default; lane-impact mapping
         [--exit-on-action]                   # exit 1 when action items exist
     python tools/forever_dbc_diff.py --self-test
+    python tools/forever_dbc_diff.py --write-fixtures   # regenerate the pair
+    python tools/forever_dbc_diff.py --check-fixtures   # CI gate over the pair
 
 Exit codes: 0 clean/no findings, 1 findings (with --exit-on-action) or
 self-test failure, 2 usage/environment error.
@@ -242,6 +244,108 @@ def print_report(old_v, new_v, findings, impacted, unmapped, json_path):
           % len(action))
     print("        Then: rebuild bridge -> run_forever_audit_tests + rotation suite.")
     return 1 if action else 0
+
+
+FIXTURE_DIR_DEFAULT = os.path.join(ROOT, "EaxRotations", "tests", "fixtures", "forever_dbc")
+
+
+def write_fixtures(path):
+    """Regenerate the committed synthetic build pair (provenance is code).
+
+    The pair is the self-test's SPELLS_OLD/SPELLS_NEW rows, so every seeded
+    finding shape is reviewable in this file rather than frozen in a blob.
+    Committing the DBs lets CI run the full CLI path (extract -> diff ->
+    lane-impact scan over the real _forever call sites -> report + exit
+    contract) with no client and no runtime generation step.
+    """
+    os.makedirs(path, exist_ok=True)
+    for fname, spells in (("build_old.db", SPELLS_OLD), ("build_new.db", SPELLS_NEW)):
+        target = os.path.join(path, fname)
+        if os.path.exists(target):
+            os.remove(target)
+        _build_db(target, spells)
+        print("wrote %s (%d synthetic rows)" % (target, len(spells)))
+    return 0
+
+
+def check_fixtures(path):
+    """CI gate: the committed fixture pair through the real end-to-end path.
+
+    Unlike --self-test (in-process, scratch lanes in TEMP), this exercises
+    the CLI's own pipeline against the actual repo: the lane-impact scan
+    reads the real classes/*/*_forever.lua resolve_id call sites, so a
+    fixture in-flight name must land on a real delta file when the two sets
+    intersect. If a future pass retires every lane the fixtures name, refresh
+    the seed names (the intersection assertion exists to keep the scan
+    honest, not to freeze today's lane set).
+    """
+    old_db = os.path.join(path, "build_old.db")
+    new_db = os.path.join(path, "build_new.db")
+    for p in (old_db, new_db):
+        if not os.path.exists(p):
+            print("FAIL: fixture missing: %s" % p)
+            print("      regenerate: python tools/forever_dbc_diff.py --write-fixtures")
+            return 1
+
+    old = extract(old_db)
+    new = extract(new_db)
+    findings, flight = diff_surfaces(old, new)
+    lane_names = collect_lane_names(os.path.join(ROOT, "EaxRotations", "classes"))
+    impacted, unmapped = map_impact(flight, lane_names)
+
+    failures = []
+    kinds = {}
+    for kind, name, _d in findings:
+        kinds.setdefault(kind, set()).add(name)
+
+    def want(kind, name):
+        if name not in kinds.get(kind, set()):
+            failures.append("%s not flagged as %s" % (name, kind))
+
+    want("re-rank", "Holy Strike")
+    want("field", "Molten Blast")
+    want("removed", "Curse of the Vault")
+    want("rename", "Prayer of Fortitude")
+    want("add", "Curse of the Vault II")
+
+    if len(lane_names) < 25:
+        failures.append("lane scan found only %d _forever file(s) with resolve_id "
+                        "call sites -- expected the real delta set" % len(lane_names))
+    for f in [f for f, _names in impacted]:
+        if not f.endswith("_forever.lua"):
+            failures.append("impacted path is not a _forever file: %s" % f)
+    if not impacted:
+        failures.append("no real _forever file impacted by the fixture's in-flight "
+                        "names (refresh the seed names if the lane set moved)")
+    if "Molten Blast" not in unmapped:
+        failures.append("Molten Blast (in-flight, lane-less in the real deltas) "
+                        "not reported as unmapped")
+
+    old_v = "fixture-old rows=%d names=%d" % (len(old["rows"]), len(old["rank1"]))
+    new_v = "fixture-new rows=%d names=%d" % (len(new["rows"]), len(new["rank1"]))
+    report_path = os.path.join(tempfile.gettempdir(), "forever_dbc_diff_fixture_report.json")
+    write_json_report(report_path, old_v, new_v, findings, impacted, unmapped)
+    try:
+        with open(report_path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, ValueError) as exc:
+        failures.append("report JSON unreadable: %s" % exc)
+    else:
+        if not payload.get("impacted_lanes"):
+            failures.append("report carries no impacted_lanes")
+    rc = print_report(old_v, new_v, findings, impacted, unmapped, report_path)
+    if rc != 1:
+        failures.append("exit contract: expected 1 for the seeded diff, got %d" % rc)
+
+    if failures:
+        for f in failures:
+            print("FAIL: %s" % f)
+        print("FAIL: forever DBC diff fixture check (%d failure(s))" % len(failures))
+        return 1
+    print("verdict: fixtures in sync (%d findings, %d lane file(s) impacted, %d unmapped)"
+          % (len(findings), len(impacted), len(unmapped)))
+    print("[PASS] forever DBC diff fixture check")
+    return 0
 
 
 # --------------------------------------------------------------------------
@@ -487,8 +591,19 @@ def main():
     parser.add_argument("--exit-on-action", action="store_true",
                         help="exit 1 when action-required findings exist")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--fixture-dir", default=FIXTURE_DIR_DEFAULT,
+                        help="committed synthetic build pair (default: %s)"
+                             % FIXTURE_DIR_DEFAULT)
+    parser.add_argument("--write-fixtures", action="store_true",
+                        help="regenerate the committed synthetic build pair")
+    parser.add_argument("--check-fixtures", action="store_true",
+                        help="CI gate: run the committed pair end-to-end")
     args = parser.parse_args()
 
+    if args.write_fixtures:
+        sys.exit(write_fixtures(args.fixture_dir))
+    if args.check_fixtures:
+        sys.exit(check_fixtures(args.fixture_dir))
     if args.self_test:
         sys.exit(run_self_test())
     if not args.old or not args.new:
