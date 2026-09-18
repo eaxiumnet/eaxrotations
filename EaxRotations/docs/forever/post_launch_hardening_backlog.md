@@ -143,9 +143,28 @@ delta files deletable duplication — since resolved: −1,136 lines via
 
 ---
 
+### 7. Author the mage-fire Wake of Fire window lane
+
+- **What**: the 2026-09-19 probe pass unblocked this lane — 1312934 is the 20s
+  window the ability applies on a kill (+50% crit on the next Fire Blast) and
+  `BUFF_OVERRIDES` now pins it, so a lane can gate
+  `has_buff(by_buff["Wake of Fire"])` and prefer Fire Blast inside the window
+  instead of inheriting the 11078 ability row (a buff read against which is
+  always 0).
+- **Why**: it is the one Forever mage mechanism the kit documents that the
+  rotation does not act on; the payoff lands on kill chains (dungeon packs, add
+  waves).
+- **Done looks like**: a `fire_forever.lua` lane above the baseline Fire Blast
+  lane, a unit pin for the window-up/window-down split, and a battery scenario
+  that makes it fire (a lane that never fires would break the strict forever
+  never-pin).
+- **Estimate**: half a session.
+
+---
+
 ## P2 — explicit debt, triggered not scheduled
 
-### 7. Rank-ladder mirror extension
+### 8. Rank-ladder mirror extension
 - **Backlog item (mission list)**: extend `spell_maxrank_by_name_forever`
   to expose per-rank ladders where a lane needs a non-max rank (downrank
   fits, leveling catches).
@@ -154,7 +173,7 @@ delta files deletable duplication — since resolved: −1,136 lines via
 - **Done looks like**: builder emits the ladder table; audit self-test pins
   its presence; consuming lanes un-dormant with unit proof.
 
-### 8. Class-less-cast bridge mechanism (Demonic Sacrifice class of gaps)
+### 9. Class-less-cast bridge mechanism (Demonic Sacrifice class of gaps)
 - **Backlog item (mission list)**: a bridge mechanism for cast-lane rows the
   class filter cannot see (today only buff-role rows get the
   `CLASS_LESS_BUFF_NAMES` treatment).
@@ -162,7 +181,7 @@ delta files deletable duplication — since resolved: −1,136 lines via
 - **Done looks like**: builder-side allowlist + audit admission, mirroring
   the existing class-less buff precedent.
 
-### 9. Blade Dance 400012 lane
+### 10. Blade Dance 400012 lane
 - **Backlog item (mission list)**: parked pending DBC confirmation that the
   row is the player cast, not an internal damage row (the Fire Nova
   precedent: internal rows win raw lowest-id ties).

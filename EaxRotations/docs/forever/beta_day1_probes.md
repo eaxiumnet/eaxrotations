@@ -78,7 +78,16 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
       81920 = melee hit, ProcChance 100 — the spend-at-5 gate is DBC-derived
       now, no in-game probe needed)
 - [x] Stormstrike (8s CD confirmed: RecoveryTime 8000) / Improved
-      Stormstrike (dodge-parry reset OPEN — talent-side, wave 2)
+      Stormstrike — **RESOLVED 2026-09-19, no lane change needed**: the
+      dodge-parry proc is client-wired, not a talent-table entry. Row 1223031
+      "Improved Stormstrike" carries proc mask 40 (= 8 dodge | 32 parry) at
+      100% with three dummy effects (base 20); 1238931 is the class-less 15s
+      +50% buff variant; 1214300 is the combined "Improved Stormstrike/Windfury
+      Weapon" row. No DBC row links the proc to Stormstrike 17364 because the
+      reset itself is native behavior. Our enhancement delta gates the lane on
+      `NS.spell_ready(SPELLS.Stormstrike, target, ...)` — the live cooldown —
+      so a reset simply makes the lane fire sooner; its "8s cadence" comment
+      describes RecoveryTime, not an assumption the reset breaks.
 - [x] Fire Nova — shaman (ROLE FIX 2026-09-17: the player cast is the
       trainer-taught 408341-408345 family — 520 mana, 1.5s GCD,
       **CategoryRecoveryTime 6000**, "detonates your Fire Totem"; the classic
@@ -103,8 +112,21 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
   "2 in a row" row is the pre-Forever mechanic, `CumulativeAura=1`) — mage
   fire
 - [x] Pyroblast 11366 / Fire Blast 2136 (class-map casts, unchanged) /
-      Wake of Fire buff 11078 + window 1312934 (full mechanic text
-      confirmed; trigger wiring OPEN — lane stays absent) — mage
+      Wake of Fire — **RESOLVED 2026-09-19; the lane is no longer blocked**:
+      there is no trigger link to find, and that is the mechanic, not a gap.
+      11078 is the ABILITY row (class 3, level 1, proc mask 2 = on-kill, aura
+      107 base −2000 misc 11 + dummy 50) — never on the player as an aura —
+      and **1312934 is the 20s window row** ("Killing a non-trivial target
+      increases the critical strike chance of your next Fire Blast cast within
+      $1312934d by $m2%", aura 107 base +50 misc 7, proc mask 65536) applied
+      natively on the kill. Same shape as Infusion of Light: the ability's own
+      text is the only reference to its window id, so nothing in the DBC
+      "wires" it. Consequence: a Forever fire lane can now gate
+      `has_buff(by_buff["Wake of Fire"])` and prefer Fire Blast inside the
+      window; the builder pins the window row in `BUFF_OVERRIDES` (the
+      baseline would have handed the lane the ability row, against which a
+      buff read is always 0), and the audit holds the by_buff pin. Authoring
+      the lane is tracked in the post-launch hardening backlog. — mage
 - [x] Arcane Blast buff 400573 + nuke 1239700@60 (**cap 4 CONFIRMED** via
       `CumulativeAura=4`, **8s CONFIRMED** via `SpellDuration 31`; effect
       split CORRECTED: op 0 +10% other spells, op 22 +10% AB damage

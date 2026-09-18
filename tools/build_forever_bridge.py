@@ -260,6 +260,18 @@ def load_forever_spells(conn):
         # which applies 437063. Re-probed 2026-09-19 with
         # tools/probe_forever_spell_rows.py (--refs 53672 / --refs 437063).
         "Infusion of Light": 437063,
+        # The 20s window row the ability applies on a kill ("Killing a
+        # non-trivial target increases the critical strike chance of your next
+        # Fire Blast cast within $1312934d by $m2%", aura 107 base +50 misc 7,
+        # proc mask 65536). The baseline 11078 is the ABILITY row itself
+        # (class 3, proc mask 2 = on-kill, level 1), which is never on the
+        # player as an aura, so a buff gate against it always returns 0. The
+        # same shape as Infusion of Light: applying the window is native
+        # behavior, so nothing in the build carries an EffectTriggerSpell link
+        # to it -- the ability's own text is the only reference to $1312934.
+        # Re-probed 2026-09-19 with tools/probe_forever_spell_rows.py
+        # (--refs 1312934 / --refs 11078).
+        "Wake of Fire": 1312934,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for

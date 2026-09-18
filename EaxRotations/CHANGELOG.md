@@ -265,6 +265,15 @@
   docs-claim diff, the battery mock generalization, and the
   seal-ownership seam; P2 holds the parked backlog items with their
   named triggers.
+- **Every DBC-answerable OPEN probe is now closed.** Wake of Fire: the ability
+  row 11078 is never an aura and the 20s window is 1312934, applied natively
+  on a kill — so the mage-fire window lane is authorable, and `BUFF_OVERRIDES`
+  pins the window row before any lane can inherit the wrong role. Improved
+  Stormstrike: the dodge-parry reset is the client-wired proc on 1223031
+  (mask 40 = dodge|parry), and the enhancement lane already reads the live
+  cooldown, so it needs no change. Only in-game-only items remain open
+  (Elemental Mastery's talent grant, the furor formula constants, warrior
+  rage-from-damage).
 - **Dead-lane fix: the Infusion of Light weave now gates the row the client
   actually applies.** Resolving the last two DBC-answerable OPEN probes showed
   `holy_forever.lua` was gating TBC row 53672, which nothing in the
