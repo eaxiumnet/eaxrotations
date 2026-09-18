@@ -138,6 +138,41 @@ lua EaxRotations/tests/run_verify_all.lua
 #    curl -s "https://lexxer.org/api/v1/spells/<id>?game=forever"
 ```
 
+## Beta-day diff (new-build triage)
+
+When Blizzard pushes a new beta build, the diff harness flags every
+change on the surface the rotations resolve through BEFORE any lane is
+touched (audit green no longer hides a silent re-rank or rename):
+
+```bash
+# 1. Extract the new build to a NEW path (keep the old extraction):
+#    <DB2ToSqlite> -o .../dbc_extract/wowsims_forever_<build>.db
+
+# 2. Diff old -> new on the lane surface (rows, mirrors, overrides):
+python tools/forever_dbc_diff.py \
+    --old wowheadScrape/dbc_extract/wowsims_forever.db \
+    --new wowheadScrape/dbc_extract/wowsims_forever_<build>.db \
+    --exit-on-action
+#    exit 0 = lane surface identical; exit 1 = action findings (removed
+#    / renamed / re-ranked rows, cooldown/gcd moves, override flips)
+#    with the impacted _forever lanes named; JSON report lands at
+#    tools/forever_dbc_diff_report.json.
+
+# 3. On findings: verify/fix the named lanes, then rebuild the bridge
+#    from the NEW DB and re-run the gates:
+python tools/build_forever_bridge.py
+lua EaxRotations/tests/run_forever_audit_tests.lua --check-bridge
+lua EaxRotations/tests/run_rotation_tests.lua --quiet
+
+# Harness self-test (synthetic old/new DBs in TEMP -- never the
+# canonical fixture path -- plus a real-DBC self-diff = 0):
+python tools/forever_dbc_diff.py --self-test
+```
+
+The diff extracts through `tools/build_forever_bridge.py`'s own
+`load_forever_spells`, so what it reports is exactly what the bridge
+would emit -- there is no second extraction implementation to drift.
+
 ## What the builder extracts (calibrated on the 2.5.5 DBC)
 
 - **Player filter**: `SpellClassOptions.SpellClassSet ∈ {1..9,11}` (class map in
@@ -202,6 +237,8 @@ era plumbing, research docs, and this pipeline.
 
 ## First-day checklist (beta)
 
+- [ ] On any NEW beta build: run the beta-day diff (section above) before
+      touching any lane or rebuilding the bridge.
 - [ ] Install beta → extract DBC → commit `wowsims_forever.db` (or the Lua
       tables if the DB is too large for git — AGENTS.md tolerates 36 MB,
       follow precedent).

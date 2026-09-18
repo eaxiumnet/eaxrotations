@@ -243,6 +243,18 @@
   ride-alongs), each with method, expected result, and the ledger/kit
   entry its verdict lands in; the probes doc now points at it as the
   session runbook.
+- **A launch-day DBC diff harness watches the lane surface.**
+  `tools/forever_dbc_diff.py` diffs two Forever DBC extractions through
+  the bridge builder's own `load_forever_spells` (single extraction
+  owner — the diff can never drift from what the bridge emits) and
+  reports every row/mirror delta: removed rows, renames and re-ranks,
+  field moves (cooldown/gcd/school/level), new rows, and buff-role
+  override flips — then maps each in-flight name to the `_forever`
+  lanes that resolve through it (103 resolve_id call sites across the
+  38 deltas) and exits non-zero when action is required.
+  `--self-test` proves every finding shape on synthetic temp DBs (never
+  the canonical fixture path) plus a real-DBC self-diff = 0. Beta-day
+  procedure: `dbc_runbook.md` "Beta-day diff".
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44
