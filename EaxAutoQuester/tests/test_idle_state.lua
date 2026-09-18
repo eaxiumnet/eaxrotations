@@ -638,5 +638,104 @@ do
     print("  S19 PASS: Ghost buff (8326) with HP>0 → bot transitions to DEAD")
 end
 
+-- =============================================================================
+-- Phase 1 ports — objective-first scan, kill-goal hold, action-pause respect
+-- (docs/phase1_port_list.md items 1-3). These behaviours moved from the deleted
+-- monolith into this handler, so the contract is pinned here.
+-- =============================================================================
+
+-- Helper: IDLE context with a single goal and a minimal npc_manager stub.
+local function build_goal_ctx(goal, objects, opts)
+    opts = opts or {}
+    mock.reset()
+    mock.create_player({ pos = opts.me_pos or { x = 0, y = 0, z = 0 },
+        hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
+    mock._objects = objects or {}
+    local utils = require("EaxAutoQuester/utils_sylvanas")
+    return {
+        zygor = {
+            has_current_step = function() return true end,
+            get_current_step_info = function()
+                return { is_complete = false, goals = { goal }, step_num = 7 }
+            end,
+            get_current_waypoint_world = function() return opts.waypoint end,
+        },
+        nav = { is_navigating = function() return false end, stop = function() end },
+        utils = utils,
+        me = mock._player,
+        now = 100.0,
+        debug_log = function() end,
+        log = function() end,
+        safe = function(v, fb) if v == nil then return fb end return v end,
+        detect_open_frame = function() return false end,
+        npc_manager = opts.npc_manager or {
+            find_interactable_objects = function() return mock._objects end,
+        },
+        combat_helper = opts.combat_helper,
+        object_scanner = { get_visible_objects = function() return mock._objects end },
+    }
+end
+
+-- P1a — objective 30yd away with NO waypoint → bot NAVs to the objective itself
+-- (not to the step waypoint, which does not exist in this scenario)
+do
+    local node = mock.create_object({ pos = { x = 30, y = 0, z = 0 }, name = "Milly's Harvest",
+        unit = false, valid = true, guid = "obj_far" })
+    local ctx = build_goal_ctx({ type = "area", npc_id = 0, target = "Milly's Harvest" }, { node })
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "NAV",
+        "P1a FAIL: objective at 30yd should NAV to the objective (got " .. tostring(next_state) .. ")")
+    assert(shared._nav_destination ~= nil and math.abs((shared._nav_destination.x or 0) - 30) < 1,
+        "P1a FAIL: nav destination should be the objective position (30,0,0)")
+    print("  P1a PASS: objective-first — distant objective → NAV to the object")
+end
+
+-- P1b — objective in range (3yd) → skip the waypoint check, go straight to DO_ACTION
+-- Without this, the waypoint check NAVs to a waypoint the player is standing on and
+-- the state machine spins IDLE→NAV→ARRIVED→IDLE.
+do
+    local node = mock.create_object({ pos = { x = 3, y = 0, z = 0 }, name = "Milly's Harvest",
+        unit = false, valid = true, guid = "obj_near" })
+    -- Waypoint 100yd away: the old code would NAV to it and loop back.
+    local ctx = build_goal_ctx({ type = "area", npc_id = 0, target = "Milly's Harvest" },
+        { node }, { waypoint = { x = 100, y = 0, z = 0 } })
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "DO_ACTION",
+        "P1b FAIL: in-range objective must skip the waypoint check and act (got " ..
+        tostring(next_state) .. ")")
+    print("  P1b PASS: objective-first — in-range objective → DO_ACTION (no waypoint NAV)")
+end
+
+-- P2 — kill goal with a valid current target → stay IDLE (let the rotation fight)
+do
+    local ctx = build_goal_ctx({ type = "kill", npc_id = 999, text = "Kill Something" }, {},
+        { combat_helper = { is_current_target_valid = function() return true end } })
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "IDLE",
+        "P2 FAIL: kill goal with a valid target must hold in IDLE (got " .. tostring(next_state) .. ")")
+    print("  P2 PASS: kill goal + valid target → IDLE (no re-tag thrash)")
+end
+
+-- P3 — post-action pause still running → stay IDLE instead of re-entering DO_ACTION
+do
+    local ctx = build_goal_ctx({ type = "area", npc_id = 0, target = "Milly's Harvest" }, {})
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 100.5 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "IDLE",
+        "P3 FAIL: active action pause must gate DO_ACTION (got " .. tostring(next_state) .. ")")
+    print("  P3 PASS: action pause active → IDLE")
+end
+
 print("PASS test_idle_state")
 os.exit(0)

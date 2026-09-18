@@ -524,9 +524,92 @@ function M.run(shared, ctx)
             shared._nav_destination = nil
         end
 
+        -- Objective-first scan (ported from the monolith's live IDLE path; see
+        -- docs/phase1_port_list.md item 1). When the goal names an interactable,
+        -- look for it within 50yd BEFORE walking to the step waypoint. In range
+        -- (<= 5yd) the waypoint check below is skipped entirely: navigating to a
+        -- destination the player is already standing on spins
+        -- IDLE->NAV->ARRIVED->IDLE forever, because SentinelNavClient resolves it
+        -- instantly and this block re-fires every tick.
+        local objective_in_range = false
+        if type(current_goal) == "table" and ctx.me and ctx.npc_manager
+            and ctx.npc_manager.find_interactable_objects then
+            local goal_target = ctx.safe(current_goal.target, ctx.safe(current_goal.npc, nil))
+            if goal_target and goal_target ~= "" then
+                -- Zygor pluralizes names ("Bundles of Wood"), so try the singular
+                -- of the first word and of the whole string too.
+                local names_to_try = {}
+                for name in goal_target:gmatch("[^,]+") do
+                    local trimmed = name:match("^%s*(.-)%s*$")
+                    if trimmed and trimmed ~= "" then
+                        names_to_try[#names_to_try + 1] = trimmed
+                    end
+                end
+                local name_count = #names_to_try
+                for i = 1, name_count do
+                    local name = names_to_try[i]
+                    local first_word = name:match("^(%S+)")
+                    if first_word and first_word:sub(-1) == "s" then
+                        names_to_try[#names_to_try + 1] =
+                            name:gsub("^" .. first_word, first_word:sub(1, -2), 1)
+                    end
+                    if name:sub(-1) == "s" then
+                        local singular = name:sub(1, -2)
+                        if singular ~= "" then
+                            names_to_try[#names_to_try + 1] = singular
+                        end
+                    end
+                end
+
+                local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
+                local best_obj = nil
+                local best_dist_sq = 2500  -- 50yd squared
+                if pos_ok and pos and ctx.utils then
+                    for _, name in ipairs(names_to_try) do
+                        local objects = ctx.npc_manager.find_interactable_objects(name, ctx.object_scanner)
+                        if objects then
+                            for _, obj in ipairs(objects) do
+                                local ok_opos, opos = pcall(function() return obj:get_position() end)
+                                if ok_opos and opos then
+                                    local dsq = ctx.utils.squared_distance(pos, opos)
+                                    if dsq < best_dist_sq then
+                                        best_dist_sq = dsq
+                                        best_obj = obj
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if best_obj then
+                    local ok_opos, opos = pcall(function() return best_obj:get_position() end)
+                    if ok_opos and opos then
+                        -- Game objects often report z=0, which is off the navmesh;
+                        -- fall back to the player's own Z.
+                        if (opos.z or 0) == 0 and pos and pos.z then
+                            opos = { x = opos.x, y = opos.y, z = pos.z }
+                        end
+                        if best_dist_sq <= 25 then
+                            objective_in_range = true
+                            ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..
+                                "' in range (" .. tostring(math.floor(math.sqrt(best_dist_sq))) ..
+                                "yd) - skip NAV")
+                        else
+                            shared._nav_destination = opos
+                            ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..
+                                "' found at " .. tostring(math.floor(math.sqrt(best_dist_sq))) .. "yd -> NAV")
+                            return "NAV"
+                        end
+                    end
+                end
+            end
+        end
+
         -- Check distance to waypoint using :get_position() (game_object has no .x/.y)
-        -- Skip check if we just arrived (tolerance mismatch with navigator)
-        if not shared._just_arrived and wp and ctx.me then
+        -- Skip check if we just arrived (tolerance mismatch with navigator) or if
+        -- the objective is already in interaction range.
+        if not objective_in_range and not shared._just_arrived and wp and ctx.me then
             local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
             if pos_ok and pos and ctx.utils then
                 local dist_sq = ctx.utils.squared_distance(pos, wp)
@@ -607,6 +690,24 @@ function M.run(shared, ctx)
                 ctx.debug_log("IDLE: area goal with no target - waiting for Zygor to mark complete")
                 return "WAITING"
             end
+        end
+
+        -- Kill goal with a valid target already engaged: stay in IDLE and let the
+        -- rotation fight. Re-entering DO_ACTION re-tags every cycle, which thrashes
+        -- the target and can pull extra mobs. (Ported: docs/phase1_port_list.md item 2.)
+        if action_type == "kill" and ctx.combat_helper
+            and ctx.combat_helper.is_current_target_valid
+            and ctx.combat_helper.is_current_target_valid(50) then
+            ctx.debug_log("IDLE: kill goal — target already valid, holding")
+            return "IDLE"
+        end
+
+        -- Respect the pause DO_ACTION set for the previous action. The modular path
+        -- used to zero it here, which quietly bypassed the 0.5s pacing entirely.
+        -- (Ported: docs/phase1_port_list.md item 3.)
+        local action_pause_until = shared._action_pause_timer or 0
+        if action_pause_until > 0 and ctx.now < action_pause_until then
+            return "IDLE"
         end
 
         shared._action_pause_timer = 0
