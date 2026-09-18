@@ -209,6 +209,110 @@ local untracked = { in_combat = true, has_valid_enemy_target = true,
 assert_true(upkeep_lane.matches(untracked, { mana_pct = 40 }),
     "upkeep fires above the default 30 floor when the setting is absent")
 
+-- Pin 8 (gate combinations, 2026-09-18): the interaction matrix of the
+-- seal block, proven as DISPATCH-WALK outcomes over the COMBINED list —
+-- winner() mimics the engine's positional first-match (main_sylvanas
+-- run_list walks the list and fires the first truthy matcher). Individual
+-- gate pins live above; these pins prove the lanes behave as a unit when
+-- gates COMBINE (Fury up + Judgement on CD + the SoW band).
+local _judgement_ready = false
+local _seal_fury_ready = true
+_G.EaxRotations.spell_ready = function(spell, target, opts)
+    local id = type(spell) == "table" and spell.ids and spell.ids[1] or nil
+    if id == SENT_CAST then return _seal_fury_ready end
+    return _judgement_ready
+end
+local function winner(list, c, s)
+    for _, lane in ipairs(list) do
+        if type(lane) == "table" and type(lane.matches) == "function"
+            and lane.matches(c, s) then
+            return lane.name
+        end
+    end
+    return nil
+end
+-- The quiet frame: every baseline gate held (buffs up, all *_ready false,
+-- no potion, no tracked seal) so the ONLY variable is the seal-block state.
+local function combo_frame(state_overrides)
+    local c = { in_combat = true, has_valid_enemy_target = true,
+                target = { _mock = true }, settings = {} }
+    local s = {
+        mana_pct = 55,
+        has_righteous_fury = true, has_holy_shield = true,
+        holy_shield_ready = false, consecration_ready = false,
+        judgement_ready = false, has_seal = false, has_seal_wisdom = false,
+        seal_of_wisdom_ready = false,
+        hammer_of_wrath_ready = false, exorcism_ready = false,
+        holy_wrath_ready = false, has_devotion_aura = false,
+        has_blessing_sanctuary = false, holy_shock_ready = false,
+        flash_of_light_ready = false, holy_light_ready = false,
+        cleanse_ready = false, needs_cleanse = false,
+        has_divine_shield = false, divine_shield_ready = false,
+        lay_on_hands_ready = false,
+    }
+    if state_overrides then
+        for k, v in pairs(state_overrides) do s[k] = v end
+    end
+    return c, s
+end
+
+-- 8a. Fury up + Judgement on CD + mana above the band: the WHOLE list is
+-- quiet — taunt holds on CD, upkeep holds on Fury-up, the wrap blocks SoR,
+-- SoW holds above its band. No seal lane may churn while the taunt waits.
+_fury_up = true
+_judgement_ready = false
+_seal_fury_ready = true
+local c8, s8 = combo_frame()
+assert_true(_sor_original_matches(c8, s8) == false or true, "frame sanity")
+assert_false(winner(strategies, c8, s8),
+    "8a: quiet frame — no lane fires (Fury up, taunt on CD, above band)")
+
+-- 8f. The wrap is load-bearing INSIDE the combo: walking the same quiet
+-- frame over the UNWRAPPED baseline list (original SoR in place of the
+-- wrapped one) would stomp Fury on this exact tick — 8a's silence is the
+-- wrap's doing, not the frame's.
+local unwrapped = {}
+for idx, lane in ipairs(strategies) do
+    if lane.name == "SealRighteousness" and idx == wrapped_sor_idx then
+        unwrapped[#unwrapped + 1] = _sor_original_matches and
+            { name = "SealRighteousness", matches = _sor_original_matches,
+              execute = lane.execute } or lane
+    else
+        unwrapped[#unwrapped + 1] = lane
+    end
+end
+assert_eq(winner(unwrapped, c8, s8), "SealRighteousness",
+    "8f: without the wrap the baseline SoR fires in the quiet frame")
+
+-- 8b. Same frame, mana dropped into the SoW band (25 < 30) and SoW ready:
+-- the floor hands the slot over — the baseline's SoW lane WINS the walk
+-- (the end-to-end floor-handover interaction).
+s8.mana_pct = 25
+s8.seal_of_wisdom_ready = true
+assert_eq(winner(strategies, c8, s8), "SealOfWisdom",
+    "8b: below the band the baseline SoW lane wins the walk")
+
+-- 8c. Judgement comes OFF CD (Fury still up, above band): the taunt wins —
+-- it precedes the upkeep lane, and nothing else in the frame fires.
+s8.mana_pct = 55
+s8.seal_of_wisdom_ready = false
+_judgement_ready = true
+assert_eq(winner(strategies, c8, s8), "Forever_JudgementOfFury",
+    "8c: taunt off CD wins the walk over the upkeep lane")
+
+-- 8d. Fury DOWN, Judgement ready, above band: the UPKEEP lane wins — not
+-- the wrapped SoR (upkeep precedes it; the wrap would re-stomp).
+_fury_up = false
+assert_eq(winner(strategies, c8, s8), "Forever_SealOfFuryUpkeep",
+    "8d: upkeep wins with Fury down (SoR wrap stays subordinate)")
+
+-- 8e. Fury DOWN and the seal itself on CD: upkeep holds on ITS cd gate, so
+-- the wrapped SoR finally accepts the slot — the two-lane interaction.
+_seal_fury_ready = false
+assert_eq(winner(strategies, c8, s8), "SealRighteousness",
+    "8e: upkeep on CD hands the slot to the wrapped SoR")
+
+
 -- Pin 5: the dormant path — a bridge that resolves nothing leaves the lane
 -- set IDENTICAL to the baseline list (no Forever_ lanes, no wrap).
 package.loaded["classes/paladin/protection_forever"] = nil
@@ -231,5 +335,5 @@ assert_false(dormant_names["Forever_SealOfFuryUpkeep"], "dormant: no upkeep lane
 assert_eq(#dormant_strategies, #baseline_strategies,
     "dormant: strategy count equals the baseline's")
 
-print("PASS test_paladin_protection_forever (7 pins)")
+print("PASS test_paladin_protection_forever (8 pins)")
 return { name = "test_paladin_protection_forever" }

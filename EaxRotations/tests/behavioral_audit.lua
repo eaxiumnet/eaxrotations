@@ -3778,6 +3778,20 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_judge
     overrides = { in_combat = true, mana_pct = 80,
                   buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
                   debuff_remains_map = { [20924] = 10 } } }
+-- The GATE COMBINATION (2026-09-18): Fury up + the taunt's Judgement on
+-- cooldown + mana ABOVE the SoW band (55 > 30, so the baseline's SoW
+-- proof: the seal block must go QUIET as a unit — taunt holds on CD,
+-- upkeep holds because Fury is up, the wrapped SealRighteousness stays
+-- blocked, and the baseline's SoW lane holds above its 30 band — so no
+-- seal lane churns while the taunt waits. on_cd [20271] drives the
+-- taunt's SPELLS.Judgement (ids[1]); [90059] is the Fury sentinel in
+-- the buff bank. The precise dispatch-walk assertions (which lane wins
+-- the first-match walk, per band) live in test_paladin_protection_forever.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_combo",
+    overrides = { in_combat = true, mana_pct = 55,
+                  buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
+                  debuff_remains_map = { [20924] = 10 },
+                  on_cd = { [20271] = 4 } } }
 -- Paladin retribution day-1 completion (2026-09-18): the Holy Strike weave
 -- (melee filler — the baseline predates the spell and has no lane). The
 -- strike must fire in-band; the Seal of Righteousness filler must NOT lose

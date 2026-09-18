@@ -4,6 +4,7 @@
 
 ### Era: WoW Forever — beta-verification pass (day 2, 2026-09-18)
 
+- **Protection delta gate-combination proof.** New battery scenario (Seal of Fury up + Judgement on cooldown, mana out-of-band) and unit Pins 8a-8f walk the combined lane list under positional first-match dispatch - proving the full seal-block interaction (taunt holds on CD, upkeep quiet on Fury-up, wrapped SoR blocked, baseline SoW lane owns the in-band slot) and that the wrap itself is load-bearing (8f: the unwrapped baseline SoR would fire in the same frame). Closes the audit's partial gate-combination coverage finding for the protection delta.
 - **P2 #3 (rogue constant-regen energy) CLOSED.** The Icy Veins per-spec
   guides + the 2026-09-15 class overview confirm constant-regen energy, so
   the rogue deltas re-derive from the tick-pulse pooling fiction to DBC
