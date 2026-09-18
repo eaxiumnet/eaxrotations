@@ -37,6 +37,17 @@
   named Drain Hope exists; the capstone ships as Wrack 1316697 (Improved
   Drains names it in its own text) — the day-1 affliction delta already
   maintained Wrack by name, so the shipped lanes stand.
+- **Shaman restoration joins the delta set (day-1 completion).**
+  `restoration_forever.lua` lanes the Riptide capstone loop — the DBC
+  +25% Chain Heal amplifier row family (408521@40/1239242@50/1239243@60),
+  6s category CD, 15s HoT — as a setup lane spliced above the baseline's
+  ChainHeal with a >3s maintenance hold, and replaces the baseline's
+  Lightning Shield default with the Water Shield rework (globes/orb mana
+  return; one-Elemental-Shield client rule). Proof: unit suite
+  `test_shaman_restoration_forever.lua` (7 checks, per-mirror sentinels)
+  load-bearing by file-revert; battery scenarios forever_resto_riptide
+  (fires) / _maintained (holds) / _watershield (fires); restoration 27
+  strategies / 0 never / 0 dispatch errors.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

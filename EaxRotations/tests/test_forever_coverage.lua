@@ -32,7 +32,8 @@ end
 -- decision: true = a _forever delta is required, false = deliberate
 -- fallback (the loader resolves _vanilla, which stays correct-until-
 -- proven-otherwise). The fallback set: paladin protection/retribution,
--- shaman restoration, druid caster, warrior kebab.
+-- druid caster, warrior kebab. (shaman restoration joined the delta set
+-- 2026-09-18: the Riptide capstone loop + Water Shield rework.)
 local SPECS = {
     ["druid/balance"] = true,
     ["druid/bear"] = true,
@@ -64,7 +65,7 @@ local SPECS = {
     ["shaman/elemental"] = true,
     ["shaman/enhancement"] = true,
     ["shaman/leveling"] = true,
-    ["shaman/restoration"] = false,
+    ["shaman/restoration"] = true,
     ["warlock/affliction"] = true,
     ["warlock/demonology"] = true,
     ["warlock/destruction"] = true,

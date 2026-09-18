@@ -129,3 +129,24 @@ refresh) with every numeric claim cross-checked against the beta DBC
 End state: rotation 598/598 · leveling 48/48 · WotLK 82/82 · forever audit
 35 files / 0 invalid · battery strict (forever never=9) · scorecard, badges,
 doc counts in sync · verify_all exit 0 (44 components).
+
+---
+
+## Day-1 completion unit — shaman restoration (2026-09-18)
+
+The last fallback spec joins the delta set: `restoration_forever.lua` lanes
+the Riptide capstone loop (DBC-verified +25% Chain Heal amplifier row family,
+6s category CD, 15s HoT — setup lane spliced above the baseline's ChainHeal)
+and the Water Shield rework default (globes/orb mana return, replacing the
+baseline's Lightning Shield). Proof: unit suite
+`test_shaman_restoration_forever.lua` (7 checks incl. mirror-selection pins
+with distinct per-mirror sentinels) load-bearing by file-revert (unit +
+coverage contract both fail); battery scenarios
+`forever_resto_riptide` / `_maintained` / `_watershield` — the setup lane
+fires in the first, HOLDS in the second (amp-window discipline), the shield
+lane fires in the third; restoration 27 strategies / 0 never / 0 dispatch
+errors. Coverage contract now 36 deltas + 4 deliberate fallbacks
+(paladin protection/retribution, druid caster, warrior kebab). All five era batteries re-run green after the unit (0 load failures):
+TBC 31 / Vanilla 40 / WotLK 41 / SoD 20 / Forever 40 specs; era never-pins
+unchanged (tbc=11, wotlk=0, vanilla=9, sod=14, forever=9). Suites:
+599 rotation (+1 new) / 48 leveling / 82 WotLK green.

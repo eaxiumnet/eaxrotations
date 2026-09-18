@@ -137,6 +137,21 @@ not encode either.
   needed. OPEN (wave 2, talent-side): Improved Stormstrike dodge/parry reset,
   Rage of the Farseer pairing, Rockbiter tank-mode branch.
 - `classes/shaman/restoration_forever.lua` — Riptide→Chain Heal loop,
+  Water Shield default, flat Healing Way, Restorative Totem weights.
+  **Status (2026-09-18, day-1 completion): LANED (2 lanes)** — the
+  Riptide amp-setup (cast/max-rank mirror 1239243@60, the DBC-verified
+  +25% Chain Heal amplifier row family 408521@40/1239242@50/1239243@60,
+  6s category CD, 15s HoT) fires on the baseline's own `lowest` ally and
+  splices ABOVE ChainHeal so the amp precedes the payoff; holds while the
+  HoT has > 3s remains (battery discriminator: fires in forever_resto_riptide,
+  holds in forever_resto_riptide_maintained). The Water Shield rework
+  (408510@20 globes, orb mana return + healing-crit trigger) replaces the
+  baseline's Lightning Shield default (one-Elemental-Shield client rule).
+  Healing Way stays the baseline's tank lane (Forever's talent is a flat
+  +25% — no stack upkeep); Restorative Totem weights are passive — no lane.
+  Unit pins: test_shaman_restoration_forever (mirror selection with
+  19000/19100 distinct sentinels, splice geometry, maintenance hold),
+  load-bearing proven by file-revert (unit + coverage contract both fail).
   flat Healing Way, Water Shield default, Restorative Totem weights.
 - `classes/shaman/leveling_forever.lua` — early Stormstrike (8s CD) leveling
   loop per the page's build sketch, instant Ghost Wolf mobility, early imbues.

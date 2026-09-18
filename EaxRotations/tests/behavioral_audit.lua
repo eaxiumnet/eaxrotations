@@ -3739,6 +3739,21 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shaman_levelin
 -- through the buff bank).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mage_leveling_hs",
     overrides = { in_combat = true, buff_remains_map = { [90007] = 3 } } }
+-- Shaman restoration day-1 (2026-09-18): the Riptide amp-setup on the
+-- lowest ally (55% in the default injured bank, HoT absent — buffs_up
+-- stays false so the remains gate passes) and the Water Shield default
+-- (shield bank: has_lightning_shield false because buffs_up is false and
+-- the Lightning Shield buff map is empty). A second shape proves the
+-- maintenance hold: Riptide comfortably up (90057 = 12) must NOT re-fire
+-- the setup lane (the amp-window discipline the lane exists for).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_riptide",
+    overrides = { in_combat = true, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_riptide_maintained",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90057] = 12 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_watershield",
+    overrides = { in_combat = true, mana_pct = 80 } }
+
 -- Priest leveling: the universal pair — Devouring Plague in combat (the
 -- debuff absent by default) and Fear Ward out of combat.
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_priest_leveling_dp",
@@ -4690,6 +4705,11 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- Warlock leveling day-1 (2026-09-17): the Curse of the Elements
             -- amp lane (the Bane read uses the class-map CurseOfAgony ladder).
             ["Curse of the Elements"] = 90056,
+            -- Shaman restoration day-1 (2026-09-18): the Riptide cast row (also the
+            -- HoT/amp buff anchor — the battery seeds one sentinel per name across all
+            -- mirrors, mirroring the other day-1 casts) and the Water Shield globes row.
+            ["Riptide"] = 90057,
+            ["Water Shield"] = 90058,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

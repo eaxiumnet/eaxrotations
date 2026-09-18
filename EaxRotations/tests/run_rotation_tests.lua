@@ -60,6 +60,7 @@ local tests = {
  "test_paladin_holy_forever.lua",
  "test_shaman_enhancement_forever.lua",
  "test_shaman_elemental_forever.lua",
+ "test_shaman_restoration_forever.lua",
  "test_mage_fire_forever.lua",
  "test_mage_arcane_forever.lua",
  "test_druid_cat_forever.lua",
