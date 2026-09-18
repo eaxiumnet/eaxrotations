@@ -276,4 +276,85 @@ local result5 = M.on_update()
 assert_true(result5, "on_update should return true for undead with CC debuff (Will of the Forsaken)")
 assert_true(called_cast, "try_cast should have been called for CC break racial")
 
+-- ---------------------------------------------------------------------------
+-- Troll Berserking era-split (2026-09-18): the Forever client's Troll-owned
+-- Berserking row is 20554 (+10% haste 10s, 180s CD, SkillLineAbility
+-- RaceMask 128) and the TBC-era 26297 row is ABSENT from the Forever DBC.
+-- The RACIALS entry therefore carries a split table and get_spell resolves
+-- the era-correct id through NS.is_forever(). Three pins: entry shape, the
+-- TBC/vanilla default, and the Forever override.
+-- ---------------------------------------------------------------------------
+local called_cast = false
+local troll_cast_id = nil
+local NS5 = {
+    GetPlayer = function()
+        return {
+            get_race_id = function() return 8 end,  -- TROLL
+            is_in_combat = function() return true end,
+            is_casting = function() return false end,
+            is_channeling = function() return false end,
+        }
+    end,
+    GetTarget = function()
+        return {is_hostile = function() return true end}
+    end,
+    spell_action = function(id, name) return {id = id, _meta = {id = id}} end,
+    try_cast = function(spell, target, reason, opts)
+        called_cast = true
+        troll_cast_id = spell and spell.id or nil
+        return true
+    end,
+    gcd_remains = function() return 0 end,
+    has_form = function() return false end,
+    unit_health_pct = function(unit) return 50 end,
+    is_hostile_unit = function(me, target) return true end,
+    safe_field = function(obj, key)
+        if not obj then return nil end
+        local ok, val = pcall(function() return obj[key] end)
+        return ok and val or nil
+    end,
+    time_now = function() return 100 end,
+    get_setting = function(key, default) return default end,
+    settings = {use_racial_offensive = true},
+    log = function() end,
+    log_warning = function() end,
+    debuff_up = function() return false end,
+    is_rooted = function() return false end,
+    is_snared = function() return false end,
+    has_dispel_type_debuff = function() return false end,
+    player_control_locked = function() return false end,
+    should_drop_threat = function() return false end,
+    GetCurrentContext = function() return nil end,
+    -- deliberately NO is_forever key: the non-Forever default is under test
+}
+_G.EaxRotations = NS5
+
+package.loaded["EaxRotations.shared.racial_manager_sylvanas"] = nil
+dofile("EaxRotations/shared/racial_manager_sylvanas.lua")
+M = _G.EaxRacialManager
+
+-- Pin 1: the troll entry carries the split table with both era ids.
+local troll_racial = M.get_racial_for_race(8)
+assert_true(type(troll_racial) == "table", "troll racial entry should exist")
+assert_true(type(troll_racial.spell_id) == "table", "troll spell_id should be the era-split table")
+assert_eq(troll_racial.spell_id.spell_id, 26297, "TBC Berserking row is 26297")
+assert_eq(troll_racial.spell_id.forever_spell_id, 20554, "Forever Berserking row is 20554")
+assert_eq(troll_racial.cooldown, 180, "Berserking cooldown stays 180 in both eras")
+
+-- Pin 2: without is_forever (TBC/vanilla runtimes) the TBC row 26297 resolves.
+called_cast = false
+troll_cast_id = nil
+local result6 = M.on_update()
+assert_true(result6, "on_update should fire for troll in combat (offensive racial)")
+assert_true(called_cast, "try_cast should have been called for troll Berserking")
+assert_eq(troll_cast_id, 26297, "without is_forever the TBC row 26297 resolves (era unchanged)")
+
+-- Pin 3: with is_forever() the Forever row 20554 resolves.
+NS5.is_forever = function() return true end
+called_cast = false
+troll_cast_id = nil
+local result7 = M.on_update()
+assert_true(result7, "on_update should fire for troll in Forever too")
+assert_eq(troll_cast_id, 20554, "with is_forever() the Forever row 20554 resolves")
+
 print("PASS racial_manager")

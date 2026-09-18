@@ -165,8 +165,14 @@ waits, next-ranked delta moves up.
 - [ ] **Blood Fury numbers** (cross-page contradiction: +10% AP vs +10%
       SP vs +25% legacy; duration 15s everywhere) — Orc on-use lanes in
       warrior/rogue/mage/warlock.
-- [ ] **Berserking form** (static +10% attack/cast speed 10s? 3-min CD?
-      page wording varies) — Troll lanes.
+- [x] **Berserking form** (2026-09-18, racial sweep): RESOLVED in the DBC —
+      the Troll-owned row is 20554 (+10% spellcasting/attack speed 10s,
+      RecoveryTime 180000, SkillLineAbility RaceMask 128 = Troll, SpellLevel
+      1); the TBC-era 26297 row is ABSENT from the Forever client, and the
+      1286304 namesake is an orphan row (no description/level/CD). FIX:
+      shared/racial_manager_sylvanas.lua now splits the id per era
+      (is_forever -> 20554, else 26297); pinned in test_racial_manager.lua,
+      proven by revert. In-game probe reduced to the buff's observed duration.
 - [ ] **Berserk (druid): one spell, form-branched effects** (Bear: no
       Mangle CD + 3 targets; Cat: +100% CP-gen crit; fear immunity) —
       cat/bear burst windows.
@@ -333,3 +339,32 @@ day. The build order re-ranks only when a gate probe (P2) or a P3 flip
 changes a wave's relative ranking — apply the decision table in
 phase4_build_order.md (probe verdict → re-rank): a lookup, not a research
 pass.
+
+---
+
+## Racial-rework sweep (2026-09-18, post-Deep-Dive / per-class overviews)
+
+Blizzard's racial rework (2 active + 2 passive per race; weapon-skill racials
+became crit) is live on beta. Every reworked/new active was queried against
+the Forever DBC (wowsims_forever.db, 1.60.1.69893):
+
+| Racial | Client verdict | Action |
+|---|---|---|
+| Orc Blood Fury | 20572 present, 180s CD, "AP and Spell Power by $s1%" — resolves the cross-page AP-vs-SP contradiction as **AP+SP** | racial_manager entry already 20572 — no change |
+| Troll Berserking | **26297 absent; 20554 is the Troll row** (haste 10% 10s, 180s CD); 1286304 orphan | **FIXED** in racial_manager (era-split id); test + revert proof |
+| Undead Will of the Forsaken | 7744 present, 120s CD (no-immunity rework is text-level) | entry already 7744 |
+| Tauren War Stomp | 20549 present, 120s CD (the 448707/1222567 band are NPC/variant rows) | entry already 20549 |
+| Human Perception | 20600 present, 180s CD | entry already 20600 |
+| Dwarf Stoneform | 20594 present, 180s CD | entry already 20594 |
+| Gnome Escape Artist | 20589 present, 120s CD | entry already 20589 |
+| Night Elf Shadowmeld | 20580 present (CD 0; "usable in combat" rework is text-level) | entry already 20580 |
+| **Arcane Torrent** | **ABSENT from the Forever client** (no SpellName row at all) | Blood Elf is not a Forever-playable race for any shipping spec file; the vanilla battery's (b) pin for warlock RacialArcaneTorrent already documents "no BE in vanilla" — Forever inherits the same pin (no lane ships) |
+| Gnome Eureka! | 1259812..23 present, 120s CD | recorded as a burst-window candidate; no day-1 lane (race-gated actives need in-game race detection first, same gate as the priest racials) |
+| Night Elf Elune's Light | 1259799 present, 180s CD (+10% crit 15s) | recorded as a burst-window candidate (same race-gate rule) |
+| Skyborne actives (Walk on Air 1259416, Read Ley Line 1259705, Skysight 1259686) | all present | non-combat/regen utility — no rotation lane; recorded |
+| Shatter Curse 1299026, Rapid Regeneration 1260270, Touch of the Grave 1260189..201, Will to Survive 1259718 | present | defensive/proc racials — outside rotation scope; recorded |
+
+Race-gated active lanes (Eureka!, Elune's Light, the four priest race spells)
+stay unlaned until in-game race detection is confirmed — the same rule the
+priest kit recorded on 2026-09-18. Nothing in this sweep is guessed: every
+row above was read from the beta DBC directly.

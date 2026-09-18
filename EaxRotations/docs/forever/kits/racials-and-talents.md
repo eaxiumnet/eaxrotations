@@ -24,6 +24,22 @@ useful for all its classes/specs with similar offensive power.
 Gnome Priest, Human Hunter, Dwarf Shaman, Orc Mage, Troll Warlock,
 **Undead Paladin**.
 
+### Troll Berserking row divergence (FIXED 2026-09-18)
+
+`shared/racial_manager_sylvanas.lua` carried the TBC-era **26297** row for
+Troll Berserking — that row is **ABSENT from the Forever client DBC**. The
+Forever client's Troll-owned row is **20554** (SkillLineAbility RaceMask 128
+= Troll under "Racial - Troll" 733, SpellLevel 1, +10% spellcasting/attack
+speed for 10s, RecoveryTime 180000). The 1286304 row also named Berserking
+is an orphan: no description, no level row, no cooldown — not castable data.
+
+The manager now carries a split table
+(`TROLL_BERSERKING = { spell_id = 26297, forever_spell_id = 20554 }`) and
+`get_spell` resolves through `NS.is_forever()`: Forever trolls cast 20554,
+every other era still resolves 26297 first. Pinned in
+`tests/test_racial_manager.lua` (entry shape, non-Forever default, Forever
+override) and load-bearing-proven by revert.
+
 ### New race: Skyborne
 Horde-aligned: Shaman. Alliance-aligned: Mage. Both: Warrior, Hunter, Rogue,
 Druid (custom druid forms). Zephras Isle starting experience (1–12).
