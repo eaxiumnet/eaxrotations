@@ -20,9 +20,11 @@
 --        Fury (its buff table predates the seal), so without the wrap
 --        SealRighteousness would re-stomp Fury every tick. The delta
 --        replaces that lane with a Fury-aware version (identical
---        otherwise) and keeps Judgement of Wisdom alive below it: when
---        the tank is starving, the baseline's SoW lane still wins (it is
---        checked FIRST in priority), so the mana engine survives.
+--        otherwise) and keeps Judgement of Wisdom alive: the upkeep
+--        lane's mana floor TRACKS the baseline's prot_seal_of_wisdom_mana
+--        band, so inside that band the SoW lane (later in the list, after
+--        the seal slots) owns the seal slot — the floor hands it over,
+--        not list position.
 -- SAFETY: ZERO numeric spell-ID literals — Seal of Fury resolves BY NAME
 --        through the DBC-derived bridge mirrors
 --        (shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua,
@@ -31,10 +33,17 @@
 --        loaded through an intercepted registration (holy_forever
 --        template) so this file edits nothing in protection_vanilla.lua
 --        and its safe_state-backed get_state is reused unchanged. Delta
---        lanes sit at the baseline's own seal slots (Seal of Fury above
---        the wrapped SealRighteousness) — never above an emergency lane
---        (DivineShield / LayOnHands are untouched and stay reachable via
---        first-match dispatch ordering below the seal pair).
+--        Dispatch semantics (evidence, main_sylvanas.lua): the legacy
+--        path runs playstyle lists POSITIONALLY — run_list (line 1757,
+--        first-match loop at line 1773) reads strategy.priority nowhere;
+--        only NS.register_strategy (core_sylvanas.lua:4984, unified
+--        registry) sorts by priority, and our deltas never use it.
+--        Lane placement therefore is list position: the delta lanes are
+--        spliced immediately ABOVE the baseline's SealRighteousness
+--        slot (after RighteousFury/HolyShield/Consecration/Judgement,
+--        BEFORE HammerOfWrath and every later lane) — DivineShield /
+--        LayOnHands (later still) stay reachable via first-match
+--        ordering because these lanes never gate on hp.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -129,6 +138,12 @@ append_unique(SEAL_FURY_IDS, { SEAL_FURY_BUFF_ANCHOR, SEAL_FURY_CAST })
 -- ---------------------------------------------------------------------------
 local format = string.format
 local EMPTY_OPTS = {}
+-- Default starvation floor; tracks the baseline's prot_seal_of_wisdom_mana
+-- band so the baseline's SoW lane (later in the list) owns the seal slot
+-- inside that band — the floor hands the slot over, not list position.
+local FOREVER_SEAL_FURY_MANA_FLOOR = 30
+
+local setting_value = spec_kit.setting
 
 local function setting_bool(context, key, default)
     if type(spec_kit.setting_bool) == "function" then
@@ -152,9 +167,11 @@ end
 -- ---------------------------------------------------------------------------
 -- Delta lanes. Two seal slots + the judgement-taunt pairing. Judgement of
 -- Fury (the taunt) sits at the TOP of the seal block — it is the tank's
--- threat tool and must outrank the pure-upkeep seal lane; the baseline's
--- emergency lanes (DivineShield, LayOnHands) sit further down and stay
--- reachable because none of these lanes gate on hp.
+-- threat tool and must outrank the pure-upkeep seal lane. Both lanes are
+-- spliced above the baseline's HammerOfWrath execute (the splice anchor
+-- precedes HoW); the baseline's hp-gated emergency lanes (DivineShield,
+-- LayOnHands) sit later and stay reachable because none of these lanes
+-- gate on hp.
 -- ---------------------------------------------------------------------------
 
 -- Seal of Fury upkeep: keep the tank seal up when any other seal is absent.
@@ -165,10 +182,11 @@ local function seal_fury_upkeep()
         matches = function(context, s)
             if not setting_bool(context, "prot_forever_seal_of_fury", true) then return false end
             if unit_has_any_buff(NS.PLAYER_UNIT, SEAL_FURY_IDS) then return false end
-            -- respect the baseline's wisdom-starvation intent: below its mana
-            -- band the SoW lane (checked earlier in the combined list) owns
-            -- the seal slot; do not fight it.
-            if (s.mana_pct or 100) < 30 then return false end
+            -- Track the baseline's own wisdom-starvation band: below it the
+            -- baseline's SealOfWisdom lane (later in the list) owns the seal
+            -- slot — the floor hands the slot over so the mana engine wins.
+            if (s.mana_pct or 100) < setting_value(context, "prot_seal_of_wisdom_mana",
+                FOREVER_SEAL_FURY_MANA_FLOOR) then return false end
             return NS.spell_ready(SEAL_FURY, NS.PLAYER_UNIT, EMPTY_OPTS)
         end,
         execute = function()
@@ -180,9 +198,11 @@ end
 
 -- Judgement of Fury: the taunt. Judgement no longer consumes the seal on
 -- Forever and taunts while Fury is active — the FIRST prot taunt ever. Fires
--- on the kill target while Fury is up (any rank); below the boss-death band
--- the baseline's HammerOfWrath execute still wins because it is positioned
--- above this lane in the combined list (seal slots sit mid-priority).
+-- on the kill target while Fury is up (any rank). Placement truth: the
+-- splice anchor (SealRighteousness) precedes HammerOfWrath in the baseline
+-- list, so this lane and the upkeep lane sit ABOVE HoW — at low target HP
+-- the taunt outranks the execute (pinned by
+-- test_paladin_protection_forever, Pin 6).
 local function judgement_of_fury()
     return {
         name = "Forever_JudgementOfFury",
@@ -240,14 +260,13 @@ if SEAL_FURY then
         end
     end
     if not fury_inserted then
-        -- Baseline shape drifted: keep the lanes live at the front (matches
-        -- are self-gating; first-match dispatch keeps every baseline lane
-        -- reachable behind them).
-        combined = {}
-        combined[#combined + 1] = judgement_lane
-        combined[#combined + 1] = upkeep_lane
+        -- Baseline shape drifted: the splice anchor vanished. Prepending
+        -- would put the seal pair above the baseline's emergency lanes, so
+        -- keep the lanes DORMANT instead — vanilla behavior is the correct
+        -- degradation, and the unit suite's splice-position pin fails
+        -- loudly either way.
         for i = 1, #baseline.strategies do combined[#combined + 1] = baseline.strategies[i] end
-        fury_inserted = true
+        judgement_lane, upkeep_lane = nil, nil
     end
 else
     for i = 1, #baseline.strategies do combined[#combined + 1] = baseline.strategies[i] end

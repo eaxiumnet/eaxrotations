@@ -134,6 +134,15 @@ local opted_out = { in_combat = true, has_valid_enemy_target = true,
                     settings = { ret_forever_holy_strike = false } }
 assert_false(weave.matches(opted_out, state), "weave respects the setting gate")
 
+-- Pin 5 (dispatch-semantics truth): the legacy dispatcher (main_sylvanas.lua
+-- run_list, line 1757; first-match loop at 1773) is POSITIONAL and never
+-- reads strategy.priority — so the weave carries NO priority field (a dead
+-- one would misdocument the lane's effective slot; the old 480 contradicted
+-- its position above the priority-470 SoR filler).
+assert_true(weave.priority == nil,
+    "Forever_RetHolyStrikeWeave carries no dead priority field "
+    .. "(positional dispatch ignores it)")
+
 -- Pin 4: the dormant path — a bridge that resolves nothing returns the
 -- baseline list UNCHANGED (no Forever_ lanes).
 package.loaded["classes/paladin/retribution_forever"] = nil
@@ -156,5 +165,5 @@ for _, s in ipairs(dormant_strategies) do
         "dormant: no Forever_ lane (" .. tostring(s.name) .. ")")
 end
 
-print("PASS test_paladin_retribution_forever (4 pins)")
+print("PASS test_paladin_retribution_forever (5 pins)")
 return { name = "test_paladin_retribution_forever" }

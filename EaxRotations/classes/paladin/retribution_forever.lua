@@ -31,9 +31,14 @@
 --        loaded through an intercepted registration (holy_forever
 --        template) so this file edits nothing in retribution_vanilla.lua
 --        and its safe_state-backed get_state is reused unchanged. The
---        weave sits inside the filler block (above the Seal of
---        Righteousness filler, below every emergency/utility lane) so
---        first-match dispatch can never shadow an emergency cast.
+--        Dispatch semantics (evidence, main_sylvanas.lua): the legacy
+--        path runs playstyle lists POSITIONALLY — run_list (line 1757,
+--        first-match loop at line 1773) never reads strategy.priority
+--        (only the unified registry sorts by it, core_sylvanas.lua:4984,
+--        unused here). The weave sits inside the filler block (immediately
+--        above the baseline's Ret_SealRighteousness_Filler, below every
+--        emergency/utility lane) so first-match dispatch can never shadow
+--        an emergency cast — placement IS the priority.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -114,7 +119,10 @@ end
 local function holy_strike_weave()
     return {
         name = "Forever_RetHolyStrikeWeave",
-        priority = 480,
+        -- NOTE: no priority field — the legacy dispatcher (main_sylvanas.lua
+        -- run_list, line 1757; first-match loop at 1773) is POSITIONAL and
+        -- never reads strategy.priority; only the unified registry sorts by
+        -- priority (core_sylvanas.lua:4984) and this delta does not use it.
         matches = function(context, s)
             if not setting_value(context, "ret_forever_holy_strike", true) then return false end
             if not (context.has_valid_enemy_target and context.in_combat) then return false end

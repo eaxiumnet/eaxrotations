@@ -172,6 +172,43 @@ assert_false(wrapped_says, "the wrap BLOCKS SoR while Fury is up (no ping-pong)"
 _fury_up = false
 assert_true(wrapped_sor.matches(ctx, state), "the wrap delegates when Fury is down")
 
+-- Pin 6 (placement truth): the delta lanes splice ABOVE the baseline's
+-- HammerOfWrath execute — the splice anchor (SealRighteousness) precedes HoW
+-- in the baseline list, so at low target HP the taunt outranks the execute.
+-- This is the load-bearing pin for the file's placement claims.
+local baseline_how_index = nil
+for i, s2 in ipairs(baseline_strategies) do
+    if s2.name == "HammerOfWrath" then baseline_how_index = i break end
+end
+assert_true(baseline_how_index, "baseline carries a HammerOfWrath lane")
+assert_true(baseline_sor_index < baseline_how_index,
+    "baseline precondition: SealRighteousness precedes HammerOfWrath ("
+    .. tostring(baseline_sor_index) .. " < " .. tostring(baseline_how_index) .. ")")
+local combined_how_idx = nil
+for i, s2 in ipairs(strategies) do
+    if s2.name == "HammerOfWrath" then combined_how_idx = i break end
+end
+assert_true(combined_how_idx, "HammerOfWrath survives the splice")
+assert_true(judgement_idx < combined_how_idx and upkeep_idx < combined_how_idx,
+    "both Fury lanes sit ABOVE HammerOfWrath (taunt " .. tostring(judgement_idx)
+    .. ", upkeep " .. tostring(upkeep_idx) .. ", HoW " .. tostring(combined_how_idx) .. ")")
+
+-- Pin 7 (tracked starvation floor): the upkeep lane's mana floor reads the
+-- baseline's prot_seal_of_wisdom_mana setting — inside the band the lane
+-- holds (handing the seal slot to the baseline's SoW lane), above it fires.
+local tracked = { in_combat = true, has_valid_enemy_target = true,
+                  target = { _mock = true }, settings = { prot_seal_of_wisdom_mana = 60 } }
+_fury_up = false
+assert_false(upkeep_lane.matches(tracked, { mana_pct = 55 }),
+    "upkeep holds below the tracked prot_seal_of_wisdom_mana band (60)")
+assert_true(upkeep_lane.matches(tracked, { mana_pct = 70 }),
+    "upkeep fires above the tracked band")
+-- the default still applies when the setting is absent
+local untracked = { in_combat = true, has_valid_enemy_target = true,
+                    target = { _mock = true }, settings = {} }
+assert_true(upkeep_lane.matches(untracked, { mana_pct = 40 }),
+    "upkeep fires above the default 30 floor when the setting is absent")
+
 -- Pin 5: the dormant path — a bridge that resolves nothing leaves the lane
 -- set IDENTICAL to the baseline list (no Forever_ lanes, no wrap).
 package.loaded["classes/paladin/protection_forever"] = nil
@@ -194,5 +231,5 @@ assert_false(dormant_names["Forever_SealOfFuryUpkeep"], "dormant: no upkeep lane
 assert_eq(#dormant_strategies, #baseline_strategies,
     "dormant: strategy count equals the baseline's")
 
-print("PASS test_paladin_protection_forever (5 pins)")
+print("PASS test_paladin_protection_forever (7 pins)")
 return { name = "test_paladin_protection_forever" }

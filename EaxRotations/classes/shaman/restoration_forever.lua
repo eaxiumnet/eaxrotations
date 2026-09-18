@@ -21,7 +21,9 @@
 --        (EffectIndex 2, base 25), CategoryRecoveryTime 6000 (6s lane CD),
 --        1.5s cast. The +25% amp makes Riptide-on-lowest the setup cast for
 --        the baseline's ChainHeal lane — the delta lanes sit immediately
---        above "ChainHeal" in priority so the amp is applied before the
+--        above "ChainHeal" (positional dispatch: main_sylvanas.lua
+--        run_list line 1757 is a first-match list walk; priority fields
+--        are inert) so the amp is applied before the
 --        multi-target payoff. Healing Way stays the baseline's tank lane
 --        (the Forever talent is a flat +25% Healing Wave — no stack upkeep
 --        to manage). Mana Tide / Nature's Swiftness / cleanse / totem
