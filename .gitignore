@@ -23,4 +23,22 @@
 # EaxRotations/tests/run_verify_all.lua, so it must be tracked on a clean
 # checkout too (the /tools/* rule above ignores it otherwise).
 !/tools/doc_suite_count_check.lua
+# Forever DBC pipeline: run on beta day (2026-09-17) per
+# EaxRotations/docs/forever/dbc_runbook.md, so they must be tracked.
+!/tools/build_forever_bridge.py
+!/tools/build_forever_bridge_fixture.py
+# Forever community datamine package (scripts + docs only; the built bulk
+# files under wowheadScrape/dbc_extract/forever_community/ stay local-only).
+!/tools/build_forever_database.py
+!/tools/build_forever_bundle.py
+!/tools/build_forever_icons.py
+!/tools/build_forever_models.py
+!/tools/viewer3d_template.html
+# Forever DB2 table probe (run after every beta client patch, per
+# docs/forever/dbc_runbook.md).
+!/tools/probe_forever_tables.py
+# Forever CASC file exporter (icons/models/textures by FDID; build with
+# -p:TactSharpPath=<dir>/TACTSharp.dll next to the DB2ToSqlite workspace).
+!/tools/forever_export_cs/
+!/tools/forever_export_cs/**
 EaxRotations/.omo/

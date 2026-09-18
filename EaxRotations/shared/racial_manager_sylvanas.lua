@@ -26,9 +26,19 @@ local RACE_ID = {
     DRAENEI = 11,
 }
 
+-- Berserking carries two candidate ids because the eras diverge: TBC-era
+-- trolls learned the 26297 attack-power row (ABSENT from the Forever client
+-- DBC, verified 2026-09-18), while the Forever rework keeps the 20554 haste
+-- row (RaceMask 128 = Troll in SkillLineAbility, +10% haste 10s, 180s CD,
+-- learnable at level 1). NS.is_forever() picks the row the running client
+-- actually teaches; the fallback keeps 26297 first so TBC behavior is
+-- unchanged. The spell-id split lives in its own table because RACIALS
+-- consumers (tests, get_racial_for_race) pin the entry shape.
+local TROLL_BERSERKING = { spell_id = 26297, forever_spell_id = 20554 }
+
 local RACIALS = {
     [RACE_ID.ORC] = { name = "Blood Fury", spell_id = 20572, kind = "offensive", target = "self", cooldown = 120 },
-    [RACE_ID.TROLL] = { name = "Berserking", spell_id = 26297, kind = "offensive", target = "self", cooldown = 180 },
+    [RACE_ID.TROLL] = { name = "Berserking", spell_id = TROLL_BERSERKING, kind = "offensive", target = "self", cooldown = 180 },
     [RACE_ID.UNDEAD] = { name = "Will of the Forsaken", spell_id = 7744, kind = "cc_break", target = "self", cooldown = 120 },
     [RACE_ID.TAUREN] = { name = "War Stomp", spell_id = 20549, kind = "defensive_stun", target = "self", cooldown = 120 },
     [RACE_ID.HUMAN] = { name = "Perception", spell_id = 20600, kind = "stealth_detect", target = "self", cooldown = 180 },
@@ -99,12 +109,31 @@ local function get_race_id()
     return nil
 end
 
+-- Resolve the era-correct spell id for a RACIALS entry. A numeric spell_id
+-- is returned as-is; the TROLL_BERSERKING split table picks the Forever row
+-- when NS.is_forever() holds, else the TBC id (nil-safe in unit tests where
+-- NS has no is_forever).
+local function entry_spell_id(entry)
+    if type(entry) ~= "table" then return nil end
+    local sid = entry.spell_id
+    if type(sid) == "number" then return sid end
+    if type(sid) == "table" then
+        if NS and NS.is_forever and NS.is_forever() and sid.forever_spell_id then
+            return sid.forever_spell_id
+        end
+        return sid.spell_id
+    end
+    return nil
+end
+
 local function get_spell(entry)
     if not entry then return nil end
-    local spell = _spell_cache[entry.spell_id]
+    local spell_id = entry_spell_id(entry)
+    if not spell_id then return nil end
+    local spell = _spell_cache[spell_id]
     if not spell and NS and NS.spell_action then
-        spell = NS.spell_action(entry.spell_id, entry.name)
-        _spell_cache[entry.spell_id] = spell
+        spell = NS.spell_action(spell_id, entry.name)
+        _spell_cache[spell_id] = spell
     end
     return spell
 end

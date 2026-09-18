@@ -165,6 +165,192 @@
   the four version pins (header.lua, the README badge, the PvP footer, this
   top entry).
 
+### Era: WoW Forever — beta-verification pass (day 2, 2026-09-18)
+
+- **Protection delta gate-combination proof.** New battery scenario (Seal of Fury up + Judgement on cooldown, mana out-of-band) and unit Pins 8a-8f walk the combined lane list under positional first-match dispatch - proving the full seal-block interaction (taunt holds on CD, upkeep quiet on Fury-up, wrapped SoR blocked, baseline SoW lane owns the in-band slot) and that the wrap itself is load-bearing (8f: the unwrapped baseline SoR would fire in the same frame). Closes the audit's partial gate-combination coverage finding for the protection delta.
+- **P2 #3 (rogue constant-regen energy) CLOSED.** The Icy Veins per-spec
+  guides + the 2026-09-15 class overview confirm constant-regen energy, so
+  the rogue deltas re-derive from the tick-pulse pooling fiction to DBC
+  SpellPower facts: the assassination Venom window now gates on the DBC
+  cost (25 energy + 1 combo point — rows 314521/314522) plus a 20-energy
+  CP-buffer instead of the baseline pooling flag, which sat at Venom's own
+  cost boundary; the subtlety Thousand Cuts lane gates on the DBC effective
+  cost (Hemorrhage 35 − 3/stack) plus a 10-energy reserve, firing the
+  discounted generator at 30 energy with 5 stacks (the flat 40 floor is
+  gone); Mutilate's 60-energy gate and the combat RB lane's Eviscerate-35
+  gate are DBC-verified and unchanged; the leveling builder's real-cost
+  gate is confirmed as the complete energy model.
+- **A latent battery lane-proof gap closed (Pattern-17).** The battery's
+  class-map mock lacked Hemorrhage and Backstab, so the subtlety
+  ThousandCuts lane and the combat PuncturingWounds lane had never loaded
+  in ANY battery run — the forever battery was green while those two delta
+  lanes proved nothing. The mock now carries both vanilla-ladder actions;
+  the lanes register and fire, and a 40-energy Venom scenario plus a
+  30-energy/5-stack TC scenario discriminate the re-derived gates from the
+  old shapes (both proven by revert).
+- **Priest kit refresh: the Icy Veins Priest overview is live** (Rainy,
+  2026-09-16), resolving the kit's lowest-source-tier caveat. DBC-verified
+  records: the four race-gated priest spells (Contingency Plan / Gnome,
+  Divine Grace / Human, Chastise / Dwarf, Dark Sacrifice / Undead) resolve
+  in the bridge mirrors and are recorded as leveling lane candidates (not
+  laned until in-game race-detection confirmation); Power Infusion's
+  "requires Penance" is a talent-tree prerequisite (the 10060 cast row is
+  unchanged), and Improved Healing's −14% mana family now covers Penance +
+  Prayer of Mending (pure passive).
+- **Drain Hope vs Wrack verdict recorded** in the probe list: no client row
+  named Drain Hope exists; the capstone ships as Wrack 1316697 (Improved
+  Drains names it in its own text) — the day-1 affliction delta already
+  maintained Wrack by name, so the shipped lanes stand.
+- **Shaman restoration joins the delta set (day-1 completion).**
+  `restoration_forever.lua` lanes the Riptide capstone loop — the DBC
+  +25% Chain Heal amplifier row family (408521@40/1239242@50/1239243@60),
+  6s category CD, 15s HoT — as a setup lane spliced above the baseline's
+  ChainHeal with a >3s maintenance hold, and replaces the baseline's
+  Lightning Shield default with the Water Shield rework (globes/orb mana
+  return; one-Elemental-Shield client rule). Proof: unit suite
+  `test_shaman_restoration_forever.lua` (7 checks, per-mirror sentinels)
+  load-bearing by file-revert; battery scenarios forever_resto_riptide
+  (fires) / _maintained (holds) / _watershield (fires); restoration 27
+  strategies / 0 never / 0 dispatch errors.
+- **Paladin protection joins the delta set (day-1 completion).**
+  `protection_forever.lua` lanes the Seal of Fury pair — the
+  Judgement-of-Fury taunt (Judgement no longer consumes any seal; DBC
+  ladder maxrank 20423@58) plus Fury upkeep — and wraps the baseline's
+  SealRighteousness lane in place so it cannot re-stomp Fury (the unit
+  suite pins the baseline-vs-wrapped matcher behavior; battery scenarios
+  forever_pal_prot_fury / forever_pal_prot_judgement_taunt prove the
+  fire/hold split). Coverage contract now 37 deltas + 3 fallbacks.
+- **Paladin retribution joins the delta set (day-1 completion).**
+  `retribution_forever.lua` lanes the Holy Strike weave (max-rank mirror
+  10333@60) above the baseline's SoR filler; non-consuming Judgement needs
+  no delta (baseline seal lanes already re-apply only when missing);
+  Twist of Light deliberately not laned (no bridge row — a by-name lane
+  could never fire live; Pattern-17 doctrine). Coverage contract now
+  38 deltas + 2 fallbacks.
+- **The forever-delta template got a single owner.**
+  `shared/spec_kit_forever_delta.lua` now owns the baseline-capture dance
+  (register interceptor, restore-on-error, loud baseline-failure), the
+  Forever bridge mirrors, and the by-name/setting helpers that every delta
+  had copied; all 38 `_forever` files require it and ~1,136 lines of
+  duplicated boilerplate are gone (behavior-neutral: positional first-match
+  dispatch, lane order and semantics unchanged; all unit suites green with
+  revert proofs intact, batteries and era never-pins identical).
+- **Open probes became a live-beta smoke-test checklist.**
+  `docs/forever/beta_smoke_checklist.md` re-cuts every OPEN entry in
+  beta_day1_probes.md into 45 execution-ordered in-game items across six
+  blocks (engine truth first, the three P2 wave gates, then per-class
+  lane shapes, a warlock deep-dive, remaining per-class probes, P5
+  ride-alongs), each with method, expected result, and the ledger/kit
+  entry its verdict lands in; the probes doc now points at it as the
+  session runbook.
+- **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
+  35 files / 0 invalid; battery strict in every era (forever never=9);
+  scorecard, badges and doc counts in sync; verify_all exit 0 (44
+  components).
+
+### Era: WoW Forever — day-1 rotations complete (29 specs + leveling)
+
+- **Every spec has a Forever rotation path.** 26 spec deltas + 9 leveling
+  deltas (35 `_forever` files) were authored on the beta-day DBC (client
+  1.60.1.69893) across 47 commits; the three specs whose kits changed
+  nothing mechanically (paladin protection/retribution, shaman restoration)
+  ride the vanilla-superset fallback, so all 29 specs resolve a Forever
+  rotation the moment the era loads. Every delta is additive unless the kit
+  forced otherwise (druid cat: powershift dropped — Furor rework; priest
+  smite: the cast-on-cooldown Holy Fire lane replaced by the debuff-driven
+  upkeep; hunter/leveling: the shared Aimed/Multi pair reordered
+  Multi-first; warlock affliction: the Immolate lane dropped while UA is
+  engraved).
+- **By-name, zero-literal design held throughout.** No `_forever` file
+  writes a numeric spell ID: spells resolve through the DBC-derived bridge
+  mirrors (`spell_index_by_name_forever` / `spell_maxrank_by_name_forever` /
+  `spell_buff_by_name_forever`), and a nil lookup leaves the lane dormant.
+  The bridge gained three mechanism extensions this campaign: the
+  `CLASS_LESS_BUFF_NAMES` pin (class-less aura rows the DBC's class filter
+  drops — the Shadow and Flame windows), plus new `BUFF_OVERRIDES` /
+  `MAXRANK_OVERRIDES` / `MIRROR_NAME_OVERRIDES` entries (Decimation 440873,
+  Divine Aegis 431624, Prayer of Mending 1240849, Thousand Cuts 1310723,
+  Cutthroat 462707, Penance 1316995, Fire Nova 408345, Berserk 417141), each
+  with a permanent audit self-test pin.
+- **The behavioral battery is strict and observable.** Every new lane fires
+  in at least one forever scenario; the never-inventory stays at the 9
+  deliberately-pinned lanes (druid bear FaerieFirePull/PrePullEnrage, mage
+  fire/frost ManaGemConjure, mage leveling ConjureManaGem, priest holy
+  EncounterReactions, priest leveling Fade, shaman elemental
+  WrathOfAirTotem, warlock affliction RacialArcaneTorrent). Suites: 597
+  rotation + 48 leveling + 82 WotLK, verify_all green, 19/19 pre-commit.
+- **Kit corrections recorded** (each verified against the DBC/effect dump
+  and documented in `docs/forever/kits/`): Drain Hope does not exist (the
+  capstone is Wrack 1316697); Light's Vigil is a 6s-category-CD mark (not
+  180s); Hot Streak is a 3-stack proc (not the legacy 2-in-a-row row);
+  Winter's Chill's applied debuff is 12579 (the baseline read the talent);
+  Icy Veins is 429125 (the class map's 12472 is Cold Snap); Eclipse is
+  Wrath-procs-3-fast-Starfires (not a 4-stack alternation) and Balance of
+  Nature has no client row; the max-rank Conflagrate still consumes
+  Immolate (no-consume = Backdraft 427713 / Shadow and Flame's chance);
+  Power in Light is +15% (not +10%); Improved Ghost Wolf's instant/everywhere
+  semantics are talent-gated per the kit's table; Demonic Sacrifice's cast
+  row is class-less (the sacrifice stays a manual pre-pull choice).
+- **Open in-game probes** (all recorded in
+  `docs/forever/beta_day1_probes.md` + the per-class kits): the rogue
+  constant-regen energy model (P2 #3 — CLOSED 2026-09-18 by the
+  beta-verification pass above; the thresholds re-derived); the
+  Bane-vs-Curse slot mechanics (the
+  leveling amp lane would churn if shared); Demonic Pact's third-demon
+  behaviour; the Shadow and Flame window durations and the Decimation
+  proc's token values; PoM's jump count/radius; Litany of Light's refund %;
+  the Penance channel's tick count and per-tick crit; Soul Warding's CD
+  actually reaching zero; Improved Ghost Wolf's "usable everywhere" scope;
+  the Forever Mutilate's (absent) behind requirement; Tree of Life's form
+  semantics; Eclipse's charge→haste value; Fingers of Frost / Early Demise
+  / Aspect of the Beast / Bloodthrill BaseLevel-0 bridge gaps; and the
+  per-weapon passives (Hack and Slash 13960 is class-less in the DBC).
+
+### Era: WoW Forever — day-1 era support (pre-beta)
+
+- **New era: World of Warcraft: Forever** (BlizzCon 2026 Classic+; beta
+  2026-09-17, launch 2026-11-04, level-60 cap). Era plumbing is live so the
+  rotations light up on day 1 of the beta, before any Forever-specific tuning:
+  `runtime_mode = "forever"` + version-string detection in
+  `core_sylvanas.lua::_resolve_expansion_key()` (noncanonical labels fail
+  closed, mirroring the SoD bootstrap contract), `NS.is_forever()`, max level 60.
+- **Vanilla-superset semantics.** `NS.is_vanilla()` stays TRUE on a Forever
+  client: the class loader resolves `_forever -> _vanilla` (never falling
+  through to TBC/WotLK semantics) and the 40 `NS.is_vanilla()` gates in the
+  `_vanilla` fallback spec files are production lanes. Every existing rotation
+  is therefore correct-until-proven-otherwise the moment the era resolves;
+  `_forever` delta files are added only where the kit actually changed
+  (Paladin first — the only fully-revealed kit).
+- **Dispatcher + schema hooks.** `main.lua` injects a Forever settings section
+  (era phase slider, waves 1–8) mirroring the SoD hook;
+  `main_sylvanas.lua` publishes `context.is_forever` + `context.forever_phase`
+  (helpers ride the `_api` cache — `build_context` is at the Lua 5.1
+  60-upvalue cap).
+- **Behavioral battery (forever).** `tests/behavioral_audit.lua forever` runs
+  the 40 vanilla specs under the Forever harness; its never-inventory is
+  lane-for-lane identical to vanilla's (9 classified lanes, mirrored pins in
+  `tools/spec_scorecard.lua FOREVER_LANE_CLASS`), and vanilla's execute-capture
+  scenarios count as Forever proofs. The era is STRICT from day 1 (never=0
+  unclassified) — new Forever lanes must be battery-observable, per the
+  Pattern-17 doctrine.
+- **Forever spell audit (scaffold).** `tests/run_forever_audit_tests.lua` +
+  the stub bridge `shared/wowhead_data_bridge_spell_index_forever_sylvanas.lua`
+  enforce repo law (DBC = source of truth) before any guessed spell ID can
+  enter a `_forever` file: scaffold mode until the beta client's DBC is
+  extracted (docs/forever/dbc_runbook.md), scanner self-probes in both modes,
+  wired into the pre-commit gate + verify_all.
+- **Research corpus.** `docs/forever/`: era overview with sources, the
+  beta-day DBC extraction runbook, and per-class kit docs — paladin fully
+  transcribed from the 2026-09-13 Deep Dive (Holy Strike, non-consuming
+  Judgment, Seal of Fury taunt seal, baseline Consecration, spec talents),
+  the other 8 classes seeded as awaiting-reveal skeletons, plus era-wide
+  racial/talent research (2 active + 2 passive racials, six new race/class
+  combos, Skyborne, 16-point talent milestone, baseline Kings/Divine
+  Spirit/Imp MoW).
+- **Scorecard/badges.** The spec scorecard is now 5-era (172 rated specs);
+  suite registry 571 rotation suites (+2 forever suites). README/ACCURACY/
+  scorecard/PER_CLASS_RESEARCH regenerated through the generator tools.
+
 ### Warrior - cast-failure feedback, unified stance truth, shout refresh window
 
 - **Per-spell refuse hold in the cast guard (root cause of the live Battle Shout

@@ -94,6 +94,12 @@ M.RACE_VARIANTS_VANILLA = { smite = { 5 } }
 -- test_race_override_regression.lua can pin the era-scoping.
 function M.race_maps_for(era)
     if era == "vanilla" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
+    -- Forever (2026-09-14): vanilla-superset battery — same files, same race
+    -- variants, so the variant-merged never-set matches vanilla's exactly
+    -- until _forever delta files land. Forever's NEW combos/racials
+    -- (Undead Paladin, Skyborne, reworked actives) extend these maps in the
+    -- post-beta battery wave, deliberately, with their own scenarios.
+    if era == "forever" then return M.RACE_OVERRIDES_VANILLA, M.RACE_VARIANTS_VANILLA end
     if era == "sylvanas" then return M.RACE_OVERRIDES, M.RACE_VARIANTS end
     return nil, nil
 end
@@ -158,6 +164,41 @@ M.SPEC_FILES_SOD = {
 }
 
 M.ERA_MANIFESTS = { sylvanas = M.SPEC_FILES, wotlk = M.SPEC_FILES_WOTLK, vanilla = M.SPEC_FILES_VANILLA, sod = M.SPEC_FILES_SOD }
+
+-- Forever era (World of Warcraft: Forever, 2026-09-14 pre-beta): the vanilla
+-- MANIFEST under the Forever HARNESS. Production resolves _forever -> _vanilla
+-- (class_loader_sylvanas.lua), so the battery mirrors that: era_file_suffix
+-- prefers the _forever delta and load_spec falls back to _vanilla when none
+-- exists yet. Delta files are listed by spec key (paladin holy first,
+-- 2026-09-15); specs without a delta load their _vanilla file with
+-- ns.is_forever() + ns.is_vanilla() true (the superset contract in
+-- core_sylvanas.lua). STRICT, never=0 from day 1 (no SoD-style retrofit).
+-- load_spec/drift map the era suffix: see M.ERA_FILE_SUFFIX below.
+M.SPEC_FILES_FOREVER = {
+    druid = { "balance", "bear", "cat", "caster", "leveling", "resto" },
+    hunter = { "beast_mastery", "leveling", "marksmanship", "survival" },
+    mage = { "arcane", "fire", "frost", "leveling" },
+    paladin = { "holy", "leveling", "protection", "retribution" },
+    priest = { "discipline", "holy", "leveling", "shadow", "smite" },
+    rogue = { "assassination", "combat", "leveling", "subtlety" },
+    shaman = { "elemental", "enhancement", "leveling", "restoration" },
+    warlock = { "affliction", "demonology", "destruction", "leveling" },
+    warrior = { "arms", "fury", "kebab", "leveling", "protection" },
+}
+M.ERA_MANIFESTS.forever = M.SPEC_FILES_FOREVER
+
+-- Battery era -> spec-file suffix. Forever reuses the _vanilla files (fallback
+-- semantics made observable); every other era uses its own suffix.
+function M.era_file_suffix(era)
+    if era == "forever" then
+        -- Production class-loader semantics (shared/class_loader_sylvanas.lua):
+        -- prefer the _forever delta file, fall back to _vanilla when none
+        -- exists yet. check_manifest_drift only validates the FIRST suffix,
+        -- so a present _forever file keeps its _vanilla sibling optional.
+        return "forever"
+    end
+    return era
+end
 
 -- Class profiles used to build representative contexts.
 M.CLASS_PROFILE = {
@@ -718,6 +759,10 @@ function M.build_ns(class_key, era)
     -- so era="sod" must provide the callable form exactly like is_wotlk; the
     -- boolean false keeps every other era's load guard short-circuiting.
     ns.is_sod = (era == "sod") and function() return true end or false
+    -- Forever era flag (2026-09-14): mirrors is_sod's callable contract. The
+    -- vanilla-superset rule also applies here: ns.is_vanilla() stays TRUE on
+    -- forever (below), exactly like production core_sylvanas.is_vanilla().
+    ns.is_forever = (era == "forever") and function() return true end or false
     ns.should_kite = function() return false end
     ns.has_player_buff = function() return false end
     ns.has_player_debuff = function() return false end
@@ -1323,6 +1368,10 @@ function M.build_ns(class_key, era)
         NaturesGrasp = ns.spell_action({ 27009, 17329, 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
         Pounce = ns.spell_action({ 27006, 9827, 9823, 9005 }, "Pounce"),
         Rejuvenation = ns.spell_action({ 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
+        -- (forever day-1 2026-09-17): Swiftmend is in the production class map
+        -- (classes/druid/class_sylvanas.lua ids {18562}); the mock lacked it,
+        -- which left the resto delta's spot-heal lane structurally dormant.
+        Swiftmend = ns.spell_action({ 18562 }, "Swiftmend"),
         Starfire = ns.spell_action({ 26986, 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
         SwipeBear = ns.spell_action({ 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
         Thorns = ns.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
@@ -1447,11 +1496,38 @@ function M.build_ns(class_key, era)
         RetributionAura = ns.spell_action({ 27150, 10301, 10300, 10299, 10298, 7294 }, "RetributionAura"),
         SealCommand = ns.spell_action({ 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
         SealRighteousness = ns.spell_action({ 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }, "SealRighteousness"),
+        -- Forever delta (2026-09-15): holy_forever.lua gates its Light's
+        -- Vigil lane on NS.cooldown_remains(SPELLS.HolyShock) and drives
+        -- forever_shock_cd scenarios through the on_cd bank, which only
+        -- resolves spell_action-backed entries (ids[1]). Additive seed —
+        -- the unseeded read already returned ready, so no lane can flip
+        -- from fires to never (TBC-era counts verified unchanged by the
+        -- battery regression suite).
+        HolyShock = ns.spell_action({ 27180, 20473, 20929, 20930 }, "HolyShock"),
+        -- Forever prot day-1 completion (2026-09-18): the protection delta
+        -- loads through the _forever suffix, so the baseline's unseeded
+        -- actions now resolve in the battery too. Additive (the unseeded
+        -- reads were permissive nil paths) — TBC/WotLK/vanilla/SoD paladin
+        -- never-counts verified unchanged by the battery regression run.
+        RighteousFury = ns.spell_action({ 25780 }, "RighteousFury"),
+        SealOfWisdom = ns.spell_action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom"),
+        HolyWrath = ns.spell_action({ 27139, 10318, 2812 }, "HolyWrath"),
+        BlessingOfSanctuary = ns.spell_action({ 27149, 20914, 20913, 20912, 20911 }, "BlessingOfSanctuary"),
+        BlessingOfProtection = ns.spell_action({ 10278, 5573, 5572, 1026 }, "BlessingOfProtection"),
     }
     ns.PriestSpells = {
         -- ids[1] resolves the holy_cure_on_cd on_cd entry (CureDisease on CD
         -- → holy AbolishDisease's `not cure_disease_ready` gate passes).
         CureDisease = ns.spell_action({ 528, 11554 }, "CureDisease"),
+        -- (forever day-1 2026-09-17): the shadow delta's Contagion lane casts
+        -- the class-map Devouring Plague; the mock lacked it (the baseline's
+        -- devouring_plague_known read passed only through the permissive
+        -- spell_exists(nil) path). Ladder mirrors classes/priest/
+        -- class_sylvanas.lua (TBC max rank first).
+        DevouringPlague = ns.spell_action({ 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
+        -- (forever day-1 2026-09-17): the priest leveling delta's Fear Ward
+        -- lane (the Dwarf racial made universal); the mock lacked the row.
+        FearWard = ns.spell_action({ 6346 }, "FearWard"),
         -- Wave 1.4 leveling_vanilla seeds (2026-08-13) — see the DruidSpells
         -- comment for the rationale and ladder convention.
         DesperatePrayer = ns.spell_action({ 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
@@ -1499,6 +1575,11 @@ function M.build_ns(class_key, era)
         ShadowBolt = ns.spell_action({ 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
         SiphonLife = ns.spell_action({ 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
         SpellLock = ns.spell_action({ 24259, 19647 }, "SpellLock"),
+        -- (forever day-1 2026-09-17): the demonology delta's Decimation lane
+        -- casts the class-map Soul Fire; the mock lacked it, which would
+        -- leave the lane's cast path unresolved (mirrors classes/warlock/
+        -- class_sylvanas.lua ladder, TBC max rank first).
+        SoulFire = ns.spell_action({ 30545, 27211, 17924, 6353 }, "SoulFire"),
     }
     ns.RogueSpells = {
         AdrenalineRush = ns.spell_action({ 13750 }, "AdrenalineRush"),
@@ -1509,8 +1590,10 @@ function M.build_ns(class_key, era)
         Evasion = ns.spell_action({ 26669, 5277 }, "Evasion"),
         Eviscerate = ns.spell_action({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
         ExposeArmor = ns.spell_action({ 26866, 11198, 11197, 8650, 8649, 8647 }, "ExposeArmor"),
+        Backstab = ns.spell_action({ 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
         Garrote = ns.spell_action({ 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
         Gouge = ns.spell_action({ 11286, 11285, 8629, 1777, 1776 }, "Gouge"),
+        Hemorrhage = ns.spell_action({ 17348, 17347, 16511 }, "Hemorrhage"),
         Kick = ns.spell_action({ 38768, 1769, 1768, 1767, 1766 }, "Kick"),
         KidneyShot = ns.spell_action({ 8643, 408 }, "KidneyShot"),
         Rupture = ns.spell_action({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
@@ -3387,6 +3470,342 @@ M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
 M.SCENARIOS_SOD[#M.SCENARIOS_SOD + 1] =
     { name = "sod_cleave_cd", overrides = { in_combat = true, enemy_count = 2, enemies_count = 2, ttd = 60, target_ttd = 60, setting_overrides = { use_cooldowns = true } } }
 
+-- ---------------------------------------------------------------------------
+-- Forever era (2026-09-15): shared set + delta observability shapes.
+-- ---------------------------------------------------------------------------
+M.SCENARIOS_FOREVER = {}
+for _, sc in ipairs(M.SCENARIOS) do M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = sc end
+-- _forever delta files must PROVE their lanes fire, or the strict scorecard
+-- hard-fails the new never-lanes (Pattern 17). The forever-specific shapes
+-- drive the paladin holy delta lanes; every other class/spec still resolves
+-- all shared scenarios identically (vanilla-twin contract).
+-- holy_forever gate recap (day-1 promotion 2026-09-17): IoL needs buff 90003
+-- + lowest deficit >= 30 + mana >= 25 + hp > 20; Light's Vigil needs Holy
+-- Shock READY (the mark pays off on the next shock), mana >= 40 (ally: >= 50
+-- and the baseline's heavy_healing triage signal + hp in (20, 70]); ally
+-- branch skips an already-marked ally (buff mirror 90002), enemy branch (very
+-- healthy group, valid enemy) skips an already-marked enemy (debuff 90002);
+-- deficit-fit top-off needs the worse of (lowest group entry, friendly target)
+-- in the (65, 92] band with a positive deficit + mana >= 30; Holy Shock core
+-- needs mana >= 20 (ready in every scenario without an on_cd [27180] bank);
+-- Holy Strike needs a healthy group (friends_hp 100s) + mana >= 30 + melee
+-- distance (5yd default); Seal/Judgement of the Crusader support need a valid
+-- enemy + mana >= 35 + target hp >= 20 + the target free of JoC (90011) and
+-- the seal mirror free for the seal lane / set for the judgement lane (90010).
+-- Baseline preemption notes: LayOnHands (lowest > 12), DivineShield (hp_pct >
+-- 18) and BoP (no protection_target) stay false in these shapes; the blessing
+-- lanes see blessings_up=false; CleanseTank/PurifySelf/BlessingOfFreedomSnare
+-- need the afflicted/snared flags (absent); DivineFavorHolyLightFollowup needs
+-- has_divine_favor (false); HammerOfJusticeDiver needs a diver (absent);
+-- ConsecrationSoloAoE needs enemy_count > 1; JudgementSolo/SealOfWisdom read
+-- state fields the deltas never touch. HolyLightEmergency stays quiet (lowest
+-- 58/65/75 > 55) so the IoL weave owns Holy Light in its window, and the
+-- vigil ally-branch scenario rides the baseline's own heavy_healing signal
+-- (tank 50 <= 55) instead of inventing a second hurt-party model.
+-- Wave-1 scaffolding gates (2026-09-17): enh MW weave needs buff 90004 +
+-- mana >= 30; enh SS core always matches with a valid enemy target (splices
+-- above the baseline Stormstrike lane); ele Lava Burst needs the FS debuff
+-- on the primary target (debuff_remains_map [25457]) + mana >= 25; ele Fire
+-- Nova needs 90005 + mana >= 30 (splices above the baseline ChainLightning
+-- nuke); fire Hot Streak needs buff 90007 + mana >= 20 (above baseline
+-- Pyroblast, whose PoM gate stays false); arcane AB spam needs buff 90008 +
+-- mana >= 30 + AM on_cd (the cusp window; block sits BELOW ArcaneMissiles
+-- whose can_cast veto skips it); arcane Missile Barrage needs buff 90009 +
+-- mana >= 20 (ABOVE ArcaneMissiles so the proc beats the channel).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_iol_weave",
+    overrides = { buff_remains_map = { [90003] = 8 }, friends_hp = { 65, 100, 100 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_burst",
+    overrides = { friends_hp = { 58, 50, 100 }, mana_pct = 90 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_vigil_damage",
+    overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fit_topoff",
+    overrides = { friends_hp = { 90, 100, 100 }, mana_pct = 70 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sotc_judge",
+    overrides = { buff_remains_map = { [90010] = 30 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shock_cd",
+    overrides = { friends_hp = { 100, 100, 100 }, mana_pct = 60, on_cd = { [27180] = 5 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_mw_weave",
+    overrides = { buff_remains_map = { [90004] = 5 }, mana_pct = 80 } }
+-- Fire Nova (enh + ele deltas) casts the trainer-taught totem-detonating row
+-- and HOLDS without a live Fire Totem: the totem bank presents one so the
+-- lane's own gate is the only thing that can keep it dark here.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fire_nova_totem",
+    overrides = { totem_active = true, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_enh_stormstrike_core",
+    overrides = { mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_lava_burst",
+    overrides = { debuff_remains_map = { [25457] = 10 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_ele_fire_nova",
+    overrides = { mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fire_hot_streak",
+    overrides = { buff_remains_map = { [90007] = 3 }, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_blast_spam",
+    overrides = { buff_remains_map = { [90008] = 8 }, mana_pct = 80, on_cd = { [38699] = 3 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_missile_barrage",
+    overrides = { buff_remains_map = { [90009] = 8 }, mana_pct = 80 } }
+-- Arcane Blast loop on a mana-constrained caster with no stack buff and no
+-- proc: the loop must START from zero stacks (the wave-1 buff-presence gate
+-- could never be satisfied at 0), and the barrage routing must hold the proc
+-- mid-ramp -- the latter is unit-pinned (a hold scenario cannot be asserted
+-- by the never-detector).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arc_loop_start",
+    overrides = { mana_pct = 65 } }
+-- Druid cat (destructive delta): the Berserk burst needs cat form + energy +
+-- a valid enemy, and the Tiger's Fury replacement needs the buff down, in
+-- combat, and not stealthed. The scenarios also prove the DROPPED baseline
+-- lanes are gone (Powershift/TigersFury no longer exist on the forever cat
+-- list; the report's strategy count is the pin).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_berserk",
+    overrides = { form = 3, in_combat = true, energy = 60, combo_points = 2 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_cat_tigers_fury",
+    overrides = { form = 3, in_combat = true, energy = 50, combo_points = 2 } }
+-- Druid bear: the Mangle/Lacerate core needs bear form + rage + a valid
+-- enemy; the stack scenario drives the Lacerate debuff read through the
+-- id-scoped debuff_stacks bank (sentinel aura id) so the build path is
+-- exercised, not just the empty-target path.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_mangle",
+    overrides = { form = 1, in_combat = true, rage = 60 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bear_lacerate_stacks",
+    overrides = { form = 1, in_combat = true, rage = 60, debuff_stacks = 3,
+                  debuff_aura_ids = { 90015 }, debuff_remains_map = { [90015] = 10 } } }
+-- Warrior fury (CD split): the Recklessness burst lane is class-map based
+-- (no bridge lookup), so the scenario only has to present combat + a valid
+-- enemy -- the slot exists to make the lane's firing intentional rather than
+-- incidental to the shared combat shapes.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_fury_recklessness",
+    overrides = { in_combat = true, rage = 50 } }
+-- Hunter survival: the melee core needs melee range + combat, and the shot
+-- reorder's scenario presents the 2+-target shape the shared Aimed/Multi
+-- cooldown has to choose against.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_melee",
+    overrides = { in_combat = true, target_distance = 5, distance = 5, enemy_count = 1 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_sv_shared_shot",
+    overrides = { in_combat = true, enemy_count = 2, enemies_count = 2 } }
+-- Hunter BM: the hawk lane fires on its shared cooldown in combat.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bm_summon_hawk",
+    overrides = { in_combat = true, mana_pct = 80 } }
+-- Hunter MM: the Sniper Shot window (execute-range target) and the Lone Wolf
+-- fork (the sentinel makes the talent "learned", so the pet lanes must be
+-- absent from the forever marksmanship strategy list).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mm_sniper",
+    overrides = { in_combat = true, target_hp = 15, enemies_count = 1 } }
+-- Warlock affliction: the dot block (Wrack refresh, the engraving-gated
+-- Haunt/UA lanes) on a live target.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_affl_dots",
+    overrides = { in_combat = true, mana_pct = 80 } }
+-- Warrior protection: the Vanguard opener (OOC + Defensive + charge range)
+-- and the stance-agnostic Thunder Clap (Defensive + rage + fresh debuff; the
+-- aoe_self_meets stub reports nearby enemies).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_charge",
+    overrides = { in_combat = false, stance = 2, target_distance = 20, distance = 20 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_prot_tc",
+    overrides = { in_combat = true, stance = 2, rage = 40, enemy_count = 3, enemies_count = 3 } }
+-- Warrior arms: the Spearing Strike encounter window (Dragonkin = 2) and the
+-- Improved Slam weave (the sentinel makes the talent learned, so the
+-- baseline Slam lane is replaced).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_spearing",
+    overrides = { in_combat = true, target_creature_type = 2, rage = 50 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_arms_slam",
+    overrides = { in_combat = true, rage = 50 } }
+-- Mage frost: the Ice Lance Frozen window (the bridge Frost Nova sentinel in
+-- the debuff map), the Winter's Chill stack read (id-scoped bank) and Icy
+-- Veins (a plain combat CD).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_icelance",
+    overrides = { in_combat = true, mana_pct = 80, debuff_remains_map = { [90029] = 4 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_frost_winters_chill",
+    overrides = { in_combat = true, mana_pct = 80, debuff_stacks = 2, debuff_aura_ids = { 90028 },
+                  debuff_remains_map = { [90028] = 12 } } }
+-- Druid balance: the charged Eclipse window (the buff_remains_map value is
+-- the stack/charge count in the harness's stack-aware bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_bal_eclipse_charged",
+    overrides = { in_combat = true, mana_pct = 70, buff_remains_map = { [90030] = 2 } } }
+-- Druid resto: the Wild Growth party-heal window (two hurt members) and the
+-- Swiftmend spot-heal (a HoT-carrying ally driven through the class map's
+-- Rejuvenation ids in the buff map).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_wild_growth",
+    overrides = { in_combat = true, mana_pct = 70, friends_hp = { 60, 80, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_swiftmend_spot",
+    overrides = { in_combat = true, mana_pct = 70, friends_hp = { 85, 100, 100 },
+                  buff_remains_map = { [774] = 8 } } }
+-- Warlock demonology: the Demonic Pact partner maintenance (a sacrifice aura
+-- up with no living demon — no_pet keeps the warlock profile's pet out) and
+-- the Decimation Soul Fire window. Both aura ids are the seeded sentinels.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_pact_partner",
+    no_pet = true,
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90035] = 600 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_pact_partner_fire",
+    no_pet = true,
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90036] = 600 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_demo_decimation",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90034] = 10 } } }
+-- Warlock destruction: the Immolate-kept Incinerate (the debuff bank holds
+-- the baseline's max-rank Immolate id on the primary target), the Shadow and
+-- Flame fire window, and the two-target Bane of Havoc placement (the 3-enemy
+-- bank materializes ctx.enemies with an off-target to bane).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_incinerate",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 1,
+                  debuff_remains_map = { [11668] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_window",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 1,
+                  buff_remains_map = { [90039] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_destro_boh_cleave",
+    overrides = { in_combat = true, mana_pct = 80, enemy_count = 3, enemies_count = 3 } }
+-- Priest discipline: the Soul Warding shield on the hurt tank (the default
+-- injured bank puts the tank at 70%), the Penance heal on the 55% lowest
+-- ally, and the offensive Penance in the Power in Light window (a healthy
+-- group + the Holy Fire debuff bank on the primary target).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_shield",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_heal",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_disc_penance_damage",
+    overrides = { in_combat = true, mana_pct = 80, friends_hp = { 100, 100, 100 },
+                  debuff_remains_map = { [15261] = 5 } } }
+-- Rogue assassination: the Mutilate builder (both-hand dagger mock + an
+-- empty combo bank so the builder window is open) and the Improved Expose
+-- Armor refund lane (assignment setting + the 5-cp bank). Venom gets its
+-- own scenario (beta-verification pass 2026-09-18): 5 cp at 40 energy —
+-- inside the 25..44 band where the OLD pooling-flag shape FIRED the window
+-- (its only energy gate was the < 25 flag) but the re-derived DBC-cost gate
+-- (25 energy + 20 CP-buffer = 45) HOLDS. The scenario is the two-gate
+-- discriminator: on the re-derived lane it must NOT fire (no CP-buffered
+-- window at 40), and the base scenarios (100 energy) still prove it fires.
+-- Stealth bank keeps the opener preference quiet.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_mutilate",
+    overrides = { in_combat = true, equipped_daggers = true, combo_points = 0, energy = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_venom",
+    overrides = { in_combat = true, combo_points = 5, energy = 40,
+                  buff_remains_map = { [1784] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_assassin_iea",
+    overrides = { in_combat = true, combo_points = 5,
+                  setting_overrides = { assassin_expose_assigned = true } } }
+-- Priest shadow: the Early Demise execute window (a 20%-HP target) and the
+-- Contagion cleave maintenance (a 3-enemy bank puts the state in cleave mode
+-- with the DP debuff absent on the primary target).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_swd",
+    overrides = { in_combat = true, target_hp = 20 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_contagion",
+    overrides = { in_combat = true, enemy_count = 3, enemies_count = 3 } }
+-- Rogue subtlety: the Thousand Cuts discounted generator (5 stacks at 30
+-- energy — below the vanilla flat 40 floor the old shape demanded, so the
+-- scenario proves the DBC effective-cost re-derivation: 35 - 15 + 10
+-- reserve = 30) and the Cutthroat stealth-free Ambush (proc bank + both-hand
+-- daggers).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_tc",
+    overrides = { in_combat = true, energy = 30, buff_remains_map = { [90049] = 5 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_cutthroat",
+    overrides = { in_combat = true, equipped_daggers = true,
+                  buff_remains_map = { [90050] = 10 } } }
+-- Rogue combat: the Restless Blades shave spend (a tracked CD inside the
+-- 2x combo window at 4 CP — below the baseline's 5-CP rule) and the
+-- Puncturing Wounds dagger generator (both-hand daggers, behind default).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_rb",
+    overrides = { in_combat = true, combo_points = 4, on_cd = { [13750] = 6 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_combat_pw",
+    overrides = { in_combat = true, equipped_daggers = true } }
+-- Priest holy: the Prayer of Mending placement (the default injured bank
+-- leaves the tank at 70% with no aura) and the Binding Heal pair heal (both
+-- the lowest ally and the priest hurt). The Litany variety lane rides the
+-- base scenarios (lowest 55%, mana 100%).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_pom",
+    overrides = { in_combat = true, friends_hp = { 55, 70, 100 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_holy_binding",
+    overrides = { in_combat = true, hp = 60, friends_hp = { 55, 70, 100 } } }
+-- Priest smite: the Penance nuke inside the Power in Light window (the
+-- Holy Fire debuff bank on the primary target). The Holy Fire upkeep lane
+-- rides the base scenarios (an absent debuff is the default).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_smite_penance",
+    overrides = { in_combat = true, debuff_remains_map = { [15261] = 5 } } }
+-- Paladin leveling: the Holy Strike weave needs the seal-up gate satisfied
+-- (the baseline's ANY_SEAL_BUFF bank carries the vanilla Seal of Righteousness
+-- id, a test-only literal in the scenario).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_leveling_strike",
+    overrides = { in_combat = true, buff_remains_map = { [21084] = 600 } } }
+-- Druid leveling: the Omen clearcast weave (cat form via the form bank, an
+-- open combo bank and the real Omen id in the buff map).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_druid_leveling_omen",
+    overrides = { in_combat = true, form = 3, combo_points = 2,
+                  buff_remains_map = { [16864] = 10 } } }
+-- Warrior leveling: the Victory Rush kill window (the real Victorious
+-- enabler id in the buff map; the melee/combat defaults hold).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warrior_leveling_vr",
+    overrides = { in_combat = true, buff_remains_map = { [402975] = 15 } } }
+-- Warlock leveling: the Bane+Curse pair (the Bane-of-Agony rank-1 id from
+-- the class-map ladder in the debuff bank, Curse of the Elements absent).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_warlock_leveling_coe",
+    overrides = { in_combat = true, debuff_remains_map = { [980] = 10 } } }
+-- Rogue leveling: the Mutilate 2-CP builder (both-hand dagger mock + an
+-- open combo bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_rogue_leveling_mutilate",
+    overrides = { in_combat = true, combo_points = 2, equipped_daggers = true } }
+-- Shaman leveling: the Improved Ghost Wolf escape (low HP in combat; the
+-- talent is learned by default and the wolf form is down).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shaman_leveling_wolf",
+    overrides = { in_combat = true, hp = 30 } }
+-- Mage leveling: the Hot Streak spend (the sentinel id at the 3-stack cap
+-- through the buff bank).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_mage_leveling_hs",
+    overrides = { in_combat = true, buff_remains_map = { [90007] = 3 } } }
+-- Shaman restoration day-1 (2026-09-18): the Riptide amp-setup on the
+-- lowest ally (55% in the default injured bank, HoT absent — buffs_up
+-- stays false so the remains gate passes) and the Water Shield default
+-- (shield bank: has_lightning_shield false because buffs_up is false and
+-- the Lightning Shield buff map is empty). A second shape proves the
+-- maintenance hold: Riptide comfortably up (90057 = 12) must NOT re-fire
+-- the setup lane (the amp-window discipline the lane exists for).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_riptide",
+    overrides = { in_combat = true, mana_pct = 80 } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_riptide_maintained",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [90057] = 12 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_watershield",
+    overrides = { in_combat = true, mana_pct = 80 } }
+-- Paladin protection day-1 completion (2026-09-18): the Seal of Fury upkeep
+-- (Righteous Fury + Holy Shield held through the real buff ids so the
+-- baseline's earlier self-buff lanes hold, Consecration held through its
+-- debuff bank — the seal slots are then the first open lanes) and the
+-- Judgement of Fury taunt (the 90059 sentinel in the buff bank = Fury up;
+-- the upkeep lane must HOLD and the wrapped SealRighteousness must stay
+-- blocked — the taunt is the first lane open).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_fury",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [25780] = 600, [20928] = 600 },
+                  debuff_remains_map = { [20924] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_judgement_taunt",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
+                  debuff_remains_map = { [20924] = 10 } } }
+-- The GATE COMBINATION (2026-09-18): Fury up + the taunt's Judgement on
+-- cooldown + mana ABOVE the SoW band (55 > 30, so the baseline's SoW
+-- proof: the seal block must go QUIET as a unit — taunt holds on CD,
+-- upkeep holds because Fury is up, the wrapped SealRighteousness stays
+-- blocked, and the baseline's SoW lane holds above its 30 band — so no
+-- seal lane churns while the taunt waits. on_cd [20271] drives the
+-- taunt's SPELLS.Judgement (ids[1]); [90059] is the Fury sentinel in
+-- the buff bank. The precise dispatch-walk assertions (which lane wins
+-- the first-match walk, per band) live in test_paladin_protection_forever.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_combo",
+    overrides = { in_combat = true, mana_pct = 55,
+                  buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
+                  debuff_remains_map = { [20924] = 10 },
+                  on_cd = { [20271] = 4 } } }
+-- Paladin retribution day-1 completion (2026-09-18): the Holy Strike weave
+-- (melee filler — the baseline predates the spell and has no lane). The
+-- strike must fire in-band; the Seal of Righteousness filler must NOT lose
+-- its scenario record (the weave inserts above it but the filler keeps
+-- firing everywhere the strike's own gates hold it).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_ret_strike",
+    overrides = { in_combat = true, mana_pct = 80 } }
+
+-- Priest leveling: the universal pair — Devouring Plague in combat (the
+-- debuff absent by default) and Fear Ward out of combat.
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_priest_leveling_dp",
+    overrides = { in_combat = true } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_priest_leveling_fw",
+    overrides = { in_combat = false } }
 -- SoD interrupt-lane close-out (2026-09-16): the 14 per-class Interrupt lanes
 -- (shared interrupt_manager strategy #1: druid feral/tank SkullBash, mage
 -- Counterspell, rogue combat/tank Kick, warrior dps Pummel / tank ShieldBash,
@@ -3805,6 +4224,14 @@ function M.build_context_for(class_key, scenario, era)
         if ctx.is_sod == nil then ctx.is_sod = true end
         if ctx.sod_phase == nil then ctx.sod_phase = 8 end
     end
+    -- Forever-era context defaults: the forever files read the same is_forever
+    -- flag production publishes (build_context, main_sylvanas.lua), so gate
+    -- tests can assert is_forever=false blocks. Phase 1 (beta day) mirrors the
+    -- engine default (forever_phase 1).
+    if era == "forever" then
+        if ctx.is_forever == nil then ctx.is_forever = true end
+        if ctx.forever_phase == nil then ctx.forever_phase = 1 end
+    end
     if ctx.target_distance then ctx.target_range = ctx.target_distance end
     -- Warriors start in Battle Stance (1); stance scenarios flip it.
     if class_key == "warrior" and ctx.stance == 0 then ctx.stance = 1 end
@@ -4170,8 +4597,15 @@ end
 -- ---------------------------------------------------------------------------
 function M.load_spec(class_key, spec_key, era, race_override)
     era = era or "sylvanas"
-    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_" .. era .. ".lua"
+    local path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_"
+        .. M.era_file_suffix(era) .. ".lua"
     local f = io.open(path, "rb")
+    if not f and era == "forever" then
+        -- Loader fallback (shared/class_loader_sylvanas.lua): a spec without a
+        -- _forever delta runs its _vanilla file under the Forever harness.
+        path = "EaxRotations/classes/" .. class_key .. "/" .. spec_key .. "_vanilla.lua"
+        f = io.open(path, "rb")
+    end
     if not f then return nil, "missing file " .. path end
     f:close()
 
@@ -4185,6 +4619,179 @@ function M.load_spec(class_key, spec_key, era, race_override)
     -- error-handler block so later suites get the real modules back.
 
     local ns = M.build_ns(class_key, era)
+    -- Forever sentinel bridge (Pattern 17): the production delta files
+    -- pcall-require the DBC-derived bridge module
+    -- (shared/wowhead_data_bridge_spell_index_forever_sylvanas) directly.
+    -- The battery requires the SAME module and seeds sentinel ids for the
+    -- Forever-new client names under beta day. Sentinels are ADDITIVE
+    -- (only when the name is absent), so once the real bridge lands on
+    -- beta day the battery consumes it unchanged. The sentinel ids are
+    -- outside every real rank range and are never written as literals in
+    -- spec files (zero-literal contract, docs/forever/dbc_runbook.md).
+    if era == "forever" then
+        local ok_bridge, bridge_mod = pcall(require, "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
+        if ok_bridge and type(bridge_mod) == "table" then
+            ns.EaxForeverBridge = bridge_mod
+        else
+            ns.EaxForeverBridge = { spell_index_by_name_forever = {} }
+        end
+        -- Sentinel mirrors (Pattern 17): the battery OVERWRITES all three
+        -- bridge mirrors with sentinel ids (beta-day live-bridge update).
+        -- Additive seeding ("only when absent") died with the stub bridge:
+        -- with live data every name resolves to a real id no scenario
+        -- drives, so every buff-gated delta lane silently never fired
+        -- (mage/arcane AB spam first). The SAME sentinel per name in every
+        -- mirror keeps scenarios unchanged; mirror SELECTION (maxrank vs
+        -- buff) is pinned instead by the per-spec unit suites, which seed
+        -- distinct sentinels per mirror (19000/19100/19200 ranges).
+        local mirrors = ns.EaxForeverBridge
+        if type(mirrors.spell_maxrank_by_name_forever) ~= "table" then
+            mirrors.spell_maxrank_by_name_forever = {}
+        end
+        if type(mirrors.spell_buff_by_name_forever) ~= "table" then
+            mirrors.spell_buff_by_name_forever = {}
+        end
+        -- One sentinel per wave-1 name, written into ALL THREE mirrors so
+        -- lanes fire regardless of which mirror they read; mirror SELECTION
+        -- (maxrank vs buff) is pinned instead by the per-spec unit suites,
+        -- which seed distinct sentinels per mirror (19000/19100/19200
+        -- ranges). Every other name keeps its real bridge data untouched.
+        local sentinels = {
+            ["Holy Strike"] = 90001,
+            ["Light's Vigil"] = 90002,
+            ["Infusion of Light"] = 90003,
+            -- Wave-1 scaffolding (2026-09-17): shaman + mage delta names.
+            ["Maelstrom Weapon"] = 90004,
+            ["Fire Nova"] = 90005,
+            ["Lava Burst"] = 90006,
+            ["Hot Streak"] = 90007,
+            ["Arcane Blast"] = 90008,
+            ["Missile Barrage"] = 90009,
+            -- Paladin day-1 (2026-09-17): Seal/Judgement of the Crusader
+            -- support lanes resolve the seal cast + the JoC aura/debuff ids.
+            ["Seal of the Crusader"] = 90010,
+            ["Judgement of the Crusader"] = 90011,
+            -- Druid cat day-1 (2026-09-17): the Berserk burst cast row and the
+            -- Tiger's Fury buff id (the replacement lane's refresh gate).
+            ["Berserk"] = 90012,
+            ["Tiger's Fury"] = 90013,
+            -- Druid bear day-1 (2026-09-17): the Mangle/Lacerate cast rows
+            -- (Lacerate's stack read is scoped by the same sentinel id).
+            ["Mangle"] = 90014,
+            ["Lacerate"] = 90015,
+            -- Hunter survival day-1 (2026-09-17): the new Strider Kick melee
+            -- strike (Mongoose Bite is class-map and needs no sentinel).
+            ["Strider Kick"] = 90016,
+            -- Hunter BM day-1 (2026-09-17): the Summon Hawk cast row.
+            ["Summon Hawk"] = 90017,
+            -- Hunter MM day-1 (2026-09-17): the Sniper Shot cast row and the
+            -- Lone Wolf talent row (the pet-fork gate).
+            ["Sniper Shot"] = 90018,
+            ["Lone Wolf"] = 90019,
+            -- Warlock affliction day-1 (2026-09-17): the Wrack amplify DoT
+            -- (the beta client's rename of the kit's "Drain Hope") and the
+            -- two engraving-granted rows (Haunt / Unstable Affliction) whose
+            -- learned check reads both mirror ids.
+            ["Wrack"] = 90020,
+            ["Haunt"] = 90021,
+            ["Unstable Affliction"] = 90022,
+            -- Warrior protection day-1 (2026-09-17): the Vanguard passive row
+            -- (the Defensive-charge gate).
+            ["Vanguard"] = 90023,
+            -- Warrior arms day-1 (2026-09-17): the Spearing Strike cast row
+            -- and the Improved Slam talent row (the Slam-replacement gate).
+            ["Spearing Strike"] = 90024,
+            ["Improved Slam"] = 90025,
+            -- Mage frost day-1 (2026-09-17): the engraving-granted Ice Lance
+            -- row, Icy Veins, the Winter's Chill applied-debuff row (the
+            -- builder's BUFF_OVERRIDES pin) and Frost Nova (the Frozen
+            -- window probe's bridge id).
+            ["Ice Lance"] = 90026,
+            ["Icy Veins"] = 90027,
+            ["Winter's Chill"] = 90028,
+            ["Frost Nova"] = 90029,
+            -- Druid balance day-1 (2026-09-17): the Eclipse talent row; the
+            -- battery seeds all mirrors with one id, so the charge read and
+            -- the learned check share the sentinel.
+            ["Eclipse"] = 90030,
+            -- Druid resto day-1 (2026-09-17): Wild Growth + the Gift of the
+            -- Earthmother talent gate.
+            ["Wild Growth"] = 90031,
+            ["Gift of the Earthmother"] = 90032,
+            -- Warlock demonology day-1 (2026-09-17): the Demonic Pact talent
+            -- gate, the Decimation proc buff, and the two Demonic Sacrifice
+            -- school auras (Burning Shadow = Imp/+Shadow, Touch of Fire =
+            -- Succubus/+Fire) the partner lane maps to the other summon.
+            ["Demonic Pact"] = 90033,
+            ["Decimation"] = 90034,
+            ["Burning Shadow"] = 90035,
+            ["Touch of Fire"] = 90036,
+            -- Warlock destruction day-1 (2026-09-17): the Incinerate nuke,
+            -- the Bane of Havoc cleave curse, and the two class-less Shadow
+            -- and Flame window rows (Flame = Conflagrate's fire window,
+            -- Shadow = Shadowburn's shadow window).
+            ["Incinerate"] = 90037,
+            ["Bane of Havoc"] = 90038,
+            ["Flame"] = 90039,
+            ["Shadow"] = 90040,
+            -- Priest discipline day-1 (2026-09-17): the dual-mode Penance cast
+            -- row (pinned over the internal channel rows), the Soul Warding
+            -- talent gate and the Divine Aegis absorb shield.
+            ["Penance"] = 90041,
+            ["Soul Warding"] = 90042,
+            ["Divine Aegis"] = 90043,
+            -- Rogue assassination day-1 (2026-09-17): the Mutilate builder,
+            -- the Venom poison-window finisher and the Improved Expose Armor
+            -- talent gate (the Expose Armor cast keeps its real bridge rows).
+            ["Mutilate"] = 90044,
+            ["Venom"] = 90045,
+            ["Improved Expose Armor"] = 90046,
+            -- Priest shadow day-1 (2026-09-17): the SW:D execute cast and the
+            -- Devouring Contagion talent gate.
+            ["Shadow Word: Death"] = 90047,
+            ["Devouring Contagion"] = 90048,
+            -- Rogue subtlety day-1 (2026-09-17): the Thousand Cuts stack
+            -- buff (the energy-engine read) and the Cutthroat stealth-free
+            -- Ambush proc.
+            ["Thousand Cuts"] = 90049,
+            ["Cutthroat"] = 90050,
+            -- Rogue combat day-1 (2026-09-17): the Restless Blades talent
+            -- gate and the Puncturing Wounds generator gate.
+            ["Restless Blades"] = 90051,
+            ["Puncturing Wounds"] = 90052,
+            -- Priest holy day-1 (2026-09-17): the Prayer of Mending cast
+            -- (and its pinned @60 aura id) and the Binding Heal pair heal.
+            ["Prayer of Mending"] = 90053,
+            ["Binding Heal"] = 90054,
+            -- Priest smite day-1 (2026-09-17): the Power in Light talent gate
+            -- (Penance's sentinel 90041 from the discipline day-1 serves the
+            -- cast resolution).
+            ["Power in Light"] = 90055,
+            -- Warlock leveling day-1 (2026-09-17): the Curse of the Elements
+            -- amp lane (the Bane read uses the class-map CurseOfAgony ladder).
+            ["Curse of the Elements"] = 90056,
+            -- Shaman restoration day-1 (2026-09-18): the Riptide cast row (also the
+            -- HoT/amp buff anchor — the battery seeds one sentinel per name across all
+            -- mirrors, mirroring the other day-1 casts) and the Water Shield globes row.
+            ["Riptide"] = 90057,
+            ["Water Shield"] = 90058,
+            -- Paladin protection day-1 completion (2026-09-18): the Seal of
+            -- Fury tank seal (cast row AND buff anchor share the sentinel,
+            -- mirroring the other day-1 casts).
+            ["Seal of Fury"] = 90059,
+        }
+        local by_name = mirrors.spell_index_by_name_forever
+        local by_maxrank = mirrors.spell_maxrank_by_name_forever
+        local by_buff = mirrors.spell_buff_by_name_forever
+        if type(by_name) == "table" and type(by_maxrank) == "table"
+            and type(by_buff) == "table" then
+            for name, id in pairs(sentinels) do
+                by_name[name] = id
+                by_maxrank[name] = id
+                by_buff[name] = id
+            end
+        end
+    end
     -- Item presence: seed the REAL read the class files use (NS.has_item,
     -- installed by core/items.lua). The battery used to seed a package.loaded
     -- "common/utility/inventory_helper" whose has_item member the .api module
@@ -4480,7 +5087,12 @@ function M.run_spec(class_key, spec_key, scenarios, era, race_override)
         -- context, and a missing seed lane skips silently (no fabricated fire,
         -- no cross-spec behavior change).
         local cap = sc.capture
-        if cap and era == cap.era then
+        -- Forever runs the _vanilla files (fallback semantics), so vanilla
+        -- capture scenarios are the FOREVER proofs of the same lanes —
+        -- without this, enh FireNovaReplacement/GraceOfAirTotemTwist report
+        -- never in the forever battery purely because their capture is
+        -- era-locked to vanilla.
+        if cap and (era == cap.era or (era == "forever" and cap.era == "vanilla")) then
             local seed = nil
             for _, s in ipairs(strategies) do
                 if type(s) == "table" and s.name == cap.seed_lane
@@ -4664,12 +5276,14 @@ function M.run_all(era)
     local manifest = M.ERA_MANIFESTS[era]
     if not manifest then
         error("behavioral_audit: unknown era '" .. tostring(era)
-            .. "' (expected 'sylvanas', 'wotlk', 'vanilla' or 'sod')", 0)
+            .. "' (expected 'sylvanas', 'wotlk', 'vanilla', 'sod' or 'forever')", 0)
     end
     -- W4.3 (2026-08-14): the SoD era runs the shared scenario set plus the
     -- SoD-specific shapes (M.SCENARIOS_SOD); every other era keeps the
     -- shared set (byte-identical to the pre-W4.3 runs).
-    local scenarios = (era == "sod") and M.SCENARIOS_SOD or M.SCENARIOS
+    local scenarios = M.SCENARIOS
+    if era == "sod" then scenarios = M.SCENARIOS_SOD end
+    if era == "forever" then scenarios = M.SCENARIOS_FOREVER end
     local total = 0
     local reports = {}
     local load_failures = {}
@@ -4769,9 +5383,10 @@ function M.check_manifest_drift(era)
     era = era or "sylvanas"
     local manifest = M.ERA_MANIFESTS[era] or M.SPEC_FILES
     local expected = {}
+    local file_suffix = M.era_file_suffix(era)
     for class_key, specs in pairs(manifest) do
         for _, spec_key in ipairs(specs) do
-            expected[class_key .. "/" .. spec_key .. "_" .. era .. ".lua"] = true
+            expected[class_key .. "/" .. spec_key .. "_" .. file_suffix .. ".lua"] = true
         end
     end
     local non_spec = {
@@ -4785,6 +5400,14 @@ function M.check_manifest_drift(era)
         -- "healing_" exclusion must NOT apply or the manifest could silently
         -- drop the priest healing spec without drift complaining. Maximal
         -- strictness: every *_sod.lua file must have a manifest row.
+        non_spec = {}
+    end
+    if era == "forever" then
+        -- Forever delta files (2026-09-15): every _forever.lua file under
+        -- classes/ must have a manifest row (same maximal strictness as SoD —
+        -- a dropped delta is a dead delta). Delta files are optional per spec
+        -- (the loader falls back to _vanilla), so the SUFFIX scan only
+        -- validates files that exist; _vanilla siblings stay untouched.
         non_spec = {}
     end
     if era == "sylvanas" then
@@ -4803,7 +5426,7 @@ function M.check_manifest_drift(era)
             local attrs = lfs.attributes(dir)
             if attrs and attrs.mode == "directory" then
                 for fname in lfs.dir(dir) do
-                    if fname:match("^.*_" .. era .. "%.lua$") then
+                    if fname:match("^.*_" .. file_suffix .. "%.lua$") then
                         local is_non_spec = false
                         -- Prefix match against the FULL filename (stem drops the
                         -- trailing _<era>, so a stem-based match would never see
@@ -4827,6 +5450,14 @@ function M.check_manifest_drift(era)
     end
     for rel in pairs(expected) do
         local f = io.open("EaxRotations/classes/" .. rel, "rb")
+        if not f and era == "forever" then
+            -- Loader fallback (mirrors load_spec + class_loader): a manifest
+            -- entry without a _forever delta is satisfied by its _vanilla
+            -- file. Only a present _forever file is validated against the
+            -- manifest; _vanilla siblings are checked by the vanilla era.
+            local vanilla_rel = rel:gsub("_forever%.lua$", "_vanilla.lua")
+            f = io.open("EaxRotations/classes/" .. vanilla_rel, "rb")
+        end
         if not f then
             drift.missing[#drift.missing + 1] = rel
         else
@@ -4842,7 +5473,8 @@ end
 function M.print_report(agg)
     local era_label = (agg.era == "wotlk") and "wotlk"
         or ((agg.era == "vanilla") and "vanilla"
-        or ((agg.era == "sod") and "sod" or "sylvanas"))
+        or ((agg.era == "sod") and "sod"
+        or ((agg.era == "forever") and "forever" or "sylvanas")))
     print("=============================================================================")
     print("  BEHAVIORAL BATTERY AUDIT (" .. tostring(agg.total) .. " " .. era_label .. " specs)")
     print("=============================================================================")
@@ -4878,14 +5510,15 @@ end
 -- out with usage instead of silently producing no report.
 if arg and arg[0] and arg[0]:find("behavioral_audit", 1, true) then
     local cli_era = arg[1]
-    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" and cli_era ~= "sod" then
+    if cli_era and cli_era ~= "wotlk" and cli_era ~= "vanilla" and cli_era ~= "sod" and cli_era ~= "forever" then
         io.stderr:write("behavioral_audit: unknown era '" .. tostring(cli_era)
-            .. "' — expected 'wotlk', 'vanilla', 'sod' or no argument (default sylvanas)\n")
+            .. "' — expected 'wotlk', 'vanilla', 'sod', 'forever' or no argument (default sylvanas)\n")
         os.exit(1)
     end
     local era = (cli_era == "wotlk") and "wotlk"
         or ((cli_era == "vanilla") and "vanilla"
-        or ((cli_era == "sod") and "sod" or "sylvanas"))
+        or ((cli_era == "sod") and "sod"
+        or ((cli_era == "forever") and "forever" or "sylvanas")))
     local agg = M.run_all(era)
     M.print_report(agg)
 end

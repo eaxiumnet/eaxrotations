@@ -67,6 +67,10 @@ local function _resolve_expansion_key()
         _expansion_key = "sod"
         return _expansion_key
     end
+    if type(requested_mode) == "string" and requested_mode:lower() == "forever" then
+        _expansion_key = "forever"
+        return _expansion_key
+    end
     local gv = _cached_game_version
     if not gv then
         gv = core.get_game_version and core.get_game_version()
@@ -75,7 +79,12 @@ local function _resolve_expansion_key()
         local s = tostring(gv):lower()
         if s:find("season of discovery", 1, true) or s == "sod" then
             _expansion_key = "sod"
-        elseif s:find("cata", 1, true) or s:find("cataclysm", 1, true) or s:find("4.3", 1, true) then
+        elseif s:find("forever", 1, true) then
+            -- WoW Forever (beta 2026-09-17, launch 2026-11-04): must resolve
+            -- BEFORE the vanilla/classic branch — Forever version strings may
+            -- still contain "classic" and Forever is its own era key.
+            _expansion_key = "forever"
+        elseif s:find("cata", 1, true) or s:find("cataclysm", 1, true) or s:find("4%.3") then
             _expansion_key = "cata"
         elseif s:find("vanilla") or s:find("classic") then
             _expansion_key = "vanilla"
@@ -97,8 +106,18 @@ function NS.is_tbc()
     return key == "tbc" or key == nil
 end
 
+function NS.is_forever()
+    return _resolve_expansion_key() == "forever"
+end
+
+-- Forever (2026-09-15): vanilla-superset semantics. The WoW Forever client runs
+-- the SAME _vanilla spec files via the class_loader _forever -> _vanilla
+-- fallback, and every is_vanilla()-gated lane in those 40 fallback files must
+-- keep firing on Forever. Code that must discriminate Forever checks
+-- NS.is_forever() FIRST, then is_vanilla().
 function NS.is_vanilla()
-    return _resolve_expansion_key() == "vanilla"
+    local key = _resolve_expansion_key()
+    return key == "vanilla" or key == "forever"
 end
 
 function NS.is_wotlk()

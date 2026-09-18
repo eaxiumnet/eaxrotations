@@ -649,6 +649,53 @@ local components = {
             }
         end,
     },
+    -- Forever-era battery (2026-09-14, pre-beta; WoW Forever beta 2026-09-17 /
+    -- launch 2026-11-04): the forever era runs the SAME _vanilla spec files
+    -- under the forever harness (class_loader resolves _forever -> _vanilla;
+    -- ns.is_forever() true with the vanilla-superset is_vanilla() also true).
+    -- Its never-inventory is therefore identical to vanilla's lane-for-lane
+    -- (FOREVER_LANE_CLASS mirrors VANILLA_LANE_CLASS in spec_scorecard) until
+    -- _forever delta files land. STRICT from day 1: a future never-lane
+    -- hard-fails until pinned — new Forever lanes must be battery-observable
+    -- (Pattern 17 doctrine, no SoD-style retrofit).
+    {
+        label = "behavioral battery (forever)",
+        cmd = "lua " .. R .. "/behavioral_audit.lua forever",
+        check = function(c)
+            local specs = num(c, "Total:%s*(%d+)%s*|")
+            local load_fail = num(c, "Load failures:%s*(%d+)")
+            local never = 0
+            for _ in c:gmatch("NEVER:") do never = never + 1 end
+            return {
+                { "forever specs " .. tostring(specs) .. " (expected 40)", specs == 40 },
+                { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
+                { "never-firing " .. never .. " (expected 9 baseline, classified)", never == 9 },
+            }
+        end,
+    },
+    -- Forever spell audit (live since the 2026-09-17 beta DBC landing,
+    -- docs/forever/dbc_runbook.md): the real bridge enforces ID resolution
+    -- across every _forever file. (The scanner self-probes moved to the
+    -- dedicated "forever audit self-test" component below -- the live scan
+    -- no longer prints that marker.)
+    {
+        label = "forever spell audit",
+        cmd = "lua " .. R .. "/run_forever_audit_tests.lua",
+        check = function(c)
+            return {
+                { "live mode active (no SCAFFOLD MODE marker)", c:find("SCAFFOLD MODE", 1, true) == nil },
+                { "zero invalid ids", c:find("Invalid: 0", 1, true) ~= nil },
+            }
+        end,
+    },
+    {
+        label = "forever audit self-test",
+        cmd = "lua " .. R .. "/run_forever_audit_tests.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (scanner fires on synthetic violations)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
     -- Clean-checkout dependency probe: scans every test/runner for file-read
     -- path literals and asserts each resolves to a tracked file or a
     -- self-provisioning artifact (.omo/evidence regenerated per run). A test

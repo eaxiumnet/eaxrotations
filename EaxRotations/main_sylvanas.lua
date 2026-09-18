@@ -244,15 +244,30 @@ local _cached_talent_build_time = 0
 
 local _get_expansion_max_level = NS.get_expansion_max_level
 local _is_sod = NS.is_sod
+local _is_forever = NS.is_forever
 local _get_sod_runes = NS.get_sod_runes
 local EMPTY_SOD_RUNES = {}
 local SOD_DEFAULT_PHASE = 8
+local FOREVER_DEFAULT_PHASE = 1
 
 local function sod_phase(settings)
     local phase = settings and tonumber(settings.sod_phase) or nil
     if phase and phase >= 1 and phase <= 8 and phase == math.floor(phase) then return phase end
     return SOD_DEFAULT_PHASE
 end
+
+-- Forever phase reader: same validation contract as sod_phase above; default
+-- 1 because launch content is wave 1 (raids unlock Dec 9, 2026).
+local function forever_phase(settings)
+    local phase = settings and tonumber(settings.forever_phase) or nil
+    if phase and phase >= 1 and phase <= 8 and phase == math.floor(phase) then return phase end
+    return FOREVER_DEFAULT_PHASE
+end
+-- Publish the Forever helpers through the _api cache table (defined above):
+-- build_context is at the Lua 5.1 60-upvalue limit, so these ride the table it
+-- already closes over instead of adding function-upvalue slots.
+_api.is_forever = _is_forever
+_api.forever_phase = forever_phase
 local function _get_player()
     local p = NS.GetPlayer and NS.GetPlayer()
     if p then return p end
@@ -1306,6 +1321,17 @@ local function build_context()
         local ok, runes = pcall(_get_sod_runes, _context.settings)
         if ok and type(runes) == "table" then _context.sod_runes = runes end
     end
+    -- Forever era fields (2026-09-14): is_forever discriminates the World of
+    -- Warcraft: Forever client (is_vanilla is deliberately ALSO true there —
+    -- vanilla-superset semantics, see core_sylvanas.lua is_vanilla()).
+    -- forever_phase follows the SoD phase contract: schema slider default 1,
+    -- raised per content wave; future _forever spec files read it for
+    -- phase-gated abilities (raids unlock Dec 9, 2026).
+    -- NOTE: read via _api (below) — build_context is at the Lua 5.1 60-upvalue
+    -- cap, so new era helpers ride the existing _api cache instead of fresh
+    -- function-upvalue slots.
+    _context.is_forever = _api.is_forever and _api.is_forever() or false
+    _context.forever_phase = _context.is_forever and _api.forever_phase and _api.forever_phase(_context.settings) or nil
     -- SoD rotation state fields (form, pet hp, poison stacks, shields, imbue,
     -- HoT flags, Maelstrom stacks, swing timers) the _sod spec files read but
     -- the base context does not produce. Gated on is_sod: other eras never

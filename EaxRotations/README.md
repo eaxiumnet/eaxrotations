@@ -6,8 +6,8 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.28.0-blue" alt="Version 2.28.0">
-  <img src="https://img.shields.io/badge/specs-132%20rated%20(4%20eras)-brightgreen" alt="132 Specs Rated Across 4 Eras (live-gated)">
-  <img src="https://img.shields.io/badge/tests-569%2F569%20passing-brightgreen" alt="569/569 Tests Passing (rotation suite fully green)">
+  <img src="https://img.shields.io/badge/specs-172%20rated%20(5%20eras)-brightgreen" alt="172 Specs Rated Across 5 Eras (live-gated)">
+  <img src="https://img.shields.io/badge/tests-601%2F601%20passing-brightgreen" alt="601/601 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -15,7 +15,7 @@
 
 ## What Is This?
 
-**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)** and **Season of Discovery**. Across the 4 eras it ships **132 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **569-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
+**EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft** on Project Sylvanas: **TBC Classic Anniversary**, **WotLK**, **Vanilla (Classic)**, **Season of Discovery** and **WoW Forever**. Across the 5 eras it ships **172 rated spec rotations** (31 TBC · 41 WotLK · 40 Vanilla · 20 SoD · 40 Forever), plus class leveling rotations, built on one shared combat engine and safety middleware. Every spec is behavior-verified by a **601-suite release battery** with zero unreachable rules — see [docs/ACCURACY.md](docs/ACCURACY.md), the player-facing accuracy report regenerated and gate-checked on every release.
 
 Every action passes shared safety gates before casting:
 - ✅ Player exists, is alive, and can act
@@ -52,7 +52,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 608 test suites (569 rotation + 39 leveling)
+    tests/                  # 649 test suites (601 rotation + 48 leveling)
 ```
 
 ---
@@ -79,12 +79,12 @@ scripts/
 
 | Feature | Description |
 |---------|-------------|
-| 🎯 **132 Rated Spec Rotations** | 4 eras, every decision rule exercised by the release battery (0 unreachable rules) |
+| 🎯 **172 Rated Spec Rotations** | 5 eras, every decision rule exercised by the release battery (0 unreachable rules) |
 | 📈 **9 Leveling Rotations** | Auto-loaded for characters under level 70 |
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **608 Test Suites** | 569 rotation + 39 leveling registered; 569 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
+| 🧪 **649 Test Suites** | 601 rotation + 48 leveling registered; 601 rotation passing at runtime (all rotation suites green incl. the 3 `check_*` static-analysis audits; `test_sod_source_audit` self-provisions its `.omo/evidence` via the tracked generator) |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -122,8 +122,8 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 569 rotation suites
-    ├── run_leveling_tests.lua    # 39 leveling suites
+    ├── run_rotation_tests.lua    # 601 rotation suites
+    ├── run_leveling_tests.lua    # 48 leveling suites
     └── test_*.lua                # Individual test files
 ```
 
@@ -175,13 +175,13 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**569 suites**):
+Run the full rotation regression suite (**601 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua
 ```
 
-Run the leveling test suite (**39 suites**):
+Run the leveling test suite (**48 suites**):
 
 ```bash
 lua EaxRotations/tests/run_leveling_tests.lua

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WoW Forever 3D Models</title>
+<style>
+:root { color-scheme: dark; }
+body { background:#0d1117; color:#c9d1d9; font:14px/1.45 -apple-system,"Segoe UI",sans-serif; margin:0; display:flex; height:100vh; overflow:hidden; }
+#side { width:300px; min-width:220px; border-right:1px solid #30363d; display:flex; flex-direction:column; }
+#side header { padding:12px 14px; border-bottom:1px solid #30363d; }
+#side h1 { font-size:15px; margin:0 0 4px; }
+#side p { margin:0; color:#8b949e; font-size:12px; }
+#q { margin:8px 14px; background:#0d1117; border:1px solid #30363d; color:#c9d1d9; border-radius:6px; padding:6px 10px; }
+#list { overflow:auto; flex:1; }
+#list .m { padding:6px 14px; border-bottom:1px solid #161b22; cursor:pointer; }
+#list .m:hover { background:#161b22; }
+#list .m.on { background:#1f6feb33; border-left:3px solid #1f6feb; }
+#list .m .nm { font-weight:600; }
+#list .m .meta { color:#8b949e; font-size:11px; display:block; }
+#stage { position:relative; flex:1; }
+canvas { display:block; width:100%; height:100%; }
+#hud { position:absolute; left:12px; bottom:12px; color:#8b949e; font-size:12px; background:#0d1117cc; padding:6px 10px; border:1px solid #30363d; border-radius:6px; }
+#hud b { color:#c9d1d9; }
+#note { position:absolute; top:12px; right:12px; color:#8b949e; font-size:12px; background:#0d1117cc; padding:6px 10px; border:1px solid #30363d; border-radius:6px; }
+a.back { color:#58a6ff; text-decoration:none; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="side">
+<header>
+<h1>Forever 3D models</h1>
+<p><span id="count">0</span> client models &middot; geometry only, textures embedded</p>
+<p><a class="back" href="index.html">&larr; back to the datamine browser</a></p>
+</header>
+<input type="text" id="q" placeholder="Search model or item name..." autocomplete="off">
+<div id="list"></div>
+</div>
+<div id="stage">
+<canvas id="gl"></canvas>
+<div id="hud"><b id="hudname">-</b> <span id="hudmeta"></span></div>
+<div id="note">drag = orbit &middot; wheel = zoom &middot; double-click = reset</div>
+</div>
+<script src="models.js"></script>
+<script>
+"use strict";
+var INDEX = (window.MODELS_INDEX || []).slice();
+var MODELS = window.MODELS || {};
+document.getElementById("count").textContent = INDEX.length;
+
+function b64ToU8(b64) {
+  var bin = atob(b64);
+  var out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+var canvas = document.getElementById("gl");
+var gl = canvas.getContext("webgl", { antialias: true }) ||
+         canvas.getContext("experimental-webgl");
+var prog = null, state = null, cam = { rx: 0.4, ry: 0.6, dist: 2.5, bounds: 1 };
+
+function compile(vs, fs) {
+  var v = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(v, vs); gl.compileShader(v);
+  var f = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(f, fs); gl.compileShader(f);
+  var p = gl.createProgram();
+  gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(p) || "link failed");
+  }
+  return p;
+}
+
+var VS = [
+  "attribute vec3 aPos; attribute vec3 aNorm; attribute vec2 aUv;",
+  "uniform mat4 uMvp; uniform mat3 uRot; uniform vec3 uCenter;",
+  "varying vec3 vNorm; varying vec2 vUv;",
+  "void main(){ vNorm = uRot * aNorm; vUv = aUv;",
+  "  gl_Position = uMvp * vec4(aPos - uCenter, 1.0); }"].join("\n");
+var FS = [
+  "precision mediump float;",
+  "uniform sampler2D uTex; uniform float uHasTex;",
+  "varying vec3 vNorm; varying vec2 vUv;",
+  "void main(){",
+  "  float l = 0.55 + 0.45 * max(dot(normalize(vNorm), normalize(vec3(0.4,0.7,0.6))), 0.0);",
+  "  vec3 base = uHasTex > 0.5 ? texture2D(uTex, vUv).rgb : vec3(0.65,0.6,0.55);",
+  "  float a = uHasTex > 0.5 ? texture2D(uTex, vUv).a : 1.0;",
+  "  if (a < 0.05) discard;",
+  "  gl_FragColor = vec4(base * l, 1.0); }"].join("\n");
+
+function mat4Mul(a, b) {
+  var o = new Float32Array(16);
+  for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
+    var s = 0;
+    for (var k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+    o[i * 4 + j] = s;
+  }
+  return o;
+}
+function perspective(fovy, aspect, near, far) {
+  var f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  return new Float32Array([
+    f / aspect, 0, 0, 0, 0, f, 0, 0,
+    0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
+}
+function lookAt(eye, center, up) {
+  var z = norm(sub(eye, center)), x = norm(cross(up, z)), y = cross(z, x);
+  return new Float32Array([
+    x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0,
+    -dot(x, eye), -dot(y, eye), -dot(z, eye), 1]);
+}
+function sub(a, b) { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+function dot(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a, b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function norm(a) { var l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
+
+function loadModel(fdid) {
+  var m = MODELS[fdid];
+  if (!m || !gl) return;
+  var verts = new Float32Array(b64ToU8(m.verts).buffer);
+  var idx = new Uint16Array(b64ToU8(m.idx).buffer);
+  if (!prog) {
+    prog = compile(VS, FS);
+    prog.aPos = gl.getAttribLocation(prog, "aPos");
+    prog.aNorm = gl.getAttribLocation(prog, "aNorm");
+    prog.aUv = gl.getAttribLocation(prog, "aUv");
+    prog.uMvp = gl.getUniformLocation(prog, "uMvp");
+    prog.uRot = gl.getUniformLocation(prog, "uRot");
+    prog.uCenter = gl.getUniformLocation(prog, "uCenter");
+    prog.uTex = gl.getUniformLocation(prog, "uTex");
+    prog.uHasTex = gl.getUniformLocation(prog, "uHasTex");
+  }
+  var vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  var ibo = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  var tex = null, hasTex = 0;
+  if (m.tex) {
+    tex = gl.createTexture();
+    var img = new Image();
+    img.onload = function () {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      if (state && state.tex === tex) {
+        state.hasTex = 1;
+        draw();
+      }
+    };
+    img.src = "data:image/png;base64," + m.tex;
+    hasTex = 1;
+  }
+  var min = [1e9, 1e9, 1e9], max = [-1e9, -1e9, -1e9];
+  for (var i = 0; i < verts.length; i += 8) {
+    for (var c = 0; c < 3; c++) {
+      if (verts[i + c] < min[c]) min[c] = verts[i + c];
+      if (verts[i + c] > max[c]) max[c] = verts[i + c];
+    }
+  }
+  var center = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2,
+                (min[2] + max[2]) / 2];
+  var maxR = 0;
+  for (var j = 0; j < verts.length; j += 8) {
+    var r = Math.hypot(verts[j] - center[0], verts[j + 1] - center[1],
+                       verts[j + 2] - center[2]);
+    if (r > maxR) maxR = r;
+  }
+  state = { vbo: vbo, ibo: ibo, n: idx.length, tex: tex, hasTex: hasTex,
+            bounds: maxR || 1, center: center, name: m.name, tri: m.tri,
+            vcount: m.vcount };
+  cam.dist = 1.7;
+  document.getElementById("hudname").textContent = m.name || ("model " + fdid);
+  document.getElementById("hudmeta").textContent =
+    "(" + m.vcount + " verts, " + m.tri + " tris)";
+  draw();
+}
+
+function draw() {
+  if (!gl) return;
+  var w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+  gl.viewport(0, 0, w, h);
+  gl.enable(gl.DEPTH_TEST);
+  gl.clearColor(0.05, 0.067, 0.09, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!state || !prog) return;
+  gl.useProgram(prog);
+  var cy = Math.cos(cam.ry), sy = Math.sin(cam.ry);
+  var cx = Math.cos(cam.rx), sx = Math.sin(cam.rx);
+  var rot = new Float32Array([cy, -sy, 0, 0, sy, cy, 0, 0,
+                              0, 0, 1, 0, 0, 0, 0, 1]);
+  var elev = new Float32Array([1, 0, 0, 0, 0, cx, -sx, 0,
+                               0, sx, cx, 0, 0, 0, 0, 1]);
+  var r4 = mat4Mul(elev, rot);
+  var r3a = new Float32Array([r4[0], r4[1], r4[2], r4[4], r4[5], r4[6],
+                              r4[8], r4[9], r4[10]]);
+  var eye = [0, 0, cam.dist * state.bounds * 2.2];
+  var view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
+  var proj = perspective(0.9, w / Math.max(h, 1), 0.01,
+                         cam.dist * state.bounds * 100);
+  var mvp = mat4Mul(proj, view);
+  mvp = mat4Mul(mvp, r4);
+  gl.uniformMatrix4fv(prog.uMvp, false, mvp);
+  gl.uniformMatrix3fv(prog.uRot, false, r3a);
+  gl.uniform3fv(prog.uCenter, state.center);
+  gl.uniform1f(prog.uHasTex, state.hasTex ? 1 : 0);
+  if (state.tex && state.hasTex) {
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, state.tex);
+    gl.uniform1i(prog.uTex, 0);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, state.vbo);
+  gl.enableVertexAttribArray(prog.aPos);
+  gl.vertexAttribPointer(prog.aPos, 3, gl.FLOAT, false, 32, 0);
+  gl.enableVertexAttribArray(prog.aNorm);
+  gl.vertexAttribPointer(prog.aNorm, 3, gl.FLOAT, false, 32, 12);
+  gl.enableVertexAttribArray(prog.aUv);
+  gl.vertexAttribPointer(prog.aUv, 2, gl.FLOAT, false, 32, 24);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, state.ibo);
+  gl.drawElements(gl.TRIANGLES, state.n, gl.UNSIGNED_SHORT, 0);
+}
+
+var drag = null;
+canvas.addEventListener("mousedown", function (e) {
+  drag = { x: e.clientX, y: e.clientY };
+});
+window.addEventListener("mousemove", function (e) {
+  if (!drag) return;
+  cam.ry += (e.clientX - drag.x) * 0.01;
+  cam.rx += (e.clientY - drag.y) * 0.01;
+  cam.rx = Math.max(-1.5, Math.min(1.5, cam.rx));
+  drag = { x: e.clientX, y: e.clientY };
+  draw();
+});
+window.addEventListener("mouseup", function () { drag = null; });
+canvas.addEventListener("wheel", function (e) {
+  cam.dist *= e.deltaY > 0 ? 1.12 : 0.9;
+  cam.dist = Math.max(0.5, Math.min(20, cam.dist));
+  draw();
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener("dblclick", function () {
+  cam.rx = 0.4; cam.ry = 0.6; cam.dist = 2.6; draw();
+});
+
+function renderList() {
+  var q = document.getElementById("q").value.trim().toLowerCase();
+  var host = document.getElementById("list");
+  var html = "";
+  for (var i = 0; i < INDEX.length; i++) {
+    var it = INDEX[i];
+    if (q && it.name.toLowerCase().indexOf(q) < 0 &&
+        String(it.fdid).indexOf(q) < 0) continue;
+    html += '<div class="m" data-fdid="' + it.fdid + '"><span class="nm">'
+      + esc(it.name) + '</span><span class="meta">' + it.verts + " verts &middot; "
+      + it.tris + " tris" + (it.tex ? "" : " &middot; untextured")
+      + '</span></div>';
+  }
+  host.innerHTML = html || '<p style="padding:10px;color:#8b949e">no models yet</p>';
+  var els = host.children;
+  for (var j = 0; j < els.length; j++) {
+    if (!els[j].getAttribute("data-fdid")) continue;
+    els[j].onclick = (function (el) {
+      return function () {
+        for (var k = 0; k < els.length; k++) els[k].classList.remove("on");
+        el.classList.add("on");
+        loadModel(+el.getAttribute("data-fdid"));
+      };
+    })(els[j]);
+  }
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+document.getElementById("q").oninput = renderList;
+window.addEventListener("resize", draw);
+renderList();
+if (INDEX.length) loadModel(INDEX[0].fdid);
+if (!gl) {
+  document.getElementById("hud").textContent =
+    "WebGL unavailable in this browser - list still browsable";
+}
+</script>
+</body>
+</html>
