@@ -11,14 +11,18 @@
 --        _forever over _vanilla).
 -- WHY:   docs/forever/kits/rogue.md: "constant-regen energy reshapes early
 --        leveling pace; Mutilate from early levels (Assassination leveling)."
---        The energy half is PROBE-GATED (P2 #3 still unconfirmed — the
---        tick-pulse survives), so this delta keeps the vanilla real-cost
---        energy shape exactly like the #20 assassination lane did; the
---        Mutilate half is this lane. DBC FINDINGS (1.60.1.69893): the ladder
---        above; the lane casts the {maxrank 1241584, rank-1 399956} bridge
---        ladder — NS.get_spell_id picks the highest LEARNED rung (levels
---        40-60); the @30 rank 1310707 is not name-reachable (the same
---        rank-ladder-mirror gap the paladin leveling day-1 recorded).
+--        BETA-VERIFICATION PASS (2026-09-18, P2 #3 CLOSED): constant-regen
+--        energy is CONFIRMED (Icy Veins per-spec guides + class overview).
+--        For the builder that means the real-cost gate IS the whole story:
+--        Mutilate's DBC SpellPower cost is 60 energy on EVERY rank (rows
+--        170015..314523, PowerType 3), so the gate below needs no pooling
+--        floor or tick-sync offset — under constant regen the energy arrives
+--        smoothly and the 2-CP builder fires the moment 60 is available.
+--        DBC FINDINGS (1.60.1.69893): the ladder above; the lane casts the
+--        {maxrank 1241584, rank-1 399956} bridge ladder — NS.get_spell_id
+--        picks the highest LEARNED rung (levels 40-60); the @30 rank
+--        1310707 is not name-reachable (the same rank-ladder-mirror gap the
+--        paladin leveling day-1 recorded).
 -- SAFETY: ZERO numeric spell-ID literals — Mutilate resolves BY NAME through
 --        the bridge mirrors; the dagger eligibility mirrors the #20 helper
 --        (both hands, shared/dagger_set, fail-closed). A nil lookup leaves
@@ -96,8 +100,9 @@ if MUTILATE_MAX or MUTILATE_R1 then
 end
 
 -- ---------------------------------------------------------------------------
--- Shared helpers. Mutilate's base cost is 60 energy (the #20 constant; the
--- energy-model probe is still unconfirmed, so no threshold re-derivation).
+-- Shared helpers. Mutilate's DBC SpellPower cost is 60 energy on every rank
+-- (beta 1.60.1.69893); under constant-regen energy (P2 #3 confirmed) the
+-- real-cost gate below is the complete energy model — no pooling floor.
 -- ---------------------------------------------------------------------------
 local MUTILATE_ENERGY = 60
 

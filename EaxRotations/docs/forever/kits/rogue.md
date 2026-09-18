@@ -156,15 +156,20 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
   generators the rotation already casts — no lane, recorded as a probe.
 - `classes/rogue/leveling_forever.lua` — constant-regen energy reshapes
   early leveling pace; Mutilate from early levels (Assassination leveling).
-  **Status (2026-09-17, beta day): DAY-1 BUILT (1 lane)** — the Mutilate
-  2-CP builder above the baseline's Sinister Strike, with the both-hand
-  dagger gate (the #20 helper shape), the 60-energy cost, the combo ceiling
-  and the learn gate over the bridge's {maxrank 1241584, rank-1 399956}
-  ladder (NS.get_spell_id picks the highest learned rung — levels 40-60; the
-  @30 rank 1310707 is not name-reachable, the same rank-ladder-mirror gap as
-  the paladin leveling day-1). The ENERGY half is probe-gated (P2 #3 still
-  unconfirmed — the tick-pulse survives), so this delta keeps the vanilla
-  real-cost energy shape exactly like the #20 assassination lane.
+  **Status (2026-09-18, beta-verification pass): VERIFIED under constant-
+  regen energy (P2 #3 CLOSED) — no code change needed. Mutilate's DBC
+  SpellPower cost is 60 energy on every rank, so the real-cost gate is the
+  complete energy model for a builder; the file's probe-gated energy caveat
+  is resolved in its header. Original day-1 status: DAY-1 BUILT (1 lane) —
+  the Mutilate 2-CP builder above the baseline's Sinister Strike, with the
+  both-hand dagger gate (the #20 helper shape), the 60-energy cost, the
+  combo ceiling and the learn gate over the bridge's {maxrank 1241584,
+  rank-1 399956} ladder (NS.get_spell_id picks the highest learned rung —
+  levels 40-60; the @30 rank 1310707 is not name-reachable, the same
+  rank-ladder-mirror gap as the paladin leveling day-1). The ENERGY half was
+  probe-gated (P2 #3 still unconfirmed — the tick-pulse survives), so this
+  delta kept the vanilla real-cost energy shape exactly like the #20
+  assassination lane.
 
 ## Verification checklist (beta DBC, dbc_runbook.md step 5-6)
 - [x] Resolve every named ability above BY NAME in the Forever bridge
