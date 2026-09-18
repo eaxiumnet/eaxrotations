@@ -368,3 +368,19 @@ Race-gated active lanes (Eureka!, Elune's Light, the four priest race spells)
 stay unlaned until in-game race detection is confirmed — the same rule the
 priest kit recorded on 2026-09-18. Nothing in this sweep is guessed: every
 row above was read from the beta DBC directly.
+
+## Seal of Fury taunt pair (protection delta, 2026-09-18)
+
+- DBC: Seal of Fury ladder 1311649@10 / 1311656@18 / 20163@25 / 20419@34 /
+  20421@42 / 20422@50 / 20423@58; trigger rows point at the Judgement ids;
+  absorb text confirmed ("grants an absorb shield equal to $m2%"). The
+  Judgement 20271 row keeps RecoveryTime 10000 and the kit's
+  "does not consume the Seal" behavior holds on Forever (seals 30s).
+- LANED (day-1 completion): `forever_pal_prot_fury` /
+  `forever_pal_prot_judgement_taunt` battery scenarios +
+  `test_paladin_protection_forever.lua`. The taunt is the first prot taunt
+  in any era of this engine.
+- REDUCED PROBE (in-game): confirm the live Judgement taunt requires Seal
+  of Fury specifically (the DBC trigger linkage suggests yes) and whether
+  the absorb shield reads via buff points (Pattern 11) — if so, a future
+  lane can gate re-cast on shield value remaining.

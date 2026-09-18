@@ -48,6 +48,14 @@
   load-bearing by file-revert; battery scenarios forever_resto_riptide
   (fires) / _maintained (holds) / _watershield (fires); restoration 27
   strategies / 0 never / 0 dispatch errors.
+- **Paladin protection joins the delta set (day-1 completion).**
+  `protection_forever.lua` lanes the Seal of Fury pair — the
+  Judgement-of-Fury taunt (Judgement no longer consumes any seal; DBC
+  ladder maxrank 20423@58) plus Fury upkeep — and wraps the baseline's
+  SealRighteousness lane in place so it cannot re-stomp Fury (the unit
+  suite pins the baseline-vs-wrapped matcher behavior; battery scenarios
+  forever_pal_prot_fury / forever_pal_prot_judgement_taunt prove the
+  fire/hold split). Coverage contract now 37 deltas + 3 fallbacks.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

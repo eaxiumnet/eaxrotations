@@ -80,6 +80,24 @@ Forever liveblog. Full class walkthrough; other classes follow in Blizzard's
   Judgment seal upkeep, Twist of Light echo lane.
 - `classes/paladin/protection_forever.lua` — Seal of Fury taunt, Consecration
   threat, block-Reckoning, Templar's Bulwark with Forbearance tracking.
+  **Status (2026-09-18, day-1 completion): LANED (2 lanes + wrap)** — the
+  Seal of Fury pair: Judgement-of-Fury (the taunt — Judgement no longer
+  consumes any seal on Forever and taunts while Fury is active; fires with
+  Fury up on the kill target) and Fury upkeep (max-rank mirror 20423@58,
+  buff anchor via the buff mirror, mana floor 30 to respect the baseline's
+  Seal-of-Wisdom starvation band). The baseline's SealRighteousness lane is
+  WRAPPED in place — with Fury up it stays blocked (its buff table predates
+  the seal and would re-stomp Fury every tick; proven by the unit suite's
+  baseline-vs-wrapped matcher pin), and Judgement of Wisdom stays reachable
+  below. Consecration/block-Reckoning/Templar's Bulwark need no delta:
+  Consecration is the baseline's own AoE lane (Forever makes it baseline at
+  20, which the vanilla ladder already covers), and the Bulwark rows are
+  passives. Unit pins: test_paladin_protection_forever (mirror selection
+  19059/19159, splice geometry, wrap discipline, dormant no-op path),
+  load-bearing proven by file-revert. Battery scenarios:
+  forever_pal_prot_fury (upkeep fires) / forever_pal_prot_judgement_taunt
+  (taunt fires, upkeep HOLDS, wrapped SoR stays blocked — the 338-scenario
+  SoR record loses exactly this one scenario).
 - `classes/paladin/holy_forever.lua` — 10s Holy Shock core, Infusion of Light
   weaving, Light's Vigil burst, Spirit/FSR interplay.
   **Status (2026-09-15, pre-beta): AUTHORED** — zero-literal delta over

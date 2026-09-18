@@ -1504,6 +1504,16 @@ function M.build_ns(class_key, era)
         -- from fires to never (TBC-era counts verified unchanged by the
         -- battery regression suite).
         HolyShock = ns.spell_action({ 27180, 20473, 20929, 20930 }, "HolyShock"),
+        -- Forever prot day-1 completion (2026-09-18): the protection delta
+        -- loads through the _forever suffix, so the baseline's unseeded
+        -- actions now resolve in the battery too. Additive (the unseeded
+        -- reads were permissive nil paths) — TBC/WotLK/vanilla/SoD paladin
+        -- never-counts verified unchanged by the battery regression run.
+        RighteousFury = ns.spell_action({ 25780 }, "RighteousFury"),
+        SealOfWisdom = ns.spell_action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom"),
+        HolyWrath = ns.spell_action({ 27139, 10318, 2812 }, "HolyWrath"),
+        BlessingOfSanctuary = ns.spell_action({ 27149, 20914, 20913, 20912, 20911 }, "BlessingOfSanctuary"),
+        BlessingOfProtection = ns.spell_action({ 10278, 5573, 5572, 1026 }, "BlessingOfProtection"),
     }
     ns.PriestSpells = {
         -- ids[1] resolves the holy_cure_on_cd on_cd entry (CureDisease on CD
@@ -3753,6 +3763,21 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_riptide_
                   buff_remains_map = { [90057] = 12 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_resto_watershield",
     overrides = { in_combat = true, mana_pct = 80 } }
+-- Paladin protection day-1 completion (2026-09-18): the Seal of Fury upkeep
+-- (Righteous Fury + Holy Shield held through the real buff ids so the
+-- baseline's earlier self-buff lanes hold, Consecration held through its
+-- debuff bank — the seal slots are then the first open lanes) and the
+-- Judgement of Fury taunt (the 90059 sentinel in the buff bank = Fury up;
+-- the upkeep lane must HOLD and the wrapped SealRighteousness must stay
+-- blocked — the taunt is the first lane open).
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_fury",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [25780] = 600, [20928] = 600 },
+                  debuff_remains_map = { [20924] = 10 } } }
+M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_pal_prot_judgement_taunt",
+    overrides = { in_combat = true, mana_pct = 80,
+                  buff_remains_map = { [25780] = 600, [20928] = 600, [90059] = 600 },
+                  debuff_remains_map = { [20924] = 10 } } }
 
 -- Priest leveling: the universal pair — Devouring Plague in combat (the
 -- debuff absent by default) and Fear Ward out of combat.
@@ -4710,6 +4735,10 @@ function M.load_spec(class_key, spec_key, era, race_override)
             -- mirrors, mirroring the other day-1 casts) and the Water Shield globes row.
             ["Riptide"] = 90057,
             ["Water Shield"] = 90058,
+            -- Paladin protection day-1 completion (2026-09-18): the Seal of
+            -- Fury tank seal (cast row AND buff anchor share the sentinel,
+            -- mirroring the other day-1 casts).
+            ["Seal of Fury"] = 90059,
         }
         local by_name = mirrors.spell_index_by_name_forever
         local by_maxrank = mirrors.spell_maxrank_by_name_forever

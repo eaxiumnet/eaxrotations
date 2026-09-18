@@ -150,3 +150,23 @@ errors. Coverage contract now 36 deltas + 4 deliberate fallbacks
 TBC 31 / Vanilla 40 / WotLK 41 / SoD 20 / Forever 40 specs; era never-pins
 unchanged (tbc=11, wotlk=0, vanilla=9, sod=14, forever=9). Suites:
 599 rotation (+1 new) / 48 leveling / 82 WotLK green.
+
+---
+
+## Day-1 completion unit — paladin protection (2026-09-18)
+
+The first prot taunt arrives: `protection_forever.lua` lanes the Seal of
+Fury pair (Judgement-of-Fury taunt + Fury upkeep, DBC ladder 1311649..20423
+with maxrank 20423@58; Judgement keeps its 10s RecoveryTime and no longer
+consumes any seal) and wraps the baseline's SealRighteousness lane in place
+— its buff table predates the new seal, so unwrapped it re-stomps Fury
+every tick. Judgement of Wisdom stays reachable below (starvation band).
+Unit suite `test_paladin_protection_forever.lua` (5 pins: mirror selection
+19059/19159, splice geometry, wrap discipline, dormant no-op path)
+load-bearing by file-revert; battery scenarios `forever_pal_prot_fury`
+(upkeep fires) / `forever_pal_prot_judgement_taunt` (taunt fires, upkeep
+holds, wrapped SoR blocked). Coverage contract: 37 deltas + 3 deliberate
+fallbacks (retribution, druid caster, warrior kebab). Suites: 600 rotation
+(+1) / 48 leveling / 82 WotLK. All five era batteries re-run green (0 load
+failures), era never-pins unchanged (tbc=11, wotlk=0, vanilla=9, sod=14,
+forever=9).

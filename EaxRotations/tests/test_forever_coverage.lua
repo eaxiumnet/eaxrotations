@@ -31,9 +31,11 @@ end
 -- The 40 vanilla rotation files (class dir / spec base) and their Forever
 -- decision: true = a _forever delta is required, false = deliberate
 -- fallback (the loader resolves _vanilla, which stays correct-until-
--- proven-otherwise). The fallback set: paladin protection/retribution,
+-- proven-otherwise). The fallback set: paladin retribution,
 -- druid caster, warrior kebab. (shaman restoration joined the delta set
--- 2026-09-18: the Riptide capstone loop + Water Shield rework.)
+-- 2026-09-18: the Riptide capstone loop + Water Shield rework; paladin
+-- protection joined 2026-09-18: the Seal of Fury tank seal + Judgement
+-- taunt pair — the first prot taunt.)
 local SPECS = {
     ["druid/balance"] = true,
     ["druid/bear"] = true,
@@ -51,7 +53,7 @@ local SPECS = {
     ["mage/leveling"] = true,
     ["paladin/holy"] = true,
     ["paladin/leveling"] = true,
-    ["paladin/protection"] = false,
+    ["paladin/protection"] = true,
     ["paladin/retribution"] = false,
     ["priest/discipline"] = true,
     ["priest/holy"] = true,
