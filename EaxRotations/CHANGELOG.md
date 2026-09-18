@@ -71,6 +71,14 @@
   duplicated boilerplate are gone (behavior-neutral: positional first-match
   dispatch, lane order and semantics unchanged; all unit suites green with
   revert proofs intact, batteries and era never-pins identical).
+- **Open probes became a live-beta smoke-test checklist.**
+  `docs/forever/beta_smoke_checklist.md` re-cuts every OPEN entry in
+  beta_day1_probes.md into 45 execution-ordered in-game items across six
+  blocks (engine truth first, the three P2 wave gates, then per-class
+  lane shapes, a warlock deep-dive, remaining per-class probes, P5
+  ride-alongs), each with method, expected result, and the ledger/kit
+  entry its verdict lands in; the probes doc now points at it as the
+  session runbook.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

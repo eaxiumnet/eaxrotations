@@ -16,7 +16,9 @@ Precondition: runbook steps 0–3 done — beta client installed, DBC
 extracted, bridge built, audit live (`--check-bridge` exit 0). Probes run
 against the bridge and/or in-game on the beta client. Record each verdict
 in the owning kit doc's verification checklist (checkbox + date), and
-apply the listed build-order consequence.
+apply the listed build-order consequence. Step-by-step in-game
+execution for every open probe lives in **beta_smoke_checklist.md**
+(the session runbook, blocks 0-5); this file stays the verdict ledger.
 
 ## P0 — recon before any tooling (runbook first-day checklist)
 
