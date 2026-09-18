@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+### Era: WoW Forever — beta-verification pass (day 2, 2026-09-18)
+
+- **P2 #3 (rogue constant-regen energy) CLOSED.** The Icy Veins per-spec
+  guides + the 2026-09-15 class overview confirm constant-regen energy, so
+  the rogue deltas re-derive from the tick-pulse pooling fiction to DBC
+  SpellPower facts: the assassination Venom window now gates on the DBC
+  cost (25 energy + 1 combo point — rows 314521/314522) plus a 20-energy
+  CP-buffer instead of the baseline pooling flag, which sat at Venom's own
+  cost boundary; the subtlety Thousand Cuts lane gates on the DBC effective
+  cost (Hemorrhage 35 − 3/stack) plus a 10-energy reserve, firing the
+  discounted generator at 30 energy with 5 stacks (the flat 40 floor is
+  gone); Mutilate's 60-energy gate and the combat RB lane's Eviscerate-35
+  gate are DBC-verified and unchanged; the leveling builder's real-cost
+  gate is confirmed as the complete energy model.
+- **A latent battery lane-proof gap closed (Pattern-17).** The battery's
+  class-map mock lacked Hemorrhage and Backstab, so the subtlety
+  ThousandCuts lane and the combat PuncturingWounds lane had never loaded
+  in ANY battery run — the forever battery was green while those two delta
+  lanes proved nothing. The mock now carries both vanilla-ladder actions;
+  the lanes register and fire, and a 40-energy Venom scenario plus a
+  30-energy/5-stack TC scenario discriminate the re-derived gates from the
+  old shapes (both proven by revert).
+- **Priest kit refresh: the Icy Veins Priest overview is live** (Rainy,
+  2026-09-16), resolving the kit's lowest-source-tier caveat. DBC-verified
+  records: the four race-gated priest spells (Contingency Plan / Gnome,
+  Divine Grace / Human, Chastise / Dwarf, Dark Sacrifice / Undead) resolve
+  in the bridge mirrors and are recorded as leveling lane candidates (not
+  laned until in-game race-detection confirmation); Power Infusion's
+  "requires Penance" is a talent-tree prerequisite (the 10060 cast row is
+  unchanged), and Improved Healing's −14% mana family now covers Penance +
+  Prayer of Mending (pure passive).
+- **Drain Hope vs Wrack verdict recorded** in the probe list: no client row
+  named Drain Hope exists; the capstone ships as Wrack 1316697 (Improved
+  Drains names it in its own text) — the day-1 affliction delta already
+  maintained Wrack by name, so the shipped lanes stand.
+- **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
+  35 files / 0 invalid; battery strict in every era (forever never=9);
+  scorecard, badges and doc counts in sync; verify_all exit 0 (44
+  components).
+
 ### Era: WoW Forever — day-1 rotations complete (29 specs + leveling)
 
 - **Every spec has a Forever rotation path.** 26 spec deltas + 9 leveling
@@ -47,8 +87,9 @@
   row is class-less (the sacrifice stays a manual pre-pull choice).
 - **Open in-game probes** (all recorded in
   `docs/forever/beta_day1_probes.md` + the per-class kits): the rogue
-  constant-regen energy model (P2 #3 — every rogue energy threshold stays
-  vanilla-shaped until it lands); the Bane-vs-Curse slot mechanics (the
+  constant-regen energy model (P2 #3 — CLOSED 2026-09-18 by the
+  beta-verification pass above; the thresholds re-derived); the
+  Bane-vs-Curse slot mechanics (the
   leveling amp lane would churn if shared); Demonic Pact's third-demon
   behaviour; the Shadow and Flame window durations and the Decimation
   proc's token values; PoM's jump count/radius; Litany of Light's refund %;

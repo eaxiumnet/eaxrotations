@@ -71,8 +71,14 @@ leveling for all nine classes.
 
 ## Open in-game probes (every assumption still needing a check)
 
-- **Rogue constant-regen energy (P2 #3)** — unconfirmed; every rogue energy
-  threshold (spec + leveling) stays vanilla-shaped until it lands.
+- **Rogue constant-regen energy (P2 #3) — CLOSED 2026-09-18** by the
+  beta-verification pass: the Icy Veins rogue guides + class overview
+  confirm constant-regen, and the thresholds were re-derived from DBC
+  SpellPower facts (Venom 25e+1CP, Hemorrhage 35e − 3/stack, Mutilate 60e,
+  Eviscerate 35e). The spec deltas now gate on real costs + explicit
+  reserves instead of the tick-pulse pooling fiction; the leveling
+  builder's real-cost gate was already complete. Re-open only if an
+  in-game parse contradicts constant regen.
 - **Bane-vs-Curse slot mechanics** — the warlock leveling amp lane
   (Bane of Agony + Curse of the Elements) churns if the slots turn out
   shared; remove the lane if so. Bane of Havoc's 1-target enforcement too.
@@ -102,3 +108,24 @@ leveling for all nine classes.
 - **Static-data caveat**: no hotfix cache for build 69893 yet (data is
   build-stamped 69800); numbers may shift at launch, and ~24 icons plus
   some sparse item rows stay placeholder until Blizzard pushes hotfixes.
+
+---
+
+## Beta-verification pass — day 2 (2026-09-18)
+
+Executed against live-beta guidance (Icy Veins per-spec guides, 2026-09-15/16
+refresh) with every numeric claim cross-checked against the beta DBC
+(1.60.1.69893) before any lane moved:
+
+| Unit | Outcome | Proof |
+|------|---------|-------|
+| Rogue assassination | Venom window re-derived to the DBC cost (25e + 1CP, rows 314521/314522) + 20e CP-buffer; the old pooled gate blocked at Venom's own cost boundary | unit pins load-bearing by revert; 40-energy battery scenario discriminates old vs new |
+| Rogue combat + subtlety | Thousand Cuts gates on DBC effective cost (Hemorrhage 35 − 3/stack) + 10e reserve (fires 30e @ 5 stacks); combat RB Eviscerate-35 gate DBC-verified, unchanged | unit pins by revert; 30e/5-stack TC scenario |
+| Rogue leveling | Mutilate 60e real-cost gate confirmed as the complete energy model under constant regen | unit pins |
+| Priest | Icy Veins Priest overview is live (Rainy, 2026-09-16): Power Infusion "requires Penance" is a talent prerequisite (cast row 10060 unchanged); Improved Healing −14% family now covers Penance + PoM (passive); the four race-gated priest spells (Contingency Plan/Gnome, Divine Grace/Human, Chastise/Dwarf, Dark Sacrifice/Undead) resolve in the bridge — recorded as leveling lane candidates pending in-game race detection | DBC + bridge resolution log in the priest kit |
+| Warlock | Drain Hope vs Wrack closed: no client Drain Hope row; capstone ships as Wrack (1316697); shipped affliction lanes already maintain Wrack by name | DBC name scan + kit record |
+| Battery integrity | Pattern-17 gap closed: the class-map mock lacked Hemorrhage/Backstab, so the subtlety ThousandCuts and combat PuncturingWounds lanes had never loaded in any battery run; mock fixed, lanes register and fire | battery now shows subtlety 29 / combat 21 strategies, never-lists empty |
+
+End state: rotation 598/598 · leveling 48/48 · WotLK 82/82 · forever audit
+35 files / 0 invalid · battery strict (forever never=9) · scorecard, badges,
+doc counts in sync · verify_all exit 0 (44 components).
