@@ -239,6 +239,14 @@ waits, next-ranked delta moves up.
       stealth-free Ambush (applied row 462707, pinned). [PROBE: the TC stack
       cap (kit: 5), the Cutthroat proc chance (m1%), and whether the proc's
       Ambush still needs behind/dagger.]
+- [x] **Rogue battery lane-proof gap** (2026-09-18, beta-verification
+      pass): the battery's class-map mock lacked Hemorrhage/Backstab, so the
+      subtlety ThousandCuts lane and combat PuncturingWounds lane never
+      actually loaded in any battery run — both scenarios were green while
+      proving nothing. The mock now carries both class-map actions
+      (Hemorrhage 17348/17347/16511, Backstab 11281..53 — vanilla ladders,
+      not literals in spec code) and both lanes are proven firing
+      (subtlety 29 strategies, combat 21, never-fires=0).
 - [x] **Restless Blades + Puncturing Wounds** (2026-09-17, combat day-1):
       RESOLVED by the client text — RB 1241797 names the five tracked CDs
       (AR/BF/Evasion/Sprint/Vanish, $m1 sec per CP); PW 1224716 gives

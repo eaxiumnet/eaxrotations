@@ -1580,8 +1580,10 @@ function M.build_ns(class_key, era)
         Evasion = ns.spell_action({ 26669, 5277 }, "Evasion"),
         Eviscerate = ns.spell_action({ 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
         ExposeArmor = ns.spell_action({ 26866, 11198, 11197, 8650, 8649, 8647 }, "ExposeArmor"),
+        Backstab = ns.spell_action({ 11281, 11280, 11279, 8721, 2591, 2590, 2589, 53 }, "Backstab"),
         Garrote = ns.spell_action({ 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
         Gouge = ns.spell_action({ 11286, 11285, 8629, 1777, 1776 }, "Gouge"),
+        Hemorrhage = ns.spell_action({ 17348, 17347, 16511 }, "Hemorrhage"),
         Kick = ns.spell_action({ 38768, 1769, 1768, 1767, 1766 }, "Kick"),
         KidneyShot = ns.spell_action({ 8643, 408 }, "KidneyShot"),
         Rupture = ns.spell_action({ 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
@@ -3677,12 +3679,13 @@ M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_swd",
     overrides = { in_combat = true, target_hp = 20 } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_shadow_contagion",
     overrides = { in_combat = true, enemy_count = 3, enemies_count = 3 } }
--- Rogue subtlety: the Thousand Cuts discounted generator (3 stacks at 32
--- energy — below the baseline's flat 40 floor, so only the delta lane can
--- fire) and the Cutthroat stealth-free Ambush (proc bank + both-hand
+-- Rogue subtlety: the Thousand Cuts discounted generator (5 stacks at 30
+-- energy — below the vanilla flat 40 floor the old shape demanded, so the
+-- scenario proves the DBC effective-cost re-derivation: 35 - 15 + 10
+-- reserve = 30) and the Cutthroat stealth-free Ambush (proc bank + both-hand
 -- daggers).
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_tc",
-    overrides = { in_combat = true, energy = 32, buff_remains_map = { [90049] = 3 } } }
+    overrides = { in_combat = true, energy = 30, buff_remains_map = { [90049] = 5 } } }
 M.SCENARIOS_FOREVER[#M.SCENARIOS_FOREVER + 1] = { name = "forever_subtlety_cutthroat",
     overrides = { in_combat = true, equipped_daggers = true,
                   buff_remains_map = { [90050] = 10 } } }

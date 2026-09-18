@@ -7,7 +7,10 @@
 -- WHEN:  standalone or via run_rotation_tests.lua.
 -- WHY:   The TC lane without the discount math would just duplicate the
 --        baseline's flat 40-energy floor; the Cutthroat lane without the
---        proc/dagger/behind gates would cast an unusable Ambush.
+--        proc/dagger/behind gates would cast an unusable Ambush. Beta
+--        verification (2026-09-18): the TC gate re-derived to the DBC
+--        effective cost (35 - 3/stack) + a 10 reserve — these pins prove the
+--        boundary and that the vanilla flat floor is gone.
 -- SAFETY: fully mocked NS + require (fake baseline module).
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
@@ -148,25 +151,31 @@ do
     assert_eq(#combined, #FAKE_BASELINE.strategies, "A2: baseline untouched")
 end
 
--- B. Thousand Cuts matcher: the stack discount beats the flat pooling floor.
+-- B. Thousand Cuts matcher: the DBC effective cost (35 - 3/stack) + a 10
+-- reserve replaces the vanilla flat floor (beta-verification 2026-09-18).
 do
     stacks = {}
     buffs = {}
     local combined = load_delta(MIRRORS, MAXRANK, BUFFS)
     local tc = combined[find_lane(combined, "Forever_ThousandCuts")]
     local ctx = fresh_ctx()
-    assert_true(not tc.matches(ctx, fresh_state({ energy = 32 })), "B: no stacks = the baseline floor applies")
     assert_true(not tc.matches(ctx, fresh_state({ energy = 50 })),
-        "B: no stacks = dormant even above the pooling floor (the lane is TC-only)")
+        "B: no stacks = dormant (the lane is TC-only)")
     stacks = { [TC] = 3 }
-    assert_true(tc.matches(ctx, fresh_state({ energy = 32 })),
-        "B: 3 stacks (32 + 9 >= 40) fire the discounted generator")
-    assert_true(not tc.matches(ctx, fresh_state({ energy = 20 })),
-        "B: 20 + 9 is still under the pooling floor")
+    -- 3 stacks: effective cost 35 - 9 = 26, + 10 reserve = 36.
+    assert_true(tc.matches(ctx, fresh_state({ energy = 36 })),
+        "B: 3 stacks fire at 36 energy (effective 26 + reserve 10)")
+    assert_true(not tc.matches(ctx, fresh_state({ energy = 35 })),
+        "B: 3 stacks hold one energy under the gate")
     stacks = { [TC] = 5 }
-    assert_true(tc.matches(ctx, fresh_state({ energy = 25 })), "B: 5 stacks fire at 25 energy")
+    -- 5 stacks: effective cost 35 - 15 = 20, + 10 reserve = 30 (the old flat
+    -- floor demanded 40 — the re-derivation opens the window at 30).
+    assert_true(tc.matches(ctx, fresh_state({ energy = 30 })),
+        "B: 5 stacks fire at 30 energy (the old shape demanded 40)")
+    assert_true(not tc.matches(ctx, fresh_state({ energy = 29 })),
+        "B: 5 stacks hold one energy under the gate")
     cast_log = {}
-    assert_true(tc.execute(ctx, fresh_state({ energy = 32 })), "B: the TC lane executes")
+    assert_true(tc.execute(ctx, fresh_state({ energy = 32, })), "B: the TC lane executes")
     assert_eq(cast_log[1] and cast_log[1].spell, NS.RogueSpells.Hemorrhage, "B: it casts Hemorrhage")
     assert_true(cast_log[1] and cast_log[1].reason:find("Thousand Cuts", 1, true) ~= nil,
         "B: the stack count is labelled")

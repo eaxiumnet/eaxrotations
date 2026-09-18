@@ -26,7 +26,13 @@
 --        ("Your Sinister Strike, Ghostly Strike, and Hemorrhage abilities
 --        cause $m1% more damage against targets below $m2% health") is a
 --        passive on the generators the rotation already casts — no lane,
---        recorded as a probe.
+--        recorded as a probe. BETA-VERIFICATION PASS (2026-09-18, P2 #3
+--        CLOSED): Icy Veins' per-spec guides confirm constant-regen energy,
+--        so the vanilla flat 40-energy pooling floor is a tick-sync artifact
+--        and the TC lane re-derives to the DBC SpellPower effective cost
+--        (Hemorrhage 35 - 3/stack) plus a 10-energy reserve (setting
+--        subtlety_forever_energy_reserve): with 5 stacks the discounted
+--        generator fires at 30 energy (the old shape demanded 40 flat).
 -- SAFETY: ZERO numeric spell-ID literals — the Thousand Cuts stacks and the
 --        Cutthroat proc resolve BY NAME through the buff mirror; the Ambush
 --        cast reuses the class-map ladder the baseline already casts. A nil
@@ -35,8 +41,9 @@
 --        (affliction/demonology_forever template) so this file edits nothing
 --        in subtlety_vanilla.lua and its safe_state-backed get_state is
 --        reused unchanged. The TC lane fires the discounted HEMORRHAGE (the
---        any-position builder) earlier than the baseline's flat 40-energy
---        pooling floor; Backstab's burst gate stays the baseline's. Splice
+--        any-position builder) at its DBC effective cost plus a small
+--        reserve (constant-regen re-derivation); Backstab's burst gate stays
+--        the baseline's. Splice
 --        geometry: the TC lane goes immediately above the baseline's
 --        "Hemorrhage" lane and the Cutthroat lane immediately above its
 --        "Ambush" opener.
@@ -44,6 +51,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
 -- ---------------------------------------------------------------------------
@@ -105,8 +113,12 @@ local AMBUSH = SPELLS.Ambush or nil
 -- ---------------------------------------------------------------------------
 local TC_ENERGY_PER_STACK = 3
 local HEMORRHAGE_ENERGY = 35
-local POOL_FLOOR = 40
+local ENERGY_RESERVE = 10
 local AMBUSH_ENERGY = 60
+
+local function setting(context, key, default)
+    return spec_kit.setting(context, key, default)
+end
 
 local function has_valid_enemy(context)
     return context and context.has_valid_enemy_target and context.target
@@ -150,10 +162,13 @@ if THOUSAND_CUTS and HEMORRHAGE then
             local stacks = buff_stacks(context.me, THOUSAND_CUTS)
             if stacks <= 0 then return false end
             -- The discount is what makes the generator affordable: energy
-            -- plus the stack discount must cover both the cost and the
-            -- baseline's pooling floor.
-            local effective = (s.energy or 0) + TC_ENERGY_PER_STACK * stacks
-            if effective < HEMORRHAGE_ENERGY or effective < POOL_FLOOR then return false end
+            -- must cover the DBC effective cost (35 - 3/stack) plus a small
+            -- reserve; under constant regen the vanilla flat floor is a
+            -- tick-sync artifact (re-derived 2026-09-18, P2 #3).
+            local effective = HEMORRHAGE_ENERGY - TC_ENERGY_PER_STACK * stacks
+            if (s.energy or 0) < effective + setting(context, "subtlety_forever_energy_reserve", ENERGY_RESERVE) then
+                return false
+            end
             return NS.spell_ready(HEMORRHAGE, context.target)
         end,
         execute = function(context, s)

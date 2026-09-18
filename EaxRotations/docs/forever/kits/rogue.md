@@ -111,12 +111,21 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/combat_forever.lua` — Restless Blades CD-recycling lane
   (spenders recharge cooldowns), Puncturing Wounds weapon flexibility,
   Hack-and-Slash per-weapon behavior.
-  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
-  Restless Blades (1241797, talent-gated): when a tracked CD (Adrenaline
-  Rush / Blade Flurry / Evasion / Sprint / Vanish — the DBC's five) sits
-  inside 2s x combo of ready, the lane spends at 3-4 CP with Eviscerate
-  (below the baseline's 5-CP rule, above Rupture so a needed bleed refresh
-  still wins) — the damaging finisher is what shaves. (2) Puncturing Wounds
+  **Status (2026-09-18, beta-verification pass): verified under the
+  constant-regen energy model (P2 #3 CLOSED). The RB shave lane already
+  gated on the DBC Eviscerate cost (35 energy) rather than a pooling floor,
+  so no threshold moved; the DBC-confirmed tracked-CD cooldowns (Adrenaline
+  Rush 300s, Blade Flurry 120s — CategoryRecoveryTime rows) size the shave
+  window the lane computes. The battery mock-gap fix (Hemorrhage/Backstab
+  entries added to the battery's class map) means the Puncturing Wounds lane
+  (Backstab 60 energy, the DBC SpellPower cost) is now battery-proven
+  firing; it had never loaded in the battery before this pass. Original
+  day-1 status: DAY-1 BUILT (2 lanes, additive) — (1) Restless Blades
+  (1241797, talent-gated): when a tracked CD (Adrenaline Rush / Blade Flurry
+  / Evasion / Sprint / Vanish — the DBC's five) sits inside 2s x combo of
+  ready, the lane spends at 3-4 CP with Eviscerate (below the baseline's
+  5-CP rule, above Rupture so a needed bleed refresh still wins) — the
+  damaging finisher is what shaves. (2) Puncturing Wounds
   (1224716, talent-gated): the dagger generator promoted above the
   Hemorrhage filler (dagger + behind + 60 energy + not stealthed).
   HACK AND SLASH (13960) is a CLASS-LESS row (no SpellClassOptions — the
@@ -126,12 +135,20 @@ Numbers = press tier; cross-page Blood Fury contradiction still stands
 - `classes/rogue/subtlety_forever.lua` — Hemorrhage→Rupture amplifier loop,
   Thousand Cuts stack engine, Cutthroat free-Ambush bursts, Quietus
   execute-ish lane.
-  **Status (2026-09-17, beta day): DAY-1 BUILT (2 lanes, additive)** — (1)
-  the Thousand Cuts energy engine: with Rupture-tick stacks on (the applied
-  row 1310723, pinned in the builder's BUFF_OVERRIDES — the baseline 1310721
-  is the talent text), the lane fires the discounted Hemorrhage when energy
-  + 3/stack covers both the 35 cost and the baseline's 40-energy pooling
-  floor (e.g. 25 energy at 5 stacks). (2) the Cutthroat stealth-free Ambush:
+  **Status (2026-09-18, beta-verification pass): LANES RE-DERIVED for
+  constant-regen energy (P2 #3 CLOSED). The Thousand Cuts gate is now the
+  DBC SpellPower effective cost — Hemorrhage 35 energy minus 3 per stack —
+  plus a 10-energy reserve (setting subtlety_forever_energy_reserve); at 5
+  stacks the discounted generator fires at 30 energy (the vanilla flat
+  40-energy pooling floor was a tick-sync artifact). BATTERY GAP CLOSED the
+  same pass: the battery's class-map mock lacked Hemorrhage/Backstab, so the
+  TC and PW delta lanes had never actually loaded in the battery — the mock
+  now carries both and the lanes are proven firing. Original day-1 status:
+  DAY-1 BUILT (2 lanes, additive) — (1) the Thousand Cuts energy engine:
+  with Rupture-tick stacks on (the applied row 1310723, pinned in the
+  builder's BUFF_OVERRIDES — the baseline 1310721 is the talent text), the
+  lane fires the discounted Hemorrhage when energy covers the effective
+  cost. (2) the Cutthroat stealth-free Ambush:
   the proc (462707, pinned; the baseline 424980 is the grant row) + behind +
   main-hand dagger + 60 energy, above the baseline's stealth Ambush opener.
   Hemorrhage's +Rupture-damage amplifier (16511) is already maintained by the
