@@ -149,6 +149,15 @@ waits, next-ranked delta moves up.
       proof required) — mage fire/frost school-choice lanes.
 - [ ] **Aimed Shot / Multi-Shot shared cooldown** + **traps usable in
       combat** — hunter BM/MM/SV lane shapes (#8/9/12).
+- [x] **Drain Hope vs Wrack** (2026-09-18, beta-verification pass):
+      RESOLVED — the client has NO "Drain Hope" row (full-name scan, any
+      class); the warlock kit's capstone exists under the name **Wrack**
+      1316697@40 ("Tears the target apart from within... increasing the
+      damage they take from your other Shadow damage over time effects"),
+      and Improved Drains 403511 names it explicitly ("your Drain Life,
+      Drain Soul, and Wrack spells"), confirming the same design slot. The
+      #10 affliction delta maintains Wrack at the head of the dot block —
+      the verdict stands as shipped on day 1; nothing further to lane.
 - [ ] **Bane of Agony/Doom decoupled from the curse slot** (separate aura
       family) — all warlock dot/debuff lanes.
 - [ ] **DoTs can critically strike** (era-wide: warlock + druid) —
