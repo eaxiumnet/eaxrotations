@@ -277,6 +277,7 @@ local tests = {
 
  -- Core/shared infrastructure tests
  "test_aura_probe_sylvanas.lua",
+    "test_live_probe_sylvanas.lua",
  "test_lazy_context_sylvanas.lua",
  "test_trinket_manager.lua",
  "test_cooldown_planner.lua",

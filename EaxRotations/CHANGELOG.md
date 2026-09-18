@@ -265,6 +265,22 @@
   docs-claim diff, the battery mock generalization, and the
   seal-ownership seam; P2 holds the parked backlog items with their
   named triggers.
+- **The live-beta engine-truth probes are instrumented in-engine.**
+  `shared/live_probe_sylvanas.lua` (`NS.LiveProbe`) makes the Block 0/1 session
+  a read-and-paste: `report()` dumps every version/expansion surface the build
+  exposes plus the local race, the capability matrix and each aura's
+  `points[1]` (the Pattern-11 absorb read); `sample(tag)` prints one snapshot
+  line (form/energy/rage/mana/hp/combo/AP/haste); and `arm{forms,spells,
+  raw_events}` → `flush()` runs a CLEU ring that records form-shift energy,
+  incoming-damage rage and DoT tick intervals, with `raw_events` confirming the
+  build's CLEU layout. Watch ids are supplied by the caller (bridge/DBC), so no
+  id is guessed; capture is off until armed, stores numbers in a fixed 64-slot
+  ring with a dropped counter, and formats only on flush. New suite
+  `test_live_probe_sylvanas.lua` (rotation 602) proves the surface split,
+  nil-safety, classification, the interval computation and the bound -- it
+  caught two real defects in the first run (player methods called without
+  `self`, and a guid read that never matched, so incoming-damage capture was
+  silently dead).
 - **Every DBC-answerable OPEN probe is now closed.** Wake of Fire: the ability
   row 11078 is never an aura and the 20s window is 1312934, applied natively
   on a kill — so the mage-fire window lane is authorable, and `BUFF_OVERRIDES`

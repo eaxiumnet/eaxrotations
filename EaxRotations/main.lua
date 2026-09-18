@@ -95,6 +95,9 @@ load_modules({
     -- Runtime services
     "shared/combat_log_parser_sylvanas",
     "shared/aura_probe_sylvanas",
+    -- Live-beta engine-truth probe harness: inert until report()/arm() is called
+    -- (registers nothing at load), so it costs one table at startup.
+    "shared/live_probe_sylvanas",
 
     -- Data and pure helpers
     "gear_sets_sylvanas",

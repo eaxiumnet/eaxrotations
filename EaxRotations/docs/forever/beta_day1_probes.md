@@ -67,6 +67,18 @@ execution for every open probe lives in **beta_smoke_checklist.md**
 - **Addon-policy recon**: unchanged posture — file reads only, no process
   attach, no login performed.
 
+## Block 0/1 capture — instrumented 2026-09-19
+
+The Block 0 items below (version surface, race detection, buff-points read,
+reader-surface inventory) and the three P2 gate probes (furor energy-on-shift,
+rage-from-damage, haste-vs-DoT ticks) no longer need a stopwatch and a notebook:
+`shared/live_probe_sylvanas.lua` (`NS.LiveProbe`) captures them in-engine --
+`report()` for the engine-truth reads, `sample(tag)` for a one-line snapshot,
+and an armed CLEU ring for the three gates. The runbook in
+`beta_smoke_checklist.md` carries the exact `RUN:` call per item. Their verdicts
+stay OPEN until a session produces the output; what changed is that a verdict
+now costs a call plus a paste.
+
 ## P1 — wave-1 name resolution (unlocks days 1–3 authoring)
 
 Every wave-1 lane resolves by name or goes dormant. One pass (verdicts

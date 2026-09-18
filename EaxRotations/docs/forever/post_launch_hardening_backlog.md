@@ -73,6 +73,18 @@ delta files deletable duplication — since resolved: −1,136 lines via
   BLOCKED-not-guessed with the blocker named); probes doc + kits updated;
   no threshold left claiming a value the client never showed.
 - **Estimate**: one login session + one close-out commit.
+- **IN PROGRESS 2026-09-19 — probes built, verdicts pending access.** The engine
+  carries `shared/live_probe_sylvanas.lua` (`NS.LiveProbe`): `report()`
+  (version/expansion surfaces, race, the capability matrix, aura `points[1]`),
+  `sample(tag)` (form/energy/rage/mana/hp/combo/AP/haste) and an armed CLEU ring
+  (`arm{forms,spells,raw_events}` → `flush()`) that records form-shift energy,
+  incoming-damage rage and DoT tick intervals with caller-supplied ids.
+  `test_live_probe_sylvanas.lua` proves the present/absent surface split,
+  nil-safety with no player, event classification, the tick-interval
+  computation, the 64-slot bound with its dropped counter, and that nothing
+  registers before `arm()`. Remaining: run the checklist's `RUN:` lines, paste
+  the output into the ledger, flip the verdicts — any flip re-runs the forever
+  audit plus the affected suites.
 
 ### 3. Wire the DBC diff into CI with committed fixture DBs
 - **Audit finding**: structural note from the DBC-diff pass — the harness
