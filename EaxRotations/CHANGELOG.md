@@ -265,6 +265,19 @@
   docs-claim diff, the battery mock generalization, and the
   seal-ownership seam; P2 holds the parked backlog items with their
   named triggers.
+- **Dead-lane fix: the Infusion of Light weave now gates the row the client
+  actually applies.** Resolving the last two DBC-answerable OPEN probes showed
+  `holy_forever.lua` was gating TBC row 53672, which nothing in the
+  1.60.1.69893 build references (no trigger, base-point link, misc payload,
+  talent row, or text mention) — so `Forever_InfusionOfLightWeave` could never
+  fire live. The live chain is the rune 426180 → 426179 → ability 426065, which
+  applies 437063 (15s, "Reduces the cast time of your next Holy Light spell"),
+  now pinned in the builder's `BUFF_OVERRIDES`; the audit's `by_buff` role pin
+  and `test_paladin_holy_forever` hold it. The probe pass also resolved the
+  Holy Shock live-cast ladder (1311606 R1@30 … 20930 R4@56, trainer-taught) and
+  added `tools/probe_forever_spell_rows.py`, a reusable spell-row dossier with
+  a reverse "who references this id" view, so probe verdicts are reproducible
+  without a client login.
 - **The DBC diff is wired into CI with committed fixture DBs.**
   `EaxRotations/tests/fixtures/forever_dbc/` carries a committed synthetic
   build pair (32 KB each; regenerate with `--write-fixtures`, provenance =

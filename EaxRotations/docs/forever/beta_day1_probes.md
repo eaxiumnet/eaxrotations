@@ -113,15 +113,39 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
 - [x] Missile Barrage talent 400588 (roll 40 on AB via aura 42, others
       halved) + proc 400589 (**15s**, channel −50%, mana −100%, missile
       period −500ms) — mage
-- [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on 20473 AND
-      1311606; live-cast id OPEN) / Light's Vigil cast 1311595@60, buff
-      1310909, CategoryRecoveryTime 6000 on EVERY rank (1310911/1311590/
-      1311595 — re-probed 2026-09-17 via SpellCooldowns keyed by SpellID; the
-      earlier "no cooldown row / 180s estimate" came from the RecoveryTime
-      column only and is RETRACTED: it is a 6s rotational mark, not a burst
-      CD) / Holy Strike 10333@60 max (kit "level 6" ↔ 679@6) / Infusion of
-      Light buff 53672 (talent/learn row 426065; live proc-id confirmation
-      OPEN) — paladin
+- [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on every
+      player-cast row) — **live-cast id RESOLVED 2026-09-19**: the castable
+      ladder is 1311606 (Rank 1, level 30, 160 mana) / 20473 (Rank 2, 40, 225)
+      / 20929 (Rank 3, 48, 275) / 20930 (Rank 4, 56, 325) — all class 10, all
+      trainer-taught (SkillLineAbility acquire=0), all start_recovery 1500ms;
+      the 259xx family is the internal damage/heal decomposition (no mana, no
+      cooldown, acquire=3, classmask=2) and 444894 is the mana-costed
+      level-56 row with no cooldown. The class-map ladder ends at 20930, which
+      matches the client's own trainer ladder for a 60, so no lane change was
+      needed. NOTE for leveling: the Forever rework adds the level-30 rank
+      (1311606) — a 30–39 paladin knows only that row, which the TBC ladder
+      does not carry.
+      / Light's Vigil cast 1311595@60, buff 1310909, CategoryRecoveryTime 6000
+      on EVERY rank (1310911/1311590/1311595 — re-probed 2026-09-17 via
+      SpellCooldowns keyed by SpellID; the earlier "no cooldown row / 180s
+      estimate" came from the RecoveryTime column only and is RETRACTED: it is
+      a 6s rotational mark, not a burst CD)
+      / Holy Strike 10333@60 max (kit "level 6" ↔ 679@6)
+      / Infusion of Light — **live proc-id RESOLVED 2026-09-19, and it fixed
+      a dead lane**: the live buff is **437063** (15s, effect 6 aura 107 base
+      −1000 misc 10, proc mask 16384, aura text "Reduces the cast time of your
+      next Holy Light spell by $m1 sec"), applied by ability 426065, which the
+      rune 426180 "Engrave Belt - Infusion of Light" grants (426180 → 426179 →
+      426065). The old TBC row **53672 is ORPHANED in this build** — no
+      EffectTriggerSpell, no EffectBasePointsF link, no EffectMiscValue
+      payload, no SpellCooldowns.AuraSpellID, no RequiresAuraSpellID, no
+      Talent row, and the only text naming `$53672` is its own description.
+      `holy_forever.lua` gated that row through the buff mirror, so
+      `Forever_InfusionOfLightWeave` could never fire on the live client;
+      `BUFF_OVERRIDES` in the builder now pins 437063 and
+      `test_paladin_holy_forever` + the audit's by_buff role pin hold it.
+      Evidence: `python tools/probe_forever_spell_rows.py --refs 53672`
+      / `--id 437063` / `--refs 437063` — paladin
 
 Consequence: all resolved → wave-1 authoring starts; any miss → its delta
 waits, next-ranked delta moves up.

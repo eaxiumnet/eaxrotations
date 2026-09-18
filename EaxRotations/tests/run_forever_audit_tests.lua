@@ -267,6 +267,7 @@ local function run_self_tests()
     expect(buffmap["Thousand Cuts"], 1310723, "buff Thousand Cuts is the stack buff row (not the 1310721 talent text)")
     expect(buffmap["Cutthroat"], 462707, "buff Cutthroat is the stealth-free Ambush proc (not the 424980 grant row)")
     expect(buffmap["Prayer of Mending"], 1240849, "buff Prayer of Mending is the @60 applied aura (not the 401859 cast row)")
+    expect(buffmap["Infusion of Light"], 437063, "buff Infusion of Light is the live 15s Holy Light row (not the orphaned TBC 53672, which nothing in this build applies)")
     expect(buffmap["Arcane Blast"], 400573, "buff Arcane Blast keeps the stack-aura baseline")
 
     print("  self-test: scanner fires, comments exempt, dedupe works, verdicts precise")
