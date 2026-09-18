@@ -63,6 +63,14 @@
   Twist of Light deliberately not laned (no bridge row — a by-name lane
   could never fire live; Pattern-17 doctrine). Coverage contract now
   38 deltas + 2 fallbacks.
+- **The forever-delta template got a single owner.**
+  `shared/spec_kit_forever_delta.lua` now owns the baseline-capture dance
+  (register interceptor, restore-on-error, loud baseline-failure), the
+  Forever bridge mirrors, and the by-name/setting helpers that every delta
+  had copied; all 38 `_forever` files require it and ~1,136 lines of
+  duplicated boilerplate are gone (behavior-neutral: positional first-match
+  dispatch, lane order and semantics unchanged; all unit suites green with
+  revert proofs intact, batteries and era never-pins identical).
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44

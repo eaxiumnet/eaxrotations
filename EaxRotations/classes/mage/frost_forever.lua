@@ -44,35 +44,19 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
-local spec_kit = require("shared/spec_kit_sylvanas")
+local forever = require("shared/spec_kit_forever_delta")
+
 local SPELLS = NS.MageSpells or {}
 
 -- ---------------------------------------------------------------------------
--- Baseline capture: require the vanilla file while intercepting
+-- Baseline capture: the vanilla baseline is loaded through the shared
+-- forever-delta owner (spec_kit_forever_delta.lua) while intercepting
 -- NS.rotation_registry.register so its registration (strategies +
 -- get_state) is captured instead of overwriting this playstyle. If the
--- baseline cannot load, fail loudly — a silently missing "frost" playstyle
--- is worse than a hard error.
+-- baseline cannot load, it fails loudly there — a silently missing
+-- "frost" playstyle is worse than a hard error.
 -- ---------------------------------------------------------------------------
-local registry = NS.rotation_registry
-if not registry or type(registry.register) ~= "function" then
-    error("[FOREVER] mage frost delta: rotation_registry unavailable", 0)
-end
-local original_register = registry.register
-local baseline = nil
-registry.register = function(self, name, strategies, options)
-    registry.register = original_register
-    baseline = { name = name, strategies = strategies, options = options or {} }
-    return true
-end
--- Force baseline re-execution so its registration always reaches the
--- interceptor above, even if some earlier require() cached the module.
-package.loaded["classes/mage/frost_vanilla"] = nil
-local baseline_ok, baseline_result = pcall(require, "classes/mage/frost_vanilla")
-registry.register = original_register
-if not baseline_ok or type(baseline) ~= "table" or type(baseline.strategies) ~= "table" then
-    error("[FOREVER] mage frost delta: baseline load failed: " .. tostring(baseline_result), 0)
-end
+local baseline = forever.forever_delta("mage frost", "classes/mage/frost_vanilla")
 
 -- ---------------------------------------------------------------------------
 -- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
@@ -81,24 +65,9 @@ end
 -- the Winter's Chill debuff resolve through the buff/maxrank mirrors. A nil
 -- lookup leaves the lane dormant -- never a guessed ID.
 -- ---------------------------------------------------------------------------
-local ok_bridge, ForeverBridge = pcall(require,
-    "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
-if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
-local by_name = (ForeverBridge
-    and type(ForeverBridge.spell_index_by_name_forever) == "table")
-    and ForeverBridge.spell_index_by_name_forever or {}
-local by_maxrank = (ForeverBridge
-    and type(ForeverBridge.spell_maxrank_by_name_forever) == "table")
-    and ForeverBridge.spell_maxrank_by_name_forever or {}
-local by_buff = (ForeverBridge
-    and type(ForeverBridge.spell_buff_by_name_forever) == "table")
-    and ForeverBridge.spell_buff_by_name_forever or {}
-
-local function resolve_id(map, client_name)
-    local id = map[client_name]
-    if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
-    return id
-end
+local mirrors = forever.mirrors()
+local resolve_id = forever.resolve_id
+local by_name, by_maxrank, by_buff = mirrors.name, mirrors.maxrank, mirrors.buff
 
 local ICE_LANCE = resolve_id(by_maxrank, "Ice Lance")
 local ICE_LANCE_R1 = resolve_id(by_name, "Ice Lance")
@@ -109,20 +78,7 @@ local FROST_NOVA_BRIDGE = resolve_id(by_maxrank, "Frost Nova")
 -- The Frozen window = the Frost Nova root debuff; its applied id is the cast
 -- rank, so read the whole class-map rank list (plus the bridge's resolution).
 local FROST_NOVA_IDS = {}
-local function append_unique(dst, src)
-    if type(src) ~= "table" then return dst end
-    for i = 1, #src do
-        local v = src[i]
-        if type(v) == "number" and v > 0 then
-            local seen = false
-            for j = 1, #dst do
-                if dst[j] == v then seen = true break end
-            end
-            if not seen then dst[#dst + 1] = v end
-        end
-    end
-    return dst
-end
+local append_unique = forever.append_unique
 append_unique(FROST_NOVA_IDS, SPELLS.FrostNova
     and SPELLS.FrostNova._meta and SPELLS.FrostNova._meta.ids or nil)
 append_unique(FROST_NOVA_IDS, { FROST_NOVA_BRIDGE })
@@ -141,9 +97,7 @@ local FOREVER_ICY_VEINS_CD = 180
 local FOREVER_WC_HOLD_STACKS = 5
 local FOREVER_WC_REFRESH = 3
 
-local function setting(context, key, default)
-    return spec_kit.setting(context, key, default)
-end
+local setting = forever.setting
 
 local function has_valid_enemy(context)
     return context and context.has_valid_enemy_target and context.target
@@ -274,7 +228,7 @@ if not wc_inserted then
     for j = 1, #delta_wc do combined[#combined + 1] = delta_wc[j] end
 end
 
-original_register(registry, baseline.name, combined, baseline.options)
+baseline.register(combined)
 if NS.log then NS.log("Mage frost Forever delta registered (" ..
     #delta_head .. " icy-veins + " .. #delta_burst .. " ice-lance + " ..
     #delta_wc .. " winter's-chill lane" ..

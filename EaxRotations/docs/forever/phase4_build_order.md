@@ -21,6 +21,9 @@ dormant until beta), battery scenarios proving every new lane fires,
 never-inventory unchanged. Every delta below reuses this shape — the
 battery's `load_spec` forever fallback and bridge stub seeding already
 exist, so new deltas are scenario-adds, not framework work.
+  (2026-09-18: the interceptor dance and the by-name/setting helpers
+  moved into `shared/spec_kit_forever_delta.lua` — all 38 deltas require
+  it; hand-rolled copies are gone.)
 
 ## Ranking rule
 
@@ -228,8 +231,11 @@ the gates below override rank, not tier.
 ## Per-delta standard work (unchanged from the proven template)
 
 1. Worktree on `feat/forever-era-2026-09-15`; one delta per commit.
-2. Capture the `_vanilla` baseline via register interceptor (no baseline
-   edits); splice delta lanes at the documented priority points.
+2. Capture the `_vanilla` baseline through the shared owner
+   `shared/spec_kit_forever_delta.lua` (`forever.forever_delta(label,
+   "classes/<class>/<spec>_vanilla")`; no baseline edits, restore-on-error
+   owned in one place) and take the mirrors/helpers from the same module;
+   splice delta lanes at the documented priority points.
 3. Zero numeric literals; era-shared from the class spell map, Forever-new
    by name via the bridge module (dormant on miss).
 4. Battery: add scenarios for every new lane; strict never-inventory

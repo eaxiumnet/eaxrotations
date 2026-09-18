@@ -33,35 +33,19 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
-local spec_kit = require("shared/spec_kit_sylvanas")
+local forever = require("shared/spec_kit_forever_delta")
+
 local SPELLS = NS.HunterSpells or {}
 
 -- ---------------------------------------------------------------------------
--- Baseline capture: require the vanilla file while intercepting
+-- Baseline capture: the vanilla baseline is loaded through the shared
+-- forever-delta owner (spec_kit_forever_delta.lua) while intercepting
 -- NS.rotation_registry.register so its registration (strategies +
 -- get_state) is captured instead of overwriting this playstyle. If the
--- baseline cannot load, fail loudly — a silently missing "marksmanship"
--- playstyle is worse than a hard error.
+-- baseline cannot load, it fails loudly there — a silently missing
+-- "marksmanship" playstyle is worse than a hard error.
 -- ---------------------------------------------------------------------------
-local registry = NS.rotation_registry
-if not registry or type(registry.register) ~= "function" then
-    error("[FOREVER] hunter marksmanship delta: rotation_registry unavailable", 0)
-end
-local original_register = registry.register
-local baseline = nil
-registry.register = function(self, name, strategies, options)
-    registry.register = original_register
-    baseline = { name = name, strategies = strategies, options = options or {} }
-    return true
-end
--- Force baseline re-execution so its registration always reaches the
--- interceptor above, even if some earlier require() cached the module.
-package.loaded["classes/hunter/marksmanship_vanilla"] = nil
-local baseline_ok, baseline_result = pcall(require, "classes/hunter/marksmanship_vanilla")
-registry.register = original_register
-if not baseline_ok or type(baseline) ~= "table" or type(baseline.strategies) ~= "table" then
-    error("[FOREVER] hunter marksmanship delta: baseline load failed: " .. tostring(baseline_result), 0)
-end
+local baseline = forever.forever_delta("hunter marksmanship", "classes/hunter/marksmanship_vanilla")
 
 -- ---------------------------------------------------------------------------
 -- By-name resolution (zero-literal contract, dbc_runbook.md step 3b): the
@@ -70,18 +54,9 @@ end
 -- baseline pet lanes (fail-closed) -- never a guessed ID. Sentinel stand-ins
 -- are seeded per mirror by the battery's build_ns.
 -- ---------------------------------------------------------------------------
-local ok_bridge, ForeverBridge = pcall(require,
-    "shared/wowhead_data_bridge_spell_index_forever_sylvanas")
-if not ok_bridge or type(ForeverBridge) ~= "table" then ForeverBridge = nil end
-local by_maxrank = (ForeverBridge
-    and type(ForeverBridge.spell_maxrank_by_name_forever) == "table")
-    and ForeverBridge.spell_maxrank_by_name_forever or {}
-
-local function resolve_id(map, client_name)
-    local id = map[client_name]
-    if type(id) ~= "number" or id <= 0 or id ~= math.floor(id) then return nil end
-    return id
-end
+local mirrors = forever.mirrors()
+local resolve_id = forever.resolve_id
+local by_maxrank = mirrors.maxrank
 
 local SNIPER_SHOT = resolve_id(by_maxrank, "Sniper Shot")
 local LONE_WOLF = resolve_id(by_maxrank, "Lone Wolf")
@@ -98,9 +73,7 @@ local EMPTY_OPTS = {}
 local FOREVER_SNIPER_CD = 15
 local FOREVER_SNIPER_EXECUTE_HP = 20
 
-local function setting(context, key, default)
-    return spec_kit.setting(context, key, default)
-end
+local setting = forever.setting
 
 local function has_valid_enemy(context)
     return context and context.has_valid_enemy_target and context.target
@@ -194,7 +167,7 @@ end
 flush_aimed()
 insert_burst()
 
-original_register(registry, baseline.name, combined, baseline.options)
+baseline.register(combined)
 if NS.log then NS.log("Hunter marksmanship Forever delta registered (" ..
     #delta_burst .. " burst lane, shared-CD shot reorder" ..
     (has_lone_wolf() and ", Lone Wolf pet fork active" or "") .. " over " ..
