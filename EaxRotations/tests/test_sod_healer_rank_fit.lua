@@ -316,6 +316,727 @@ local spell_sod, lab_sod = CAST_HOOK(HT_SOD, unit(2000), { settings = {}, player
 assert_eq(lab_sod, "T R11", "SoD HT deficit 2000 still fits the corrected R11")
 assert_true(spell_sod ~= nil and spell_sod == r11.spell, "returned action is the corrected R11 entry's spell")
 
+local HW_SOD = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"), nil, "sod")
+local LHW_SOD = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"), nil, "sod")
+local function row_of(ladder, id)
+    for _, e in ipairs(ladder) do if e.id == id then return e end end
+end
+-- HW R10 (25357): classic 1620-1850 vs TBC 1647-1878.
+assert_eq(row_of(HW_SOD, 25357).base_min, 1620, "SoD HW R10 base_min is the classic 1620")
+assert_eq(row_of(HW_SOD, 25357).base_max, 1850, "SoD HW R10 base_max is the classic 1850")
+-- HW R9 (10396): classic 1389-1583 vs TBC 1394-1589 (divergence found in the 2026-09-15 sweep).
+assert_eq(row_of(HW_SOD, 10396).base_min, 1389, "SoD HW R9 base_min is the classic 1389")
+-- LHW R6 (10468): classic 832-928 vs TBC 853-949; cost 380 was nil in the TBC row.
+assert_eq(row_of(LHW_SOD, 10468).base_min, 832, "SoD LHW R6 base_min is the classic 832")
+assert_eq(row_of(LHW_SOD, 10468).base_max, 928, "SoD LHW R6 base_max is the classic 928")
+assert_eq(row_of(LHW_SOD, 10468).cost, 380, "SoD LHW R6 cost filled from the classic page (380)")
+-- Agreeing ids stay untouched by the override (spot: HW R8 10395, LHW R5 10467).
+assert_eq(row_of(HW_SOD, 10395).base_min, 1040, "HW R8 10395 keeps the agreed base (1040)")
+assert_eq(row_of(LHW_SOD, 10467).base_min, 649, "LHW R5 10467 keeps the agreed base (649)")
+-- TBC table isolation: no-era ladder keeps the TBC values for all three ids.
+assert_eq(row_of(HW, 25357).base_min, 1647, "no-era HW keeps TBC 1647 for 25357")
+assert_eq(row_of(LHW, 10468).base_min, 853, "no-era LHW keeps TBC 853 for 10468")
+-- Lane pick changes where the corrected size matters: at deficit 1350 the
+-- corrected R10 (mid 1735 <= 1350 x 1.3 = 1755) now fits where the TBC-sized
+-- R10 (mid 1762.5 > 1755) overshoots and the uncorrected ladder stays on R9.
+local spell_hw, lab_hw = CAST_HOOK(HW_SOD, unit(1350), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
+assert_eq(lab_hw, "T R10", "SoD HW deficit 1350 fits the corrected R10")
+assert_true(spell_hw ~= nil and spell_hw == row_of(HW_SOD, 25357).spell, "HW action is the corrected R10 entry's spell")
+-- Non-vacuity (the other direction): the same deficit on a no-era ladder
+-- keeps the TBC-sized R10 overshooting and still picks R9.
+local _, lab_tbc = CAST_HOOK(HW, unit(1350), { settings = {}, player_level = 60 }, "T", { bonus_healing = 0 })
+assert_eq(lab_tbc, "T R9", "no-era HW at deficit 1350 still picks R9 (override is load-bearing)")
+
+-- Full-ladder audit (2026-09-15): the two further divergences found by
+-- sweeping every SoD-reachable id - HT 9889 (classic 1916-2257 vs TBC
+-- 1923-2263) and FH 10917 (classic 828-975 vs TBC 833-979) - plus
+-- agreeing-id isolation proving the sweep did not overreach.
+local FH_SOD = HV.build_ladder("priest", "FlashHeal", mk_action("FlashHeal"), nil, "sod")
+assert_true(FH_SOD ~= nil, "era-built SoD FH ladder constructs")
+local r10, r10_tbc = nil, nil
+for _, e in ipairs(HT_SOD) do if e.id == 9889 then r10 = e end end
+for _, e in ipairs(HT) do if e.id == 9889 then r10_tbc = e end end
+assert_true(r10 ~= nil and r10_tbc ~= nil, "both HT ladders carry 9889")
+assert_eq(r10.base_min, 1916, "SoD-built HT R10 base_min is the classic 1916")
+assert_eq(r10.base_max, 2257, "SoD-built HT R10 base_max is the classic 2257")
+assert_eq(r10.cost, 720, "SoD-built HT R10 cost 720 (verified identical both eras)")
+assert_eq(r10_tbc.base_min, 1923, "no-era HT ladder keeps the TBC 1923")
+assert_eq(HV.find_rank_by_id(9889).base_min, 1923, "find_rank_by_id(9889) stays TBC-authoritative")
+local r7f, r7f_tbc = nil, nil
+for _, e in ipairs(FH_SOD) do if e.id == 10917 then r7f = e end end
+for _, e in ipairs(FH) do if e.id == 10917 then r7f_tbc = e end end
+assert_true(r7f ~= nil and r7f_tbc ~= nil, "both FH ladders carry 10917")
+assert_eq(r7f.base_min, 828, "SoD-built FH R7 base_min is the classic 828")
+assert_eq(r7f.base_max, 975, "SoD-built FH R7 base_max is the classic 975")
+assert_eq(r7f.cost, 380, "SoD-built FH R7 cost 380 (verified identical both eras)")
+assert_eq(r7f_tbc.base_min, 833, "no-era FH ladder keeps the TBC 833")
+assert_eq(HV.find_rank_by_id(10917).base_min, 833, "find_rank_by_id(10917) stays TBC-authoritative")
+-- Agreeing-id isolation, both directions.
+local ht_r8, fh_r4 = nil, nil
+for _, e in ipairs(HT_SOD) do if e.id == 9758 then ht_r8 = e end end
+for _, e in ipairs(FH_SOD) do if e.id == 9474 then fh_r4 = e end end
+assert_eq(ht_r8.base_min, 1225, "HT R8 9758 (verified agreeing) untouched")
+assert_eq(fh_r4.base_min, 414, "FH R4 9474 (verified agreeing) untouched")
+
+
+-- ---------------------------------------------------------------------------
+-- 7. Vanilla-era heal-value wiring: the era alias, the level-60 learn
+--    ceiling, and the era-less TBC calls staying byte-identical. Evidence:
+--    GH 25314 classic 1966-2194 vs TBC 2006-2235 @710 (Wowhead classic page
+--    read 2026-09-15); GH R6/R7 (25210 L63, 25213 L68) and FH R8/R9
+--    (25233 L61, 25235 L67) are TBC tails a level-60 vanilla client cannot
+--    learn, so the vanilla build drops them at build time.
+-- ---------------------------------------------------------------------------
+do
+    local GH_VAN = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, "vanilla", 60)
+    assert_true(GH_VAN ~= nil, "vanilla GH ladder constructs")
+    assert_eq(#GH_VAN, 1, "vanilla GH ladder carries only the level-60 row (R6/R7 tail dropped)")
+    assert_eq(GH_VAN[1].id, 25314, "vanilla GH ladder's row is 25314")
+    assert_eq(GH_VAN[1].base_min, 1966, "vanilla GH R5 base_min is the classic 1966 (25314 override applied)")
+    assert_eq(GH_VAN[1].base_max, 2194, "vanilla GH R5 base_max is the classic 2194")
+    assert_eq(GH_VAN[1].cost, 710, "vanilla GH R5 cost 710 (verified identical both eras)")
+    assert_eq(GH_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+
+    local FH_VAN = HV.build_ladder("priest", "FlashHeal", mk_action("FlashHeal"), nil, "vanilla", 60)
+    assert_true(FH_VAN ~= nil, "vanilla FH ladder constructs")
+    assert_eq(#FH_VAN, 7, "vanilla FH ladder keeps R1-R7 (R8/R9 tail dropped)")
+    local van_ranks = {}
+    for _, e in ipairs(FH_VAN) do van_ranks[e.id] = e.rank end
+    assert_eq(van_ranks[25235], nil, "FH R9 25235 (level 67) dropped at ceiling 60")
+    assert_eq(van_ranks[25233], nil, "FH R8 25233 (level 61) dropped at ceiling 60")
+    assert_eq(van_ranks[2061], 1, "FH R1 2061 survives the ceiling")
+    assert_eq(van_ranks[10917], 7, "FH R7 10917 survives the ceiling")
+    local r7v = nil
+    for _, e in ipairs(FH_VAN) do if e.id == 10917 then r7v = e end end
+    assert_eq(r7v.base_min, 828, "vanilla FH R7 keeps the corrected classic 828")
+
+    -- TBC (era-less, unlimited) stays byte-identical, including the
+    -- vanilla-divergent 25314 keeping its TBC values.
+    local GH_TBC = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#GH_TBC, 3, "era-less GH ladder keeps R5-R7")
+    local r5 = nil
+    for _, e in ipairs(GH_TBC) do if e.id == 25314 then r5 = e end end
+    assert_eq(r5.base_min, 2006, "era-less GH R5 keeps the TBC 2006")
+    assert_eq(r5.base_max, 2235, "era-less GH R5 keeps the TBC 2235")
+    assert_eq(HV.find_rank_by_id(25314).base_min, 2006, "find_rank_by_id(25314) stays TBC-authoritative")
+
+    -- Alias is fail-closed: an unknown era name applies nothing.
+    local GH_BOGUS = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, "vanilla_classic")
+    local r5b = nil
+    for _, e in ipairs(GH_BOGUS) do if e.id == 25314 then r5b = e end end
+    assert_eq(r5b.base_min, 2006, "unknown era applies no override (fail-closed alias)")
+
+    -- max_level boundary at the row level: level 63 kept, 68 dropped; nil
+    -- ceiling (TBC call shape) keeps every row.
+    local GH_M63 = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, nil, 63)
+    assert_eq(#GH_M63, 2, "max_level 63 keeps levels 60+63, drops 68")
+    local GH_M68 = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"), nil, nil, 68)
+    assert_eq(#GH_M68, 3, "max_level 68 keeps every GH row")
+end
+
+-- ---------------------------------------------------------------------------
+-- 8. WotLK priest fit (2026-09-16 wave): era-distinct FH/GH families, the
+--    wrath penalty branch, and the real hook + real spec lanes at
+--    player_level 80.
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local wfh = HV.build_ladder("priest", "WotlkFlashHeal", mk_action("FlashHeal"))
+    local wgh = HV.build_ladder("priest", "WotlkGreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#wfh, 10, "WotLK FH ladder carries 10 ranks (R1-R10)")
+    assert_eq(#wgh, 8, "WotLK GH ladder carries 8 ranks (R1-R8)")
+    assert_eq(wfh[1].id, 48071, "WotLK FH head is 48071")
+    assert_eq(wgh[1].id, 48063, "WotLK GH head is 48063")
+    assert_eq(wgh[4].base_min, 2006, "WotLK GH R5 25314 keeps the TBC-agreeing 2006 (ladder index 4, newest-first)")
+    assert_eq(wgh[2].base_min, 2433, "WotLK GH R7 25213 carries the wrath 2433 (ladder index 2)")
+    assert_eq(wfh[2].base_min, 1121, "WotLK FH R9 25235 carries the wrath 1121")
+    -- Era isolation both directions: the TBC families and find_rank_by_id
+    -- keep their TBC-authoritative values (no sod/wotlk bucket was needed --
+    -- the wotlk rows agree with TBC wherever both eras have the id, except
+    -- the two retunes which live only in the wotlk families).
+    local tbc_gh = HV.build_ladder("priest", "GreaterHeal", mk_action("GreaterHeal"))
+    assert_eq(#tbc_gh, 3, "TBC GH family unchanged (3 rows)")
+    local r48071 = HV.find_rank_by_id(48071)
+    assert_true(r48071 ~= nil and r48071.base_min == 1896, "find_rank_by_id resolves corpus-wide (48071 -> wotlk row 1896)")
+    assert_eq(HV.find_rank_by_id(25213).base_min, 2414, "find_rank_by_id(25213) stays the TBC 2414")
+
+    -- Wrath penalty branch (downrank_penalty, playerLevel > 70): the LHC-4.0
+    -- isWrath factor REPLACES the classic/TBC factors entirely.
+    local PRE = NS.PreemptiveHeal
+    assert_true(PRE and type(PRE.downrank_penalty) == "function", "preemptive heal module loaded")
+    assert_eq(PRE.downrank_penalty(79, 80), 1.0, "wrath: level 79 rank at 80 -> 1.0")
+    assert_eq(PRE.downrank_penalty(60, 80), 0.35, "wrath: level 60 rank at 80 -> 0.35 (22+65-80)/20")
+    assert_eq(PRE.downrank_penalty(20, 80), 0.0, "wrath: level 20 rank at 80 clamps to 0")
+    assert_eq(PRE.downrank_penalty(56, 70), (56 + 11) / 70, "classic/TBC path unchanged at 70 ((56+11)/70)")
+    assert_true(PRE.downrank_penalty(10, 60) < 1.0, "classic/TBC path keeps the sub-20 factor at 60")
+
+    -- Real hook at 80 (spell_ready restored to all-true via common).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- GH expected at 80, bonus 0: R1 981.5 R2 1248 R3 1395 R5 2120.5
+    -- R6 2275.5 R7 2627.5 R8 4300.5; the walk is newest-first with the
+    -- 1.3 tolerance bar (deficit * 1.3).
+    assert_eq(pick80(wgh, 500), "T R8", "GH deficit 500 -> no rank fits (smallest 981.5 > bar 650) -> overshoot fallback head R8")
+    assert_eq(pick80(wgh, 900), "T R1", "GH deficit 900 -> R1 (981.5 <= 1170)")
+    assert_eq(pick80(wgh, 1000), "T R2", "GH deficit 1000 -> R2")
+    assert_eq(pick80(wgh, 1700), "T R5", "GH deficit 1700 -> R5 (bar 2210 < R6 2275.5)")
+    assert_eq(pick80(wgh, 2000), "T R6", "GH deficit 2000 -> R6")
+    assert_eq(pick80(wgh, 2350), "T R7", "GH deficit 2350 -> R7 (wrath 2433-2822)")
+    assert_eq(pick80(wgh, 3800), "T R8", "GH deficit 3800 -> R8 head")
+    -- FH expected at 80: R4 453 R5 583.5 R6 722.5 R7 906 R8 1004.5
+    -- R9 1210.5 R10 2049.5.
+    assert_eq(pick80(wfh, 440), "T R4", "FH deficit 440 -> R4")
+    assert_eq(pick80(wfh, 600), "T R6", "FH deficit 600 -> R6 (722.5 <= bar 780, newest-first beats R5)")
+    assert_eq(pick80(wfh, 900), "T R8", "FH deficit 900 -> R8 (bar 1170 < R9 1210.5)")
+    assert_eq(pick80(wfh, 1500), "T R9", "FH deficit 1500 -> R9 (wrath 1121-1300)")
+    assert_eq(pick80(wfh, 2500), "T R10", "FH deficit 2500 -> R10 head")
+    -- Default-divisor isolation: WITHOUT the opt the hook defaults to 70;
+    -- the wrath application is chosen by that divisor, and since every
+    -- wotlk row carries DBC SpellLevel 80 (factor 1.0 at any caster <= 82)
+    -- the base-only math is identical either way.
+    assert_eq(pick80(wgh, 1700, {}), "T R5", "deficit fit stable across the default-divisor path")
+
+    -- Spec lanes through the real modules: deficits pick mid ranks; the
+    -- nil-deficit shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local holy_registry = { playstyles = {} }
+    function holy_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = holy_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local holy = load_spec("classes/priest/holy_wotlk")
+    local hlanes = {}
+    for _, s in ipairs(holy.playstyles and holy.playstyles.holy or holy_registry.playstyles.holy or {}) do hlanes[s.name] = s end
+    local gh_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10300 end } -- deficit 1700
+    local fh_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11100 end } -- deficit 900
+    hlanes.GreaterHeal.execute({ lowest = { unit = gh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25314, "holy GH lane deficit 1700 fits R5 (25314), not the 48063 head")
+    hlanes.FlashHeal.execute({ lowest = { unit = fh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 25233, "holy FH lane deficit 900 fits R8 (25233), not the 48071 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    hlanes.GreaterHeal.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 48063, "holy GH lane nil deficit -> legacy max-rank 48063")
+
+    local disc_registry = { playstyles = {} }
+    function disc_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = disc_registry
+    local dlog = {}
+    NS.try_cast = function(spell, target, reason)
+        dlog[#dlog + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local disc = load_spec("classes/priest/discipline_wotlk")
+    local dlanes = {}
+    for _, s in ipairs(disc.playstyles and disc.playstyles.discipline or disc_registry.playstyles.discipline or {}) do dlanes[s.name] = s end
+    dlanes.GreaterHeal.execute({ lowest = { unit = gh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(dlog[1].spell) == 25314, "disc GH lane deficit 1700 fits R5 (25314)")
+    dlanes.FlashHeal.execute({ lowest = { unit = fh_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(dlog[2].spell) == 25233, "disc FH lane deficit 900 fits R8 (25233)")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
+-- 9. Vanilla resto druid fit (2026-09-16 wave): the learn-capped classic HT
+--    ladder (era vanilla + max 60, the priest section-7 precedent) and the
+--    real hook picking mid ranks at the level-60 divisor. Evidence: HT R13
+--    25297 classic 2267-2677 vs TBC 2303-2714 and R10 9889 classic 1916-2257
+--    vs TBC 1923-2263 (Wowhead classic pages read 2026-09-15); R12/R13
+--    (levels 62/69) unlearnable at 60. TBC practice mirror: Warcraft Tavern
+--    ("experiment with different ranks ... do just enough healing").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HT_VAN = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"), nil, "vanilla", 60)
+    assert_true(HT_VAN ~= nil, "vanilla HT ladder constructs")
+    assert_eq(#HT_VAN, 11, "vanilla HT ladder carries R1-R11 (R12/R13 tail dropped)")
+    assert_eq(HT_VAN[1].id, 25297, "vanilla HT head is R11 25297")
+    assert_eq(HT_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HT_VAN[1].base_min, 2267, "vanilla HT R11 base_min is the classic 2267 (override applied)")
+    assert_eq(HT_VAN[1].base_max, 2677, "vanilla HT R11 base_max is the classic 2677")
+    local van_ranks = {}
+    for _, e in ipairs(HT_VAN) do van_ranks[e.id] = e.rank end
+    assert_eq(van_ranks[26979], nil, "HT R13 26979 (level 69) dropped at ceiling 60")
+    assert_eq(van_ranks[26978], nil, "HT R12 26978 (level 62) dropped at ceiling 60")
+    assert_eq(van_ranks[5185], 1, "HT R1 5185 survives the ceiling")
+    local r10v = nil
+    for _, e in ipairs(HT_VAN) do if e.id == 9889 then r10v = e end end
+    assert_eq(r10v.base_min, 1916, "vanilla HT R10 keeps the corrected classic 1916")
+    assert_eq(r10v.base_max, 2257, "vanilla HT R10 keeps the corrected classic 2257")
+
+    -- TBC era-less ladder stays byte-identical (13 ranks, TBC values).
+    local HT_TBC = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"))
+    assert_eq(#HT_TBC, 13, "era-less HT ladder keeps R1-R13")
+    assert_eq(HT_TBC[1].id, 26979, "era-less HT head stays R13 26979")
+    assert_eq(HV.find_rank_by_id(25297).base_min, 2303, "find_rank_by_id(25297) stays TBC-authoritative")
+
+    -- Real hook at the level-60 divisor, bonus 0 (classic penalty applied).
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    assert_eq(pick60(HT_VAN, 2000), "T R11", "HT deficit 2000 -> R11 head (2472 <= bar 2600)")
+    assert_eq(pick60(HT_VAN, 1500), "T R9", "HT deficit 1500 -> R9 (bar 1950 < R10 2086.5)")
+    assert_eq(pick60(HT_VAN, 800), "T R7", "HT deficit 800 -> R7 (858 <= bar 1040)")
+    assert_eq(pick60(HT_VAN, 400), "T R5", "HT deficit 400 -> R5 (bar 520 < R6 ~600)")
+    assert_eq(pick60(HT_VAN, 150), "T R3", "HT deficit 150 -> R3 (bar 195 < R4 ~215)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
+-- 10. Vanilla resto shaman fit (2026-09-16 wave): the learn-capped classic
+--    HW/LHW ladders (era vanilla + max 60, the priest/druid precedent) and
+--    the real hook picking mid ranks at the level-60 divisor. Evidence: HW
+--    R10 25357 classic 1620-1850 vs TBC 1647-1878, HW R9 10396 classic
+--    1389-1583 vs TBC 1394-1589, LHW R6 10468 classic 832-928 @380 vs TBC
+--    853-949 (cost nil) -- Wowhead classic pages read 2026-09-15; every
+--    other HW/LHW id agrees exactly. HW R11/R12 (levels 63/70) and LHW R7
+--    (level 66) unlearnable at 60. TBC practice mirror: Warcraft Tavern
+--    ("experiment with different ranks ... do just enough healing").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HW_VAN = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"), nil, "vanilla", 60)
+    assert_true(HW_VAN ~= nil, "vanilla HW ladder constructs")
+    assert_eq(#HW_VAN, 10, "vanilla HW ladder carries R1-R10 (R11/R12 tail dropped)")
+    assert_eq(HW_VAN[1].id, 25357, "vanilla HW head is R10 25357")
+    assert_eq(HW_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HW_VAN[1].base_min, 1620, "vanilla HW R10 base_min is the classic 1620 (override applied)")
+    assert_eq(HW_VAN[1].base_max, 1850, "vanilla HW R10 base_max is the classic 1850")
+    local hw_ranks = {}
+    for _, e in ipairs(HW_VAN) do hw_ranks[e.id] = e.rank end
+    assert_eq(hw_ranks[25396], nil, "HW R12 25396 (level 70) dropped at ceiling 60")
+    assert_eq(hw_ranks[25391], nil, "HW R11 25391 (level 63) dropped at ceiling 60")
+    assert_eq(hw_ranks[331], 1, "HW R1 331 survives the ceiling")
+    local r9v = nil
+    for _, e in ipairs(HW_VAN) do if e.id == 10396 then r9v = e end end
+    assert_eq(r9v.base_min, 1389, "vanilla HW R9 keeps the corrected classic 1389")
+    assert_eq(r9v.base_max, 1583, "vanilla HW R9 keeps the corrected classic 1583")
+
+    local LHW_VAN = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"), nil, "vanilla", 60)
+    assert_true(LHW_VAN ~= nil, "vanilla LHW ladder constructs")
+    assert_eq(#LHW_VAN, 6, "vanilla LHW ladder carries R1-R6 (R7 tail dropped)")
+    assert_eq(LHW_VAN[1].id, 10468, "vanilla LHW head is R6 10468")
+    assert_eq(LHW_VAN[1].base_min, 832, "vanilla LHW R6 base_min is the classic 832 (override applied)")
+    assert_eq(LHW_VAN[1].base_max, 928, "vanilla LHW R6 base_max is the classic 928")
+    assert_eq(LHW_VAN[1].cost, 380, "vanilla LHW R6 cost 380 (read off the classic page)")
+    local lhw_ranks = {}
+    for _, e in ipairs(LHW_VAN) do lhw_ranks[e.id] = e.rank end
+    assert_eq(lhw_ranks[25420], nil, "LHW R7 25420 (level 66) dropped at ceiling 60")
+    assert_eq(lhw_ranks[8004], 1, "LHW R1 8004 survives the ceiling")
+
+    -- TBC era-less ladders stay byte-identical (12 + 7 ranks, TBC values).
+    local HW_TBC = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"))
+    assert_eq(#HW_TBC, 12, "era-less HW ladder keeps R1-R12")
+    assert_eq(HW_TBC[1].id, 25396, "era-less HW head stays R12 25396")
+    assert_eq(HV.find_rank_by_id(25357).base_min, 1647, "find_rank_by_id(25357) stays TBC-authoritative")
+    local LHW_TBC = HV.build_ladder("shaman", "LesserHealingWave", mk_action("LesserHealingWave"))
+    assert_eq(#LHW_TBC, 7, "era-less LHW ladder keeps R1-R7")
+    assert_eq(LHW_TBC[1].id, 25420, "era-less LHW head stays R7 25420")
+
+    -- Real hook at the level-60 divisor, bonus 0 (classic penalty applied).
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    assert_eq(pick60(HW_VAN, 1500), "T R10", "HW deficit 1500 -> R10 head (1735 <= bar 1950)")
+    assert_eq(pick60(HW_VAN, 1000), "T R8", "HW deficit 1000 -> R8 (bar 1300 < R9 1486)")
+    assert_eq(pick60(HW_VAN, 500), "T R6", "HW deficit 500 -> R6 (bar 650 < R7 ~694)")
+    assert_eq(pick60(HW_VAN, 250), "T R5", "HW deficit 250 -> R5 (bar 325 < R6 ~427)")
+    assert_eq(pick60(HW_VAN, 100), "T R3", "HW deficit 100 -> R3 (bar 130 < R4 ~136)")
+    assert_eq(pick60(LHW_VAN, 700), "T R6", "LHW deficit 700 -> R6 head (880 <= bar 910)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
+-- 11. Vanilla holy paladin fit (2026-09-16 wave): the learn-capped classic
+--    HL/FoL ladders (era vanilla + max 60, the priest/druid/shaman precedent)
+--    and the real hook picking mid ranks at the level-60 divisor with the
+--    1.12 Healing Light talent mult. Evidence: nether.wowhead.com classic
+--    tooltips read 2026-09-16 — every vanilla-reachable HL/FoL id checked;
+--    only HL R9 25292 (classic 1590-1770 vs TBC 1619-1799) and FoL R6 19943
+--    (classic 348-389 vs TBC 356-396) diverge. All others agree exactly
+--    (HL R8 1272-1414, R7 968-1076, R6 717-799, R5 506-569, R4 322-368;
+--    FoL R5 278-310, R4 206-231, R3 153-171, R2 102-117). HL R1-R3 and FoL
+--    R1 carry no TBC base rows, so no override is recorded (the era-less TBC
+--    ladder shape stays byte-identical). TBC practice mirror: wowhead classic
+--    holy guide ("If your target is missing 200 health, you should not cast
+--    a max rank Holy Light ... cast a lower rank of Flash of Light").
+-- ---------------------------------------------------------------------------
+do
+    NS.HealValue = HV
+    local HL_VAN = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12, "vanilla", 60)
+    assert_true(HL_VAN ~= nil, "vanilla HL ladder constructs")
+    assert_eq(#HL_VAN, 6, "vanilla HL ladder carries R4-R9 (R10/R11 tail dropped, R1-R3 never in family)")
+    assert_eq(HL_VAN[1].id, 25292, "vanilla HL head is R9 25292")
+    assert_eq(HL_VAN[1].level, 60, "boundary: level == max_level (60) is kept")
+    assert_eq(HL_VAN[1].base_min, 1590, "vanilla HL R9 base_min is the classic 1590 (override applied)")
+    assert_eq(HL_VAN[1].base_max, 1770, "vanilla HL R9 base_max is the classic 1770")
+    local hl_ranks = {}
+    for _, e in ipairs(HL_VAN) do hl_ranks[e.id] = e.rank end
+    assert_eq(hl_ranks[27136], nil, "HL R11 27136 (level 70) dropped at ceiling 60")
+    assert_eq(hl_ranks[27135], nil, "HL R10 27135 (level 62) dropped at ceiling 60")
+    assert_eq(hl_ranks[1026], 4, "HL R4 1026 survives the ceiling")
+    local r8v = nil
+    for _, e in ipairs(HL_VAN) do if e.id == 10329 then r8v = e end end
+    assert_eq(r8v.base_min, 1272, "vanilla HL R8 keeps the agreeing 1272 (no override)")
+
+    local FOL_VAN = HV.build_ladder("paladin", "FlashOfLight", mk_action("FlashOfLight"), 1.12, "vanilla", 60)
+    assert_true(FOL_VAN ~= nil, "vanilla FoL ladder constructs")
+    assert_eq(#FOL_VAN, 5, "vanilla FoL ladder carries R2-R6 (R7 tail dropped, R1 never in family)")
+    assert_eq(FOL_VAN[1].id, 19943, "vanilla FoL head is R6 19943")
+    assert_eq(FOL_VAN[1].base_min, 348, "vanilla FoL R6 base_min is the classic 348 (override applied)")
+    assert_eq(FOL_VAN[1].base_max, 389, "vanilla FoL R6 base_max is the classic 389")
+    local fol_ranks = {}
+    for _, e in ipairs(FOL_VAN) do fol_ranks[e.id] = e.rank end
+    assert_eq(fol_ranks[27137], nil, "FoL R7 27137 (level 66) dropped at ceiling 60")
+    assert_eq(fol_ranks[19939], 2, "FoL R2 19939 survives the ceiling")
+
+    -- TBC era-less ladders stay byte-identical (8 + 6 ranks, TBC values).
+    local HL_TBC = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12)
+    assert_eq(#HL_TBC, 8, "era-less HL ladder keeps R4-R11")
+    assert_eq(HL_TBC[1].id, 27136, "era-less HL head stays R11 27136")
+    assert_eq(HV.find_rank_by_id(25292).base_min, 1619, "find_rank_by_id(25292) stays TBC-authoritative")
+    local FOL_TBC = HV.build_ladder("paladin", "FlashOfLight", mk_action("FlashOfLight"), 1.12)
+    assert_eq(#FOL_TBC, 6, "era-less FoL ladder keeps R2-R7")
+    assert_eq(FOL_TBC[1].id, 27137, "era-less FoL head stays R7 27137")
+    assert_eq(HV.find_rank_by_id(19943).base_min, 356, "find_rank_by_id(19943) stays TBC-authoritative")
+
+    -- Real hook at the level-60 divisor with the 1.12 talent mult, bonus 0.
+    local pick60 = function(ranks, d, extra)
+        local opts = { player_level = 60 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- NOTE: build_ladder entries carry talent_mult, but the hook resolves
+    -- bonus/penalty through expected_heal_ladder which reads entry fields —
+    -- the 1.12 mult is baked into the entries above, so plain pick60 applies.
+    assert_eq(pick60(HL_VAN, 1500), "T R9", "HL deficit 1500 -> R9 head (1882 <= bar 1950)")
+    assert_eq(pick60(HL_VAN, 1000), "T R7", "HL deficit 1000 -> R7 (bar 1300 < R8 1504)")
+    assert_eq(pick60(HL_VAN, 500), "T R5", "HL deficit 500 -> R5 (bar 650 < R6 693)")
+    assert_eq(pick60(HL_VAN, 250), "T R4", "HL deficit 250 -> R4 tail (213 <= bar 325)")
+    assert_eq(pick60(FOL_VAN, 700), "T R6", "FoL deficit 700 -> R6 head (413 <= bar 910)")
+    assert_eq(pick60(FOL_VAN, 300), "T R5", "FoL deficit 300 -> R5 (bar 390 < R6 413)")
+    assert_eq(pick60(FOL_VAN, 150), "T R3", "FoL deficit 150 -> R3 (bar 195 < R4 216)")
+    NS.HealValue = nil
+end
+
+-- ---------------------------------------------------------------------------
+-- 12. WotLK holy paladin fit (2026-09-16 wave): the era-distinct HL/FoL
+--    families, the real hook picking mid ranks at player_level 80 with the
+--    1.12 Healing Light mult, and the real spec lanes answering mid ranks
+--    on deficits and the legacy max-rank casts on unreadable deficits.
+--    WotLK retuned every shared row upward (HL R11 2846-3166 vs TBC
+--    2196-2446) and adds one head each (HL R12 48782, FoL R8 48785); costs
+--    stay nil (%-of-base-mana). No explicit lane deficit guard: the lanes
+--    pass the raw unit, so the deficit resolves inside the hook -- an
+--    unreadable deficit takes the hook's legacy walk to the ladder head,
+--    which IS the legacy max by construction (priest 2.28.0 precedent).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local whl = HV.build_ladder("paladin", "WotlkHolyLight", mk_action("HolyLight"), 1.12)
+    local wfol = HV.build_ladder("paladin", "WotlkFlashOfLight", mk_action("FlashOfLight"), 1.12)
+    assert_eq(#whl, 12, "WotLK HL ladder carries 12 ranks (R1-R12)")
+    assert_eq(#wfol, 8, "WotLK FoL ladder carries 8 ranks (R1-R8)")
+    assert_eq(whl[1].id, 48782, "WotLK HL head is 48782")
+    assert_eq(wfol[1].id, 48785, "WotLK FoL head is 48785")
+    assert_eq(whl[1].base_min, 4888, "WotLK HL head base_min 4888 (wotlk-client tooltip)")
+    assert_eq(whl[1].base_max, 5444, "WotLK HL head base_max 5444")
+    assert_eq(wfol[1].base_min, 788, "WotLK FoL head base_min 788")
+    assert_eq(wfol[1].base_max, 883, "WotLK FoL head base_max 883")
+    local whl_ids = {}
+    for _, e in ipairs(whl) do whl_ids[e.id] = e.rank end
+    assert_eq(whl_ids[1042], 5, "WotLK HL R5 1042 present (client-teaches, ACTION-gap closed)")
+    assert_eq(whl_ids[635], 1, "WotLK HL R1 635 present")
+    -- Era isolation: the TBC families and find_rank_by_id keep TBC values.
+    local tbc_hl = HV.build_ladder("paladin", "HolyLight", mk_action("HolyLight"), 1.12)
+    assert_eq(#tbc_hl, 8, "TBC HL family unchanged (8 rows)")
+    assert_eq(HV.find_rank_by_id(25292).base_min, 1619, "find_rank_by_id(25292) stays the TBC 1619")
+    assert_eq(HV.find_rank_by_id(19943).base_min, 356, "find_rank_by_id(19943) stays the TBC 356")
+    local r48782 = HV.find_rank_by_id(48782)
+    assert_true(r48782 ~= nil and r48782.base_min == 4888, "find_rank_by_id resolves corpus-wide (48782 -> wotlk row 4888)")
+
+    -- Real hook at 80 with the 1.12 mult, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HL expected at 80: R12 5786 R11 3367 R10 2678 R9 2440 R8 1917 R7 1458
+    -- R6 1081 R5 766 R4 491 R3 257 R2 125 R1 66.
+    assert_eq(pick80(whl, 4500), "T R12", "HL deficit 4500 -> R12 head (5786 <= bar 5850)")
+    assert_eq(pick80(whl, 3000), "T R11", "HL deficit 3000 -> R11 (bar 3900 < R12 5786)")
+    assert_eq(pick80(whl, 2000), "T R9", "HL deficit 2000 -> R9 (bar 2600 < R10 2678)")
+    assert_eq(pick80(whl, 1500), "T R8", "HL deficit 1500 -> R8 (bar 1950 < R9 2440)")
+    assert_eq(pick80(whl, 1000), "T R6", "HL deficit 1000 -> R6 (bar 1300 < R7 1458)")
+    assert_eq(pick80(whl, 500), "T R4", "HL deficit 500 -> R4 (bar 650 < R5 766)")
+    assert_eq(pick80(whl, 300), "T R3", "HL deficit 300 -> R3 (bar 390 < R4 491)")
+    assert_eq(pick80(whl, 150), "T R2", "HL deficit 150 -> R2 (bar 195 < R3 257)")
+    assert_eq(pick80(whl, 60), "T R1", "HL deficit 60 -> R1 tail (66 <= bar 78)")
+    -- FoL expected at 80: R8 936 R7 711 R6 543 R5 424 R4 315 R3 233 R2 157 R1 103.
+    assert_eq(pick80(wfol, 800), "T R8", "FoL deficit 800 -> R8 head (936 <= bar 1040)")
+    assert_eq(pick80(wfol, 700), "T R7", "FoL deficit 700 -> R7 (bar 910 < R8 936)")
+    assert_eq(pick80(wfol, 400), "T R5", "FoL deficit 400 -> R5 (bar 520 < R6 543)")
+    assert_eq(pick80(wfol, 200), "T R3", "FoL deficit 200 -> R3 (bar 260 < R4 315)")
+    assert_eq(pick80(wfol, 100), "T R1", "FoL deficit 100 -> R1 (bar 130 < R2 157)")
+
+    -- Spec lanes through the real module: deficits pick mid ranks; the
+    -- full-health shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local pala_registry = { playstyles = {} }
+    function pala_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = pala_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local pala = load_spec("classes/paladin/holy_wotlk")
+    local planes = {}
+    for _, s in ipairs(pala.playstyles and pala.playstyles.holy or pala_registry.playstyles.holy or {}) do planes[s.name] = s end
+    local hl_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    local fol_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11500 end } -- deficit 500
+    planes.HolyLight.execute({ lowest = { unit = hl_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25292, "holy HL lane deficit 2000 fits R9 (25292), not the 48782 head")
+    planes.FlashOfLight.execute({ lowest = { unit = fol_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 19943, "holy FoL lane deficit 500 fits R6 (19943), not the 48785 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    planes.HolyLight.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 48782, "holy HL lane nil deficit -> legacy max-rank 48782")
+    planes.FlashOfLight.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[4].spell) == 48785, "holy FoL lane nil deficit -> legacy max-rank 48785")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
+-- 13. WotLK resto druid fit (2026-09-16 wave): the era-distinct HT family,
+--    the real hook picking mid ranks at player_level 80, and the real
+--    FallbackHealingTouch lane answering mid ranks on deficits and the
+--    legacy 48378 max on unreadable deficits. The spec previously had no
+--    non-emergency direct HT lane (Nourish is single-rank, Regrowth is
+--    refresh-gated, NS+HT is the instant emergency) -- the lane mirrors the
+--    TBC FallbackHealingTouch gate (lowest <= 80, mana >= 25, standing
+--    still, HT ready, no predicted overheal) in fallback position after
+--    Nourish. WotLK retuned every shared row except R1-R4 (which agree
+--    exactly); costs stay nil (%-of-base-mana).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local wht = HV.build_ladder("druid", "WotlkHealingTouch", mk_action("HealingTouch"))
+    assert_true(wht ~= nil, "WotLK HT ladder constructs")
+    assert_eq(#wht, 14, "WotLK HT ladder carries 14 ranks (R1-R14)")
+    assert_eq(wht[1].id, 48378, "WotLK HT head is 48378")
+    assert_eq(wht[1].level, 79, "WotLK HT head learn level 79 (tooltip Requires)")
+    assert_eq(wht[1].base_min, 3761, "WotLK HT head base_min 3761 (wotlk-client tooltip)")
+    assert_eq(wht[1].base_max, 4440, "WotLK HT head base_max 4440")
+    local wht_ids = {}
+    for _, e in ipairs(wht) do wht_ids[e.id] = e.rank end
+    assert_eq(wht_ids[5185], 1, "WotLK HT R1 5185 present")
+    -- Era isolation: the TBC family and find_rank_by_id keep TBC values
+    -- (R1-R4 agree exactly, so isolation is pinned on a divergent row).
+    local tbc_ht = HV.build_ladder("druid", "HealingTouch", mk_action("HealingTouch"))
+    assert_eq(#tbc_ht, 13, "TBC HT family unchanged (13 rows)")
+    assert_eq(HV.find_rank_by_id(26979).base_min, 2715, "find_rank_by_id(26979) stays the TBC 2715")
+    local r48378 = HV.find_rank_by_id(48378)
+    assert_true(r48378 ~= nil and r48378.base_min == 3761, "find_rank_by_id resolves corpus-wide (48378 -> wotlk row 3761)")
+
+    -- Real hook at 80, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HT expected at 80: R14 4100.5 R13 2558 R12 2240.5 R11 2150 R10 1794.5
+    -- R9 1444.5 R8 1335.5 R7 900.5 R6 718 R5 557 R4 417.5 R3 228.5 R2 106.5
+    -- R1 47.5.
+    assert_eq(pick80(wht, 3500), "T R14", "HT deficit 3500 -> R14 head (4100.5 <= bar 4550)")
+    assert_eq(pick80(wht, 2000), "T R13", "HT deficit 2000 -> R13 (bar 2600 < R14 4100.5)")
+    assert_eq(pick80(wht, 1700), "T R11", "HT deficit 1700 -> R11 (bar 2210 < R12 2240.5)")
+    assert_eq(pick80(wht, 1300), "T R9", "HT deficit 1300 -> R9 (bar 1690 < R10 1794.5)")
+    assert_eq(pick80(wht, 1000), "T R7", "HT deficit 1000 -> R7 (bar 1300 < R8 1335.5)")
+    assert_eq(pick80(wht, 600), "T R6", "HT deficit 600 -> R6 (718 <= bar 780)")
+    assert_eq(pick80(wht, 400), "T R4", "HT deficit 400 -> R4 (bar 520 < R5 557)")
+    assert_eq(pick80(wht, 150), "T R2", "HT deficit 150 -> R2 (bar 195 < R3 228.5)")
+    assert_eq(pick80(wht, 40), "T R1", "HT deficit 40 -> R1 tail (47.5 <= bar 52)")
+
+    -- Spec lane through the real module: deficit picks a mid rank; the
+    -- full-health shape falls back to the exact legacy max-rank cast.
+    local resto_registry = { playstyles = {} }
+    function resto_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = resto_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local resto = load_spec("classes/druid/resto_wotlk")
+    local rlanes = {}
+    for _, s in ipairs(resto.playstyles and resto.playstyles.resto or resto_registry.playstyles.resto or {}) do rlanes[s.name] = s end
+    assert_true(rlanes.FallbackHealingTouch ~= nil, "FallbackHealingTouch lane present")
+    local ht_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    rlanes.FallbackHealingTouch.execute({ lowest = { unit = ht_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 26979, "fallback HT lane deficit 2000 fits R13 (26979), not the 48378 head")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    rlanes.FallbackHealingTouch.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 48378, "fallback HT lane nil deficit -> legacy max-rank 48378")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
+-- ---------------------------------------------------------------------------
+-- 14. WotLK resto shaman fit (2026-09-16 wave, final spec): the era-distinct
+--    HW/LHW families, the real hook picking mid ranks at player_level 80, and
+--    the real HealingWave / TidalWavesHealingWave / LesserHealingWave lanes
+--    answering mid ranks on deficits and the legacy 49273/49276 max on
+--    unreadable deficits. WotLK adds two ranks per ladder (HW R14 49273 req
+--    80 / R13 49272 req 75; LHW R9 49276 req 77 / R8 49275 req 72 -- rank
+--    numbers confirmed via wowclassicdb/wowhead indexed pages) and retunes
+--    two shared rows (HW R12 2162-2465 vs TBC 2134-2436; LHW R7 1055-1202 vs
+--    TBC 1051-1198); every other shared row agrees exactly. Costs stay nil
+--    (%-of-base-mana).
+-- ---------------------------------------------------------------------------
+do
+    local saved = {}
+    for k, v in pairs(common) do NS[k] = v; saved[k] = v end
+    NS.HealValue = NS.HealValue or HV
+    NS.cast_best_heal_rank = NS.cast_best_heal_rank or CAST_HOOK
+    local whw = HV.build_ladder("shaman", "WotlkHealingWave", mk_action("HealingWave"))
+    local wlhw = HV.build_ladder("shaman", "WotlkLesserHealingWave", mk_action("LesserHealingWave"))
+    assert_true(whw ~= nil, "WotLK HW ladder constructs")
+    assert_true(wlhw ~= nil, "WotLK LHW ladder constructs")
+    assert_eq(#whw, 14, "WotLK HW ladder carries 14 ranks (R1-R14)")
+    assert_eq(#wlhw, 9, "WotLK LHW ladder carries 9 ranks (R1-R9)")
+    assert_eq(whw[1].id, 49273, "WotLK HW head is 49273 (R14)")
+    assert_eq(wlhw[1].id, 49276, "WotLK LHW head is 49276 (R9)")
+    assert_eq(whw[1].level, 80, "WotLK HW head learn level 80 (tooltip Requires)")
+    assert_eq(whw[1].base_min, 3034, "WotLK HW head base_min 3034 (wotlk-client tooltip)")
+    assert_eq(whw[1].base_max, 3466, "WotLK HW head base_max 3466")
+    assert_eq(whw[2].id, 49272, "WotLK HW R13 49272 present")
+    assert_eq(wlhw[1].base_min, 1624, "WotLK LHW head base_min 1624")
+    assert_eq(wlhw[1].base_max, 1852, "WotLK LHW head base_max 1852")
+    local whw_ids = {}
+    for _, e in ipairs(whw) do whw_ids[e.id] = e.rank end
+    assert_eq(whw_ids[331], 1, "WotLK HW R1 331 present")
+    -- Era isolation: the TBC families and find_rank_by_id keep TBC values.
+    local tbc_hw = HV.build_ladder("shaman", "HealingWave", mk_action("HealingWave"))
+    assert_eq(#tbc_hw, 12, "TBC HW family unchanged (12 rows)")
+    assert_eq(HV.find_rank_by_id(25396).base_min, 2134, "find_rank_by_id(25396) stays the TBC 2134")
+    assert_eq(HV.find_rank_by_id(25420).base_min, 1051, "find_rank_by_id(25420) stays the TBC 1051")
+    local r49273 = HV.find_rank_by_id(49273)
+    assert_true(r49273 ~= nil and r49273.base_min == 3034, "find_rank_by_id resolves corpus-wide (49273 -> wotlk row 3034)")
+
+    -- Real hook at 80, bonus 0 (wrath: base averages).
+    local pick80 = function(ranks, d, extra)
+        local opts = { player_level = 80 }
+        if type(extra) == "table" then for k2, v2 in pairs(extra) do opts[k2] = v2 end end
+        local s, l = CAST_HOOK(ranks, { unit = unit(d) }, ctx, "T", opts)
+        return l
+    end
+    -- HW expected at 80: R14 3250 R13 2842 R12 2314 R11 1879 R10 1763 R9 1492
+    -- R8 1116 R7 817 R6 596 R5 422 R4 304 R3 150 R2 76 R1 42.
+    assert_eq(pick80(whw, 3000), "T R14", "HW deficit 3000 -> R14 head (3250 <= bar 3900)")
+    assert_eq(pick80(whw, 2200), "T R13", "HW deficit 2200 -> R13 (2842 <= bar 2860 < R14 3250)")
+    assert_eq(pick80(whw, 2000), "T R12", "HW deficit 2000 -> R12 (2314 <= bar 2600)")
+    assert_eq(pick80(whw, 1500), "T R11", "HW deficit 1500 -> R11 (bar 1950 < R12 2314)")
+    assert_eq(pick80(whw, 1200), "T R9", "HW deficit 1200 -> R9 (bar 1560 < R10 1763)")
+    assert_eq(pick80(whw, 800), "T R7", "HW deficit 800 -> R7 (bar 1040 < R8 1116)")
+    assert_eq(pick80(whw, 350), "T R5", "HW deficit 350 -> R5 (bar 455 < R6 596)")
+    assert_eq(pick80(whw, 120), "T R3", "HW deficit 120 -> R3 (150 <= bar 156)")
+    assert_eq(pick80(whw, 20), "T R14", "HW deficit 20 -> nothing fits -> overshoot head R14")
+    -- LHW expected at 80: R9 1738 R8 1500 R7 1129 R6 901 R5 686 R4 501
+    -- R3 372 R2 275 R1 183.
+    assert_eq(pick80(wlhw, 1500), "T R9", "LHW deficit 1500 -> R9 head (1738 <= bar 1950)")
+    assert_eq(pick80(wlhw, 1200), "T R8", "LHW deficit 1200 -> R8 (bar 1560 < R9 1738)")
+    assert_eq(pick80(wlhw, 700), "T R6", "LHW deficit 700 -> R6 (bar 910 < R7 1129)")
+    assert_eq(pick80(wlhw, 400), "T R4", "LHW deficit 400 -> R4 (bar 520 < R5 686)")
+    assert_eq(pick80(wlhw, 200), "T R1", "LHW deficit 200 -> R1 (183 <= bar 260)")
+    assert_eq(pick80(wlhw, 100), "T R9", "LHW deficit 100 -> nothing fits -> overshoot head R9")
+
+    -- Spec lanes through the real module: deficits pick mid ranks; the
+    -- full-health shape falls back to the exact legacy max-rank casts
+    -- (lane conditions untouched).
+    local resto_registry = { playstyles = {} }
+    function resto_registry:register(name, strategies, options)
+        self.playstyles[name] = strategies; self.options = self.options or {}
+        self.options[name] = options
+    end
+    NS.rotation_registry = resto_registry
+    local log = {}
+    NS.try_cast = function(spell, target, reason)
+        log[#log + 1] = { spell = spell, target = target, reason = reason }
+        return true
+    end
+    local resto = load_spec("classes/shaman/restoration_wotlk")
+    local rlanes = {}
+    for _, s in ipairs(resto.playstyles and resto.playstyles.restoration or resto_registry.playstyles.restoration or {}) do rlanes[s.name] = s end
+    assert_true(rlanes.HealingWave ~= nil and rlanes.LesserHealingWave ~= nil and rlanes.TidalWavesHealingWave ~= nil,
+        "fitted shaman lanes present")
+    local hw_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 10000 end } -- deficit 2000
+    rlanes.HealingWave.execute({ lowest = { unit = hw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[1].spell) == 25396, "HW lane deficit 2000 fits R12 (25396), not the 49273 head")
+    local lhw_ally = { get_max_health = function(self) return 12000 end, get_health = function(self) return 11600 end } -- deficit 400
+    rlanes.LesserHealingWave.execute({ lowest = { unit = lhw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[2].spell) == 10466, "LHW lane deficit 400 fits R4 (10466), not the 49276 head")
+    rlanes.TidalWavesHealingWave.execute({ lowest = { unit = hw_ally }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[3].spell) == 25396, "TW lane deficit 2000 fits the same HW R12 (25396)")
+    local full = { get_max_health = function(self) return 12000 end, get_health = function(self) return 12000 end }
+    rlanes.HealingWave.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[4].spell) == 49273, "HW lane nil deficit -> legacy max-rank 49273")
+    rlanes.LesserHealingWave.execute({ lowest = { unit = full }, mana_pct = 90, settings = {} }, {})
+    assert_true(action_id(log[5].spell) == 49276, "LHW lane nil deficit -> legacy max-rank 49276")
+
+    for k in pairs(saved) do NS[k] = nil end
+    NS.HealValue = nil
+    NS.cast_best_heal_rank = nil
+    for k, v in pairs(saved) do NS[k] = v end
+end
+
 -- ---------------------------------------------------------------------------
 print(("# test_sod_healer_rank_fit: %d passed, %d failed"):format(pass, fail))
 if fail > 0 then error("test_sod_healer_rank_fit failed", 0) end

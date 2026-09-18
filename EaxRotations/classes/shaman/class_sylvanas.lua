@@ -491,8 +491,18 @@ if _hv_ok and type(_HealValue) == "table" then
     local function _mk_lhw(id)
         return NS.spell_action({ name = "LesserHealingWave", ids = { id } })
     end
-    NS.ShamanHEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw) or NS.ShamanHEALING_WAVE_RANKS
-    NS.ShamanLESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw) or NS.ShamanLESSER_HEALING_WAVE_RANKS
+    -- Era wiring (priest 2.27.2 / druid 2026-09-16 precedent): vanilla
+    -- clients load this TBC class module, so both ladders build for the
+    -- vanilla client: classic-dataset values via the build_ladder era
+    -- alias and the level-60 learn ceiling (HW R11/R12 + LHW R7 are TBC
+    -- tails unlearnable at 60). Other eras build era-less and unlimited,
+    -- byte-identical to before.
+    local _hv_era, _hv_max = nil, nil
+    if NS.is_vanilla and NS.is_vanilla() then
+        _hv_era, _hv_max = "vanilla", 60
+    end
+    NS.ShamanHEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "HealingWave", _mk_hw, nil, _hv_era, _hv_max) or NS.ShamanHEALING_WAVE_RANKS
+    NS.ShamanLESSER_HEALING_WAVE_RANKS = _HealValue.build_ladder("shaman", "LesserHealingWave", _mk_lhw, nil, _hv_era, _hv_max) or NS.ShamanLESSER_HEALING_WAVE_RANKS
 else
     -- Module unavailable (should not happen): legacy single-action ladders.
     NS.ShamanHEALING_WAVE_RANKS = { { spell = SPELLS.HealingWave, label = "R12" } }

@@ -633,14 +633,19 @@ local components = {
             return {
                 { "sod specs " .. tostring(specs) .. " (expected 20)", specs == 20 },
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
-                -- 2026-09-14: 0 -> 2 classified (SOD_LANE_CLASS, bucket c):
-                -- druid/feral + druid/tank Interrupt lanes hold under the
-                -- battery (no interrupt-API stubs); both firing paths are
-                -- pinned in test_sod_druid_hunter.lua.
-                -- 2026-09-14 SoD interrupt wave: 2 -> 14 classified — the
-                -- 12 new per-class Interrupt lanes hold identically (same
-                -- manager contract, same bucket-c classification).
-                { "never-firing " .. never .. " (expected 14 baseline, classified)", never == 14 },
+                -- 2026-09-14: 0 -> 14 classified (SOD_LANE_CLASS, bucket c):
+                -- the 14 per-class Interrupt lanes held under the battery.
+                -- 2026-09-16 close-out: 14 -> 0 — the hold was the cast-window
+                -- gate, not missing API stubs: the scenario target reported
+                -- get_cast_pct = 60 (outside the manager's <50 default), so
+                -- cast_has_interrupt_window failed in every scenario. Cleared
+                -- with two honest fixtures (sod_interrupt_window /
+                -- sod_interrupt_berserker): casting target at pct 20 with
+                -- humanize off; the berserker variant adds stance = 3 for dps
+                -- Pummel (manager required gate). Firing scope verified: each
+                -- lane fires ONLY in those scenarios, Pummel only berserker,
+                -- tank ShieldBash only non-berserker. Era is STRICT again.
+                { "never-firing " .. never .. " (expected 0)", never == 0 },
             }
         end,
     },

@@ -297,6 +297,17 @@ local function choose_holy_light_rank(context, entry)
     if mode == "rank4" then return HolyLightRank4, "Holy Light R5" end
     if mode == "rank7" then return HolyLightRank7, "Holy Light R7" end
     if mode == "rank9" then return HolyLightRank9, "Holy Light Max" end
+    -- Deficit-fit (2026-09-16, TBC-holy/druid/shaman/priest precedent):
+    -- smallest HL rank covering the deficit over the learn-capped classic
+    -- ladder (class build, era vanilla + max 60), level-60 penalty divisor
+    -- threaded explicitly. Fail-closed to the hp/deficit bands below (no
+    -- ladder/hook, unreadable deficit, kill switch, uncastable). Explicit
+    -- rank modes above always win. Live NS lookup so tests inject post-load.
+    -- HolyShock/LayOnHands lanes never reach here (instant/cooldown identity).
+    if deficit > 0 and type(NS.HOLY_LIGHT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+        local fit_spell, fit_label = NS.cast_best_heal_rank(NS.HOLY_LIGHT_RANKS, entry, context, "Holy Light", { player_level = 60 })
+        if fit_spell then return fit_spell, fit_label end
+    end
     if hp <= EMERGENCY_HP or deficit >= LARGE_HEAL_DEFICIT then return HolyLightRank11, "Holy Light Max" end
     if hp <= 45 or deficit >= MEDIUM_HEAL_DEFICIT then return HolyLightRank9, "Holy Light Max" end
     if hp <= 65 or deficit >= LIGHT_HEAL_DEFICIT then return HolyLightRank7, "Holy Light R7" end
@@ -329,6 +340,24 @@ local function choose_smart_heal(context, s, entry)
         return s.heal_spell
     end
     if hp <= flash_hp then
+        -- Deficit-fit (2026-09-16, same contract as choose_holy_light_rank):
+        -- smallest FoL rank covering the deficit over the learn-capped
+        -- classic ladder (FoL R7 tail unlearnable at 60). Fail-closed to the
+        -- conserve/max bands below; live lookup so tests inject post-load.
+        -- Public practice: Warcraft Tavern classic ("have a couple of ranks
+        -- of each on your action bar ... choose the correct spell"; best
+        -- ranks FoL 4+6, HL 6+9), wowhead classic holy guide ("If your
+        -- target is missing 200 health, you should not cast a max rank Holy
+        -- Light. Instead ... cast a lower rank of Flash of Light").
+        local fol_deficit = deficit_of(entry)
+        if fol_deficit > 0 and type(NS.FLASH_OF_LIGHT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+            local fit_spell, fit_label = NS.cast_best_heal_rank(NS.FLASH_OF_LIGHT_RANKS, entry, context, "Flash of Light", { player_level = 60 })
+            if fit_spell then
+                s.heal_spell = fit_spell
+                s.heal_label = fit_label
+                return s.heal_spell
+            end
+        end
         -- Flash of Light downranking: use rank 6 [19943] for mana conservation < 15%
         if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
             s.heal_spell = FlashOfLightRank6
@@ -743,7 +772,15 @@ local strategies = {
             if hp_of(s.lowest) > spec_kit.setting(context, "holy_flash_light_hp", 85) then return false end
             return NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS)
         end,
-        execute = function(_, s)
+        execute = function(context, s)
+            -- Deficit-fit, same contract as the choose_smart_heal FoL branch
+            -- above (the lowest entry carries the deficit). Fail-closed to
+            -- the legacy max-rank cast below.
+            local entry = s.lowest
+            if entry and (deficit_of(entry) or 0) > 0 and type(NS.FLASH_OF_LIGHT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+                local chosen, flabel = NS.cast_best_heal_rank(NS.FLASH_OF_LIGHT_RANKS, entry, context, "Flash of Light", { player_level = 60 })
+                if chosen then return cast_on(chosen, entry, format("[HOLY] %s efficient %.0f%%", flabel or "Flash of Light", hp_of(entry))) end
+            end
             return cast_on(SPELLS.FlashOfLight, s.lowest, format("[HOLY] Flash of Light efficient %.0f%%", hp_of(s.lowest)))
         end,
     },

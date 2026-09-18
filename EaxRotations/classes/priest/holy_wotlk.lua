@@ -21,6 +21,32 @@ local dsl      = require("shared/strategy_dsl_sylvanas")
 
 local define = spec_kit.define_action
 
+-- 2026-09-16 WotLK deficit-fit wave: per-rank FH/GH ladders from the
+-- heal-value module's WotLK families (era-less build_ladder -- the wotlk
+-- rows carry no era-divergent values, so an era arg would apply nothing).
+-- Fail-closed: without the module the ladders stay nil and both lanes cast
+-- the exact legacy max-rank actions below.
+local WOTLK_FH_RANKS, WOTLK_GH_RANKS
+local _HealValue = NS.HealValue
+if not _HealValue then
+    local _hv_ok, _mod = pcall(require, "shared/heal_value_sylvanas")
+    if _hv_ok and type(_mod) == "table" then
+        _HealValue = _mod
+        NS.HealValue = NS.HealValue or _mod
+    end
+end
+-- Lean embedders (standalone dofile suites) may stub NS without
+-- spell_action; core_sylvanas always defines it before class modules load,
+-- so the guard only ever skips the fit ladder there -- fail-closed either
+-- way (both lanes fall back to the legacy max-rank casts).
+if type(_HealValue) == "table" and type(NS.spell_action) == "function" then
+    WOTLK_FH_RANKS = _HealValue.build_ladder("priest", "WotlkFlashHeal",
+        function(id) return NS.spell_action(id, "FlashHeal") end)
+    WOTLK_GH_RANKS = _HealValue.build_ladder("priest", "WotlkGreaterHeal",
+        function(id) return NS.spell_action(id, "GreaterHeal") end)
+end
+local cast_best_heal_rank = NS.cast_best_heal_rank or function() return nil end
+
 local ACTION = {
     Renew = define("Renew", { 48068, 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
     -- WotLK Prayer of Mending: 33076 r1 -> 48112 r2 -> 48113 r3 (max).
@@ -171,7 +197,22 @@ end
             { type = "state", field = "target_hp", op = "<", value = 50 },
             { type = "state", field = "mana_pct", op = ">=", value = 30 },
         },
-        action = { type = "cast", spell = ACTION.GreaterHeal, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: the fit changes WHICH Greater Heal
+        -- rank casts (overheal avoidance; WotLK ranks cost %-of-base-mana,
+        -- so no mana is saved), never whether the lane fires -- the
+        -- conditions above are untouched. Fail-closed: without the module
+        -- ladder or with the fit kill-switch off, the exact legacy cast
+        -- (the 48063 max-rank action) runs.
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if WOTLK_GH_RANKS then
+                local chosen, rank_label = cast_best_heal_rank(WOTLK_GH_RANKS, target,
+                    context, "[HOLY] GreaterHeal", { player_level = 80 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+            end
+            return NS.try_cast(ACTION.GreaterHeal, target, "[HOLY] GreaterHeal") == true
+        end },
     },
     {
         name = "Lightwell",
@@ -209,7 +250,18 @@ end
             { type = "state", field = "target_hp", op = "<", value = 70 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.FlashHeal, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: same shape as the GreaterHeal lane
+        -- above (conditions untouched, legacy max-rank 48071 fallback).
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if WOTLK_FH_RANKS then
+                local chosen, rank_label = cast_best_heal_rank(WOTLK_FH_RANKS, target,
+                    context, "[HOLY] FlashHeal", { player_level = 80 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+            end
+            return NS.try_cast(ACTION.FlashHeal, target, "[HOLY] FlashHeal") == true
+        end },
     },
     -- 2026-09-10 guide-pass self-upkeep lanes: cast at the buff-maintenance
     -- position (OOC or in combat — Inner Fire charges are the panic argument;

@@ -1,6 +1,169 @@
 # Changelog
 
-## Unreleased
+## 2.28.0 — 2026-09-16
+
+### Customer Changelog
+- **WotLK holy and discipline priests stop overhealing small deficits.**
+  Flash Heal and Greater Heal now pick the smallest castable rank whose
+  heal covers the target's missing health instead of always casting
+  max rank; lane priorities, conditions, and full-health behavior are
+  unchanged, and the feature is fail-closed (legacy max-rank casts return
+  the moment the fit ladder or the kill-switch says so).
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #54 (squash 352bf0a9d:
+  the WotLK priest deficit-fit wave) converted to the release entry. The
+  version is 2.28.0, not 2.27.3: the wave adds new functionality (deficit-
+  driven rank selection and the wrath penalty semantics in the heal
+  engine), which takes the minor slot per the v2.27.0 precedent; patch
+  numbers are reserved for corrections. This commit also bumps the four
+  version pins (header.lua, the README badge, the PvP footer, this top
+  entry) and the validation doc's version stamp.
+
+### Healers - WotLK priest deficit fit (Flash Heal / Greater Heal)
+- WotLK priest deficit-fit wave (branch feat/wotlk-priest-fit-2026-09-16):
+  Flash Heal and Greater Heal WotLK rank families added to the heal-value
+  module (all 18 rows Wowhead wotlk-verified 2026-09-16; two era retunes
+  found and kept era-distinct: FH 25235 1121-1300, GH 25213 2433-2822; the
+  four classic GH ranks the TBC ladder replaced are members again; both
+  heads exact-match wowsims/wotlk@563e4a08). The go/no-go record held: the
+  module's +11 downrank divisor is TBC-only by LibHealComm-4.0's own era
+  gating, so `downrank_penalty` gains an explicit wrath branch
+  (player_level > 70) with the classic/TBC paths byte-unchanged; DBC
+  SpellLevel 80 on every rank means no coefficient penalty at 80 and
+  WotLK's %-of-base-mana costs make the fit pure overheal avoidance.
+  holy_wotlk and discipline_wotlk GreaterHeal/FlashHeal lanes thread
+  `player_level = 80` through the deficit fit; lane conditions are
+  untouched, and without the fit ladder or with the kill-switch off both
+  lanes cast the exact legacy max-rank actions (fail-closed).
+
+### Fixed
+- **`find_rank_by_id` era precedence made deterministic.** 25213 now lives
+  in both the TBC GreaterHeal family (2414) and WotlkGreaterHeal (2433);
+  the old single-pass `pairs()` walk could return either depending on
+  table order. Era-suffixed families now resolve after the canonical
+  TBC/classic families, so the documented TBC-table answer always wins.
+
+### Tests
+- Rank-fit suite section 8 (139 checks): wotlk ladders (10 FH / 8 GH, head
+  ids, era-distinct values), the wrath penalty branch, real-hook pick
+  boundaries at 80, and both spec lanes fitting mid ranks with the legacy
+  max-rank fallback; two load-bearing injections fired and restored
+  byte-identical. The holy WotLK DSL priority suite's mock gained the
+  `action.fn`/`try_cast` branches its real counterpart uses.
+
+## 2.27.2 — 2026-09-15
+
+### Customer Changelog
+- **Vanilla healers cast with era-correct heal values.** The vanilla priest's
+  Greater Heal and Flash Heal rank tables now carry classic-era numbers and
+  only ranks a level-60 character can actually learn. Rank choices themselves
+  are unchanged - a verification-and-correction release, not a rotation
+  change.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #53 (squash 0569b866a: the
+  vanilla-era priest heal values and learn-capped ladders) converted to the
+  release entry. This commit also removes a duplicated `# Changelog` heading
+  that PR's insertion left behind, and bumps the four version pins
+  (header.lua, the README badge, the PvP footer, this top entry).
+
+### Healers - vanilla-era priest heal values corrected and ladders level-capped
+
+- **Vanilla Greater Heal 25314 (R5) era-corrected.** The classic page (read
+  2026-09-15) shows 1966-2194 vs the TBC row's 2006-2235 (cost 710
+  identical); 25314 is the only Greater Heal rank a level-60 vanilla client
+  can learn, so the correction is load-bearing for vanilla's GH deficit
+  fit. It joins `M.ERA_OVERRIDES.sod.priest` as the seventh verified
+  divergence.
+- **Era alias fail-closed:** `build_ladder` now maps era `vanilla` onto the
+  `sod` override bucket (both eras run the 1.12-class classic dataset);
+  any other era name still applies nothing. `find_rank_by_id` and the
+  era-less TBC ladders stay TBC-authoritative and byte-unchanged.
+- **Vanilla ladders learn-capped at build time.** `build_ladder` takes an
+  optional 6th `max_level` argument dropping ranks above the learn level;
+  the priest class wiring passes 60 when `NS.is_vanilla()`, so the TBC-tail
+  GH R6/R7 and FH R8/R9 rows are excluded outright instead of relying on
+  `pick_castable`'s `is_ready` skip. Vanilla heal options now thread
+  `player_level = 60` so the downrank penalty divisor is era-correct.
+- **Pinned:** 21 new checks (vanilla GH/FH ladder values and ceilings, TBC
+  isolation, fail-closed alias, max_level boundary rows) in
+  `test_sod_healer_rank_fit.lua` (84 -> 105 checks); the load-bearing
+  injection (25314 override row removed) fails exactly the two value pins
+  and restores byte-identical. No TBC or SoD behaviour changes.
+## 2.27.1 — 2026-09-15
+
+### Customer Changelog
+- **SoD healers get era-correct heal values.** All 36 SoD-reachable spell ids
+  in the heal-rank tables were verified against the classic client, and the
+  six that differ from the TBC-era values are now corrected for SoD (druid
+  Healing Touch, priest Flash Heal, shaman Healing Wave / Lesser Healing
+  Wave). Rank choices themselves are unchanged - a verification-and-
+  correction release, not a rotation change.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #52 (squash 41c7c276a: the
+  full-ladder era audit for Healing Touch and Flash Heal) and PR #51 (squash
+  cd223e230: the shaman era overrides, verified across the whole ladder)
+  converted to the release entry. This commit changes only this conversion
+  and the four version pins (header.lua, the README badge, the PvP footer,
+  this top entry).
+
+### Healers - every SoD-reachable id in the heal-value ladders is era-verified
+
+- **Full-ladder audit completed (2026-09-15).** Sweeping all 15 previously
+  unverified SoD-reachable ids across the Healing Touch and Flash Heal
+  ladders against Wowhead's classic pages found two further divergences,
+  both with identical cost: druid Healing Touch 9889 (R10; classic
+  1916-2257 vs the TBC row 1923-2263) and priest Flash Heal 10917 (R7;
+  classic 828-975 vs TBC 833-979). Both are now in `M.ERA_OVERRIDES.sod`;
+  the other 13 ids agree exactly and are pinned as untouched (HT
+  5186-5189/6778/8903/9758, FH 2061/9472/9473/9474/10915/10916 - the PR
+  #49 wave's TBC-page adoption was era-safe). With the shaman ladders
+  (HW/LHW, 3 divergences) every SoD-reachable id in the four
+  value-consuming ladders is now verified agreeing or overridden.
+- **Shaman overrides verified across the whole ladder.** Every
+  SoD-reachable HW/LHW id was checked against Wowhead's classic pages:
+  HW 25357 (1620-1850 vs TBC 1647-1878), HW 10396 (1389-1583 vs 1394-1589)
+  and LHW 10468 (832-928 vs 853-949) diverge and are overridden -- 10468's
+  cost (380, nil in the TBC row) also filled in; all eight remaining HW
+  and five LHW ids agree exactly and stay untouched.
+- **No lane behaviour changes at any probed deficit (400-1600):** both new
+  divergences are ~0.4% of row size, too small to flip any rank pick
+  (unlike the shaman R10 knife-edge), so the override corrects the stored
+  values and the fit picks the same ranks; the pins prove the corrected
+  values land and the TBC table stays authoritative.
+- **Pins:** era-built values for both rows, both-direction TBC isolation
+  (no-era ladders + `find_rank_by_id`), agreeing-id isolation, and a
+  load-bearing injection (both rows removed fires exactly the 4 new value
+  pins) restored byte-identical. 84 checks in `test_sod_healer_rank_fit.lua`
+  (71 from the audit plus the 13 shaman checks that joined from PR #51).
+
+## 2.27.0 — 2026-09-15
+
+### Customer Changelog
+- **Warriors stop spam-casting refused spells**: the Battle Shout spam where a
+  cast the client refused (not enough rage) was re-attempted every half second
+  is fixed; warrior stances are now detected from the aura itself, and shouts
+  refresh on a window instead of waiting to fully lapse.
+- **SoD healers cast smarter ranks** (resto shaman, resto druid, healing
+  priest): heals pick the smallest rank that still covers the target's missing
+  health, with era-correct spell values verified against the classic client.
+- **TBC healers cast smarter ranks too** (resto shaman, resto druid,
+  discipline): the deficit-fit rank selection extends to their heal families,
+  with mana-tier lanes capping the fit.
+- **Doc counts can no longer be hand-typed wrong**: every suite and spec count
+  in the current-state docs is derived from the runner registries, and a claim
+  that stops matching is a hard gate failure, not a silent edit.
+
+### Developer Notes
+- This entry is the `## Unreleased` record of PR #46 (squash e7b60b6cf: the
+  fail-closed doc suite-count gate), PR #47 (squash d70013125: the TBC
+  heal-fit extension), PR #48 (squash cbbf855ad: the warrior cast-failure
+  feedback wave) and PR #49 (squash 6c7f7817e: the SoD healer heal-fit wave)
+  converted to the release entry. This commit changes only this conversion and
+  the four version pins (header.lua, the README badge, the PvP footer, this
+  top entry).
 
 ### Era: WoW Forever — beta-verification pass (day 2, 2026-09-18)
 

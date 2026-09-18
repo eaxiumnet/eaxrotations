@@ -294,24 +294,20 @@ local VANILLA_LANE_CLASS = {
 -- future never-lane hard-fails until pinned.
 -- ---------------------------------------------------------------------------
 -- 2026-09-14 Skull Bash wiring (Wowhead-verified 410176) added interrupt
--- lanes to druid/feral_sod + druid/tank_sod. The battery harness does not
--- stub NS.try_interrupt / NS.gcd_remains, so the manager's gate (needs all
--- four interrupt APIs present) correctly holds every scenario — the
--- dedicated suite test_sod_druid_hunter pins both firing paths. Bucket (c):
--- works live, silent under the battery mock, mirroring priest/leveling Fade.
-local SOD_LANE_CLASS = {
-    druid = {
-        feral = { Interrupt = 'c' },
-        tank  = { Interrupt = 'c' },
-    },
-    mage = { ["dps_mage"] = { Interrupt = 'c' } },
-    rogue = { combat = { Interrupt = 'c' }, tank = { Interrupt = 'c' } },
-    warrior = { ["dps_warrior"] = { Interrupt = 'c' }, ["tank_warrior"] = { Interrupt = 'c' } },
-    shaman = { elemental = { Interrupt = 'c' }, enhancement = { Interrupt = 'c' },
-        restoration = { Interrupt = 'c' }, warden = { Interrupt = 'c' } },
-    priest = { shadow = { Interrupt = 'c' } },
-    paladin = { protection = { Interrupt = 'c' }, retribution = { Interrupt = 'c' } },
-}
+-- lanes to druid/feral_sod + druid/tank_sod; the 2026-09-14 SoD interrupt
+-- wave added 12 more per-class lanes. They held in the battery (14 never,
+-- pinned bucket c below) — but the recorded rationale ("no interrupt-API
+-- stubs") was STALE: try_interrupt/gcd_remains were always stubbed. The real
+-- gate was cast_has_interrupt_window vs the scenario target's unconditional
+-- get_cast_pct = 60 (outside the manager's <50 default window).
+-- 2026-09-16 close-out: two honest fixtures (sod_interrupt_window /
+-- sod_interrupt_berserker, pct 20 + humanize off; berserker variant for dps
+-- Pummel) cleared all 14 — firing scope verified per-lane (Pummel only
+-- berserker, tank ShieldBash only non-berserker, zero spurious fires). The
+-- 14 pins are therefore REMOVED (stale-pin check would fail), the era is
+-- STRICT again, and test_sod_interrupt_lanes.lua keeps the fire/hold contract
+-- pins for every lane.
+local SOD_LANE_CLASS = {}
 
 -- ---------------------------------------------------------------------------
 -- APL conformance status — COMPUTED, not hardcoded. tools/apl_status.lua is the

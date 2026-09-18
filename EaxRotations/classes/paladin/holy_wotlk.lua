@@ -21,6 +21,30 @@ local dsl      = require("shared/strategy_dsl_sylvanas")
 -- shadow these WotLK rank ladders with TBC-era rank lists.
 local define = spec_kit.define_action
 
+-- 2026-09-16 WotLK deficit-fit wave: per-rank HL/FoL ladders from the
+-- heal-value module's WotLK families (era-less build_ladder -- the families
+-- are already era-distinct). Fail-closed: without the module the ladders
+-- stay nil and both lanes cast the exact legacy max-rank actions below.
+-- Lean embedders (standalone dofile suites) may stub NS without
+-- spell_action; core_sylvanas always defines it before class modules load,
+-- so the guard only ever skips the fit ladder there -- fail-closed either
+-- way (both lanes fall back to the legacy max-rank casts).
+local WOTLK_HL_RANKS, WOTLK_FOL_RANKS
+local _HealValue = NS.HealValue
+if not _HealValue then
+    local _hv_ok, _mod = pcall(require, "shared/heal_value_sylvanas")
+    if _hv_ok and type(_mod) == "table" then
+        _HealValue = _mod
+        NS.HealValue = NS.HealValue or _mod
+    end
+end
+if type(_HealValue) == "table" and type(NS.spell_action) == "function" then
+    WOTLK_HL_RANKS = _HealValue.build_ladder("paladin", "WotlkHolyLight",
+        function(id) return NS.spell_action(id, "HolyLight") end, 1.12)
+    WOTLK_FOL_RANKS = _HealValue.build_ladder("paladin", "WotlkFlashOfLight",
+        function(id) return NS.spell_action(id, "FlashOfLight") end, 1.12)
+end
+
 local ACTION = {
     BeaconOfLight = define("BeaconOfLight", 53563, "BeaconOfLight"),
     -- 33071/33070 removed 2026-09-13 (name-agreement assertion): both are
@@ -149,7 +173,27 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 50 },
             { type = "state", field = "mana_pct", op = ">=", value = 30 },
         },
-        action = { type = "cast", spell = ACTION.HolyLight, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: the fit changes WHICH Holy Light
+        -- rank casts (overheal avoidance; WotLK ranks cost %-of-base-mana,
+        -- so no mana is saved), never whether the lane fires -- the
+        -- conditions above are untouched. Live NS lookup so tests inject
+        -- post-load. Fail-closed: without the module ladder or the hook,
+        -- the exact legacy cast (the 48782 max-rank action) runs. No
+        -- explicit deficit guard: the lane passes the raw unit, so the
+        -- deficit resolves inside the hook (unit getters); an unreadable
+        -- deficit takes the hook's legacy walk to the ladder head, which
+        -- IS the legacy max by construction (priest holy/discipline
+        -- precedent, 2.28.0).
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if type(WOTLK_HL_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+                local chosen, rank_label = NS.cast_best_heal_rank(WOTLK_HL_RANKS, target,
+                    context, "[HOLY] HolyLight", { player_level = 80 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+            end
+            return NS.try_cast(ACTION.HolyLight, target, "[HOLY] HolyLight") == true
+        end },
     },
     {
         name = "FlashOfLight",
@@ -157,7 +201,20 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 70 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.FlashOfLight, target = "friendly" },
+        -- 2026-09-16 WotLK deficit-fit: same shape as the HolyLight lane
+        -- above (conditions untouched, legacy max-rank 48785 fallback).
+        -- HolyShock stays max-rank (instant-cast emergency identity) and
+        -- LayOnHands stays a cooldown save -- neither is rank-fitted.
+        action = { type = "custom", fn = function(context, state)
+            local target = context and context.lowest and context.lowest.unit or nil
+            if not target then return false end
+            if type(WOTLK_FOL_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+                local chosen, rank_label = NS.cast_best_heal_rank(WOTLK_FOL_RANKS, target,
+                    context, "[HOLY] FlashOfLight", { player_level = 80 })
+                if chosen then return NS.try_cast(chosen, target, rank_label) == true end
+            end
+            return NS.try_cast(ACTION.FlashOfLight, target, "[HOLY] FlashOfLight") == true
+        end },
     },
     -- Mana-game lanes (Icy-Veins WotLK holy priority; TBC sibling
     -- SealOfWisdomLowMana / DivineFavorHolyLightCombo idiom):

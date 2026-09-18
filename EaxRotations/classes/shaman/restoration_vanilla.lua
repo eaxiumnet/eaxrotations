@@ -406,6 +406,15 @@ end
 
 local function healing_way_execute(context, state)
     if not state.tank then return false end
+    -- Deficit-fit (2026-09-16, druid/priest precedent): smallest HW rank
+    -- covering the tank deficit over the learn-capped classic ladder
+    -- (class build, era vanilla + max 60), level-60 divisor threaded
+    -- explicitly. Fail-closed to the legacy max-rank cast below. Live NS
+    -- lookup so tests inject post-load.
+    if type(NS.ShamanHEALING_WAVE_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" and (state.tank.deficit or 0) > 0 then
+        local chosen, hw_label = NS.cast_best_heal_rank(NS.ShamanHEALING_WAVE_RANKS, state.tank, context, "HealingWay", { player_level = 60 })
+        if chosen then return NS.try_cast(chosen, state.tank.unit, hw_label or string.format("[RESTO] HealingWay (stack %d/3)", state.healing_way_stacks)) end
+    end
     return NS.try_cast(SPELLS.HealingWave, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3)", state.healing_way_stacks))
 end
 
@@ -484,6 +493,13 @@ local healing_strategies = {
     end, execute = function(context, state)
         local ft = NS.get_friendly_target_entry(context)
         if not ft then return false end
+        -- Deficit-fit, same contract as healing_way_execute above (the
+        -- friendly-target entry carries the deficit, mirroring the TBC
+        -- friendly-target lane).
+        if type(NS.ShamanHEALING_WAVE_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" and (ft.deficit or 0) > 0 then
+            local chosen, ft_label = NS.cast_best_heal_rank(NS.ShamanHEALING_WAVE_RANKS, ft, context, "Healing Wave (friendly target)", { player_level = 60 })
+            if chosen then return NS.try_cast(chosen, ft.unit, ft_label or string.format("[RESTO] HealingWave ft %.0f%%", ft.effective_hp or 0)) end
+        end
         return NS.try_cast(SPELLS.HealingWave, ft.unit, string.format("[RESTO] HealingWave ft %.0f%%", ft.effective_hp or 0))
     end },
     { name = "HealingWay", matches = healing_way_matches, execute = healing_way_execute },

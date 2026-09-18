@@ -5,7 +5,7 @@
   <strong>TBC Classic Anniversary rotation framework for <a href="https://github.com/aicore/sylvanas">Project Sylvanas</a></strong>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.26.2-blue" alt="Version 2.26.2">
+  <img src="https://img.shields.io/badge/version-2.28.0-blue" alt="Version 2.28.0">
   <img src="https://img.shields.io/badge/specs-172%20rated%20(5%20eras)-brightgreen" alt="172 Specs Rated Across 5 Eras (live-gated)">
   <img src="https://img.shields.io/badge/tests-601%2F601%20passing-brightgreen" alt="601/601 Tests Passing (rotation suite fully green)">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
@@ -235,6 +235,7 @@ All contributions must pass `luac -p` and the full test suite.
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Code style, conventions, and how to submit changes |
 | [docs/TECHNICAL_GUIDE.md](docs/TECHNICAL_GUIDE.md) | Boot sequence, tick trace, runtime boundary, legacy and SoD playstyles |
 | [docs/SOD_ROTATIONS.md](docs/SOD_ROTATIONS.md) | SoD rotation inventory, runtime behavior, and source provenance |
+| [docs/HEAL_RANK_FIT_VALIDATION.md](docs/HEAL_RANK_FIT_VALIDATION.md) | Live-client validation checklist for the heal-rank fit — per-era expected values, pick zones, and how to spot the GH 25314 correction in combat logs |
 | [docs/API_ADOPTION_ANALYSIS.md](docs/API_ADOPTION_ANALYSIS.md) | API compliance audit and adoption status |
 
 ---

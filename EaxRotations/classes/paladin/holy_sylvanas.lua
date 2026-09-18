@@ -376,6 +376,16 @@ local function choose_holy_light_rank(context, entry)
  if mode == "rank4" then return HolyLightRank4, "Holy Light R4" end
  if mode == "rank7" then return HolyLightRank7, "Holy Light R7" end
  if mode == "rank9" then return HolyLightRank9, "Holy Light R9" end
+ -- Deficit-fit (2026-09-16): smallest HL rank covering the deficit via the
+ -- shared hook over the full 8-rank ladder (class_sylvanas builds it from
+ -- HealValue). Fail-closed: no ladder/hook, unreadable deficit, kill switch,
+ -- or uncastable ladder all fall through to the band ladder below. Explicit
+ -- rank modes above always win. Live lookup (no load-time cache) so tests
+ -- can inject the hook post-load.
+ if deficit > 0 and type(NS.HOLY_LIGHT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+  local fit_spell, fit_label = NS.cast_best_heal_rank(NS.HOLY_LIGHT_RANKS, entry, context, "Holy Light")
+  if fit_spell then return fit_spell, fit_label end
+ end
  if hp <= EMERGENCY_HP or deficit >= LARGE_HEAL_DEFICIT then return HolyLightRank11, "Holy Light R11" end
  if hp <= 45 or deficit >= MEDIUM_HEAL_DEFICIT then return HolyLightRank9, "Holy Light R9" end
  if hp <= 65 or deficit >= LIGHT_HEAL_DEFICIT then return HolyLightRank7, "Holy Light R7" end
@@ -384,6 +394,20 @@ end
 
 local function choose_flash_of_light(context, s, entry)
  if (s.mana_pct or 100) < MIN_HEAL_MANA_PCT then return nil end
+ -- Deficit-fit (2026-09-16): smallest FoL rank covering the deficit via the
+ -- shared hook over the full 7-rank ladder (class_sylvanas builds it from
+ -- HealValue). Public practice: Warcraft Tavern TBC ("experiment with
+ -- different ranks of Holy Light and Flash of Light ... do just enough
+ -- healing to fill the target's health bar"), wowtbc.gg ("Cast Flash of
+ -- Light as your filler. Downrank if necessary for mana"). No TBC holy
+ -- sim exists (wowsims/tbc ships protection/retribution only), so there is
+ -- no APL to pin — the hook's own math pins carry it. Fail-closed to the
+ -- conserve/max ladder below; live lookup so tests can inject post-load.
+ local deficit = deficit_of(entry)
+ if deficit > 0 and type(NS.FLASH_OF_LIGHT_RANKS) == "table" and type(NS.cast_best_heal_rank) == "function" then
+  local fit_spell, fit_label = NS.cast_best_heal_rank(NS.FLASH_OF_LIGHT_RANKS, entry, context, "Flash of Light")
+  if fit_spell then return fit_spell, fit_label end
+ end
  if (s.mana_pct or 100) < FLASH_CONSERVE_MANA_PCT and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
   return FlashOfLightRank6, "Flash of Light R6 conserve"
  end
@@ -419,20 +443,15 @@ local function choose_smart_heal(context, s, entry)
  if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
   -- Predictive overheal gate for Holy Light
   local hl_spell, _ = choose_holy_light_rank(context, entry)
-  if gate_overheal("HolyLight", entry.unit, 2.5, context.settings, _spell_id(hl_spell)) then
-   -- Fall through to Flash of Light instead
-   if hp <= flash_hp and NS.spell_ready(ACTION.FlashOfLight, entry.unit, EMPTY_OPTS) then
-    if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
-     s.heal_spell = FlashOfLightRank6
-     s.heal_label = "Flash of Light R6 conserve"
-    else
-     s.heal_spell = ACTION.FlashOfLight
-     s.heal_label = "Flash of Light"
+   if gate_overheal("HolyLight", entry.unit, 2.5, context.settings, _spell_id(hl_spell)) then
+    -- Fall through to Flash of Light instead (deficit-fit inside
+    -- choose_flash_of_light; single FoL selection path, no rank duplication)
+    if hp <= flash_hp then
+     s.heal_spell, s.heal_label = choose_flash_of_light(context, s, entry)
+     return s.heal_spell
     end
-    return s.heal_spell
+    return nil -- Skip both HL and FoL if HL would overheat
    end
-   return nil -- Skip both HL and FoL if HL would overheat
-  end
   s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, entry)
   s.heal_spell = s.holy_light_spell
   s.heal_label = s.holy_light_label
