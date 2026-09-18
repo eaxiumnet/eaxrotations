@@ -84,34 +84,39 @@ local function find_nearest_npc(ids, range)
 
     for i = 1, limit do
         local obj = objects[i]
-        if not obj then break end
 
-        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-        if unit_ok and is_unit then
-            -- Exclude the local player — targeting self causes infinite loops
-            local player_ok, is_player = pcall(function() return obj:is_player() end)
-            if player_ok and is_player then
-                -- skip player (confirmed)
-            elseif player_ok and not is_player then
-                -- Extra guard: skip if name matches local player
-                local name_ok, obj_name = pcall(function() return obj:get_name() end)
-                if name_ok and me_name and obj_name and obj_name:lower() == me_name then
-                    -- skip self by name
-                else
-                    -- confirmed NOT player, safe to process
-                    local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
-                    if id_ok and npc_id and id_set[npc_id] then
-                        -- Skip phased-out NPCs (different phase, shard, warmode, chromie time)
-                        local phase_ok, phase = pcall(function() return obj:get_unit_phase() end)
-                        if phase_ok and phase and phase ~= -1 then
-                            -- NPC is in a different phase; skip it
-                        else
-                            local pos_ok, pos = pcall(function() return obj:get_position() end)
-                            if pos_ok and pos then
-                                local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
-                                if dist_sq < best_dist_sq then
-                                    best_dist_sq = dist_sq
-                                    best = obj
+        -- A nil hole must SKIP, not abort the scan. This was a live failure: the
+        -- visible-objects list can be sparse, and one nil entry before Milly
+        -- Osworth stopped the loop, so the questgiver was never found. Lua 5.1 has
+        -- no `goto`, so the body is nested instead of continued.
+        if obj then
+            local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+            if unit_ok and is_unit then
+                -- Exclude the local player — targeting self causes infinite loops
+                local player_ok, is_player = pcall(function() return obj:is_player() end)
+                if player_ok and is_player then
+                    -- skip player (confirmed)
+                elseif player_ok and not is_player then
+                    -- Extra guard: skip if name matches local player
+                    local name_ok, obj_name = pcall(function() return obj:get_name() end)
+                    if name_ok and me_name and obj_name and obj_name:lower() == me_name then
+                        -- skip self by name
+                    else
+                        -- confirmed NOT player, safe to process
+                        local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
+                        if id_ok and npc_id and id_set[npc_id] then
+                            -- Skip phased-out NPCs (different phase, shard, warmode, chromie time)
+                            local phase_ok, phase = pcall(function() return obj:get_unit_phase() end)
+                            if phase_ok and phase and phase ~= -1 then
+                                -- NPC is in a different phase; skip it
+                            else
+                                local pos_ok, pos = pcall(function() return obj:get_position() end)
+                                if pos_ok and pos then
+                                    local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
+                                    if dist_sq < best_dist_sq then
+                                        best_dist_sq = dist_sq
+                                        best = obj
+                                    end
                                 end
                             end
                         end
