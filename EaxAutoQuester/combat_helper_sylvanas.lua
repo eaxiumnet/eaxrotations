@@ -52,27 +52,33 @@ local function target_and_tag_nearest(range)
     -- Reuse static table for enemy list
     _enemies.n = 0
 
-    local count = 0
-    for _, obj in ipairs(objects) do
-        count = count + 1
-        if count > 50 then break end
+    -- Numeric loop rather than ipairs: the visible-objects list is sparse, and
+    -- ipairs stops at the first nil hole, silently hiding every enemy after it.
+    local limit = #objects
+    if limit > 50 then limit = 50 end
+
+    for i = 1, limit do
+        local obj = objects[i]
 
         -- Must be a unit, not dead, not the player
         if obj and obj.is_unit and obj:is_unit() then
             if not obj.is_dead or not obj:is_dead() then
                 if obj.is_enemy_with and obj:is_enemy_with(me) then
-                    -- Pull prevention: skip mobs already engaged by another player
-                    local _, e_target = pcall(function() return obj:get_target() end)
-                    if e_target then
-                        local _, e_guid = pcall(function() return e_target:get_guid() end)
+                    -- Pull prevention: only skip a mob CONFIRMED to be fighting
+                    -- another player. obj:get_target() is not present on every
+                    -- build, and the old code read the pcall FAILURE as "this mob
+                    -- has a target" and then never added it — so no target was
+                    -- ever acquired whenever that call was unavailable.
+                    local engaged_by_other = false
+                    local tgt_ok, e_target = pcall(function() return obj:get_target() end)
+                    if tgt_ok and e_target and e_target ~= me then
                         local e_ok, e_is_player = pcall(function() return e_target:is_player() end)
-                        if e_guid and e_is_player then
-                            local _, my_guid = pcall(function() return me:get_guid() end)
-                            if my_guid and e_guid ~= my_guid then
-                                -- skip: mob targeting another player
-                            end
+                        if e_ok and e_is_player then
+                            engaged_by_other = true
                         end
-                    else
+                    end
+
+                    if not engaged_by_other then
                         _enemies.n = _enemies.n + 1
                         _enemies[_enemies.n] = obj
                     end
