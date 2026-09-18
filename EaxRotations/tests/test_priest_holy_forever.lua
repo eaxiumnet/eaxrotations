@@ -298,6 +298,76 @@ do
     assert_eq(cast_log[1] and cast_log[1].spell, POM, "G: PoM casts the maxrank id")
 end
 
+-- Pin 7 (dispatch-walk combination proof, 2026-09-19): the legacy
+-- dispatcher is positional first-match (main_sylvanas.lua run_list), so the
+-- contract is the WALK OUTCOME over the combined list, not individual gate
+-- truth. The fake baseline's lanes are quiet by construction, so these
+-- walks prove the delta's own lanes resolve their tiers in splice order --
+-- including the handovers between them.
+local function walk(list, ctx, st)
+    for _, lane in ipairs(list) do
+        if type(lane) == "table" and lane.matches and lane.matches(ctx, st) then
+            return lane.name
+        end
+    end
+    return nil
+end
+do
+    learnt = { [POM] = true, [BINDING] = true }
+    auras = {}
+    entries_with_pom = false
+    local combined = load_delta(MIRRORS, MAXRANK, BUFFS)
+
+    -- 7a: a moving frame quiets the variety and binding lanes (both require
+    -- a stationary cast) while PoM ignores movement -- the walk must land
+    -- on PoM, proving its slot above the RenewTank maintenance block.
+    local moving_ctx = fresh_ctx({ is_moving = true })
+    assert_eq(walk(combined, moving_ctx, fresh_state()), "Forever_PrayerOfMending",
+        "7a: moving frame walks to PoM above the maintenance block")
+
+    -- 7b: the tier handover. A stationary frame with mana in band walks to
+    -- the VARIETY lane (it splices above GreaterHeal, so it outranks the
+    -- Binding Heal tier); dropping mana below the variety floor (30) hands
+    -- the slot to Binding Heal two lanes deeper -- the walk proves the
+    -- header's tier ordering, not just per-lane gates.
+    local full_ctx = fresh_ctx({ is_moving = false })
+    assert_eq(walk(combined, full_ctx, fresh_state()), "Forever_LitanyVariety",
+        "7b: in-band frame walks to the variety tier above Binding Heal")
+    local low_mana_ctx = fresh_ctx({ is_moving = false, mana_pct = 25 })
+    assert_eq(walk(combined, low_mana_ctx, fresh_state()), "Forever_BindingHeal",
+        "7b2: below the variety floor the walk hands the slot to Binding Heal")
+end
+
+-- 7c: intermediate fallback WALK -- with the maintenance anchors present
+-- but the variety/binding anchors missing, PoM must still own its
+-- maintenance slot (spliced) while the other two append (pin D covers the
+-- no-anchor tail order; here the walk proves the degraded dispatch
+-- outcome, not just positions).
+do
+    learnt = { [POM] = true, [BINDING] = true }
+    auras = {}
+    entries_with_pom = false
+    local shrunk = {
+        name = "holy",
+        strategies = {
+            { name = "EmergencyPWS", matches = function() return false end, execute = function() return false end },
+            { name = "RenewTank", matches = function() return false end, execute = function() return false end },
+        },
+        options = { get_state = function() return { fake = true } end },
+    }
+    local saved = FAKE_BASELINE
+    FAKE_BASELINE = shrunk
+    local combined = load_delta(MIRRORS, MAXRANK, BUFFS)
+    FAKE_BASELINE = saved
+    assert_eq(find_lane(combined, "Forever_PrayerOfMending"), 2,
+        "7c: PoM splices above the surviving RenewTank anchor")
+    assert_eq(walk(combined, fresh_ctx({ is_moving = true }), fresh_state()),
+        "Forever_PrayerOfMending",
+        "7c: degraded list still walks to PoM for the maintenance slot")
+    assert_eq(find_lane(combined, "Forever_LitanyVariety"), 4,
+        "7c: variety appends after the spliced PoM (no variety anchor)")
+end
+
 -- E. Zero numeric spell-ID literals (audit contract).
 do
     local f = io.open("EaxRotations/classes/priest/holy_forever.lua", "rb")
