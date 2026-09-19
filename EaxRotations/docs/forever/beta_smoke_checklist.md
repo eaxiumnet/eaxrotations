@@ -41,6 +41,11 @@ that section, and everything they print goes to the same console log the
 "Dump Learned Spells" button writes to. Click an *Arm* button, do the in-game
 action, click **Flush Capture**, then read the log.
 
+What those buttons print is frozen by a committed golden comparison
+(`EaxRotations/tests/test_live_probe_golden_output.lua` +
+`tests/fixtures/live_probe_golden/session_output.txt`): run it before and after any
+edit to the probe modules. See "Session-output contract" in `beta_day1_probes.md`.
+
 | Button (Diagnostics) | What it gives you | Blocks |
 |----------------------|-------------------|--------|
 | **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.3 |

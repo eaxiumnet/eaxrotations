@@ -92,6 +92,28 @@ read. The runbook in `beta_smoke_checklist.md` carries the exact button per item
 Their verdicts stay OPEN until a session produces the output; what changed is
 that a verdict now costs three clicks and a paste.
 
+### Session-output contract (the proof for any probe refactor)
+
+What a session sees is frozen: `EaxRotations/tests/test_live_probe_golden_output.lua`
+re-runs every published operation against a mock engine and compares all 139
+session-visible lines against the committed baseline in
+`EaxRotations/tests/fixtures/live_probe_golden/session_output.txt`, exiting non-zero on
+any difference and naming the line.
+
+```
+lua EaxRotations/tests/test_live_probe_golden_output.lua            # verify (run from the repo root)
+lua EaxRotations/tests/test_live_probe_golden_output.lua --update   # regenerate, then review the diff
+```
+
+It is registered in `run_rotation_tests.lua`, so the pre-commit gate and CI run it
+too -- reach for it before and after any change to the probe modules instead of
+rebuilding a throwaway instrument: the six-concern split and the line prune were both
+justified by exactly this comparison. Harness payload values are integers or
+non-integral floats, so the comparison cannot fail on the interpreter (CI pins Lua
+5.1, where `tostring(1.0)` is `1` while 5.4 prints `1.0`); the committed baseline is
+authoritative as produced under 5.1. A deliberate output change means `--update` and
+the fixture lands in the same commit as the code.
+
 ## P1 — wave-1 name resolution (unlocks days 1–3 authoring)
 
 Every wave-1 lane resolves by name or goes dormant. One pass (verdicts

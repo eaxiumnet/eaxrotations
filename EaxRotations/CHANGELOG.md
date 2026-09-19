@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Developer Notes
+- The probe harness's session-visible output is now frozen by a committed golden
+  comparison: `EaxRotations/tests/test_live_probe_golden_output.lua` replays every
+  published operation against a mock engine and compares all 139 session-visible lines
+  with `tests/fixtures/live_probe_golden/session_output.txt` -- the report, both
+  inventories, all four arm scopes and the flush dumps -- exiting non-zero and naming
+  the line on any difference. It is registered in `run_rotation_tests.lua`, so the
+  pre-commit gate and CI run it. The six-concern split and the line prune were both
+  proven neutral by diffing exactly this output by hand; that instrument died with the
+  temp directory it was written in, so the proof now lives in the tree, where the next
+  refactor reaches for it instead of rebuilding it: run
+  `lua EaxRotations/tests/test_live_probe_golden_output.lua` from the repo root, or
+  `--update` to regenerate after reviewing the diff. Harness payload values are
+  integers or non-integral floats so the comparison cannot fail on the interpreter
+  (CI pins Lua 5.1, where `tostring(1.0)` is `1`; 5.4 prints `1.0`); the baseline is
+  authoritative as produced under 5.1. Documented in `docs/forever/beta_day1_probes.md`
+  ("Session-output contract") and pointed at from the smoke checklist.
 - Live-probe harness reachability (branch `feat/forever-launch-guards`, PR #55):
   `NS.LiveProbe` was inert with no way in — the client exposes no console or
   REPL, so the module's documented callers were calls no session could type.

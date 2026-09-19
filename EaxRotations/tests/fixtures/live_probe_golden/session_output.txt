@@ -1,0 +1,139 @@
+== load state ==
+registrations before any call: 0
+### report (32 lines)
+[LiveProbe] === engine-truth report ===
+[LiveProbe] version NS.expansion_key = absent
+[LiveProbe] version NS.get_expansion_key = absent
+[LiveProbe] version NS.expansion = absent
+[LiveProbe] version core.get_game_version = absent
+[LiveProbe] version core.game_version = absent
+[LiveProbe] version core.expansion_key = absent
+[LiveProbe] player = resolved
+[LiveProbe] surface NS.buff_points                             present
+[LiveProbe] surface NS.debuff_points                           present
+[LiveProbe] surface NS.has_player_buff                         present
+[LiveProbe] surface NS.spell_ready                             present
+[LiveProbe] surface NS.cooldown_remains                        present
+[LiveProbe] surface NS.unit_mana_pct                           present
+[LiveProbe] surface NS.GetPlayer                               present
+[LiveProbe] surface core.register_on_game_event_callback       ABSENT
+[LiveProbe] surface NS.register_on_game_event                  present
+[LiveProbe] surface player:get_buffs                           present
+[LiveProbe] surface player:get_auras                           present
+[LiveProbe] surface player:get_debuffs                         present
+[LiveProbe] surface player:get_power                           present
+[LiveProbe] surface player:get_form                            present
+[LiveProbe] surface player:get_shapeshift_form                 ABSENT
+[LiveProbe] surface player:get_attack_power                    present
+[LiveProbe] surface player:get_haste                           present
+[LiveProbe] surface player:is_mounted                          ABSENT
+[LiveProbe] surface player:get_race                            present
+[LiveProbe] capability matrix: 16/19 surfaces present
+[LiveProbe] race = 3
+[LiveProbe] points id=25218 name=Power Word: Shield points[1]=1265 (unit:get_buffs)
+[LiveProbe] points: 1 aura row(s) exposed a points value
+[LiveProbe] === end report ===
+report counters: present=16
+sample: form=1 energy=42 rage=7 mana=88 ap=1234 haste=12
+### reader_report (21 lines)
+[LiveProbe] 0.4 external readers -- what this build exposes to readers
+[LiveProbe] reader core.damage_meter (built-in damage meter): PRESENT
+[LiveProbe]     member get_session_duration = function
+[LiveProbe]     member hidden_extra = string
+[LiveProbe]     member is_available = function
+[LiveProbe]     members: 3
+[LiveProbe]     read is_available = function
+[LiveProbe]     read get_session_duration = function
+[LiveProbe]     live is_available = true
+[LiveProbe]     live get_session_duration = 37.4
+[LiveProbe] reader core.spell_book (cooldown readers): PRESENT
+[LiveProbe]     member get_spell_cooldown = function
+[LiveProbe]     members: 1
+[LiveProbe]     read get_spell_cooldown = function
+[LiveProbe]     read get_spell_cooldown_information: ABSENT
+[LiveProbe] reader core.game_ui (game UI readers): ABSENT
+[LiveProbe]     read get_talent_info: ABSENT
+[LiveProbe] reader engine cooldown_tracker (enemy cooldown observation): ABSENT (module did not load)
+[LiveProbe] reader engine spell_helper (native readiness: cooldown/range/resource/facing/LoS): ABSENT (module did not load)
+[LiveProbe]     scan core.damage_meter = table (3 member(s))
+[LiveProbe] 0.4 summary: 2 surface(s) present, 3 absent, 2 read(s) our lanes make missing, 1 name-scan hit(s)
+### integrity_report (unarmed) (18 lines)
+[LiveProbe] 0.5 engine integrity -- surface state (nothing is written to the engine)
+[LiveProbe]   NS.is_api_health_broken() = callable -> false
+[LiveProbe]   NS.reset_api_health = function
+[LiveProbe]   NS.runtime_generation = number 3
+[LiveProbe]   core.damage_meter = table
+[LiveProbe]   core.game_ui = ABSENT
+[LiveProbe]   core.input = table
+[LiveProbe]   core.log = function
+[LiveProbe]   core.log_error = function
+[LiveProbe]   core.log_warning = function
+[LiveProbe]   core.menu = table
+[LiveProbe]   core.object_manager = table
+[LiveProbe]   core.runtime_generation = number 4
+[LiveProbe]   core.spell_book = table
+[LiveProbe]   core.time = function
+[LiveProbe]   core.time live read = ok (number)
+[LiveProbe] 0.5 state: 15 surface(s) reported (signature length 408)
+[LiveProbe] 0.5 comparison: nothing armed yet -- arm a capture (any scope), run normally, then Flush to read the arm -> flush line
+== menu_buttons: 10 entries ==
+1 id=eax_probe_report | label=Probe: Engine Report | desc=Log the expansion/version surface, race, capability matrix and aura points (Block 0.1-0.3)
+2 id=eax_probe_readers | label=Probe: Reader Surfaces (0.4) | desc=Inventory the external-reader surfaces this build exposes: the built-in damage meter, the cooldown readers our lanes use, the engine CD modules, and a name scan of the engine table
+3 id=eax_probe_integrity | label=Probe: Engine Integrity (0.5) | desc=Show the client's integrity/error surface state (log sinks, engine tables, runtime generations, a live-read canary) and the arm -> flush comparison, so Block 0.5 is evidence from the log
+4 id=eax_probe_sample | label=Probe: Snapshot Now | desc=Log one line of form/energy/rage/mana/hp/combo/AP/haste at this moment
+5 id=eax_probe_arm_all | label=Probe: Arm Capture (all) | desc=Record own aura changes + incoming damage (with rage) + one raw CLEU event, then Flush
+6 id=eax_probe_arm_forms | label=Probe: Arm Capture (forms) | desc=Record own form/buff changes with the energy snapshot -- shift form after arming, then Flush
+7 id=eax_probe_arm_dots | label=Probe: Arm Capture (ticks) | desc=Record own DoT ticks and their interval -- apply the DoT after arming, then Flush
+8 id=eax_probe_arm_rage | label=Probe: Arm Capture (rage) | desc=Record incoming damage with the rage it produced -- take the hit after arming, then Flush
+9 id=eax_probe_flush | label=Probe: Flush Capture | desc=Log the capture: every recorded event, plus the raw CLEU arg dump when armed with it
+10 id=eax_probe_disarm | label=Probe: Disarm Capture | desc=Stop recording; the capture stays readable until the next arm
+arm scope=all -> armed=true scope=all forms=0 spells=0 captured=0
+arm scope=forms -> armed=true scope=forms forms=3 spells=0 captured=0
+arm scope=dots -> armed=true scope=dots forms=0 spells=0 captured=0
+arm scope=rage -> armed=true scope=rage forms=0 spells=0 captured=0
+arm scope=bogus -> armed=true scope=all forms=0 spells=0 captured=0
+disarm -> armed=false
+flush count=4
+### flush (armed, unchanged) (32 lines)
+[LiveProbe] === capture: 4 event(s), 0 dropped ===
+[LiveProbe] raw first-event args (confirms the CLEU layout this build sends):
+[LiveProbe]   args[1] = 1
+[LiveProbe]   args[2] = SPELL_AURA_APPLIED
+[LiveProbe]   args[3] = nil
+[LiveProbe]   args[4] = Player-1-2
+[LiveProbe]   args[5] = nil
+[LiveProbe]   args[6] = nil
+[LiveProbe]   args[7] = nil
+[LiveProbe]   args[8] = nil
+[LiveProbe]   args[9] = nil
+[LiveProbe]   args[10] = nil
+[LiveProbe]   args[11] = nil
+[LiveProbe]   args[12] = 768
+[LiveProbe]   args[13] = nil
+[LiveProbe]   args[14] = nil
+[LiveProbe]   args[15] = nil
+[LiveProbe]   args[16] = nil
+[LiveProbe]   args[17] = nil
+[LiveProbe]   args[18] = nil
+[LiveProbe]   args[19] = nil
+[LiveProbe]   args[20] = nil
+[LiveProbe]   args[21] = nil
+[LiveProbe]   args[22] = nil
+[LiveProbe]   args[23] = nil
+[LiveProbe]   args[24] = nil
+[LiveProbe] FORM id=768 energy=42 rage=7 applied
+[LiveProbe] TICK id=172 interval=0.00s amount=90
+[LiveProbe] TICK id=172 interval=2.00s amount=91
+[LiveProbe] INCOMING spell=0 amount=250 rage=7
+[LiveProbe] 0.5 integrity: UNCHANGED across the capture (15 surface(s), arm signature matches) -- no integrity/error reaction
+[LiveProbe] === end capture ===
+flush count=0
+### flush (client reacted) (4 lines)
+[LiveProbe] flush: no events captured
+[LiveProbe] 0.5 integrity CHANGED core.log: function -> ABSENT
+[LiveProbe] 0.5 integrity CHANGED core.runtime_generation: number 4 -> number 5
+[LiveProbe] 0.5 integrity: 2 surface(s) CHANGED -- the client reacted or an engine surface went away; re-run before trusting this capture
+flush count=0
+### flush (empty, unchanged) (2 lines)
+[LiveProbe] flush: no events captured
+[LiveProbe] 0.5 integrity: UNCHANGED across the capture (15 surface(s), arm signature matches) -- no integrity/error reaction
