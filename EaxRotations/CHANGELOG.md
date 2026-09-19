@@ -26,6 +26,16 @@
   keys by name so a differently-named cooldown surface is found rather than
   guessed at. Names come only from surfaces this tree already reads, and every
   lookup is a runtime index, never a compile-time field read.
+- Block 0.5 is no longer a memory-based verdict: "Probe: Engine Integrity
+  (0.5)" reads the client's own integrity/error surface state — the log sinks,
+  the engine tables our code depends on (`spell_book`, `object_manager`,
+  `input`, `menu`, `time`, `game_ui`, `damage_meter`), the runtime generations,
+  our API-health stub, and a live-read canary — and every armed capture now
+  ends with the arm → flush comparison, so a flush says `UNCHANGED across the
+  capture` (the silence the block is looking for) or names the surface that
+  changed with its before/after values. The reads write nothing to the engine
+  and are resolved at runtime by name, so the ns-member and read-side audits
+  stay clean.
 - Fixed while proving it: the harness's watch-id counts used `#` on maps keyed
   by spell id, where the length operator is undefined and returns 0 — the arm
   log and `status()` reported 0 watched forms/spells even when ids resolved.

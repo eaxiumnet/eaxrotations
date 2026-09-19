@@ -250,7 +250,61 @@ _G.core.cooldown_manager = nil
 _G.core.damage_meter = nil
 _G.core.spell_book = nil
 
--- 11. menu_buttons(): the single operation list both menus iterate.
+-- 11. integrity_report() + the arm -> flush comparison (Block 0.5): the
+--     client's own surface state, read at both ends, so "nothing reacted" is
+--     evidence rather than an assumption.
+_G.core.runtime_generation = 7
+_G.EaxRotations.runtime_generation = 3
+_G.EaxRotations.is_api_health_broken = function() return false end
+_G.core.time = function() return 123.5 end
+local integrity = probe.integrity_report()
+assert(type(integrity) == "table" and type(integrity.lines) == "table",
+    "integrity_report must return the formatted lines")
+assert(has(integrity.lines, "core.runtime_generation = number 7"),
+    "integrity_report must carry the runtime generation by value")
+assert(has(integrity.lines, "NS.runtime_generation = number 3"),
+    "integrity_report must carry our mirrored generation")
+assert(has(integrity.lines, "NS.is_api_health_broken() = callable -> false"),
+    "integrity_report must call the API-health surface and report its value")
+assert(has(integrity.lines, "core.log = function"), "integrity_report must report the log sinks by type")
+assert(has(integrity.lines, "core.object_manager = table"), "integrity_report must report the engine tables by type")
+assert(has(integrity.lines, "core.time live read = ok (number)"),
+    "integrity_report must prove the engine still answers with a live read")
+assert(has(integrity.lines, "core.damage_meter = ABSENT"),
+    "integrity_report must mark an absent engine surface ABSENT")
+assert(has(integrity.lines, "0.5 state:"), "integrity_report must print the surface count")
+assert(has(integrity.lines, "0.5 comparison (arm -> now):"),
+    "integrity_report must pair the current state with the arm snapshot once a capture exists")
+
+-- A client that reacts mid-capture is caught, named, and marked untrustworthy.
+logs = {}
+probe.arm({ raw_events = 0 })
+_G.core.runtime_generation = 8
+_G.core.log = nil
+probe.flush()
+assert(has(logs, "0.5 integrity: 2 surface(s) CHANGED"),
+    "flush must count the changed surfaces, got: " .. table.concat(logs, " / "))
+assert(has(logs, "0.5 integrity CHANGED core.runtime_generation: number 7 -> number 8"),
+    "flush must name the bumped generation with both values")
+assert(has(logs, "0.5 integrity CHANGED core.log: function -> ABSENT"),
+    "flush must name a surface that disappeared")
+assert(has(logs, "re-run before trusting this capture"),
+    "flush must say the capture is untrustworthy when the client reacted")
+probe.disarm()
+
+-- A quiet capture says so, and an empty capture still carries the comparison:
+-- that is the whole 0.5 session (arm, provoke nothing, flush).
+logs = {}
+probe.arm({ raw_events = 0 })
+local captured = probe.flush()
+assert(captured == 0, "an empty capture must still be a valid capture")
+assert(has(logs, "flush: no events captured"), "an empty capture must say so")
+assert(has(logs, "0.5 integrity: UNCHANGED across the capture"),
+    "an unchanged capture must report UNCHANGED, got: " .. table.concat(logs, " / "))
+probe.disarm()
+_G.core.log = function(message) logs[#logs + 1] = message end
+
+-- 12. menu_buttons(): the single operation list both menus iterate.
 local actions = probe.menu_buttons()
 assert(type(actions) == "table" and #actions >= 8,
     "menu_buttons must publish the operation list, got " .. tostring(actions and #actions))
@@ -265,16 +319,19 @@ for i = 1, #actions do
     seen_ids[entry.id] = true
     saw[entry.id] = true
 end
-for _, wanted in ipairs({ "eax_probe_report", "eax_probe_readers", "eax_probe_sample", "eax_probe_arm_all",
+for _, wanted in ipairs({ "eax_probe_report", "eax_probe_readers", "eax_probe_integrity",
+    "eax_probe_sample", "eax_probe_arm_all",
     "eax_probe_arm_forms", "eax_probe_arm_dots", "eax_probe_arm_rage",
     "eax_probe_flush", "eax_probe_disarm" }) do
     assert(saw[wanted], "menu_buttons must expose " .. wanted)
 end
 
--- 12. A failed registrar is reported, not silently armed.
+-- 13. A failed registrar is reported, not silently armed.
 _G.EaxRotations.register_on_game_event = nil
 package.loaded["shared/live_probe_sylvanas"] = nil
 local fresh = require("shared/live_probe_sylvanas")
+assert(has(fresh.integrity_report().lines, "nothing armed yet"),
+    "a freshly loaded probe must report that nothing is armed yet")
 assert(fresh.arm() == false, "arm must fail when the event API is absent")
 assert(_G.EaxRotations.LiveProbe ~= nil, "module must still install NS.LiveProbe")
 

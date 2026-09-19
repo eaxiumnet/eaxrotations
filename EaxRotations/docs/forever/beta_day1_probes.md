@@ -25,6 +25,14 @@ execution for every open probe lives in **beta_smoke_checklist.md**
 - [ ] **Addon-policy recon**: new client integrity/error surfaces, error
       reporter behavior, what the built-in damage meter exposes
       (source: MMORPG.com interview; risk register in overview.md).
+      PROBE (2026-09-19): Diagnostics → "Probe: Engine Integrity (0.5)"
+      reads the client's own surface state — the log sinks, the engine
+      tables our code depends on, the runtime generations, our API-health
+      stub, and a live-read canary (`core.time`) — and every capture now
+      carries the arm → flush comparison, so "UNCHANGED across the
+      capture" is the silence the verdict needs and a changed surface is
+      named with both values. Reads only: nothing is written to the
+      engine. Verdict stays OPEN until a client session produces that log.
 - [ ] **Version string**: capture `get_game_version()` output for
       `core_sylvanas.lua::_resolve_expansion_key()` (runbook step 5).
 - [ ] **Client install drive**: confirm the real `_forever_` folder

@@ -45,6 +45,7 @@ action, click **Flush Capture**, then read the log.
 |----------------------|-------------------|--------|
 | **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.4 |
 | **Probe: Reader Surfaces (0.4)** | the external-reader inventory: the built-in damage meter and the cooldown surfaces this build exposes, PRESENT/ABSENT per surface with the members and value types it carries, the reads our lanes make, live meter values, and a name scan over the engine table's own keys | 0.4 |
+| **Probe: Engine Integrity (0.5)** | the client's integrity/error surface state: every engine surface our code depends on (log sinks, spell_book, object_manager, input, menu, time, game_ui, damage_meter), the runtime generations, the API-health stub, and a live-read canary -- plus the arm -> flush comparison | 0.5 |
 | **Probe: Snapshot Now** | one line: form, energy, rage, mana%, hp%, combo, AP, haste, timestamp | 1.1, 1.2 |
 | **Probe: Arm Capture (all)** | starts the CLEU capture ring recording own aura changes and incoming damage (with the rage it produced), plus one raw CLEU arg dump | 0.4, 1.1-1.3 |
 | **Probe: Arm Capture (forms)** | own form/buff changes with the energy snapshot at the instant of the shift -- the Furor read. Form ids resolve BY NAME from the class spell map, so nothing is typed or guessed | 1.1 |
@@ -110,6 +111,12 @@ Nothing class-specific gates wave re-ranks more than these four.
 - [ ] **0.5 Addon-policy watch.** Confirm no integrity/error surface
       reaction while the engine runs (MMORPG.com interview posture:
       memory reads, no addon API).
+      RUN: Diagnostics → **Probe: Engine Integrity (0.5)** for the state
+      now, then **Probe: Arm Capture (any scope)** (its snapshot is taken at
+      arm), play normally for a few minutes, and **Probe: Flush Capture** —
+      the flush prints the arm → flush comparison: `0.5 integrity:
+      UNCHANGED ...` is the silent verdict this block is after, and a
+      `CHANGED <surface>: before -> after` line names whatever reacted.
       LEDGER: P0 "Addon-policy recon" item → close if silent.
 
 ## Block 1 — the three P2 gate probes (day-one session, ~40 min)

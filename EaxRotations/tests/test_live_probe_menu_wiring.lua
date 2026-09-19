@@ -111,6 +111,14 @@ local EFFECT = {
         end
         return found, "run() must leave the 0.4 reader inventory in the log"
     end,
+    eax_probe_integrity = function(p)
+        local _report, lines = p.get_last_report()
+        local found = false
+        for i = 1, #lines do
+            if tostring(lines[i]):find("0.5 engine integrity", 1, true) then found = true end
+        end
+        return found, "run() must leave the 0.5 integrity state in the log"
+    end,
     eax_probe_sample = function(p)
         return p.status().armed == false, "run() must not arm the capture"
     end,
@@ -157,7 +165,7 @@ assert(proven == #buttons, "every published menu entry must be exercised")
 
 -- A published entry that no menu can reach is the failure this exists to stop:
 -- the count is asserted against the ids the suites know about.
-assert(#buttons == 9, "menu_buttons must publish 9 operations, got " .. tostring(#buttons))
+assert(#buttons == 10, "menu_buttons must publish 10 operations, got " .. tostring(#buttons))
 
 -- 3. Arming through a menu entry registers the CLEU handler exactly once: the
 --    click path really starts the capture rather than only flipping a flag.
