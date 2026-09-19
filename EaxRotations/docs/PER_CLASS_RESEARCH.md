@@ -12,7 +12,7 @@
 | **ClassResearchTBC corpus** | `scripts-backup-20250630/ClassResearchTBC/` (backup tree, *outside* the live repo) | Per-class/per-spec research for all 9 TBC classes × every spec — DPS, tanking, AND healing — source-linked to Wowhead / Icy Veins / Warcraft Tavern and the wowsims Go source (coefficients checked at `sim/druid/starfire.go`, `sim/druid/mangle.go`, etc.). Includes niche-mechanic timing docs (seal twisting, totem twisting, powershifting, slam/swing-timer, downrank healing, threat playbooks), `ACTIONABLE_GAPS.md`, `VERIFY_LIST.md`, `S_PLUS_COVERAGE_TRACKER.csv`, and `VETTING_LOG.md`. |
 | **wowsims/wotlk APL fixtures** | `tools/evidence/apl/*.apl.json` + `SOURCES.md` | 27 WotLK specs pinned against the simulator's own published APL rotations at commit `563e4a08cb15729f1fdcbcf68e6d68224553bfef`, each fixture's upstream path recorded in the provenance manifest. |
 | **Conformance manifest** | `tools/apl_status.lua` | 50/50 specs pass; a `verify_all` component that auto-fills the scorecard's APL column — machine-checked, cannot rot silently. |
-| **Behavioral battery** | `EaxRotations/tests/` (601 suites) | 3,616 decision rules across 172 specs prove every rule *fires* in some state; never-triage gates strict across all 5 eras (scorecard: tbc 11 · wotlk 0 · vanilla 9 · sod 0 · forever 9). |
+| **Behavioral battery** | `EaxRotations/tests/` (604 suites) | 3,616 decision rules across 172 specs prove every rule *fires* in some state; never-triage gates strict across all 5 eras (scorecard: tbc 11 · wotlk 0 · vanilla 9 · sod 0 · forever 9). |
 
 > ⚠️ **Structural note:** the research corpus sits in a **backup tree**, so no CI can re-verify a researched mechanic against the code that ships. The reconciliation below was done by hand on 2026-09-06; the drift it caught (the imp-machine-gun "MISSING" item — see §2) is the proof that this link needs a gate of its own.
 
@@ -70,7 +70,7 @@ All eight items from the corpus' `VERIFY_LIST.md` require **wowsims execution or
 
 **No — and anyone who says yes is lying.** What is proven and what is not:
 
-**Proven:** cast *order* per spec against the sims' published rotations (50/50 APL conformance, WotLK 27 specs pinned to `wowsims/wotlk` + 23 TBC against reference orders), and rule *reachability* (0 dead lanes in every era, 601-suite battery). That is the bulk of what a rotation is.
+**Proven:** cast *order* per spec against the sims' published rotations (50/50 APL conformance, WotLK 27 specs pinned to `wowsims/wotlk` + 23 TBC against reference orders), and rule *reachability* (0 dead lanes in every era, 604-suite battery). That is the bulk of what a rotation is.
 
 **The five gaps between "conformant" and "flawless":**
 

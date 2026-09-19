@@ -696,6 +696,27 @@ local components = {
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
+    -- Launch-day DBC diff harness (hardening-backlog P0 item 3): the
+    -- committed synthetic fixture pair runs through the harness's real
+    -- end-to-end path (extraction -> diff -> lane-impact scan over the
+    -- actual _forever resolve_id call sites -> JSON report -> exit
+    -- contract), and --self-test proves every finding shape on TEMP DBs.
+    -- A machine without a python interpreter prints an explicit SKIP marker
+    -- (the CI job runs the same two invocations as a named step), so this
+    -- component can only pass on a real verdict or a visible skip.
+    {
+        label = "forever DBC diff harness",
+        cmd = "lua " .. R .. "/run_forever_dbc_diff_tests.lua",
+        check = function(c)
+            return {
+                { "verdict marker present (self-test + committed fixtures, or an explicit skip)",
+                  c:find("verdict: harness + committed fixtures in sync", 1, true) ~= nil
+                  or c:find("verdict: skipped", 1, true) ~= nil },
+                { "no FAIL markers from the harness gate",
+                  c:find("FAIL", 1, true) == nil },
+            }
+        end,
+    },
     -- Clean-checkout dependency probe: scans every test/runner for file-read
     -- path literals and asserts each resolves to a tracked file or a
     -- self-provisioning artifact (.omo/evidence regenerated per run). A test

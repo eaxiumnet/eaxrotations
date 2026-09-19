@@ -95,6 +95,20 @@ load_modules({
     -- Runtime services
     "shared/combat_log_parser_sylvanas",
     "shared/aura_probe_sylvanas",
+    -- Live-beta engine-truth probe harness: inert until report()/arm() is called
+    -- (registers nothing at load), so it costs one table at startup. One file
+    -- per probe concern -- kit (shared reads/buffer), truth (Block 0.1-0.3),
+    -- sample, capture (the CLEU ring), readers (0.4), integrity (0.5), menu
+    -- (the published operations) -- composed by the facade below, which is the
+    -- only one that installs NS.LiveProbe.
+    "shared/live_probe_kit_sylvanas",
+    "shared/live_probe_truth_sylvanas",
+    "shared/live_probe_sample_sylvanas",
+    "shared/live_probe_capture_sylvanas",
+    "shared/live_probe_readers_sylvanas",
+    "shared/live_probe_integrity_sylvanas",
+    "shared/live_probe_menu_sylvanas",
+    "shared/live_probe_sylvanas",
 
     -- Data and pure helpers
     "gear_sets_sylvanas",
@@ -1107,6 +1121,34 @@ local function render_menu()
                     NS.dump_class_spells(name)
                 end
             end
+-- >>> probe menu block (executed with stub menu objects by test_live_probe_menu_wiring.lua)
+            -- Live-probe capture buttons (owner: NS.LiveProbe.menu_buttons()).
+            -- The harness is inert until one of these is clicked; the widget list
+            -- is built on first render so the load order of the probe module and
+            -- this menu construction cannot leave the section empty.
+            if not menu_elements.probe_buttons or #menu_elements.probe_buttons == 0 then
+                menu_elements.probe_buttons = {}
+                local probe = NS and NS.LiveProbe
+                if probe and probe.menu_buttons then
+                    for _, entry in ipairs(probe.menu_buttons()) do
+                        menu_elements.probe_buttons[#menu_elements.probe_buttons + 1] = {
+                            widget = core.menu.button(entry.id),
+                            label = entry.label,
+                            description = entry.description,
+                            run = entry.run,
+                        }
+                    end
+                end
+            end
+            for i = 1, #menu_elements.probe_buttons do
+                local probe_entry = menu_elements.probe_buttons[i]
+                if probe_entry.widget:render(probe_entry.label, probe_entry.description) then
+                    if type(probe_entry.run) == "function" then
+                        pcall(probe_entry.run)
+                    end
+                end
+            end
+            -- <<< probe menu block
             -- Permashow / EaxFishing / EaxTheme are expected to be part of the
             -- newest .api update. If your .api is newer, you should already see a
             -- Permashow control. This button is a recovery path for older .api builds

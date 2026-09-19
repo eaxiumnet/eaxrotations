@@ -71,7 +71,9 @@ local by_name, by_maxrank, by_buff = mirrors.name, mirrors.maxrank, mirrors.buff
 -- the 678 rank-1 baseline), Light's Vigil 1311595@60 (not the 1310909 aura
 -- row), Seal of the Crusader 20308 (not the 20162 rank-1 baseline).
 -- Aura/debuff roles resolve through the buff mirror (Light's Vigil 1310909,
--- Infusion of Light 53672) or the rank-1 mirror for debuff rows the client
+-- Infusion of Light 437063 -- the live 15s Holy Light row; the TBC-era 53672
+-- is an orphan this build wires to nothing) or the rank-1 mirror for debuff
+-- rows the client
 -- applies at max rank (Judgement of the Crusader 20188 / 20303).
 local HOLY_STRIKE = resolve_id(by_maxrank, "Holy Strike")
 local LIGHTS_VIGIL = resolve_id(by_maxrank, "Light's Vigil")

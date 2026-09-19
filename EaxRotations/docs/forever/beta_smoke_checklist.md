@@ -32,15 +32,57 @@ Rules of engagement for every block:
    ordered so shared-client measurements (dummy, combat-log readings)
    happen once and get reused.
 
+## Running the probes (engine side)
+
+The engine ships the capture harness (`EaxRotations/shared/live_probe_sylvanas.lua`,
+`NS.LiveProbe`), and **the client has no console** -- so every probe is a menu
+click. Open **EaxRotations -> Diagnostics**; the probe buttons are at the top of
+that section, and everything they print goes to the same console log the
+"Dump Learned Spells" button writes to. Click an *Arm* button, do the in-game
+action, click **Flush Capture**, then read the log.
+
+What those buttons print is frozen by a committed golden comparison
+(`EaxRotations/tests/test_live_probe_golden_output.lua` +
+`tests/fixtures/live_probe_golden/session_output.txt`): run it before and after any
+edit to the probe modules. See "Session-output contract" in `beta_day1_probes.md`.
+
+| Button (Diagnostics) | What it gives you | Blocks |
+|----------------------|-------------------|--------|
+| **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.3 |
+| **Probe: Reader Surfaces (0.4)** | the external-reader inventory: the built-in damage meter and the cooldown surfaces this build exposes, PRESENT/ABSENT per surface with the members and value types it carries, the reads our lanes make, live meter values, and a name scan over the engine table's own keys | 0.4 |
+| **Probe: Engine Integrity (0.5)** | the client's integrity/error surface state: every engine surface our code depends on (log sinks, spell_book, object_manager, input, menu, time, game_ui, damage_meter), the runtime generations, the API-health stub, and a live-read canary -- plus the arm -> flush comparison | 0.5 |
+| **Probe: Snapshot Now** | one line: form, energy, rage, mana%, hp%, combo, AP, haste, timestamp | 1.1, 1.2 |
+| **Probe: Arm Capture (all)** | starts the CLEU capture ring recording own aura changes and incoming damage (with the rage it produced), plus one raw CLEU arg dump | 0.4, 1.1-1.3 |
+| **Probe: Arm Capture (forms)** | own form/buff changes with the energy snapshot at the instant of the shift -- the Furor read. Form ids resolve BY NAME from the class spell map, so nothing is typed or guessed | 1.1 |
+| **Probe: Arm Capture (ticks)** | own periodic-damage ticks and the interval between them (haste-vs-DoT) | 1.3 |
+| **Probe: Arm Capture (rage)** | incoming damage with the rage it produced (the rage-from-damage curve) | 1.2 |
+| **Probe: Flush Capture** | prints the captured events (and the raw CLEU arg dump when the arm included it) to the log | 1.1-1.3 |
+| **Probe: Disarm Capture** | stops capture; the capture stays readable until the next arm | all |
+
+For a session that wants a **specific** spell id watched rather than a whole
+class of events, the menu arms by scope and the id-specific form remains
+available to a dev build: `arm{forms={…}, spells={…}, raw_events=1}` -> `flush()`
+-> `disarm()`. Watch ids always come from the CALLER (bridge/DBC), never from
+the module.
+
+Armed capture stores numbers in a fixed 64-slot ring and formats only on
+`flush()`, so the capture path allocates nothing; overflow is counted and
+reported rather than dropped silently. Nothing registers until `arm()` -- the
+module is inert at rest, which is why it ships in the engine rather than in a
+debug build.
+
 ## Block 0 — engine truth (first login, any character, ~20 min)
 
-Nothing class-specific gates wave re-ranks more than these four.
+Nothing class-specific gates wave re-ranks more than these five.
 
 - [ ] **0.1 Version string.** Log in once, run the engine's version
       read (`get_game_version()` surface from core_sylvanas
       `_resolve_expansion_key()`), capture output.
       EXPECT: a Forever key resolving to the `_classic_beta_` client
       (1.60.1.69893 build reported by .build.info).
+      RUN: Diagnostics → **Probe: Engine Report**, then read the four
+      `version …` lines in the log: the verdict is which surface this build
+      actually exposes (or `absent`), not just the string.
       LEDGER: P0 "Version string" item → runbook step 5 closes.
 - [ ] **0.2 Race detection surface.** Create one alt of a DIFFERENT race
       than the main. On each: read `me` race/id the way racial lanes
@@ -48,19 +90,38 @@ Nothing class-specific gates wave re-ranks more than these four.
       whether the race-gated lane backlog (Eureka!, Elune's Light, the
       four priest race spells) can ever ship.
       EXPECT: distinct, stable race identifiers per character.
+      RUN: Diagnostics → **Probe: Engine Report** on each alt — read the
+      `race =` line; the same report lists every aura surface the racial lanes
+      would read.
       LEDGER: "Racial-rework sweep" → race-gated actives note.
 - [ ] **0.3 Buff-points read (Pattern 11).** Cast any absorb (PW:S via a
       priest or the Fury absorb below) and read the buff's points array.
       This unblocks the Seal of Fury absorb-shield lane candidate.
       EXPECT: points[1] = remaining absorb, decreasing on damage.
+      RUN: with the absorb up, Diagnostics → **Probe: Engine Report** — the
+      `points id=… points[1]=…` lines are the Pattern-11 read; click it again
+      after the shield takes damage for the decreasing-value proof.
       LEDGER: "Seal of Fury taunt pair" → absorb buff-points note.
 - [ ] **0.4 Built-in damage meter + cooldown manager surfaces.** Open
       both, note what data they expose to external readers (what the
       P5 item needs to validate CD-tracking lane shapes).
+      RUN: Diagnostics → **Probe: Reader Surfaces (0.4)** — the log lists
+      every reader surface with PRESENT/ABSENT, the members and value types
+      it carries, the reads our lanes make, and the live meter values; that
+      inventory IS the verdict, and the name scan settles whether a
+      separately-named cooldown surface exists at all. Then **Probe: Arm
+      Capture (all)**, land one white hit, **Probe: Flush Capture** — the raw
+      CLEU arg dump in the log validates the CD lanes.
       LEDGER: P5 "Built-in damage meter" item.
 - [ ] **0.5 Addon-policy watch.** Confirm no integrity/error surface
       reaction while the engine runs (MMORPG.com interview posture:
       memory reads, no addon API).
+      RUN: Diagnostics → **Probe: Engine Integrity (0.5)** for the state
+      now, then **Probe: Arm Capture (all)** (its snapshot is taken at
+      arm), play normally for a few minutes, and **Probe: Flush Capture** —
+      the flush prints the arm → flush comparison: `0.5 integrity:
+      UNCHANGED ...` is the silent verdict this block is after, and a
+      `CHANGED <surface>: before -> after` line names whatever reacted.
       LEDGER: P0 "Addon-policy recon" item → close if silent.
 
 ## Block 1 — the three P2 gate probes (day-one session, ~40 min)
@@ -77,6 +138,12 @@ These three flip wave re-ranks; run them in this order.
       as shipped) vs any case where a shift NETS energy (powershift
       alive → cat keeps vanilla powershift lanes, cat_forever flips to
       additive, re-rank).
+      RUN: Diagnostics → **Probe: Arm Capture (forms)**, then shift out and
+      back (twice, at the 5s and 10s marks), then **Probe: Flush Capture** —
+      each shift logs `FORM id=… energy=… rage=…` at the instant the aura
+      applies/removes, so the series appears in the log without a stopwatch.
+      (Form ids resolve by name from the class spell map; per the never-guess
+      rule nothing is typed.)
       LEDGER: P2 #1 → kit druid.md.
 - [ ] **1.2 Rage-from-damage curve (P2 #2).** Warrior, training dummy,
       white hits only at a KNOWN attack power (strip all gear except a
@@ -86,6 +153,10 @@ These three flip wave re-ranks; run them in this order.
       (the Gt* tables are absent from the build — only in-game can
       answer). Verdict decides whether fury/arms keep vanilla rage
       lanes or re-shape.
+      RUN: Diagnostics → **Probe: Snapshot Now** once at the known AP (that
+      line carries `ap=`), then **Probe: Arm Capture (rage)**, take the hits,
+      **Probe: Flush Capture** — each hit logs `INCOMING … amount=… rage=…`, so
+      the curve is rage-per-damage rather than rage-per-swing.
       LEDGER: P2 #2 → kits warrior.md, fury/arms/prot deltas.
 - [ ] **1.3 Haste vs DoT tick rate (P2 #4).** Warlock, training dummy.
       Cast Corruption/Immolate, count ticks over 15s with a combat-log
@@ -93,6 +164,10 @@ These three flip wave re-ranks; run them in this order.
       with a shaman for Bloodlust), re-cast, recount.
       EXPECT (current demo build): identical tick count — haste does
       NOT affect dots. Any increase flips the affliction stat lanes.
+      RUN: Diagnostics → **Probe: Arm Capture (ticks)** before each cast (the
+      scope records every own DoT tick, so no ids are needed), cast, then
+      **Probe: Flush Capture** — `TICK id=… interval=…` gives the observed
+      period with and without haste, which is the whole verdict.
       LEDGER: P2 #4 → kits warlock.md.
 
 ## Block 2 — per-class lane shapes (second session, ~60 min)
@@ -305,3 +380,6 @@ Ride-along items; tick as they become visible.
 4. Re-run `lua EaxRotations/tests/run_forever_audit_tests.lua` after any
    lane change the verdict forces; the audit must stay 38 files / 0
    invalid.
+5. Post-launch (game live 2026-10-22): open
+   `post_launch_hardening_backlog.md` -- the week-1 day map consumes
+   these verdicts (P0 #2 closes only with the live Block 0/1 numbers).

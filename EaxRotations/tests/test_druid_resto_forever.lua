@@ -254,6 +254,66 @@ do
     learnt = {}
 end
 
+-- Pin 8 (dispatch-walk combination proof, 2026-09-19): the legacy
+-- dispatcher is positional first-match (main_sylvanas.lua run_list), so the
+-- contract is the WALK OUTCOME over the combined list, not individual gate
+-- truth. The fake baseline's lanes are quiet by construction, so these
+-- walks prove the heal block resolves its slots in splice order --
+-- including the handovers between the three delta lanes.
+local function walk(list, ctx, st)
+    for _, lane in ipairs(list) do
+        if type(lane) == "table" and lane.matches and lane.matches(ctx, st) then
+            return lane.name
+        end
+    end
+    return nil
+end
+do
+    learnt = {}
+    learnt[19133] = true
+    local combined = load_delta({}, { ["Wild Growth"] = 19134, ["Gift of the Earthmother"] = 19133 }, {})
+
+    -- 8a: the WG frame (two members hurt, stationary, mana in band) walks
+    -- to Wild Growth -- the heal block leads, and the spot-heal/blanket
+    -- lanes behind it stay quiet (no HoT carriers; nothing inside the
+    -- blanket window).
+    assert_eq(walk(combined, fresh_ctx(), mk_state({ mk_entry(60), mk_entry(80), mk_entry(100) })),
+        "Forever_WildGrowth", "8a: two-hurt frame walks to Wild Growth at the block head")
+
+    -- 8b: the spot-heal handover. Nobody is hurt enough for WG's count gate
+    -- (85 carries a HoT, inside the spot-heal's broad window) -- the walk
+    -- hands the block to the Swiftmend spot-heal one lane deeper.
+    assert_eq(walk(combined, fresh_ctx(), mk_state({ mk_entry(85, true), mk_entry(100, false) })),
+        "Forever_SwiftmendSpotHeal", "8b: no-WG frame hands the block to the spot-heal")
+
+    -- 8b2: the blanket handover. No hurt members and no spot-heal window
+    -- (the HoT carrier is full) -- an un-HoT'd member inside the blanket
+    -- window takes the slot from the deepest lane in the block.
+    assert_eq(walk(combined, fresh_ctx(), mk_state({ mk_entry(94, false), mk_entry(100, true) })),
+        "Forever_RejuvBlanket", "8b2: full-carrier frame hands the block to the blanket")
+    learnt = {}
+end
+
+-- 8c: degraded-list WALK -- with only the emergency lane surviving in the
+-- baseline, the block still leads with Wild Growth and the spot-heal still
+-- follows the emergency lane (pin D covers the no-anchor tail order; here
+-- the walk proves the degraded dispatch outcome).
+do
+    local saved = FAKE_BASELINE.strategies
+    FAKE_BASELINE.strategies = {
+        { name = "SwiftmendEmergency", matches = function() return false end, execute = function() return false end },
+    }
+    learnt = {}
+    local combined = load_delta({}, { ["Wild Growth"] = 19134 }, {})
+    FAKE_BASELINE.strategies = saved
+    assert_eq(walk(combined, fresh_ctx(), mk_state({ mk_entry(60), mk_entry(80), mk_entry(100) })),
+        "Forever_WildGrowth", "8c: degraded list still walks to Wild Growth first")
+    local sm = find_lane(combined, "SwiftmendEmergency")
+    assert_eq(find_lane(combined, "Forever_SwiftmendSpotHeal"), sm + 1,
+        "8c: the spot-heal follows the emergency lane in the degraded list")
+    learnt = {}
+end
+
 -- E. Zero numeric spell-ID literals (audit contract).
 do
     local f = io.open("EaxRotations/classes/druid/resto_forever.lua", "r")

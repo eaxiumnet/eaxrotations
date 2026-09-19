@@ -143,6 +143,105 @@ assert_true(weave.priority == nil,
     "Forever_RetHolyStrikeWeave carries no dead priority field "
     .. "(positional dispatch ignores it)")
 
+
+-- Pin 6 (dispatch-walk combination proof, 2026-09-19): the legacy
+-- dispatcher is positional first-match (main_sylvanas.lua run_list), so
+-- the contract is the WALK OUTCOME over the combined list, not
+-- individual gate truth. 6a/6b prove the weave's slot wins and yields
+-- correctly; 6c proves anchor drift degrades to the documented append
+-- fallback instead of a mis-splice above the emergency head.
+local function walk(list, ctx, st)
+    for _, lane in ipairs(list) do
+        if type(lane) == "table" and lane.matches and lane.matches(ctx, st) then
+            return lane.name
+        end
+    end
+    return nil
+end
+do
+    -- Every CD-gated baseline lane above the weave (SanctityAura, hammer
+    -- executes, judgement/seal lanes, ...) reads the shared NS table, so a
+    -- scoped spell_ready override that names ONLY Holy Strike ready makes
+    -- their genuine quietness load-bearing: if the delta's bridge sentinel
+    -- ever leaks into a baseline action id, 6a fails loudly.
+    local ready_cache = _G.EaxRotations.spell_ready
+    -- The mock NS carries an empty PaladinSpells table, so the baseline's
+    -- SPELLS.SealRighteousness is nil and the filler cannot fire at all.
+    -- Seed the action (the closures hold the same table reference) so the
+    -- handover lane is genuinely exercisable.
+    local pal_spells = _G.EaxRotations.PaladinSpells
+    if not pal_spells.SealRighteousness then
+        pal_spells.SealRighteousness = { ids = { 20164 }, name = "SealRighteousness" }
+    end
+    _G.EaxRotations.spell_ready = function(spell, target, opts)
+        if type(spell) == "table" then
+            if spell.name == "ForeverRetHolyStrike" then return true end
+            -- 6b's handover lane: the baseline filler must be able to fire
+            -- (its own matcher still decides WHEN, the walk decides WHO).
+            if spell.name == "SealRighteousness" then return true end
+        end
+        return false
+    end
+    local walk_ctx = { in_combat = true, has_valid_enemy_target = true,
+                       target = { _mock = true }, me = { _mock = true },
+                       settings = {} }
+    local walk_state = { mana_pct = 100 }
+    -- 6a: in a firing frame the weave takes the slot (above the seal
+    -- filler it splices over; every earlier lane is quiet in this frame).
+    assert_eq(walk(strategies, walk_ctx, walk_state), "Forever_RetHolyStrikeWeave",
+        "6a: firing frame walks to the weave above the seal filler")
+    -- 6b: with the weave's setting gate off the seal filler owns the slot --
+    -- the delta must not orphan the baseline lane it sits above.
+    local weave_off_ctx = { in_combat = true, has_valid_enemy_target = true,
+                            target = { _mock = true }, me = { _mock = true },
+                            settings = { ret_forever_holy_strike = false } }
+    assert_eq(walk(strategies, weave_off_ctx, walk_state), "Ret_SealRighteousness_Filler",
+        "6b: weave-off frame hands the slot back to the seal filler")
+    _G.EaxRotations.spell_ready = ready_cache
+end
+
+-- 6c: anchor drift -- the splice anchor vanished from the baseline's
+-- list. The disk baseline always carries the anchor (and the owner captures
+-- the baseline's registration directly), so the drift is simulated with a
+-- fake anchor-less baseline module served through a require override -- the
+-- same doctrine the holy/resto suites use. The delta must APPEND (documented
+-- fallback) so the weave can never land above the emergency head.
+do
+    package.loaded["classes/paladin/retribution_forever"] = nil
+    package.loaded["classes/paladin/retribution_vanilla"] = nil
+    package.loaded["shared/wowhead_data_bridge_spell_index_forever_sylvanas"] = {
+        spell_index_by_name_forever = { ["Holy Strike"] = SENT_RANK1 },
+        spell_maxrank_by_name_forever = { ["Holy Strike"] = SENT_CAST },
+        spell_buff_by_name_forever = { ["Holy Strike"] = SENT_RANK1 },
+    }
+    local fake_drift = {
+        { name = "Ret_DivineShield_Emergency", matches = function() return false end,
+          execute = function() return false end },
+        { name = "Ret_SealCommand_Fallback", matches = function() return false end,
+          execute = function() return false end },
+    }
+    local orig_require_6c = require
+    function require(path)
+        if path == "classes/paladin/retribution_vanilla" then
+            _G.EaxRotations.rotation_registry:register("retribution", fake_drift, {})
+            return fake_drift
+        end
+        return orig_require_6c(path)
+    end
+    _ns_registrations = {}
+    _G.EaxRotations = fresh_ns()
+    local drifted = dofile("EaxRotations/classes/paladin/retribution_forever.lua")
+    require = orig_require_6c
+    local drifted_list = type(drifted) == "table" and (drifted.strategies or drifted) or nil
+    assert_true(type(drifted_list) == "table", "6c: drifted delta returns a list")
+    assert_eq(drifted_list[#drifted_list] and drifted_list[#drifted_list].name,
+        "Forever_RetHolyStrikeWeave", "6c: weave lands at the TAIL under anchor drift")
+    assert_eq(#drifted_list, #fake_drift + 1,
+        "6c: fallback adds exactly one lane over the drifted baseline")
+    assert_eq(drifted_list[1] and drifted_list[1].name, "Ret_DivineShield_Emergency",
+        "6c: fallback never prepends above the emergency head")
+end
+
 -- Pin 4: the dormant path — a bridge that resolves nothing returns the
 -- baseline list UNCHANGED (no Forever_ lanes).
 package.loaded["classes/paladin/retribution_forever"] = nil
@@ -165,5 +264,5 @@ for _, s in ipairs(dormant_strategies) do
         "dormant: no Forever_ lane (" .. tostring(s.name) .. ")")
 end
 
-print("PASS test_paladin_retribution_forever (5 pins)")
+print("PASS test_paladin_retribution_forever (8 pins)")
 return { name = "test_paladin_retribution_forever" }

@@ -18,6 +18,10 @@
 !/tools/release_staleness_check.lua
 !/tools/perf_cost_gate.lua
 !/tools/release_zip_audit.py
+!/tools/forever_dbc_diff.py
+# DBC spell-row prober: resolves OPEN probes offline (docs/forever/
+# beta_day1_probes.md), so it must be tracked past the /tools/* rule.
+!/tools/probe_forever_spell_rows.py
 !/tools/run_release_zip_audit_selftest.lua
 # Doc suite-count gate: run by tools/pre-commit step 4 and by
 # EaxRotations/tests/run_verify_all.lua, so it must be tracked on a clean

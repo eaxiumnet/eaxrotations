@@ -25,6 +25,14 @@ execution for every open probe lives in **beta_smoke_checklist.md**
 - [ ] **Addon-policy recon**: new client integrity/error surfaces, error
       reporter behavior, what the built-in damage meter exposes
       (source: MMORPG.com interview; risk register in overview.md).
+      PROBE (2026-09-19): Diagnostics → "Probe: Engine Integrity (0.5)"
+      reads the client's own surface state — the log sinks, the engine
+      tables our code depends on, the runtime generations, our API-health
+      stub, and a live-read canary (`core.time`) — and every capture now
+      carries the arm → flush comparison, so "UNCHANGED across the
+      capture" is the silence the verdict needs and a changed surface is
+      named with both values. Reads only: nothing is written to the
+      engine. Verdict stays OPEN until a client session produces that log.
 - [ ] **Version string**: capture `get_game_version()` output for
       `core_sylvanas.lua::_resolve_expansion_key()` (runbook step 5).
 - [ ] **Client install drive**: confirm the real `_forever_` folder
@@ -67,6 +75,45 @@ execution for every open probe lives in **beta_smoke_checklist.md**
 - **Addon-policy recon**: unchanged posture — file reads only, no process
   attach, no login performed.
 
+## Block 0/1 capture — instrumented 2026-09-19
+
+The five Block 0 items below (version surface, race detection, buff-points read,
+reader-surface inventory, integrity/addon-policy watch) and the three P2 gate
+probes (furor energy-on-shift,
+rage-from-damage, haste-vs-DoT ticks) no longer need a stopwatch and a notebook:
+`shared/live_probe_sylvanas.lua` (`NS.LiveProbe`) captures them in-engine, and
+because the client exposes no console, every capture is a MENU action. Both menu
+implementations' Diagnostics sections expose the same operations -- Engine
+Report, Snapshot Now, Arm Capture (all | forms | ticks | rage), Flush Capture,
+Disarm Capture -- built from one published list (`NS.LiveProbe.menu_buttons()`)
+so the legacy tree and the declarative page cannot drift, with output going to
+the same console log as "Dump Learned Spells". Arm, do the in-game thing, flush,
+read. The runbook in `beta_smoke_checklist.md` carries the exact button per item.
+Their verdicts stay OPEN until a session produces the output; what changed is
+that a verdict now costs three clicks and a paste.
+
+### Session-output contract (the proof for any probe refactor)
+
+What a session sees is frozen: `EaxRotations/tests/test_live_probe_golden_output.lua`
+re-runs every published operation against a mock engine and compares all 139
+session-visible lines against the committed baseline in
+`EaxRotations/tests/fixtures/live_probe_golden/session_output.txt`, exiting non-zero on
+any difference and naming the line.
+
+```
+lua EaxRotations/tests/test_live_probe_golden_output.lua            # verify (run from the repo root)
+lua EaxRotations/tests/test_live_probe_golden_output.lua --update   # regenerate, then review the diff
+```
+
+It is registered in `run_rotation_tests.lua`, so the pre-commit gate and CI run it
+too -- reach for it before and after any change to the probe modules instead of
+rebuilding a throwaway instrument: the six-concern split and the line prune were both
+justified by exactly this comparison. Harness payload values are integers or
+non-integral floats, so the comparison cannot fail on the interpreter (CI pins Lua
+5.1, where `tostring(1.0)` is `1` while 5.4 prints `1.0`); the committed baseline is
+authoritative as produced under 5.1. A deliberate output change means `--update` and
+the fixture lands in the same commit as the code.
+
 ## P1 — wave-1 name resolution (unlocks days 1–3 authoring)
 
 Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
@@ -78,7 +125,16 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
       81920 = melee hit, ProcChance 100 — the spend-at-5 gate is DBC-derived
       now, no in-game probe needed)
 - [x] Stormstrike (8s CD confirmed: RecoveryTime 8000) / Improved
-      Stormstrike (dodge-parry reset OPEN — talent-side, wave 2)
+      Stormstrike — **RESOLVED 2026-09-19, no lane change needed**: the
+      dodge-parry proc is client-wired, not a talent-table entry. Row 1223031
+      "Improved Stormstrike" carries proc mask 40 (= 8 dodge | 32 parry) at
+      100% with three dummy effects (base 20); 1238931 is the class-less 15s
+      +50% buff variant; 1214300 is the combined "Improved Stormstrike/Windfury
+      Weapon" row. No DBC row links the proc to Stormstrike 17364 because the
+      reset itself is native behavior. Our enhancement delta gates the lane on
+      `NS.spell_ready(SPELLS.Stormstrike, target, ...)` — the live cooldown —
+      so a reset simply makes the lane fire sooner; its "8s cadence" comment
+      describes RecoveryTime, not an assumption the reset breaks.
 - [x] Fire Nova — shaman (ROLE FIX 2026-09-17: the player cast is the
       trainer-taught 408341-408345 family — 520 mana, 1.5s GCD,
       **CategoryRecoveryTime 6000**, "detonates your Fire Totem"; the classic
@@ -103,8 +159,21 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
   "2 in a row" row is the pre-Forever mechanic, `CumulativeAura=1`) — mage
   fire
 - [x] Pyroblast 11366 / Fire Blast 2136 (class-map casts, unchanged) /
-      Wake of Fire buff 11078 + window 1312934 (full mechanic text
-      confirmed; trigger wiring OPEN — lane stays absent) — mage
+      Wake of Fire — **RESOLVED 2026-09-19; the lane is no longer blocked**:
+      there is no trigger link to find, and that is the mechanic, not a gap.
+      11078 is the ABILITY row (class 3, level 1, proc mask 2 = on-kill, aura
+      107 base −2000 misc 11 + dummy 50) — never on the player as an aura —
+      and **1312934 is the 20s window row** ("Killing a non-trivial target
+      increases the critical strike chance of your next Fire Blast cast within
+      $1312934d by $m2%", aura 107 base +50 misc 7, proc mask 65536) applied
+      natively on the kill. Same shape as Infusion of Light: the ability's own
+      text is the only reference to its window id, so nothing in the DBC
+      "wires" it. Consequence: a Forever fire lane can now gate
+      `has_buff(by_buff["Wake of Fire"])` and prefer Fire Blast inside the
+      window; the builder pins the window row in `BUFF_OVERRIDES` (the
+      baseline would have handed the lane the ability row, against which a
+      buff read is always 0), and the audit holds the by_buff pin. Authoring
+      the lane is tracked in the post-launch hardening backlog. — mage
 - [x] Arcane Blast buff 400573 + nuke 1239700@60 (**cap 4 CONFIRMED** via
       `CumulativeAura=4`, **8s CONFIRMED** via `SpellDuration 31`; effect
       split CORRECTED: op 0 +10% other spells, op 22 +10% AB damage
@@ -113,15 +182,39 @@ Every wave-1 lane resolves by name or goes dormant. One pass (verdicts
 - [x] Missile Barrage talent 400588 (roll 40 on AB via aura 42, others
       halved) + proc 400589 (**15s**, channel −50%, mana −100%, missile
       period −500ms) — mage
-- [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on 20473 AND
-      1311606; live-cast id OPEN) / Light's Vigil cast 1311595@60, buff
-      1310909, CategoryRecoveryTime 6000 on EVERY rank (1310911/1311590/
-      1311595 — re-probed 2026-09-17 via SpellCooldowns keyed by SpellID; the
-      earlier "no cooldown row / 180s estimate" came from the RecoveryTime
-      column only and is RETRACTED: it is a 6s rotational mark, not a burst
-      CD) / Holy Strike 10333@60 max (kit "level 6" ↔ 679@6) / Infusion of
-      Light buff 53672 (talent/learn row 426065; live proc-id confirmation
-      OPEN) — paladin
+- [x] Holy Shock 10s CONFIRMED (CategoryRecoveryTime 10000 on every
+      player-cast row) — **live-cast id RESOLVED 2026-09-19**: the castable
+      ladder is 1311606 (Rank 1, level 30, 160 mana) / 20473 (Rank 2, 40, 225)
+      / 20929 (Rank 3, 48, 275) / 20930 (Rank 4, 56, 325) — all class 10, all
+      trainer-taught (SkillLineAbility acquire=0), all start_recovery 1500ms;
+      the 259xx family is the internal damage/heal decomposition (no mana, no
+      cooldown, acquire=3, classmask=2) and 444894 is the mana-costed
+      level-56 row with no cooldown. The class-map ladder ends at 20930, which
+      matches the client's own trainer ladder for a 60, so no lane change was
+      needed. NOTE for leveling: the Forever rework adds the level-30 rank
+      (1311606) — a 30–39 paladin knows only that row, which the TBC ladder
+      does not carry.
+      / Light's Vigil cast 1311595@60, buff 1310909, CategoryRecoveryTime 6000
+      on EVERY rank (1310911/1311590/1311595 — re-probed 2026-09-17 via
+      SpellCooldowns keyed by SpellID; the earlier "no cooldown row / 180s
+      estimate" came from the RecoveryTime column only and is RETRACTED: it is
+      a 6s rotational mark, not a burst CD)
+      / Holy Strike 10333@60 max (kit "level 6" ↔ 679@6)
+      / Infusion of Light — **live proc-id RESOLVED 2026-09-19, and it fixed
+      a dead lane**: the live buff is **437063** (15s, effect 6 aura 107 base
+      −1000 misc 10, proc mask 16384, aura text "Reduces the cast time of your
+      next Holy Light spell by $m1 sec"), applied by ability 426065, which the
+      rune 426180 "Engrave Belt - Infusion of Light" grants (426180 → 426179 →
+      426065). The old TBC row **53672 is ORPHANED in this build** — no
+      EffectTriggerSpell, no EffectBasePointsF link, no EffectMiscValue
+      payload, no SpellCooldowns.AuraSpellID, no RequiresAuraSpellID, no
+      Talent row, and the only text naming `$53672` is its own description.
+      `holy_forever.lua` gated that row through the buff mirror, so
+      `Forever_InfusionOfLightWeave` could never fire on the live client;
+      `BUFF_OVERRIDES` in the builder now pins 437063 and
+      `test_paladin_holy_forever` + the audit's by_buff role pin hold it.
+      Evidence: `python tools/probe_forever_spell_rows.py --refs 53672`
+      / `--id 437063` / `--refs 437063` — paladin
 
 Consequence: all resolved → wave-1 authoring starts; any miss → its delta
 waits, next-ranked delta moves up.
@@ -329,6 +422,14 @@ pass (holy_forever bridge lookups go live).
 - [ ] World buffs in raids (expected nerf/removal) — meta expectations only.
 - [ ] Built-in damage meter + cooldown manager — validates CD-tracking lane
       shapes; observe what data surfaces expose to external readers.
+      PROBE (2026-09-19): Diagnostics → "Probe: Reader Surfaces (0.4)"
+      inventories the external-reader surfaces this build exposes —
+      `core.damage_meter` (members + live `is_available` /
+      `get_session_duration`), `core.spell_book` cooldown readers,
+      `core.game_ui`, the engine `cooldown_tracker` / `spell_helper`
+      modules our lanes adapt, and a name scan over `core`'s own keys so a
+      differently-named surface is found rather than missed. Verdict stays
+      OPEN until a client session produces that log.
 - [ ] Skyborne druid form list (unpublished) — form-lane watch item.
 - [ ] Talent DB2 shape on the beta client — 16-point gold-medal mapping
       (racials-and-talents.md follow-up).

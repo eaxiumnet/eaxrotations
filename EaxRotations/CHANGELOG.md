@@ -1,5 +1,120 @@
 # Changelog
 
+## Unreleased
+
+### Developer Notes
+- The probe harness's session-visible output is now frozen by a committed golden
+  comparison: `EaxRotations/tests/test_live_probe_golden_output.lua` replays every
+  published operation against a mock engine and compares all 139 session-visible lines
+  with `tests/fixtures/live_probe_golden/session_output.txt` -- the report, both
+  inventories, all four arm scopes and the flush dumps -- exiting non-zero and naming
+  the line on any difference. It is registered in `run_rotation_tests.lua`, so the
+  pre-commit gate and CI run it. The six-concern split and the line prune were both
+  proven neutral by diffing exactly this output by hand; that instrument died with the
+  temp directory it was written in, so the proof now lives in the tree, where the next
+  refactor reaches for it instead of rebuilding it: run
+  `lua EaxRotations/tests/test_live_probe_golden_output.lua` from the repo root, or
+  `--update` to regenerate after reviewing the diff. Harness payload values are
+  integers or non-integral floats so the comparison cannot fail on the interpreter
+  (CI pins Lua 5.1, where `tostring(1.0)` is `1`; 5.4 prints `1.0`); the baseline is
+  authoritative as produced under 5.1. Documented in `docs/forever/beta_day1_probes.md`
+  ("Session-output contract") and pointed at from the smoke checklist.
+- Live-probe harness reachability (branch `feat/forever-launch-guards`, PR #55):
+  `NS.LiveProbe` was inert with no way in — the client exposes no console or
+  REPL, so the module's documented callers were calls no session could type.
+  Both menu implementations' Diagnostics sections now build their probe buttons
+  from one published list (`NS.LiveProbe.menu_buttons()`), so a Block 0/1
+  session can arm a capture, perform the action, flush and read the result from
+  the same console log the "Dump Learned Spells" button writes to. `arm` takes a
+  scope (`all`, `forms` — ids resolved BY NAME from the class spell map, `dots`,
+  `rage`) and the id-specific `arm{forms,spells,raw_events}` path is unchanged;
+  the CLEU handler now records only events this character sources or receives.
+  `test_live_probe_menu_wiring.lua` fails if either menu stops consuming the
+  list (revert-proven on both), so deleting a registration fails a gate instead
+  of silently leaving dead scaffolding.
+- Block 0.4 is now answerable from a log line instead of hand-inspection:
+  "Probe: Reader Surfaces (0.4)" inventories the external-reader surfaces the
+  build exposes — the built-in damage meter (`core.damage_meter`, its members
+  with value types plus live `is_available` / `get_session_duration`), the
+  `core.spell_book` cooldown readers, `core.game_ui`, the engine
+  `cooldown_tracker` and `spell_helper` modules our lanes adapt — reporting
+  PRESENT/ABSENT per surface and per read, and scanning the engine table's own
+  keys by name so a differently-named cooldown surface is found rather than
+  guessed at. Names come only from surfaces this tree already reads, and every
+  lookup is a runtime index, never a compile-time field read.
+- Block 0.5 is no longer a memory-based verdict: "Probe: Engine Integrity
+  (0.5)" reads the client's own integrity/error surface state — the log sinks,
+  the engine tables our code depends on (`spell_book`, `object_manager`,
+  `input`, `menu`, `time`, `game_ui`, `damage_meter`), the runtime generations,
+  our API-health stub, and a live-read canary — and every armed capture now
+  ends with the arm → flush comparison, so a flush says `UNCHANGED across the
+  capture` (the silence the block is looking for) or names the surface that
+  changed with its before/after values. The reads write nothing to the engine
+  and are resolved at runtime by name, so the ns-member and read-side audits
+  stay clean.
+- Fixed while proving it: the harness's watch-id counts used `#` on maps keyed
+  by spell id, where the length operator is undefined and returns 0 — the arm
+  log and `status()` reported 0 watched forms/spells even when ids resolved.
+  Counts are now tracked explicitly.
+- Structural only (no behavior change): the probe harness was one 1,027-line file
+  carrying six independent concerns, so changing one probe meant reading the
+  other five. It is now one file per concern under `shared/` — `live_probe_kit`
+  (the guarded reads, the runtime name index, the shared line buffer),
+  `live_probe_truth` (Block 0.1–0.3), `live_probe_sample`, `live_probe_capture`
+  (the CLEU ring, with `on_arm`/`on_flush` hooks so a read-only probe can
+  observe the capture's two moments), `live_probe_readers` (0.4),
+  `live_probe_integrity` (0.5) and `live_probe_menu` (the published
+  operations) — composed by `live_probe_sylvanas`, which is still the only
+  file that installs `NS.LiveProbe`. Same operations, same log lines, same
+  load-list entry point; a golden-output harness diffed before/after is
+  identical apart from the harness's own table pointer, and the module suite's
+  fresh-load reset now clears every part (the armed state lives in one of
+  them) so its "nothing armed yet" assertion stays load-bearing.
+- The reachability gate is behavioural now, not textual. The wiring suite used to
+  grep the menu sources for the tokens `menu_buttons` / `entry.id`, so deleting
+  both menus' real consumption and leaving those words in a comment still
+  exited 0. It now extracts each menu's probe block (between explicit markers)
+  and RUNS it against stub `core.menu` / Diagnostics-section objects, then drives
+  every published entry's click through both menus' own code paths and asserts
+  the effect; the reproduced bypass fails with "the legacy Diagnostics tree must
+  build one probe widget per published entry", as do a deleted block, a rendered
+  widget whose click no longer runs the operation, and an emptied declarative
+  `on_click` (all four re-run green after restore, under Lua 5.1 and 5.4 -- the
+  suite needs `loadstring`, which is what CI's 5.1 pin provides). Three stale
+  claims from the same audit are fixed: the 0.5 checklist RUN line named a button
+  that does not exist (`Arm Capture (any scope)` -> `(all)`), the checklist and
+  the probes ledger said Block 0 has four items (it has five), and the Engine
+  Report row claimed coverage through 0.4 (it is 0.1-0.3). Two branches that
+  were asserted but never run now have cases: the reader inventory's module
+  PRESENT path (a loaded engine module is inventoried, not just reported
+  missing) and the integrity canary's table-shaped `core.time` (via get() and
+  now()).
+- Probe-harness prune (audit 2's residue). Removed for having no caller or no
+  exercised path: the facade's `get_last_report` (zero production callers; the
+  suites now read the session log sink, which carries the same lines from the
+  surface a session actually pastes), the six one-line `action_*` pass-throughs
+  (report/sample/readers/integrity/flush/disarm -- each had exactly one caller,
+  now calling the owning module directly), `truth.last_report`/`_last_report`
+  (they existed only for that accessor), the kit's `push_line` (one internal
+  user, inlined into `out`), and a re-read in `sample` that the `and/or` chain
+  above it already covered. Module: 1,229 -> 1,180 lines. Contract unchanged --
+  the published operation list is still 10 entries with the same ids, labels,
+  descriptions and order, and the golden-output harness diffed before/after
+  shows every session-visible line byte-identical (139/139), with only the
+  harness's own two introspection lines moving (the member list, and the buffer
+  read that is now `flush()`'s return value).
+  Refuted rather than removed, with reasons: the per-file Pattern-15 headers
+  (96 lines, enforced by `test_pattern15_audit` on every shared module) and the
+  per-file dependency preludes (59 lines) are the whole cost of the split -- the
+  logic is ~1,026 lines against the original single file's ~980, so the audit's
+  "a third reducible" does not survive measurement; `sample(tag, context)` keeps
+  its `context` (nothing passes one today, but dropping it would change the
+  printed line's hp/combo columns); `action_arm` is the menu's scope adapter and
+  has 9 call sites; the `local type = type`-style builtin aliases are the
+  pre-split file's own convention (AGENTS.md Pattern 2), moved verbatim. The
+  CLEU-layout overlap with `swing_diagnostics_sylvanas.lua` stays a named
+  residue for a later pass, and that file was not touched.
+
 ## 2.28.0 — 2026-09-16
 
 ### Customer Changelog
@@ -243,6 +358,77 @@
   ride-alongs), each with method, expected result, and the ledger/kit
   entry its verdict lands in; the probes doc now points at it as the
   session runbook.
+- **A launch-day DBC diff harness watches the lane surface.**
+  `tools/forever_dbc_diff.py` diffs two Forever DBC extractions through
+  the bridge builder's own `load_forever_spells` (single extraction
+  owner — the diff can never drift from what the bridge emits) and
+  reports every row/mirror delta: removed rows, renames and re-ranks,
+  field moves (cooldown/gcd/school/level), new rows, and buff-role
+  override flips — then maps each in-flight name to the `_forever`
+  lanes that resolve through it (103 resolve_id call sites across the
+  38 deltas) and exits non-zero when action is required.
+  `--self-test` proves every finding shape on synthetic temp DBs (never
+  the canonical fixture path) plus a real-DBC self-diff = 0. Beta-day
+  procedure: `dbc_runbook.md` "Beta-day diff".
+- **The audit's open findings became a prioritized hardening backlog.**
+  `docs/forever/post_launch_hardening_backlog.md` re-cuts the
+  four-dimension audit's remaining structural notes into nine items
+  (P0/P1/P2) with a "done looks like" proof gate per item and a
+  week-1 day map: P0 is the dispatch-walk spread to the remaining
+  wrapped deltas, the live Block 0/1 engine-truth session, and
+  CI-wiring the DBC diff with committed fixtures; P1 carries the
+  docs-claim diff, the battery mock generalization, and the
+  seal-ownership seam; P2 holds the parked backlog items with their
+  named triggers.
+- **The live-beta engine-truth probes are instrumented in-engine.**
+  `shared/live_probe_sylvanas.lua` (`NS.LiveProbe`) makes the Block 0/1 session
+  a read-and-paste: `report()` dumps every version/expansion surface the build
+  exposes plus the local race, the capability matrix and each aura's
+  `points[1]` (the Pattern-11 absorb read); `sample(tag)` prints one snapshot
+  line (form/energy/rage/mana/hp/combo/AP/haste); and `arm{forms,spells,
+  raw_events}` → `flush()` runs a CLEU ring that records form-shift energy,
+  incoming-damage rage and DoT tick intervals, with `raw_events` confirming the
+  build's CLEU layout. Watch ids are supplied by the caller (bridge/DBC), so no
+  id is guessed; capture is off until armed, stores numbers in a fixed 64-slot
+  ring with a dropped counter, and formats only on flush. New suite
+  `test_live_probe_sylvanas.lua` (rotation 602) proves the surface split,
+  nil-safety, classification, the interval computation and the bound -- it
+  caught two real defects in the first run (player methods called without
+  `self`, and a guid read that never matched, so incoming-damage capture was
+  silently dead).
+- **Every DBC-answerable OPEN probe is now closed.** Wake of Fire: the ability
+  row 11078 is never an aura and the 20s window is 1312934, applied natively
+  on a kill — so the mage-fire window lane is authorable, and `BUFF_OVERRIDES`
+  pins the window row before any lane can inherit the wrong role. Improved
+  Stormstrike: the dodge-parry reset is the client-wired proc on 1223031
+  (mask 40 = dodge|parry), and the enhancement lane already reads the live
+  cooldown, so it needs no change. Only in-game-only items remain open
+  (Elemental Mastery's talent grant, the furor formula constants, warrior
+  rage-from-damage).
+- **Dead-lane fix: the Infusion of Light weave now gates the row the client
+  actually applies.** Resolving the last two DBC-answerable OPEN probes showed
+  `holy_forever.lua` was gating TBC row 53672, which nothing in the
+  1.60.1.69893 build references (no trigger, base-point link, misc payload,
+  talent row, or text mention) — so `Forever_InfusionOfLightWeave` could never
+  fire live. The live chain is the rune 426180 → 426179 → ability 426065, which
+  applies 437063 (15s, "Reduces the cast time of your next Holy Light spell"),
+  now pinned in the builder's `BUFF_OVERRIDES`; the audit's `by_buff` role pin
+  and `test_paladin_holy_forever` hold it. The probe pass also resolved the
+  Holy Shock live-cast ladder (1311606 R1@30 … 20930 R4@56, trainer-taught) and
+  added `tools/probe_forever_spell_rows.py`, a reusable spell-row dossier with
+  a reverse "who references this id" view, so probe verdicts are reproducible
+  without a client login.
+- **The DBC diff is wired into CI with committed fixture DBs.**
+  `EaxRotations/tests/fixtures/forever_dbc/` carries a committed synthetic
+  build pair (32 KB each; regenerate with `--write-fixtures`, provenance =
+  the harness's own seed rows) and the harness gained `--check-fixtures`,
+  which runs that pair through the real end-to-end path — extraction, diff,
+  the lane-impact scan over the actual `_forever` resolve_id call sites, the
+  JSON report and the exit contract — so the launch-day guard no longer
+  depends on a local client extraction. `run_forever_dbc_diff_tests.lua`
+  gates both modes as a verify_all component (python3 on CI, python3/python
+  probed locally with an explicit SKIP marker when neither exists) and the
+  CI job runs the same two invocations as a named step.
 - **Suites:** 598 rotation + 48 leveling + 82 WotLK green; forever audit
   35 files / 0 invalid; battery strict in every era (forever never=9);
   scorecard, badges and doc counts in sync; verify_all exit 0 (44
@@ -3672,4 +3858,3 @@ Lower values clip closer to expiration (better for low latency). Higher values r
 ## 1.0.0 - 2026-05-15
 
 - Initial release
-

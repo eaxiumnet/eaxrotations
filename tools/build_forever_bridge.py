@@ -245,6 +245,33 @@ def load_forever_spells(conn):
         # effect 6 aura 4, base 1902 at the @60 rank); the baseline 401859 is
         # the @40 CAST row, so an aura read against it always returns 0.
         "Prayer of Mending": 1240849,
+        # Live buff row of the Forever rework ("Reduces the cast time of your
+        # next Holy Light spell by $m1 sec", effect 6 aura 107 base -1000,
+        # SpellDuration 15s, proc mask 16384 = on spell critical hit). The
+        # baseline 53672 is the LEGACY TBC row ("Your Holy Shock critical hits
+        # reduce the cast time of your next FLASH OF LIGHT ..."): nothing in
+        # the 1.60.1.69893 build references it -- no EffectTriggerSpell, no
+        # EffectBasePointsF link, no EffectMiscValue payload, no talent row,
+        # and the only text that names $53672 is its own description -- so a
+        # lane gating it can never fire live. The live chain is the rune
+        # 426180 "Engrave Belt - Infusion of Light" -> 426179 -> ability
+        # 426065 ("Your Holy Shock and Flash of Light critical hits reduce the
+        # cast time of your next Holy Light cast within $437063d by $m1 sec"),
+        # which applies 437063. Re-probed 2026-09-19 with
+        # tools/probe_forever_spell_rows.py (--refs 53672 / --refs 437063).
+        "Infusion of Light": 437063,
+        # The 20s window row the ability applies on a kill ("Killing a
+        # non-trivial target increases the critical strike chance of your next
+        # Fire Blast cast within $1312934d by $m2%", aura 107 base +50 misc 7,
+        # proc mask 65536). The baseline 11078 is the ABILITY row itself
+        # (class 3, proc mask 2 = on-kill, level 1), which is never on the
+        # player as an aura, so a buff gate against it always returns 0. The
+        # same shape as Infusion of Light: applying the window is native
+        # behavior, so nothing in the build carries an EffectTriggerSpell link
+        # to it -- the ability's own text is the only reference to $1312934.
+        # Re-probed 2026-09-19 with tools/probe_forever_spell_rows.py
+        # (--refs 1312934 / --refs 11078).
+        "Wake of Fire": 1312934,
     }
 
     # Max-rank-role overrides: exact client name -> the PLAYER-CAST row, for
