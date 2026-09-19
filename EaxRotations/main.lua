@@ -96,7 +96,18 @@ load_modules({
     "shared/combat_log_parser_sylvanas",
     "shared/aura_probe_sylvanas",
     -- Live-beta engine-truth probe harness: inert until report()/arm() is called
-    -- (registers nothing at load), so it costs one table at startup.
+    -- (registers nothing at load), so it costs one table at startup. One file
+    -- per probe concern -- kit (shared reads/buffer), truth (Block 0.1-0.3),
+    -- sample, capture (the CLEU ring), readers (0.4), integrity (0.5), menu
+    -- (the published operations) -- composed by the facade below, which is the
+    -- only one that installs NS.LiveProbe.
+    "shared/live_probe_kit_sylvanas",
+    "shared/live_probe_truth_sylvanas",
+    "shared/live_probe_sample_sylvanas",
+    "shared/live_probe_capture_sylvanas",
+    "shared/live_probe_readers_sylvanas",
+    "shared/live_probe_integrity_sylvanas",
+    "shared/live_probe_menu_sylvanas",
     "shared/live_probe_sylvanas",
 
     -- Data and pure helpers

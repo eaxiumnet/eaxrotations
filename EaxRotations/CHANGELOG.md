@@ -40,6 +40,20 @@
   by spell id, where the length operator is undefined and returns 0 — the arm
   log and `status()` reported 0 watched forms/spells even when ids resolved.
   Counts are now tracked explicitly.
+- Structural only (no behavior change): the probe harness was one 1,027-line file
+  carrying six independent concerns, so changing one probe meant reading the
+  other five. It is now one file per concern under `shared/` — `live_probe_kit`
+  (the guarded reads, the runtime name index, the shared line buffer),
+  `live_probe_truth` (Block 0.1–0.3), `live_probe_sample`, `live_probe_capture`
+  (the CLEU ring, with `on_arm`/`on_flush` hooks so a read-only probe can
+  observe the capture's two moments), `live_probe_readers` (0.4),
+  `live_probe_integrity` (0.5) and `live_probe_menu` (the published
+  operations) — composed by `live_probe_sylvanas`, which is still the only
+  file that installs `NS.LiveProbe`. Same operations, same log lines, same
+  load-list entry point; a golden-output harness diffed before/after is
+  identical apart from the harness's own table pointer, and the module suite's
+  fresh-load reset now clears every part (the armed state lives in one of
+  them) so its "nothing armed yet" assertion stays load-bearing.
 
 ## 2.28.0 — 2026-09-16
 

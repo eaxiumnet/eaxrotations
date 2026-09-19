@@ -11,7 +11,21 @@
 -- SAFETY: fully mocked; no unit, spell or game state is touched.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
-package.loaded["shared/live_probe_sylvanas"] = nil
+
+-- The harness is one concern per file, so a "fresh load" means all of them:
+-- the capture ring's armed state lives in its own part, and clearing only the
+-- facade would leave a previous test's capture behind.
+local function unload_probe()
+    for _, name in ipairs({
+        "shared/live_probe_kit_sylvanas", "shared/live_probe_truth_sylvanas",
+        "shared/live_probe_sample_sylvanas", "shared/live_probe_capture_sylvanas",
+        "shared/live_probe_readers_sylvanas", "shared/live_probe_integrity_sylvanas",
+        "shared/live_probe_menu_sylvanas", "shared/live_probe_sylvanas",
+    }) do
+        package.loaded[name] = nil
+    end
+end
+unload_probe()
 
 local logs = {}
 local registrations = {}
@@ -328,7 +342,7 @@ end
 
 -- 13. A failed registrar is reported, not silently armed.
 _G.EaxRotations.register_on_game_event = nil
-package.loaded["shared/live_probe_sylvanas"] = nil
+unload_probe()
 local fresh = require("shared/live_probe_sylvanas")
 assert(has(fresh.integrity_report().lines, "nothing armed yet"),
     "a freshly loaded probe must report that nothing is armed yet")
