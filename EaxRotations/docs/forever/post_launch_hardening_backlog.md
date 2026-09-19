@@ -88,7 +88,11 @@ delta files deletable duplication — since resolved: −1,136 lines via
   so the probe is a menu action — both menu implementations' Diagnostics
   sections build their buttons from one published list
   (`NS.LiveProbe.menu_buttons()`), and `test_live_probe_menu_wiring.lua` fails
-  if either menu stops consuming it (revert-proven on both). The checklist's
+  if either menu stops consuming it: the suite extracts each menu's probe block
+  (between explicit markers) and RUNS it against stub `core.menu` / Diagnostics
+  objects, so a deleted registration, a widget built under a different id, or a
+  click that no longer reaches the operation fails (revert-proven on both files,
+  under Lua 5.1 and 5.4). The checklist's
   `RUN:` lines are therefore in-game steps (Arm → act → Flush → read the
   console log), not Lua a session cannot type.
   Remaining: run those steps on the client, paste the output into the ledger,

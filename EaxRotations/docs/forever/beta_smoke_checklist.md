@@ -43,7 +43,7 @@ action, click **Flush Capture**, then read the log.
 
 | Button (Diagnostics) | What it gives you | Blocks |
 |----------------------|-------------------|--------|
-| **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.4 |
+| **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.3 |
 | **Probe: Reader Surfaces (0.4)** | the external-reader inventory: the built-in damage meter and the cooldown surfaces this build exposes, PRESENT/ABSENT per surface with the members and value types it carries, the reads our lanes make, live meter values, and a name scan over the engine table's own keys | 0.4 |
 | **Probe: Engine Integrity (0.5)** | the client's integrity/error surface state: every engine surface our code depends on (log sinks, spell_book, object_manager, input, menu, time, game_ui, damage_meter), the runtime generations, the API-health stub, and a live-read canary -- plus the arm -> flush comparison | 0.5 |
 | **Probe: Snapshot Now** | one line: form, energy, rage, mana%, hp%, combo, AP, haste, timestamp | 1.1, 1.2 |
@@ -68,7 +68,7 @@ debug build.
 
 ## Block 0 — engine truth (first login, any character, ~20 min)
 
-Nothing class-specific gates wave re-ranks more than these four.
+Nothing class-specific gates wave re-ranks more than these five.
 
 - [ ] **0.1 Version string.** Log in once, run the engine's version
       read (`get_game_version()` surface from core_sylvanas
@@ -112,7 +112,7 @@ Nothing class-specific gates wave re-ranks more than these four.
       reaction while the engine runs (MMORPG.com interview posture:
       memory reads, no addon API).
       RUN: Diagnostics → **Probe: Engine Integrity (0.5)** for the state
-      now, then **Probe: Arm Capture (any scope)** (its snapshot is taken at
+      now, then **Probe: Arm Capture (all)** (its snapshot is taken at
       arm), play normally for a few minutes, and **Probe: Flush Capture** —
       the flush prints the arm → flush comparison: `0.5 integrity:
       UNCHANGED ...` is the silent verdict this block is after, and a

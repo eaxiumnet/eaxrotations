@@ -1121,6 +1121,7 @@ local function render_menu()
                     NS.dump_class_spells(name)
                 end
             end
+-- >>> probe menu block (executed with stub menu objects by test_live_probe_menu_wiring.lua)
             -- Live-probe capture buttons (owner: NS.LiveProbe.menu_buttons()).
             -- The harness is inert until one of these is clicked; the widget list
             -- is built on first render so the load order of the probe module and
@@ -1147,6 +1148,7 @@ local function render_menu()
                     end
                 end
             end
+            -- <<< probe menu block
             -- Permashow / EaxFishing / EaxTheme are expected to be part of the
             -- newest .api update. If your .api is newer, you should already see a
             -- Permashow control. This button is a recovery path for older .api builds

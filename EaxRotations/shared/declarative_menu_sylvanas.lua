@@ -498,6 +498,7 @@ function M:initialize(schema, class_config, MenuTheme, playstyle_keys,
                 end
             end,
         })
+        -- >>> probe menu block (executed with stub menu objects by test_live_probe_menu_wiring.lua)
         -- Live-probe capture buttons (owner: NS.LiveProbe.menu_buttons()) so a
         -- Block 0/1 session can arm a capture, act, flush and read the result
         -- with no console available. Same operation list as the legacy tree.
@@ -512,6 +513,7 @@ function M:initialize(schema, class_config, MenuTheme, playstyle_keys,
                 end
             end
         end
+        -- <<< probe menu block
     end
 
     _initialized = true

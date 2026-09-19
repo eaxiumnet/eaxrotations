@@ -244,6 +244,24 @@ assert(has(readers.lines, "core.game_ui (game UI readers): ABSENT"),
     "reader_report must mark a missing surface ABSENT")
 assert(has(readers.lines, "engine cooldown_tracker"), "reader_report must probe the cooldown tracker module")
 assert(has(readers.lines, "engine spell_helper"), "reader_report must probe the spell helper module")
+
+-- ...and the module PRESENT path, which is a different branch: when the engine
+-- module really loads (a table), its members and the reads our lanes make must
+-- be inventoried -- not merely reported missing.
+package.loaded["common/utility/cooldown_tracker"] = {
+    has_any_relevant_defensive_up = function() return true end,
+    is_spell_ready = function() return false end,
+}
+local loaded = probe.reader_report()
+assert(has(loaded.lines, "engine cooldown_tracker (enemy cooldown observation): PRESENT"),
+    "reader_report must mark a loaded engine module PRESENT")
+assert(has(loaded.lines, "read is_spell_ready = function"),
+    "reader_report must list a named read the loaded module carries")
+assert(has(loaded.lines, "read has_any_relevant_defensive_up = function"),
+    "reader_report must list every named read the loaded module carries")
+assert(has(loaded.lines, "engine spell_helper (native readiness"),
+    "the unloaded module must still be probed in the same run")
+package.loaded["common/utility/cooldown_tracker"] = nil
 assert(readers.absent_reads >= 2,
     "reader_report must count the reads our lanes make that the build lacks, got "
     .. tostring(readers.absent_reads))
@@ -284,6 +302,17 @@ assert(has(integrity.lines, "core.log = function"), "integrity_report must repor
 assert(has(integrity.lines, "core.object_manager = table"), "integrity_report must report the engine tables by type")
 assert(has(integrity.lines, "core.time live read = ok (number)"),
     "integrity_report must prove the engine still answers with a live read")
+
+-- The canary accepts either shape the engine exposes for core.time: a callable,
+-- or a table carrying get()/now(). Both are asserted because a build that ships
+-- the table shape would otherwise read as "not callable" and be missed.
+_G.core.time = { get = function() return 55.5 end }
+assert(has(probe.integrity_report().lines, "core.time live read = ok (number)"),
+    "integrity_report must read a table-shaped core.time through get()")
+_G.core.time = { now = function() return 55.5 end }
+assert(has(probe.integrity_report().lines, "core.time live read = ok (number)"),
+    "integrity_report must read a table-shaped core.time through now()")
+_G.core.time = function() return 123.5 end
 assert(has(integrity.lines, "core.damage_meter = ABSENT"),
     "integrity_report must mark an absent engine surface ABSENT")
 assert(has(integrity.lines, "0.5 state:"), "integrity_report must print the surface count")

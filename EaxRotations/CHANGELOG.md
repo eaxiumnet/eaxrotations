@@ -54,6 +54,25 @@
   identical apart from the harness's own table pointer, and the module suite's
   fresh-load reset now clears every part (the armed state lives in one of
   them) so its "nothing armed yet" assertion stays load-bearing.
+- The reachability gate is behavioural now, not textual. The wiring suite used to
+  grep the menu sources for the tokens `menu_buttons` / `entry.id`, so deleting
+  both menus' real consumption and leaving those words in a comment still
+  exited 0. It now extracts each menu's probe block (between explicit markers)
+  and RUNS it against stub `core.menu` / Diagnostics-section objects, then drives
+  every published entry's click through both menus' own code paths and asserts
+  the effect; the reproduced bypass fails with "the legacy Diagnostics tree must
+  build one probe widget per published entry", as do a deleted block, a rendered
+  widget whose click no longer runs the operation, and an emptied declarative
+  `on_click` (all four re-run green after restore, under Lua 5.1 and 5.4 -- the
+  suite needs `loadstring`, which is what CI's 5.1 pin provides). Three stale
+  claims from the same audit are fixed: the 0.5 checklist RUN line named a button
+  that does not exist (`Arm Capture (any scope)` -> `(all)`), the checklist and
+  the probes ledger said Block 0 has four items (it has five), and the Engine
+  Report row claimed coverage through 0.4 (it is 0.1-0.3). Two branches that
+  were asserted but never run now have cases: the reader inventory's module
+  PRESENT path (a loaded engine module is inventoried, not just reported
+  missing) and the integrity canary's table-shaped `core.time` (via get() and
+  now()).
 
 ## 2.28.0 — 2026-09-16
 
@@ -3798,4 +3817,3 @@ Lower values clip closer to expiration (better for low latency). Higher values r
 ## 1.0.0 - 2026-05-15
 
 - Initial release
-

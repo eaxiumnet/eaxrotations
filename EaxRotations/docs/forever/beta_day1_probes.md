@@ -77,8 +77,9 @@ execution for every open probe lives in **beta_smoke_checklist.md**
 
 ## Block 0/1 capture — instrumented 2026-09-19
 
-The Block 0 items below (version surface, race detection, buff-points read,
-reader-surface inventory) and the three P2 gate probes (furor energy-on-shift,
+The five Block 0 items below (version surface, race detection, buff-points read,
+reader-surface inventory, integrity/addon-policy watch) and the three P2 gate
+probes (furor energy-on-shift,
 rage-from-damage, haste-vs-DoT ticks) no longer need a stopwatch and a notebook:
 `shared/live_probe_sylvanas.lua` (`NS.LiveProbe`) captures them in-engine, and
 because the client exposes no console, every capture is a MENU action. Both menu
