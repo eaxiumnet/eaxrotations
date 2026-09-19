@@ -391,6 +391,14 @@ pass (holy_forever bridge lookups go live).
 - [ ] World buffs in raids (expected nerf/removal) — meta expectations only.
 - [ ] Built-in damage meter + cooldown manager — validates CD-tracking lane
       shapes; observe what data surfaces expose to external readers.
+      PROBE (2026-09-19): Diagnostics → "Probe: Reader Surfaces (0.4)"
+      inventories the external-reader surfaces this build exposes —
+      `core.damage_meter` (members + live `is_available` /
+      `get_session_duration`), `core.spell_book` cooldown readers,
+      `core.game_ui`, the engine `cooldown_tracker` / `spell_helper`
+      modules our lanes adapt, and a name scan over `core`'s own keys so a
+      differently-named surface is found rather than missed. Verdict stays
+      OPEN until a client session produces that log.
 - [ ] Skyborne druid form list (unpublished) — form-lane watch item.
 - [ ] Talent DB2 shape on the beta client — 16-point gold-medal mapping
       (racials-and-talents.md follow-up).

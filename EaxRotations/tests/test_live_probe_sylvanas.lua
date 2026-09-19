@@ -200,7 +200,57 @@ assert(probe.status().scope == "all", "an unknown class must degrade to scope=al
 probe.disarm()
 _G.plugin_info = nil
 
--- 10. menu_buttons(): the single operation list both menus iterate.
+-- 10. reader_report() (Block 0.4): inventory the external-reader surfaces the
+--     build exposes -- PRESENT/ABSENT per surface, the members and value types
+--     each carries, the specific reads our lanes make, live values, and a name
+--     scan so a differently-named surface still shows up.
+_G.core.damage_meter = {
+    is_available = function() return true end,
+    get_session_duration = function(self, session) return 42.5 end,
+    hidden_extra = "a-member-only-the-build-knows-about",
+}
+_G.core.spell_book = { get_spell_cooldown = function() return 0 end }
+local readers = probe.reader_report()
+assert(type(readers) == "table" and type(readers.lines) == "table",
+    "reader_report must return the formatted lines")
+assert(has(readers.lines, "core.damage_meter (built-in damage meter): PRESENT"),
+    "reader_report must mark an exposed surface PRESENT")
+assert(has(readers.lines, "member hidden_extra = string"),
+    "reader_report must list the members the build actually carries, not a fixed list")
+assert(has(readers.lines, "members: 3"), "reader_report must count the members")
+assert(has(readers.lines, "read get_session_duration = function"),
+    "reader_report must report a named read our lanes make")
+assert(has(readers.lines, "live is_available = true"),
+    "reader_report must read the live availability value")
+assert(has(readers.lines, "live get_session_duration = 42.5"),
+    "reader_report must read the live session duration")
+assert(has(readers.lines, "read get_spell_cooldown_information: ABSENT"),
+    "reader_report must mark a named read the build lacks ABSENT")
+assert(has(readers.lines, "core.game_ui (game UI readers): ABSENT"),
+    "reader_report must mark a missing surface ABSENT")
+assert(has(readers.lines, "engine cooldown_tracker"), "reader_report must probe the cooldown tracker module")
+assert(has(readers.lines, "engine spell_helper"), "reader_report must probe the spell helper module")
+assert(readers.absent_reads >= 2,
+    "reader_report must count the reads our lanes make that the build lacks, got "
+    .. tostring(readers.absent_reads))
+
+-- A surface whose name the probe was never told must still be found, from the
+-- build's own key inventory: that is how "is there a cooldown manager?" is
+-- answered without inventing a name.
+_G.core.cooldown_manager = { begin_cooldown = function() end }
+local scanned = probe.reader_report()
+assert(has(scanned.lines, "scan core.cooldown_manager = table (1 member(s))"),
+    "reader_report must discover a matching engine key it was never told about")
+assert(has(scanned.lines, "scan core.damage_meter = table (3 member(s))"),
+    "reader_report must scan the whole engine table, not only the known targets")
+assert(has(scanned.lines, "0.4 summary:"), "reader_report must print a summary line")
+assert(type(scanned.scan_hits) == "number" and scanned.scan_hits >= 1,
+    "reader_report must report the scan hit count")
+_G.core.cooldown_manager = nil
+_G.core.damage_meter = nil
+_G.core.spell_book = nil
+
+-- 11. menu_buttons(): the single operation list both menus iterate.
 local actions = probe.menu_buttons()
 assert(type(actions) == "table" and #actions >= 8,
     "menu_buttons must publish the operation list, got " .. tostring(actions and #actions))
@@ -215,13 +265,13 @@ for i = 1, #actions do
     seen_ids[entry.id] = true
     saw[entry.id] = true
 end
-for _, wanted in ipairs({ "eax_probe_report", "eax_probe_sample", "eax_probe_arm_all",
+for _, wanted in ipairs({ "eax_probe_report", "eax_probe_readers", "eax_probe_sample", "eax_probe_arm_all",
     "eax_probe_arm_forms", "eax_probe_arm_dots", "eax_probe_arm_rage",
     "eax_probe_flush", "eax_probe_disarm" }) do
     assert(saw[wanted], "menu_buttons must expose " .. wanted)
 end
 
--- 11. A failed registrar is reported, not silently armed.
+-- 12. A failed registrar is reported, not silently armed.
 _G.EaxRotations.register_on_game_event = nil
 package.loaded["shared/live_probe_sylvanas"] = nil
 local fresh = require("shared/live_probe_sylvanas")

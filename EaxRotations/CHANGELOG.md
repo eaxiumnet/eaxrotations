@@ -16,6 +16,16 @@
   `test_live_probe_menu_wiring.lua` fails if either menu stops consuming the
   list (revert-proven on both), so deleting a registration fails a gate instead
   of silently leaving dead scaffolding.
+- Block 0.4 is now answerable from a log line instead of hand-inspection:
+  "Probe: Reader Surfaces (0.4)" inventories the external-reader surfaces the
+  build exposes — the built-in damage meter (`core.damage_meter`, its members
+  with value types plus live `is_available` / `get_session_duration`), the
+  `core.spell_book` cooldown readers, `core.game_ui`, the engine
+  `cooldown_tracker` and `spell_helper` modules our lanes adapt — reporting
+  PRESENT/ABSENT per surface and per read, and scanning the engine table's own
+  keys by name so a differently-named cooldown surface is found rather than
+  guessed at. Names come only from surfaces this tree already reads, and every
+  lookup is a runtime index, never a compile-time field read.
 - Fixed while proving it: the harness's watch-id counts used `#` on maps keyed
   by spell id, where the length operator is undefined and returns 0 — the arm
   log and `status()` reported 0 watched forms/spells even when ids resolved.

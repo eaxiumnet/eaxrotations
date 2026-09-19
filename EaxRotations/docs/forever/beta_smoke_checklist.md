@@ -44,6 +44,7 @@ action, click **Flush Capture**, then read the log.
 | Button (Diagnostics) | What it gives you | Blocks |
 |----------------------|-------------------|--------|
 | **Probe: Engine Report** | engine truth: every version/expansion surface this build exposes, the local race, the capability matrix (which of the 19 surfaces the probes need actually exist), and each aura's `points[1]` (the absorb read) | 0.1-0.4 |
+| **Probe: Reader Surfaces (0.4)** | the external-reader inventory: the built-in damage meter and the cooldown surfaces this build exposes, PRESENT/ABSENT per surface with the members and value types it carries, the reads our lanes make, live meter values, and a name scan over the engine table's own keys | 0.4 |
 | **Probe: Snapshot Now** | one line: form, energy, rage, mana%, hp%, combo, AP, haste, timestamp | 1.1, 1.2 |
 | **Probe: Arm Capture (all)** | starts the CLEU capture ring recording own aura changes and incoming damage (with the rage it produced), plus one raw CLEU arg dump | 0.4, 1.1-1.3 |
 | **Probe: Arm Capture (forms)** | own form/buff changes with the energy snapshot at the instant of the shift -- the Furor read. Form ids resolve BY NAME from the class spell map, so nothing is typed or guessed | 1.1 |
@@ -98,10 +99,13 @@ Nothing class-specific gates wave re-ranks more than these four.
 - [ ] **0.4 Built-in damage meter + cooldown manager surfaces.** Open
       both, note what data they expose to external readers (what the
       P5 item needs to validate CD-tracking lane shapes).
-      RUN: Diagnostics → **Probe: Engine Report** — the capability matrix IS
-      this verdict (which reader surfaces exist); then **Probe: Arm Capture
-      (all)**, land one white hit, **Probe: Flush Capture** — the raw CLEU arg
-      dump in the log validates the CD lanes.
+      RUN: Diagnostics → **Probe: Reader Surfaces (0.4)** — the log lists
+      every reader surface with PRESENT/ABSENT, the members and value types
+      it carries, the reads our lanes make, and the live meter values; that
+      inventory IS the verdict, and the name scan settles whether a
+      separately-named cooldown surface exists at all. Then **Probe: Arm
+      Capture (all)**, land one white hit, **Probe: Flush Capture** — the raw
+      CLEU arg dump in the log validates the CD lanes.
       LEDGER: P5 "Built-in damage meter" item.
 - [ ] **0.5 Addon-policy watch.** Confirm no integrity/error surface
       reaction while the engine runs (MMORPG.com interview posture:
