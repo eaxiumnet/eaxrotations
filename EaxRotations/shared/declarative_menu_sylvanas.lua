@@ -498,6 +498,20 @@ function M:initialize(schema, class_config, MenuTheme, playstyle_keys,
                 end
             end,
         })
+        -- Live-probe capture buttons (owner: NS.LiveProbe.menu_buttons()) so a
+        -- Block 0/1 session can arm a capture, act, flush and read the result
+        -- with no console available. Same operation list as the legacy tree.
+        do
+            local probe = _G.EaxRotations and _G.EaxRotations.LiveProbe
+            if probe and type(probe.menu_buttons) == "function" then
+                for _, entry in ipairs(probe.menu_buttons()) do
+                    diag_section:button(entry.id, entry.label, {
+                        description = entry.description,
+                        on_click = function() pcall(entry.run) end,
+                    })
+                end
+            end
+        end
     end
 
     _initialized = true

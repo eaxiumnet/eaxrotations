@@ -8,6 +8,10 @@
 --        records itself (form shift -> energy, incoming damage -> rage, DoT
 --        tick -> interval) instead of being timed by hand.
 -- WHEN:  loaded at startup (inert until called: no registration, no work).
+--        Run from either menu implementation's Diagnostics section: the
+--        operations are published as one list (menu_buttons()) because the
+--        engine has no console, arm scope picks what is recorded, and form
+--        watch ids resolve BY NAME from the class spell map.
 -- WHY:   the four Block-0 items and the three Block-1 gates are all "read an
 --        engine value at a moment"; every estimated threshold in the kits stays
 --        an estimate until these reads exist. A fixed ring that stores numbers
@@ -58,7 +62,12 @@ local _armed = false
 local _registered = false
 local _watch_forms = {}         -- spell_id -> true
 local _watch_spells = {}        -- spell_id -> true
+-- Counted explicitly: these are maps keyed by spell id, so #table is
+-- undefined (returns 0) -- status()/the arm log must not lie about them.
+local _watch_form_count = 0
+local _watch_spell_count = 0
 local _raw_budget = 0
+local _scope = "all"            -- capture scope: all | forms | dots | rage
 local _raw_args = nil
 local _lines = {}               -- flush output, reused
 
@@ -312,6 +321,23 @@ local function args_num(args, index)
 end
 
 -- The CLEU handler: one boolean test when disarmed, numbers only when armed.
+-- Is the CLEU guid in this 1-based arg slot (4 = source, 8 = destination)
+-- this player's? Compared as string and as number because builds differ in
+-- which shape the dispatcher hands over; a foreign-source event is never a
+-- probe of this character.
+local function player_guid_matches(args, index)
+    local p = player()
+    if p == nil then return false end
+    local guid = safe(p.get_guid, p)
+    if guid == nil then guid = p.guid end
+    if guid == nil then return false end
+    local other = args and args[index]
+    if other == nil then return false end
+    if guid == other then return true end
+    local guid_num = tonumber(p.guid)
+    return guid_num ~= nil and guid_num == tonumber(other)
+end
+
 local function on_game_event(event_name, args)
     if not _armed then return end
     if event_name ~= CLEU then return end
@@ -330,16 +356,24 @@ local function on_game_event(event_name, args)
     local stamp = args_num(args, 1)
     if stamp == 0 then stamp = now() end
 
-    if spell and _watch_forms[spell] then
-        if sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REMOVED" then
-            local p = player()
-            push_slot(KIND_FORM, spell, power_of(p, NS.POWER_ENERGY),
-                power_of(p, NS.POWER_RAGE), sub == "SPELL_AURA_APPLIED" and 1 or 0, stamp)
-            return
-        end
+    -- Own-aura changes. A non-empty watch list filters by id; an empty one
+    -- (scope all) records every own aura, which is how the menu arms with no
+    -- id input. Source must be this player: someone else's aura is not a probe.
+    if spell and (_scope == "all" and #_watch_forms == 0 or _watch_forms[spell])
+        and (sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REMOVED")
+        and player_guid_matches(args, 4) then
+        local p = player()
+        push_slot(KIND_FORM, spell, power_of(p, NS.POWER_ENERGY),
+            power_of(p, NS.POWER_RAGE), sub == "SPELL_AURA_APPLIED" and 1 or 0, stamp)
+        return
     end
 
-    if spell and _watch_spells[spell] and sub == "SPELL_PERIODIC_DAMAGE" then
+    -- Own periodic ticks. An empty watch list (scope all/dots) records every
+    -- own DoT tick, so an id-free session can still measure an interval.
+    if spell and (_scope == "all" or _scope == "dots")
+        and (#_watch_spells == 0 or _watch_spells[spell])
+        and sub == "SPELL_PERIODIC_DAMAGE"
+        and player_guid_matches(args, 4) then
         local previous = _last_tick_time[spell]
         local delta = previous and (stamp - previous) or 0
         _last_tick_time[spell] = stamp
@@ -347,16 +381,12 @@ local function on_game_event(event_name, args)
         return
     end
 
-    if sub == "SWING_DAMAGE" or sub == "SWING_MISSED" or sub == "SPELL_DAMAGE" then
-        local p = player()
-        local guid = p and safe(p.get_guid, p) or nil
-        if guid == nil and p then guid = p.guid end
-        local guid_num = p and tonumber(p.guid)
-        local destination = args and args[8]
-        if guid ~= nil and (guid == destination or (guid_num and guid_num == tonumber(destination))) then
-            push_slot(KIND_INCOMING, spell or 0, args_num(args, 15),
-                power_of(p, NS.POWER_RAGE), 0, stamp)
-        end
+    -- Incoming damage -> the rage it produced (the rage-from-damage curve).
+    if (_scope == "all" or _scope == "rage")
+        and (sub == "SWING_DAMAGE" or sub == "SWING_MISSED" or sub == "SPELL_DAMAGE")
+        and player_guid_matches(args, 8) then
+        push_slot(KIND_INCOMING, spell or 0, args_num(args, 15),
+            power_of(player(), NS.POWER_RAGE), 0, stamp)
     end
 end
 
@@ -373,22 +403,31 @@ function M.arm(opts)
     opts = opts or {}
     _watch_forms = {}
     _watch_spells = {}
+    _watch_form_count = 0
+    _watch_spell_count = 0
     _last_tick_time = {}
     local forms = opts.forms
     if type(forms) == "table" then
         for i = 1, #forms do
             local id = tonumber(forms[i])
-            if id then _watch_forms[id] = true end
+            if id then
+                _watch_forms[id] = true
+                _watch_form_count = _watch_form_count + 1
+            end
         end
     end
     local spells = opts.spells
     if type(spells) == "table" then
         for i = 1, #spells do
             local id = tonumber(spells[i])
-            if id then _watch_spells[id] = true end
+            if id then
+                _watch_spells[id] = true
+                _watch_spell_count = _watch_spell_count + 1
+            end
         end
     end
     _raw_budget = tonumber(opts.raw_events) or 0
+    _scope = type(opts.scope) == "string" and opts.scope or "all"
     _raw_args = nil
     _ring_head = 0
     _ring_dropped = 0
@@ -396,8 +435,8 @@ function M.arm(opts)
     if not _armed then
         out("[LiveProbe] arm FAILED: NS.register_on_game_event unavailable")
     else
-        out(string_format("[LiveProbe] armed: %s form id(s), %s watch id(s), raw_events=%d",
-            tostring(forms and #forms or 0), tostring(spells and #spells or 0), _raw_budget))
+        out(string_format("[LiveProbe] armed: scope=%s, %s form id(s), %s watch id(s), raw_events=%d",
+            tostring(_scope), tostring(_watch_form_count), tostring(_watch_spell_count), _raw_budget))
     end
     return _armed
 end
@@ -410,9 +449,9 @@ end
 
 function M.status()
     return {
-        armed = _armed, registered = _registered,
+        armed = _armed, registered = _registered, scope = _scope,
         captured = _ring_head, dropped = _ring_dropped,
-        forms = #_watch_forms, spells = #_watch_spells,
+        forms = _watch_form_count, spells = _watch_spell_count,
     }
 end
 
@@ -453,6 +492,165 @@ function M.flush()
     end
     out("[LiveProbe] === end capture ===")
     return n, _lines
+end
+
+-- ---------------------------------------------------------------------------
+-- Menu-facing operations (single owner)
+--
+-- The engine has no console, so the only way a session runs a probe is a menu
+-- action. Both menu implementations therefore own WIDGETS only and call these
+-- operations; menu_buttons() is the one list they both iterate, so the legacy
+-- tree and the declarative page cannot drift. Everything stays disarmed until
+-- an action arms it, and no id is ever guessed: form ids resolve BY NAME from
+-- the class spell map the spec files publish (NS.<Class>Spells).
+-- ---------------------------------------------------------------------------
+local FORM_ACTIONS = {
+    Druid  = { "CatForm", "BearForm", "TravelForm" },
+    Shaman = { "GhostWolf" },
+}
+
+local function class_spell_map()
+    local name = lookup("ns", "player_class_name")
+    if type(name) ~= "string" or name == "" then
+        local plugin = _G["plugin_info"]
+        if type(plugin) == "table" then name = plugin["player_class_name"] end
+    end
+    if type(name) ~= "string" or name == "" then return nil, nil end
+    name = name:sub(1, 1):upper() .. name:sub(2):lower()
+    local map = lookup("ns", name .. "Spells")
+    if type(map) ~= "table" then return nil, name end
+    return map, name
+end
+
+local function resolve_ids(map, action_name)
+    local ids = {}
+    if type(map) ~= "table" then return ids end
+    local action = map[action_name]
+    if type(action) ~= "table" then return ids end
+    local meta = action["_meta"]
+    local candidates = meta and (meta["ids"] or meta["id"]) or action["ids"]
+    if type(candidates) == "number" then candidates = { candidates } end
+    if type(candidates) ~= "table" then return ids end
+    local seen = {}
+    for i = 1, #candidates do
+        local id = tonumber(candidates[i])
+        if id and not seen[id] then
+            seen[id] = true
+            ids[#ids + 1] = id
+        end
+    end
+    return ids
+end
+
+local function resolve_form_ids()
+    local map, name = class_spell_map()
+    local ids = {}
+    local list = name and FORM_ACTIONS[name] or nil
+    if type(list) == "table" then
+        local seen = {}
+        for i = 1, #list do
+            local sub = resolve_ids(map, list[i])
+            for j = 1, #sub do
+                local id = sub[j]
+                if not seen[id] then
+                    seen[id] = true
+                    ids[#ids + 1] = id
+                end
+            end
+        end
+    end
+    return ids, name
+end
+
+local ARM_SCOPES = { all = true, forms = true, dots = true, rage = true }
+
+-- action_arm(scope, raw_events): scope is what the capture records --
+--   all   -> own aura changes + incoming damage (with the rage it produced)
+--   forms -> own aura changes only, ids resolved from the class spell map
+--   dots  -> own periodic-damage ticks (and the interval between them)
+--   rage  -> incoming damage only (the rage-from-damage curve)
+-- raw_events dumps the first CLEU event's args, which is how a session confirms
+-- the layout this build sends instead of assuming one.
+function M.action_arm(scope, raw_events)
+    if type(scope) ~= "string" or not ARM_SCOPES[scope] then scope = "all" end
+    local forms = {}
+    if scope == "forms" then
+        local class_name
+        forms, class_name = resolve_form_ids()
+        if #forms == 0 then
+            out("[LiveProbe] arm(forms): no form id resolved for class "
+                .. tostring(class_name or "unknown")
+                .. " -- falling back to scope=all (every own aura)")
+            scope = "all"
+        end
+    end
+    return M.arm({ forms = forms, raw_events = raw_events, scope = scope })
+end
+
+function M.action_report()
+    return M.report()
+end
+
+function M.action_sample(tag)
+    return M.sample(tag or "menu")
+end
+
+function M.action_flush()
+    return M.flush()
+end
+
+function M.action_disarm()
+    return M.disarm()
+end
+
+local MENU_BUTTONS = {
+    {
+        id = "eax_probe_report", label = "Probe: Engine Report",
+        description = "Log the expansion/version surface, race, capability matrix and aura points (Block 0.1-0.3)",
+        run = function() M.action_report() end,
+    },
+    {
+        id = "eax_probe_sample", label = "Probe: Snapshot Now",
+        description = "Log one line of form/energy/rage/mana/hp/combo/AP/haste at this moment",
+        run = function() M.action_sample("menu") end,
+    },
+    {
+        id = "eax_probe_arm_all", label = "Probe: Arm Capture (all)",
+        description = "Record own aura changes + incoming damage (with rage) + one raw CLEU event, then Flush",
+        run = function() M.action_arm("all", 1) end,
+    },
+    {
+        id = "eax_probe_arm_forms", label = "Probe: Arm Capture (forms)",
+        description = "Record own form/buff changes with the energy snapshot -- shift form after arming, then Flush",
+        run = function() M.action_arm("forms", 1) end,
+    },
+    {
+        id = "eax_probe_arm_dots", label = "Probe: Arm Capture (ticks)",
+        description = "Record own DoT ticks and their interval -- apply the DoT after arming, then Flush",
+        run = function() M.action_arm("dots", 0) end,
+    },
+    {
+        id = "eax_probe_arm_rage", label = "Probe: Arm Capture (rage)",
+        description = "Record incoming damage with the rage it produced -- take the hit after arming, then Flush",
+        run = function() M.action_arm("rage", 0) end,
+    },
+    {
+        id = "eax_probe_flush", label = "Probe: Flush Capture",
+        description = "Log the capture: every recorded event, plus the raw CLEU arg dump when armed with it",
+        run = function() M.action_flush() end,
+    },
+    {
+        id = "eax_probe_disarm", label = "Probe: Disarm Capture",
+        description = "Stop recording; the capture stays readable until the next arm",
+        run = function() M.action_disarm() end,
+    },
+}
+
+-- menu_buttons(): the operation list both menu implementations iterate. One
+-- owner means the two Diagnostics sections cannot drift apart, and the wiring
+-- suite fails if either menu stops consuming it.
+function M.menu_buttons()
+    return MENU_BUTTONS
 end
 
 function M.get_last_report()

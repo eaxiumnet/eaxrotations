@@ -115,8 +115,12 @@ assert(#registrations == 1, "arm must register exactly one CLEU handler")
 assert(registrations[1][1] == "COMBAT_LOG_EVENT_UNFILTERED", "handler must be the CLEU event")
 local handler = registrations[1][2]
 
-local function cleu(sub, spell_id, dest_guid, amount, stamp)
+-- CLEU fixed prefix: args[4] = source guid, args[8] = destination guid. The
+-- handler records only events sourced by (or landing on) this player, so the
+-- helper passes the player's guid as the source by default.
+local function cleu(sub, spell_id, dest_guid, amount, stamp, source_guid)
     local args = { stamp or 1.0, sub }
+    args[4] = source_guid == nil and "Player-1-2" or source_guid
     args[8] = dest_guid
     args[12] = spell_id
     args[15] = amount
@@ -127,8 +131,12 @@ cleu("SPELL_AURA_APPLIED", 768)                 -- form shift (Furor energy read
 cleu("SPELL_PERIODIC_DAMAGE", 172, nil, 90, 3.0) -- first DoT tick
 cleu("SPELL_PERIODIC_DAMAGE", 172, nil, 91, 5.0) -- second tick -> interval
 cleu("SWING_DAMAGE", nil, "Player-1-2", 250, 6.0) -- incoming damage (rage read)
+-- Another unit's aura/tick is not a probe of this character: it must be ignored.
+cleu("SPELL_AURA_APPLIED", 768, nil, nil, 7.0, "Creature-0-1")
+cleu("SPELL_PERIODIC_DAMAGE", 172, nil, 92, 8.0, "Creature-0-1")
 
 local status = probe.status()
+assert(status.scope == "all", "status must report the capture scope, got " .. tostring(status.scope))
 assert(status.captured == 4, "four armed events must be captured, got " .. tostring(status.captured))
 local captured, lines = probe.flush()
 assert(captured == 4, "flush must report the captured count")
@@ -152,7 +160,68 @@ assert(bounded.captured == 64, "ring must cap at 64 slots, got " .. tostring(bou
 assert(bounded.dropped == 136, "overflow must be counted, got " .. tostring(bounded.dropped))
 probe.disarm()
 
--- 8. A failed registrar is reported, not silently armed.
+-- 8. Scopes: what a menu action arms decides what gets recorded.
+assert(probe.action_arm("dots", 0) == true, "action_arm(dots) must arm")
+assert(probe.status().scope == "dots", "dots scope must be reported")
+cleu("SPELL_AURA_APPLIED", 768, nil, nil, 20.0) -- own aura: not part of dots
+cleu("SPELL_PERIODIC_DAMAGE", 900, nil, 10, 21.0) -- own tick: no id filter in dots
+cleu("SWING_DAMAGE", nil, "Player-1-2", 100, 22.0) -- incoming: not part of dots
+assert(probe.status().captured == 1,
+    "dots scope must record own ticks only, got " .. tostring(probe.status().captured))
+probe.disarm()
+
+assert(probe.action_arm("rage", 1) == true, "action_arm(rage) must arm")
+cleu("SPELL_PERIODIC_DAMAGE", 900, nil, 10, 23.0)
+cleu("SWING_DAMAGE", nil, "Player-1-2", 100, 24.0)
+assert(probe.status().captured == 1,
+    "rage scope must record incoming damage only, got " .. tostring(probe.status().captured))
+assert(probe.action_arm(nil, 0) == true, "an unknown scope must fall back, not fail")
+assert(probe.status().scope == "all", "an unknown scope must arm as scope=all")
+probe.disarm()
+
+-- 9. Form ids resolve BY NAME from the class spell map -- the module never
+--    carries a spell id -- and a class with no form list degrades to scope=all
+--    instead of arming an empty capture.
+_G.plugin_info = { player_class_name = "Druid" }
+_G.EaxRotations.DruidSpells = {
+    CatForm = { _meta = { ids = { 768 } } },
+    BearForm = { _meta = { ids = { 5487 } } },
+    TravelForm = { _meta = { ids = { 783 } } },
+}
+assert(probe.action_arm("forms", 1) == true, "action_arm(forms) must arm for a Druid")
+assert(probe.status().forms == 3,
+    "form ids must resolve by name, got " .. tostring(probe.status().forms))
+cleu("SPELL_AURA_REMOVED", 768, nil, nil, 30.0)
+assert(probe.status().captured == 1, "a resolved form id must be captured")
+probe.disarm()
+_G.EaxRotations.DruidSpells = nil
+assert(probe.action_arm("forms", 0) == true, "an unknown class must still arm")
+assert(probe.status().scope == "all", "an unknown class must degrade to scope=all")
+probe.disarm()
+_G.plugin_info = nil
+
+-- 10. menu_buttons(): the single operation list both menus iterate.
+local actions = probe.menu_buttons()
+assert(type(actions) == "table" and #actions >= 8,
+    "menu_buttons must publish the operation list, got " .. tostring(actions and #actions))
+local seen_ids = {}
+local saw = {}
+for i = 1, #actions do
+    local entry = actions[i]
+    assert(type(entry.id) == "string" and entry.id ~= "", "every button needs an id")
+    assert(type(entry.label) == "string" and entry.label ~= "", "every button needs a label")
+    assert(type(entry.run) == "function", "every button needs a run function: " .. tostring(entry.id))
+    assert(not seen_ids[entry.id], "button ids must be unique: " .. tostring(entry.id))
+    seen_ids[entry.id] = true
+    saw[entry.id] = true
+end
+for _, wanted in ipairs({ "eax_probe_report", "eax_probe_sample", "eax_probe_arm_all",
+    "eax_probe_arm_forms", "eax_probe_arm_dots", "eax_probe_arm_rage",
+    "eax_probe_flush", "eax_probe_disarm" }) do
+    assert(saw[wanted], "menu_buttons must expose " .. wanted)
+end
+
+-- 11. A failed registrar is reported, not silently armed.
 _G.EaxRotations.register_on_game_event = nil
 package.loaded["shared/live_probe_sylvanas"] = nil
 local fresh = require("shared/live_probe_sylvanas")

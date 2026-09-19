@@ -1110,6 +1110,32 @@ local function render_menu()
                     NS.dump_class_spells(name)
                 end
             end
+            -- Live-probe capture buttons (owner: NS.LiveProbe.menu_buttons()).
+            -- The harness is inert until one of these is clicked; the widget list
+            -- is built on first render so the load order of the probe module and
+            -- this menu construction cannot leave the section empty.
+            if not menu_elements.probe_buttons or #menu_elements.probe_buttons == 0 then
+                menu_elements.probe_buttons = {}
+                local probe = NS and NS.LiveProbe
+                if probe and probe.menu_buttons then
+                    for _, entry in ipairs(probe.menu_buttons()) do
+                        menu_elements.probe_buttons[#menu_elements.probe_buttons + 1] = {
+                            widget = core.menu.button(entry.id),
+                            label = entry.label,
+                            description = entry.description,
+                            run = entry.run,
+                        }
+                    end
+                end
+            end
+            for i = 1, #menu_elements.probe_buttons do
+                local probe_entry = menu_elements.probe_buttons[i]
+                if probe_entry.widget:render(probe_entry.label, probe_entry.description) then
+                    if type(probe_entry.run) == "function" then
+                        pcall(probe_entry.run)
+                    end
+                end
+            end
             -- Permashow / EaxFishing / EaxTheme are expected to be part of the
             -- newest .api update. If your .api is newer, you should already see a
             -- Permashow control. This button is a recovery path for older .api builds

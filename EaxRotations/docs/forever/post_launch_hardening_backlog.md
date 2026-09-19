@@ -73,18 +73,27 @@ delta files deletable duplication — since resolved: −1,136 lines via
   BLOCKED-not-guessed with the blocker named); probes doc + kits updated;
   no threshold left claiming a value the client never showed.
 - **Estimate**: one login session + one close-out commit.
-- **IN PROGRESS 2026-09-19 — probes built, verdicts pending access.** The engine
-  carries `shared/live_probe_sylvanas.lua` (`NS.LiveProbe`): `report()`
-  (version/expansion surfaces, race, the capability matrix, aura `points[1]`),
-  `sample(tag)` (form/energy/rage/mana/hp/combo/AP/haste) and an armed CLEU ring
-  (`arm{forms,spells,raw_events}` → `flush()`) that records form-shift energy,
-  incoming-damage rage and DoT tick intervals with caller-supplied ids.
+- **IN PROGRESS 2026-09-19 — probes built and reachable, verdicts pending
+  access.** The engine carries `shared/live_probe_sylvanas.lua`
+  (`NS.LiveProbe`): `report()` (version/expansion surfaces, race, the
+  capability matrix, aura `points[1]`), `sample(tag)`
+  (form/energy/rage/mana/hp/combo/AP/haste) and an armed CLEU ring
+  (`arm{scope,forms,spells,raw_events}` → `flush()`) that records form-shift
+  energy, incoming-damage rage and DoT tick intervals.
   `test_live_probe_sylvanas.lua` proves the present/absent surface split,
-  nil-safety with no player, event classification, the tick-interval
-  computation, the 64-slot bound with its dropped counter, and that nothing
-  registers before `arm()`. Remaining: run the checklist's `RUN:` lines, paste
-  the output into the ledger, flip the verdicts — any flip re-runs the forever
-  audit plus the affected suites.
+  nil-safety with no player, own-source gating (a foreign unit's aura/tick is
+  not a probe), capture scopes, by-name form resolution, the 64-slot bound with
+  its dropped counter, and that nothing registers before `arm()`.
+  **Entry point (closed the reachability finding):** the client has no console,
+  so the probe is a menu action — both menu implementations' Diagnostics
+  sections build their buttons from one published list
+  (`NS.LiveProbe.menu_buttons()`), and `test_live_probe_menu_wiring.lua` fails
+  if either menu stops consuming it (revert-proven on both). The checklist's
+  `RUN:` lines are therefore in-game steps (Arm → act → Flush → read the
+  console log), not Lua a session cannot type.
+  Remaining: run those steps on the client, paste the output into the ledger,
+  flip the verdicts — any flip re-runs the forever audit plus the affected
+  suites.
 
 ### 3. Wire the DBC diff into CI with committed fixture DBs
 - **Audit finding**: structural note from the DBC-diff pass — the harness

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Developer Notes
+- Live-probe harness reachability (branch `feat/forever-launch-guards`, PR #55):
+  `NS.LiveProbe` was inert with no way in — the client exposes no console or
+  REPL, so the module's documented callers were calls no session could type.
+  Both menu implementations' Diagnostics sections now build their probe buttons
+  from one published list (`NS.LiveProbe.menu_buttons()`), so a Block 0/1
+  session can arm a capture, perform the action, flush and read the result from
+  the same console log the "Dump Learned Spells" button writes to. `arm` takes a
+  scope (`all`, `forms` — ids resolved BY NAME from the class spell map, `dots`,
+  `rage`) and the id-specific `arm{forms,spells,raw_events}` path is unchanged;
+  the CLEU handler now records only events this character sources or receives.
+  `test_live_probe_menu_wiring.lua` fails if either menu stops consuming the
+  list (revert-proven on both), so deleting a registration fails a gate instead
+  of silently leaving dead scaffolding.
+- Fixed while proving it: the harness's watch-id counts used `#` on maps keyed
+  by spell id, where the length operator is undefined and returns 0 — the arm
+  log and `status()` reported 0 watched forms/spells even when ids resolved.
+  Counts are now tracked explicitly.
+
 ## 2.28.0 — 2026-09-16
 
 ### Customer Changelog
