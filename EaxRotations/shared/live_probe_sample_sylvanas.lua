@@ -14,9 +14,6 @@ local string_format = string.format
 local kit = require("shared/live_probe_kit_sylvanas")
 local out, safe, player, now, power_of = kit.out, kit.safe, kit.player, kit.now, kit.power_of
 local M = {}
--- ---------------------------------------------------------------------------
--- M.sample(tag, context): one snapshot line at the moment of an in-game action
--- ---------------------------------------------------------------------------
 local function snapshot(p, context)
     local form = nil
     if p then
@@ -24,7 +21,6 @@ local function snapshot(p, context)
     end
     local energy = context and tonumber(context.energy) or power_of(p, NS.POWER_ENERGY)
     local rage = context and tonumber(context.rage) or power_of(p, NS.POWER_RAGE)
-    if rage == nil then rage = power_of(p, NS.POWER_RAGE) end
     local mana_pct = context and tonumber(context.mana_pct) or safe(NS.unit_mana_pct, p)
     local ap = p and safe(p.get_attack_power, p) or nil
     local haste = p and safe(p.get_haste, p) or nil

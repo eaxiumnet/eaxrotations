@@ -132,12 +132,8 @@ function M.report()
     end
 
     local report = { lines = kit.lines(), matrix = matrix, player = p ~= nil, present = present }
-    M._last_report = report
     out("[LiveProbe] === end report ===")
     return report
 end
 
-function M.last_report()
-    return M._last_report
-end
 return M

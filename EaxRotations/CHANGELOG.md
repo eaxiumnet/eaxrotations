@@ -73,6 +73,31 @@
   PRESENT path (a loaded engine module is inventoried, not just reported
   missing) and the integrity canary's table-shaped `core.time` (via get() and
   now()).
+- Probe-harness prune (audit 2's residue). Removed for having no caller or no
+  exercised path: the facade's `get_last_report` (zero production callers; the
+  suites now read the session log sink, which carries the same lines from the
+  surface a session actually pastes), the six one-line `action_*` pass-throughs
+  (report/sample/readers/integrity/flush/disarm -- each had exactly one caller,
+  now calling the owning module directly), `truth.last_report`/`_last_report`
+  (they existed only for that accessor), the kit's `push_line` (one internal
+  user, inlined into `out`), and a re-read in `sample` that the `and/or` chain
+  above it already covered. Module: 1,229 -> 1,180 lines. Contract unchanged --
+  the published operation list is still 10 entries with the same ids, labels,
+  descriptions and order, and the golden-output harness diffed before/after
+  shows every session-visible line byte-identical (139/139), with only the
+  harness's own two introspection lines moving (the member list, and the buffer
+  read that is now `flush()`'s return value).
+  Refuted rather than removed, with reasons: the per-file Pattern-15 headers
+  (96 lines, enforced by `test_pattern15_audit` on every shared module) and the
+  per-file dependency preludes (59 lines) are the whole cost of the split -- the
+  logic is ~1,026 lines against the original single file's ~980, so the audit's
+  "a third reducible" does not survive measurement; `sample(tag, context)` keeps
+  its `context` (nothing passes one today, but dropping it would change the
+  printed line's hp/combo columns); `action_arm` is the menu's scope adapter and
+  has 9 call sites; the `local type = type`-style builtin aliases are the
+  pre-split file's own convention (AGENTS.md Pattern 2), moved verbatim. The
+  CLEU-layout overlap with `swing_diagnostics_sylvanas.lua` stays a named
+  residue for a later pass, and that file was not touched.
 
 ## 2.28.0 — 2026-09-16
 

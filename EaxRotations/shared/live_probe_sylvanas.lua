@@ -22,7 +22,6 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local M = {}
 NS.LiveProbe = M
-local kit = require("shared/live_probe_kit_sylvanas")
 local truth = require("shared/live_probe_truth_sylvanas")
 local sample = require("shared/live_probe_sample_sylvanas")
 local capture = require("shared/live_probe_capture_sylvanas")
@@ -35,8 +34,9 @@ local menu = require("shared/live_probe_menu_sylvanas")
 capture.on_arm(integrity.note_arm)
 capture.on_flush(integrity.emit_flush_comparison)
 
--- Public surface: exactly the operations the menus publish and the suites
--- pin. Each one is owned by the file named above.
+-- Public surface: the operations the menus publish (menu_buttons), the ring's
+-- own arm/disarm/status/flush, the three reports, and the menu's scope adapter.
+-- Each is owned by the file named above.
 M.report = truth.report
 M.sample = sample.sample
 M.reader_report = readers.reader_report
@@ -46,15 +46,5 @@ M.disarm = capture.disarm
 M.status = capture.status
 M.flush = capture.flush
 M.menu_buttons = menu.menu_buttons
-M.action_report = menu.action_report
-M.action_sample = menu.action_sample
-M.action_readers = menu.action_readers
-M.action_integrity = menu.action_integrity
 M.action_arm = menu.action_arm
-M.action_flush = menu.action_flush
-M.action_disarm = menu.action_disarm
-
-function M.get_last_report()
-    return truth.last_report(), kit.lines()
-end
 return M

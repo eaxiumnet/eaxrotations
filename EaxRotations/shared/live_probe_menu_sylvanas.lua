@@ -117,42 +117,26 @@ function M.action_arm(scope, raw_events)
     return capture.arm({ forms = forms, raw_events = raw_events, scope = scope })
 end
 
-function M.action_report()
-    return truth.report()
-end
-
-function M.action_sample(tag)
-    return sample.sample(tag or "menu")
-end
-
-function M.action_flush()
-    return capture.flush()
-end
-
-function M.action_disarm()
-    return capture.disarm()
-end
-
 local MENU_BUTTONS = {
     {
         id = "eax_probe_report", label = "Probe: Engine Report",
         description = "Log the expansion/version surface, race, capability matrix and aura points (Block 0.1-0.3)",
-        run = function() M.action_report() end,
+        run = function() return truth.report() end,
     },
     {
         id = "eax_probe_readers", label = "Probe: Reader Surfaces (0.4)",
         description = "Inventory the external-reader surfaces this build exposes: the built-in damage meter, the cooldown readers our lanes use, the engine CD modules, and a name scan of the engine table",
-        run = function() M.action_readers() end,
+        run = function() return readers.reader_report() end,
     },
     {
         id = "eax_probe_integrity", label = "Probe: Engine Integrity (0.5)",
         description = "Show the client's integrity/error surface state (log sinks, engine tables, runtime generations, a live-read canary) and the arm -> flush comparison, so Block 0.5 is evidence from the log",
-        run = function() M.action_integrity() end,
+        run = function() return integrity.integrity_report() end,
     },
     {
         id = "eax_probe_sample", label = "Probe: Snapshot Now",
         description = "Log one line of form/energy/rage/mana/hp/combo/AP/haste at this moment",
-        run = function() M.action_sample("menu") end,
+        run = function() return sample.sample("menu") end,
     },
     {
         id = "eax_probe_arm_all", label = "Probe: Arm Capture (all)",
@@ -177,12 +161,12 @@ local MENU_BUTTONS = {
     {
         id = "eax_probe_flush", label = "Probe: Flush Capture",
         description = "Log the capture: every recorded event, plus the raw CLEU arg dump when armed with it",
-        run = function() M.action_flush() end,
+        run = function() return capture.flush() end,
     },
     {
         id = "eax_probe_disarm", label = "Probe: Disarm Capture",
         description = "Stop recording; the capture stays readable until the next arm",
-        run = function() M.action_disarm() end,
+        run = function() return capture.disarm() end,
     },
 }
 
@@ -193,11 +177,4 @@ function M.menu_buttons()
     return MENU_BUTTONS
 end
 
-function M.action_readers()
-    return readers.reader_report()
-end
-
-function M.action_integrity()
-    return integrity.integrity_report()
-end
 return M

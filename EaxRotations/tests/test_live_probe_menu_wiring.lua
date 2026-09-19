@@ -117,29 +117,34 @@ assert(_G.EaxRotations.LiveProbe == probe, "module must install NS.LiveProbe")
 local buttons = probe.menu_buttons()
 assert(type(buttons) == "table" and #buttons > 0, "menu_buttons must publish the operation list")
 
+-- A probe's evidence is what the SESSION reads: the log sink the module
+-- writes to, which is the same text the console shows. (This used to read an
+-- internal line buffer through an accessor; the buffer and the sink are written
+-- by the same call, so asserting on the sink is both simpler and closer to the
+-- thing the checklist asks a session to paste.)
+local function log_has(needle)
+    for i = 1, #logs do
+        if tostring(logs[i]):find(needle, 1, true) then return true end
+    end
+    return false
+end
+
 -- Every published entry needs an expectation here, and every expectation needs
 -- an entry: a new button with no proven effect (or a stale expectation) fails.
 local EFFECT = {
-    eax_probe_report = function(p)
-        local view = p.get_last_report()
-        return type(view) == "table" and type(view.lines) == "table" and #view.lines > 0,
-            "run() must leave a report with lines"
+    eax_probe_report = function()
+        -- The mocks here expose no aura surface, so the report's points section
+        -- says so; the matrix line is the part every build prints.
+        return log_has("=== engine-truth report ===") and log_has("capability matrix:"),
+            "run() must leave the engine-truth report in the session log"
     end,
-    eax_probe_readers = function(p)
-        local _report, lines = p.get_last_report()
-        local found = false
-        for i = 1, #lines do
-            if tostring(lines[i]):find("0.4 summary:", 1, true) then found = true end
-        end
-        return found, "run() must leave the 0.4 reader inventory in the log"
+    eax_probe_readers = function()
+        return log_has("0.4 summary:"),
+            "run() must leave the 0.4 reader inventory in the session log"
     end,
-    eax_probe_integrity = function(p)
-        local _report, lines = p.get_last_report()
-        local found = false
-        for i = 1, #lines do
-            if tostring(lines[i]):find("0.5 engine integrity", 1, true) then found = true end
-        end
-        return found, "run() must leave the 0.5 integrity state in the log"
+    eax_probe_integrity = function()
+        return log_has("0.5 engine integrity"),
+            "run() must leave the 0.5 integrity state in the session log"
     end,
     eax_probe_sample = function(p)
         return p.status().armed == false, "run() must not arm the capture"
@@ -200,7 +205,7 @@ probe.action_arm("all", 0)
 registrations[1][2]("COMBAT_LOG_EVENT_UNFILTERED", {
     1.0, "SPELL_AURA_APPLIED", false, "Player-1-2", "Tester", 0, 0, "Player-1-2", "Tester", 0, 0, 768, "Cat Form", 0,
 })
-local captured, lines = probe.action_flush()
+local captured, lines = probe.flush()
 assert(captured == 1, "the entry-armed capture must hold the event, got " .. tostring(captured))
 assert(type(lines) == "table" and #lines > 0, "flush must return the formatted lines")
 local saw_form = false
@@ -208,7 +213,7 @@ for i = 1, #lines do
     if tostring(lines[i]):find("FORM id=768", 1, true) then saw_form = true end
 end
 assert(saw_form, "flushed lines must include the captured form event")
-probe.action_disarm()
+probe.disarm()
 
 -- 5. BEHAVIORAL -- the menus' own blocks, run. Each block is wrapped in a chunk
 --    whose only inputs are the stub objects a menu supplies in the client, so
@@ -301,7 +306,7 @@ for i = 1, #buttons do
     local holds, message = EFFECT[entry.id](probe)
     assert(holds, "declarative click " .. tostring(entry.id) .. ": " .. tostring(message))
 end
-probe.action_disarm()
+probe.disarm()
 
 _G.plugin_info = nil
 print("PASS test_live_probe_menu_wiring")

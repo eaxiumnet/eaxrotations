@@ -1,7 +1,7 @@
 -- live_probe_kit_sylvanas.lua — shared plumbing for the live-beta probe harness.
 -- WHAT:  the guarded reads every probe shares: safe()/now()/player(), the
 --        runtime name index (ROOTS + lookup) that probes engine members without
---        compile-time field reads, and the log sink (push_line/out) over one
+--        compile-time field reads, and the log sink (out) over one
 --        reused line buffer (lines/reset_lines).
 -- WHEN:  loaded by every live_probe_* part; never a probe entry point itself.
 -- WHY:   report/sample/capture/readers/integrity all need the same reads and the
@@ -49,11 +49,9 @@ local function player()
     return nil
 end
 
--- Candidate accessors are probed BY NAME through a runtime index, never read as
--- compile-time fields: the matrix exists to learn which of them this build
--- actually exposes, so a member that is absent reports ABSENT instead of being
--- a field read that can never be produced. This is also the one honest way to
--- list a surface the repo does not define yet -- the name is data here.
+-- Accessors are probed BY NAME through a runtime index, never read as
+-- compile-time fields: a member this build lacks must report ABSENT rather than
+-- be a field read that can never be produced. The name is data here.
 local ROOTS = {
     ns = function() return NS end,
     core = function()
@@ -80,12 +78,8 @@ local function power_of(p, power_type)
     return tonumber(v)
 end
 
-local function push_line(text)
-    _lines[#_lines + 1] = text
-end
-
 local function out(text)
-    push_line(text)
+    _lines[#_lines + 1] = text
     if NS.log then pcall(NS.log, text) end
 end
 
@@ -98,7 +92,6 @@ M.now = now
 M.player = player
 M.lookup = lookup
 M.out = out
-M.push_line = push_line
 
 function M.lines()
     return _lines
