@@ -110,10 +110,18 @@ assert(auto_loot == true, "S5 FAIL: auto_loot_all should return true with lootab
 print("  S5 PASS: lootable object -> true")
 
 -- ============================================================================
--- S6: close
+-- S6: close() actually closes the loot window
 -- ============================================================================
+mock.reset()
+mock._input_calls = {}
 loot_manager.close()
-print("  S6 PASS: close is pcall-guarded")
+local closed = false
+for _, call in ipairs(mock._input_calls) do
+    if call[1] == "close_loot" then closed = true end
+end
+assert(closed, "S6 FAIL: close() must call close_loot, calls: " ..
+    tostring(#mock._input_calls))
+print("  S6 PASS: close() closes the loot window")
 
 print("PASS test_loot_manager")
 os.exit(0)

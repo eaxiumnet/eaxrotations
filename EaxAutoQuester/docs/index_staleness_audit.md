@@ -5,10 +5,20 @@ or position **and performs an action between iterations**, i.e. the defect class
 quest-gossip fix closed (a 1-based row index that stops meaning the same thing once an
 earlier action changes the list).
 
-Method: locate mutation-capable loops mechanically (a brace/indent scan of every loop
-body for a mutating call — 12 sites), then adjudicate each against the documented
-behaviour of the collection it walks. Verdicts below cite `.api/core.lua` and
-`scraped_docs_md/dev/`; nothing is guarded on a hunch.
+Method: locate action-in-loop sites mechanically, then adjudicate each against the
+documented behaviour of the collection it walks. Two patterns were used, and the wider
+one is the one to trust for coverage: a **narrow** pattern (a named set of mutating calls
+— `loot_item`, `use_container_item`, `buy_item`, `buy_trainer_service`,
+`abandon_quest`, …) flags **12** loops, while a **broad** pattern (any call that is not a
+documented getter, including calls made through file-local aliases such as
+`_loot_object`, `_get_item_info` or `pcall(_get_…)`) flags **22**. The 12 the narrow
+pattern found are in the first table; the ten the broad pattern adds are in the second,
+all verified safe. The narrow pattern's blind spot is exactly the aliased call, so an
+inventory built only from it would miss a real site — it did not, this time.
+
+Verdicts below cite `.api/core.lua` and `scraped_docs_md/dev/`; nothing is guarded on a
+hunch. (The two scans use different loop-body heuristics, so line numbers can differ by a
+few lines between them for the same loop.)
 
 ## Index-base evidence (decides the range question)
 
@@ -20,7 +30,7 @@ behaviour of the collection it walks. Verdicts below cite `.api/core.lua` and
 | Trainer services | not stated | `.api/core.lua:4539-4553` (count / info / cost / buy all "the trainer service index") |
 | Bag slots, auras, Zygor goals | not index-acting | items carry their own `slot_id`; aura arrays and Zygor goal lists are read-only snapshots |
 
-## Verdicts — all 12 mutation-capable loops
+## Verdicts — the 12 loops the narrow pattern flagged
 
 | # | Site | Walk | Verdict | Evidence |
 |---|---|---|---|---|
@@ -34,8 +44,23 @@ behaviour of the collection it walks. Verdicts below cite `.api/core.lua` and
 | 8 | `static_popup_sylvanas.lua:67` battlefield port | `for i = 1, 3` | safe | accepts the first `"confirm"` slot and `return`s; no iteration after the action |
 | 9 | `quest_interaction_sylvanas.lua:236` reward scan | `for i = 1, 6` | safe | read-only walk; the single action (`get_quest_reward`) is followed by `break` |
 | 10 | `quest_state/nav_state.lua:69` goals | `for i = 1, #goals` | safe | `set_target`/`interact_with_object` are world actions; the walk is a Zygor snapshot and `break`s after acting |
-| 11 | `quest_interaction_sylvanas.lua` `handle_trainer` | `1..num_services`, buys each affordable service | **FIXED (semantics-independent)** | the docs (`quests.md:881-941`) never say whether purchasing removes the service from the list, so the walk is made correct under BOTH: re-read the offers per step and act on the index that read just returned, with "already bought" tracked by `spell_name` — the only identifier a `trainer_service_info` carries (`.api/core.lua:4379-4383` has no id field) |
-| 12 | read-only walks — bag scans (`goal_resolver:91`, `navigation:297/402`, `loot_manager:106`, `quest_item_manager:42/72`, `coordinator:416`), quest log reads (`quest_log_manager:50`, `quest_blacklist:83/132`), aura arrays (`coordinator:375`, `dead_state:41/103`, `idle_state:104`), object scans, gossip (fixed previously) | — | safe | no action between iterations |
+| 11 | `quest_interaction_sylvanas.lua` `handle_trainer` | `1..num_services`, buys each affordable service | **FIXED (semantics-independent)** | the docs (`quests.md:881-941`) never say whether purchasing removes the service from the list, so the walk is driven purely by **position in a fresh read**: each step reads its target through the read it just took, and after a purchase the list is read again — if it shrank the rest renumbered, so the cursor stays on the index that now holds the next offer; if it did not, the cursor steps past the offer just bought. No field is used as identity, because `trainer_service_info` (`.api/core.lua:4379-4383`) carries `spell_name` **and `rank`** — a name is not unique (two ranks of one spell) and need not exist at all |
+| 12 | read-only walks — bag scans (`goal_resolver:91`, `coordinator:416`), quest log reads (`quest_blacklist:83/132`), aura arrays (`coordinator:375`, `dead_state:41/103`, `idle_state:104`), object scans, gossip (fixed previously) | — | safe | no action between iterations |
+
+### The ten action-in-loop sites the broad pattern adds (all verified safe)
+
+| Site | Call in the loop | Verdict | Why |
+|---|---|---|---|
+| `dungeon_detector_sylvanas.lua:60` | `get_quest_log_title`, `get_num_quest_leader_boards`, `get_quest_log_leader_board` | safe | reads only; the loop returns on match |
+| `progress_tracker_sylvanas.lua:42` | same leader-board reads | safe | reads only |
+| `goal_resolver_sylvanas.lua:119` | `pcall(_get…)` alias read | safe | alias for a getter |
+| `mount_manager_sylvanas.lua:56` | `get_mount_info` | safe | reads until the first usable mount, then returns |
+| `vendor_manager_sylvanas.lua:56` | `_get_item_info` alias read | safe | read |
+| `vendor_manager_sylvanas.lua:130` | `_get_vendor_item_info` alias read | safe | read; the list is 1-based (`core.lua:1272`) |
+| `loot_manager_sylvanas.lua:107` | `get_num_bag_slots` / `get_items_in_bag` | safe | read; fills the bag-space totals |
+| `loot_manager_sylvanas.lua:195` | `_loot_object` per collected object | safe | walks a list the function built itself; objects are not renumbered |
+| `navigation_sylvanas.lua:402` | `circle_3d` / `line_3d` | safe | draws the navmesh path; rendering, not game state |
+| `quest_state/do_action_state.lua:616` | `look_at`, `set_target`, `use_object` | safe | world actions over a locally built `names_to_try`; nothing renumbered |
 
 Collections named in the brief with **no production site at all**: loot rolls / need /
 greed (no roll API used), mail (`core.mail.*` unused), party/raid member lists
@@ -53,11 +78,17 @@ greed (no roll API used), mail (`core.mail.*` unused), party/raid member lists
   each of its (up to 3) abandons and acts on the index that read just returned, instead
   of walking the one snapshot taken before the first removal. The threshold gate, the
   3-per-check cap, the 30s throttle and the blacklist are unchanged.
-* **`quest_interaction_sylvanas.lua`** — `handle_trainer` re-reads the offer list per
-  step and buys the first affordable service it has not already bought, addressing the
-  index that read returned. The entry-time count still bounds the pass (a purchase can
-  only remove an offer, never add one), and on a list that does not compact the buys,
-  their order and the returned report are identical to the single-pass walk.
+* **`quest_interaction_sylvanas.lua`** — `handle_trainer` walks a **cursor over a freshly
+  read list**, with no field used as identity: each step reads its target through the read
+  it just took; after a purchase the count is read once more and the cursor stays put if
+  the list shrank (the same index now holds the next offer) or steps past the offer just
+  bought if it did not. The count read on entry bounds the pass, since a purchase can only
+  remove an offer. The previous design's `bought[spell_name]` table, its `service#i`
+  index-derived fallback and the unguarded `num_services < 1` comparison are all gone; the
+  count is now type-checked, so a non-numeric return yields `nil` instead of a raise. On a
+  stable list the buys, their order and the returned report are identical to the original
+  single-pass walk. Cost is linear in offers (~3 API calls each), not quadratic: no step
+  rescans the list.
 
 ## Proof — mutant first, then fix
 
@@ -70,20 +101,29 @@ Each guard was shown failing against the wrong code before passing against the f
 | Loot walk ascending over a compacting window | mutant → `both items must actually be looted from a compacting window, got: First` (second item lost) | `test_interact_state.lua` (name assertion) |
 | Single ascending sweep in `try_loot` | mutant → `S2e FAIL: the gold slot (1) must be looted first, got 0` | `test_loot_manager.lua` S2e/S3 |
 | Quest-log snapshot walk | pre-fix `test_quest_log_manager`: `S6b FAIL: only the grey quests may be removed, removed: 902,1006,1011` — one grey quest, then **two non-grey quests** | `test_quest_log_manager.lua` S6b |
-| Trainer walk over a list that compacts on purchase | pre-fix `test_interact_state`: `S-T2a FAIL: a compacting list must still buy all 3 services, bought: Frostbolt,Ice Lance` — the middle service was skipped | `test_interact_state.lua` S-T2a |
-| Re-read per step but **no** identity tracking | mutant → `S-T1a FAIL: … got trainer:4spells(1:Ice Lance,1:Ice Lance,1:Ice Lance,1:Ice Lance)` — re-buys the same service on a list that does not compact | `test_interact_state.lua` S-T1a/S-T1c |
+| Trainer keyed on `spell_name` (the superseded design) | pre-fix `test_interact_state`: `S-T4a FAIL: both ranks must be bought, bought: Frostbolt` — two ranks of one spell buy **once** (a regression: `2spells` → `1spells`), and `S-T6a` for nameless offers under compaction, where the `service#i` fallback collides | `test_interact_state.lua` S-T4a / S-T5a / S-T6a |
+| Compaction never noticed by the cursor walk | mutant → `S-T2a` at `test_interact_state.lua:127` — the list shifts and an offer is skipped | `test_interact_state.lua` S-T2a |
+| Cursor never advances on a stable list | mutant → `S-T1a` at `test_interact_state.lua:112` — re-buys the same offer until the step budget runs out | `test_interact_state.lua` S-T1a |
+| Non-numeric service count | pre-fix: raised `attempt to compare string with number` (`quest_interaction_sylvanas.lua:415`) | `test_interact_state.lua` S-T8a |
+| A scenario with no assertion | `test_loot_manager` S6 called `close()` and printed a pass line, so it could not fail. It now asserts the mock received `close_loot` | `test_loot_manager.lua` S6 |
 
 Both production files were restored byte-identical after the mutants (`diff` clean) and
 both suites pass against the restored code. The mock gained the ability to model the
-renumbering (`_loot_compacts`, `_quest_log_compacts`), off by default so no other suite's
-semantics changed.
+renumbering (`_loot_compacts`, `_quest_log_compacts`, `_trainer_compacts`) and to record
+which offer each trainer index resolved to, off by default so no other suite's semantics
+changed. Its trainer label is never nil and an index with no offer behind it records
+`<no offer @N>` — verified to actually fire, so the suite's no-over-reach assertion is not
+another vacuous guard.
 
 ## What cannot be confirmed without the client
 
 1. **Which semantics the trainer list has** — whether `buy_trainer_service(i)` removes the
-   service from the list. The docs leave this open, which is why the fixed walk is
-   written to be correct either way rather than to guess; the answer is observable only
-   in game, and is no longer needed for the code to be right.
+   service from the list. The docs leave this open, which is why the walk is driven by
+   position in a fresh read rather than by any field: it is the only formulation that is
+   correct either way, including for offers that share a `spell_name` or have none. The
+   answer is observable only in game, and is no longer needed for the code to be right.
+   Also still unstated by the docs: the **base** of the trainer index (the code keeps
+   1-based, unchanged by this work).
 2. **That the live loot window compacts per slot** — the docs state the index base and the
    count contract but never say when the window is rebuilt. The fix is correct under both
    semantics (a stable window loots the same set in either walk order), so the answer is

@@ -355,10 +355,18 @@ M.quests = {
     end,
     buy_trainer_service = function(index)
         M._input_calls[#M._input_calls + 1] = { "buy_trainer_service", index }
-        -- Trainer services are addressed by index and carry no id, so record WHICH
-        -- service the index resolved to, then optionally model the list renumbering.
+        -- Trainer services are addressed by index and carry no id, so record WHICH offer
+        -- the index resolved to. The label is never nil (a nameless entry still counts)
+        -- and an index with nothing behind it records a marker, so a walk that
+        -- over-reaches is visible rather than silent. Then optionally model renumbering.
         local service = M._trainer_services[index]
-        if service then M._trainer_bought_names[#M._trainer_bought_names + 1] = service.spell_name end
+        if service then
+            M._trainer_bought_names[#M._trainer_bought_names + 1] =
+                service.spell_name or ("unnamed#" .. tostring(index))
+        else
+            M._trainer_bought_names[#M._trainer_bought_names + 1] =
+                ("<no offer @" .. tostring(index) .. ">")
+        end
         if M._trainer_compacts then
             table.remove(M._trainer_services, index)
         end
