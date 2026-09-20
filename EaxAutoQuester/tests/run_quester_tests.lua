@@ -58,6 +58,7 @@ else
         "test_dungeon_detector.lua",
         "test_mount_manager.lua",
         "test_diagnostic_dump.lua",
+        "test_state_machine_ownership.lua",
     }
     for _, file in ipairs(known_tests) do
         local path = root .. "/" .. file

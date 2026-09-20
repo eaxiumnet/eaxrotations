@@ -58,3 +58,28 @@ ported. What follows is only what the monolith did and the modular machine did n
 `main.lua` requires only `quest_state/coordinator`; `quest_state_sylvanas.lua` is deleted; a
 regression suite asserts exactly one state owner exists and that `main.lua` does not reference the
 removed monolith.
+
+### How the end state is enforced
+
+`tests/test_state_machine_ownership.lua` fails if the fork returns. It asserts, against the
+checked-out sources and the live `package.loaded` table:
+
+1. `main.lua` loads `quest_state/coordinator` and never names the retired loader;
+2. the retired loader does not exist on disk and is referenced by no plugin file or suite;
+3. exactly one file under `quest_state/` owns the shared state table (`coordinator.lua`),
+   every handler keeps the `function M.run(shared, ctx)` dispatch contract, and only the
+   coordinator defines `update()` / `stop_navigation()`;
+4. no suite loads a plugin module through a path-prefixed identity — the suites and
+   production share one module table per file, so a suite cannot pass against a copy.
+
+Item 4 is the one that matters most in practice: before this phase, suites loaded
+`EaxAutoQuester/quest_state/idle_state` while the coordinator loaded `quest_state/idle_state`.
+Same file, two tables — so a stub or an assertion in a suite touched nothing the live machine
+used. Both spellings now resolve to one identity, and the runtime half of item 4 pins it.
+
+### Retired behaviour
+
+The monolith's inline death/ghost recovery, brute-force area scan + permanent block,
+`waypoint_fixer` Z-fix call site, `render_debug` overlay, `stop_navigation`, respawn wait,
+blacklist/abandon, combat/loot wiring and gather-quest mana pause were all **superseded** by
+modular equivalents (see the tables above) before it was reduced to a pass-through and deleted.
