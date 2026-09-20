@@ -203,6 +203,18 @@ core.register_on_pre_tick_callback(on_pre_tick)
 core.register_on_render_callback(on_render)
 core.register_on_render_menu_callback(on_render_menu)
 
+-- Quest frame events (startup probe): the bridge registers one game-event callback that
+-- turns the quest/gossip frame events (GOSSIP_SHOW, QUEST_DETAIL, QUEST_PROGRESS,
+-- QUEST_COMPLETE, QUEST_GREETING, ...) into a one-tick pulse the coordinator consumes.
+-- It installs only if this build exposes and accepts the registration; where it does not,
+-- the pulse is never true and the polling path is what runs, unchanged.
+do
+    local ok, frame_events = pcall(require, "quest_frame_events_sylvanas")
+    if ok and frame_events and frame_events.install then
+        pcall(frame_events.install)
+    end
+end
+
 function NS.init_modules() return init_modules() end
 function NS.get_utils() return _utils end
 function NS.get_menu() return _menu end

@@ -232,6 +232,42 @@ local waiting_state = require("quest_state/waiting_state")
 local dead_state = require("quest_state/dead_state")
 
 -- ============================================================================
+-- Quest frame events — one pulse per tick, for the pick-up/turn-in sequence
+-- ============================================================================
+
+-- The game-event bridge (quest_frame_events_sylvanas) reports a frame the client just
+-- opened. It is consumed HERE, once per tick, before the handlers run, so a pulse is worth
+-- exactly the tick it arrived in: it can never pull INTERACT open for a frame that has
+-- already gone, and it cannot accumulate. The polling gate (idle_state.detect_open_frame)
+-- is untouched and stays the only gate and the only INTERACT exit check — this can only
+-- ADD one reason for IDLE to enter INTERACT, and on a build whose events never arrive the
+-- pulse is simply never true, which is the polling behavior unchanged.
+local _frame_events = nil
+
+local function ensure_frame_events()
+    if _frame_events then return _frame_events end
+    local ns = _G.EaxAutoQuester
+    if ns and ns.quest_frame_events then
+        _frame_events = ns.quest_frame_events
+        return _frame_events
+    end
+    local ok, fe = pcall(require, "quest_frame_events_sylvanas")
+    if ok then _frame_events = fe end
+    return _frame_events
+end
+
+--- Read and clear the frame-event pulse for this tick.
+--- @return boolean pulsing
+local function take_frame_pulse()
+    local fe = ensure_frame_events()
+    if fe and fe.take_pulse then
+        local ok, pulsing = pcall(fe.take_pulse)
+        if ok then return pulsing == true end
+    end
+    return false
+end
+
+-- ============================================================================
 -- Context Builder — assembles per-tick context for state handlers
 -- ============================================================================
 
@@ -275,6 +311,7 @@ local function build_context()
         log = log,
         safe = safe,
         detect_open_frame = idle_state.detect_open_frame,
+        frame_signalled = take_frame_pulse(),
         object_scanner = ensure_object_scanner(),
         safe_api = ensure_safe_api(),
         probed = ensure_probed_apis(),
@@ -510,6 +547,11 @@ end
 --- Hard stop: called from main.lua when plugin is disabled.
 --- Immediately stops all navigation and resets state.
 function M.stop_navigation()
+    -- A frame event that arrived while the plugin was parked must not be acted on at
+    -- resume, so the unread pulse is dropped along with the navigation.
+    local fe = ensure_frame_events()
+    if fe and fe.drop_pulse then pcall(fe.drop_pulse) end
+
     local nav = ensure_navigation()
     if nav then
         nav.stop()
@@ -570,6 +612,14 @@ end
 -- ============================================================================
 -- Exports — the state machine's public API (loaded by main.lua)
 -- ============================================================================
+
+-- Test accessor: consume the frame-event pulse exactly as the per-tick context does, so a
+-- suite drives the wired path rather than a copy of it. Pass true to forget the cached
+-- module, so a suite can swap the bridge underneath the coordinator.
+function M._test_take_frame_pulse(rebuild)
+    if rebuild then _frame_events = nil end
+    return take_frame_pulse()
+end
 
 -- Test accessor: returns current state and nav destination (for unit tests)
 function M._test_inspect()

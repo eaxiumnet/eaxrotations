@@ -252,7 +252,11 @@ function M.run(shared, ctx)
         else
             shared._interact_cooldown = 0
         end
-    elseif ctx.detect_open_frame() then
+    elseif ctx.detect_open_frame() or ctx.frame_signalled then
+        -- The polling probe, or a quest frame the client announced with a game event
+        -- (GOSSIP_SHOW / QUEST_DETAIL / QUEST_PROGRESS / QUEST_COMPLETE / QUEST_GREETING).
+        -- The event adds an entry reason only; the polling probe remains the exit check in
+        -- INTERACT, so a frame that has closed is still left.
         ctx.debug_log("IDLE: open frame detected → INTERACT")
         return "INTERACT"
     end

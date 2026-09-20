@@ -78,6 +78,9 @@ function M.reset()
     M._pending_abandon_index = nil
     M._trainer_compacts = false
     M._trainer_bought_names = {}
+    M._game_event_callback = nil
+    M._game_event_registrations = 0
+    M._game_event_raises = false
 end
 
 function M.get_time() return _mock_time end
@@ -438,6 +441,25 @@ function M.log_warning(msg) end
 function M.register_on_pre_tick_callback(fn) end
 function M.register_on_render_callback(fn) end
 function M.register_on_render_menu_callback(fn) end
+
+-- Game events. The real API takes ONE firehose callback for every event and raises when a
+-- plugin exceeds its callback limit, so the mock counts registrations (a suite can assert
+-- the plugin registers exactly once) and can be told to refuse, which is the documented
+-- "this build will not accept it" case.
+M._game_event_callback = nil
+M._game_event_registrations = 0
+M._game_event_raises = false
+
+function M.register_on_game_event_callback(fn)
+    M._game_event_registrations = M._game_event_registrations + 1
+    if M._game_event_raises then error("on_game_event callback limit exceeded") end
+    M._game_event_callback = fn
+end
+
+--- Deliver one event to the registered callback, as the client would.
+function M.fire_game_event(name, args)
+    if M._game_event_callback then M._game_event_callback(name, args or {}) end
+end
 function M.read_data_file(path) return nil end
 function M.get_map_id() return M._map_id end
 function M.get_height_for_position(pos) return pos.z or 0 end
