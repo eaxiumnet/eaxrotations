@@ -11,7 +11,10 @@
 local _safe_api = nil
 local function ensure_safe_api()
     if not _safe_api then
-        local ok, api = pcall(require, "EaxAutoQuester/safe_api_wrapper")
+        -- Bare name: the identity every other module and the suites use. A
+        -- path-prefixed require would resolve to a second table (and only when
+        -- the working directory happens to be the install root).
+        local ok, api = pcall(require, "safe_api_wrapper")
         if ok then _safe_api = api end
     end
     return _safe_api

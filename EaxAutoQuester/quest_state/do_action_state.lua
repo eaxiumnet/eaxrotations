@@ -9,8 +9,8 @@
 
 local M = {}
 
-local goal_resolver_ok, goal_resolver = pcall(require, "EaxAutoQuester/goal_resolver_sylvanas")
-local quest_blacklist_ok, quest_blacklist = pcall(require, "EaxAutoQuester/quest_blacklist_sylvanas")
+local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
+local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
 -- ============================================================================
 -- Talk-target discovery ladder — ported from the monolith's live talk branch

@@ -10,8 +10,8 @@
 local M = {}
 
 local corpse_loot = require("shared/corpse_loot")
-local goal_resolver_ok, goal_resolver = pcall(require, "EaxAutoQuester/goal_resolver_sylvanas")
-local goal_filter_ok, goal_filter = pcall(require, "EaxAutoQuester/goal_filter_sylvanas")
+local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
+local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 
 -- ============================================================================
 -- Frame Detection — lightweight probe without handling
