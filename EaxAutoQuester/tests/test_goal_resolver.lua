@@ -49,7 +49,7 @@ local mock_questie_reader = {
 package.loaded["questie_reader_sylvanas"] = mock_questie_reader
 
 -- Load module under test (load-time caching will capture our mock references)
-local goal_resolver = require("EaxAutoQuester/goal_resolver_sylvanas")
+local goal_resolver = require("goal_resolver_sylvanas")
 
 -- =============================================================================
 -- S1 — goal.npc_id = 999 → passthrough with source='zyg'

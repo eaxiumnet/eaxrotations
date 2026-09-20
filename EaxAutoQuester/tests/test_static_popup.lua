@@ -9,10 +9,10 @@ mock.install()
 mock.reset()
 
 -- S1: no dungeon proposal → returns nil, no accept called
-package.loaded["EaxAutoQuester/static_popup_sylvanas"] = nil
+package.loaded["static_popup_sylvanas"] = nil
 do
     mock._dungeon_proposal = false
-    local sp = require("EaxAutoQuester/static_popup_sylvanas")
+    local sp = require("static_popup_sylvanas")
     local result = sp.handle_any_popup()
     assert(result == nil, "S1 FAIL: no proposal should return nil, got " .. tostring(result))
     -- Verify accept_dungeon_proposal was NOT called
@@ -25,12 +25,12 @@ do
 end
 
 -- S2: dungeon proposal active → auto-accepts
-package.loaded["EaxAutoQuester/static_popup_sylvanas"] = nil
+package.loaded["static_popup_sylvanas"] = nil
 mock.reset()
 mock.set_time(10.0)
 do
     mock._dungeon_proposal = true
-    local sp = require("EaxAutoQuester/static_popup_sylvanas")
+    local sp = require("static_popup_sylvanas")
     local result = sp.handle_any_popup()
     assert(result == "dungeon_accepted", "S2 FAIL: proposal should be accepted, got " .. tostring(result))
     local found = false
@@ -42,12 +42,12 @@ do
 end
 
 -- S3: battlefield port confirm → auto-accepts
-package.loaded["EaxAutoQuester/static_popup_sylvanas"] = nil
+package.loaded["static_popup_sylvanas"] = nil
 mock.reset()
 mock.set_time(10.0)
 do
     mock._battlefield_status = { [1] = "confirm", [2] = "none", [3] = "none" }
-    local sp = require("EaxAutoQuester/static_popup_sylvanas")
+    local sp = require("static_popup_sylvanas")
     local result = sp.handle_any_popup()
     assert(result == "battlefield_accepted", "S3 FAIL: battlefield port should be accepted, got " .. tostring(result))
     local found = false
@@ -59,12 +59,12 @@ do
 end
 
 -- S4: throttle — second call within interval should not re-trigger
-package.loaded["EaxAutoQuester/static_popup_sylvanas"] = nil
+package.loaded["static_popup_sylvanas"] = nil
 mock.reset()
 mock.set_time(10.0)
 do
     mock._dungeon_proposal = true
-    local sp = require("EaxAutoQuester/static_popup_sylvanas")
+    local sp = require("static_popup_sylvanas")
     local r1 = sp.handle_any_popup()
     assert(r1 == "dungeon_accepted", "S4a FAIL: first call should accept")
     mock._input_calls = {}  -- clear calls

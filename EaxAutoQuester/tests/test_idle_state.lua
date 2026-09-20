@@ -9,7 +9,7 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local idle_state = require("EaxAutoQuester/quest_state/idle_state")
+local idle_state = require("quest_state/idle_state")
 
 -- Test detect_open_frame with no frames
 assert(idle_state.detect_open_frame() == false, "detect_open_frame no frames")
@@ -51,7 +51,7 @@ local function build_idle_ctx(visible_objects, me_pos)
     mock.reset()
     mock.create_player({ pos = me_pos or { x = 0, y = 0, z = 0 }, hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
     mock._objects = visible_objects or {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     return {
         zygor = {
             has_current_step = function() return true end,
@@ -88,7 +88,7 @@ do
     mock.reset()
     mock.create_player({ pos = { x = 0, y = 0, z = 0 }, hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
     mock._objects = { corpse }
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -140,7 +140,7 @@ do
     mock.reset()
     mock.create_player({ pos = { x = 0, y = 0, z = 0 }, hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
     mock._objects = { corpse }
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -261,7 +261,7 @@ do
         channelling = true,  -- mid-channel (e.g. gathering)
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -308,7 +308,7 @@ do
         casting = true,  -- mid-cast
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -350,7 +350,7 @@ do
         channelling = false,
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -396,7 +396,7 @@ do
         hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000,
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -438,7 +438,7 @@ do
         hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000,
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -482,7 +482,7 @@ do
         dead = false,  -- is_dead() returns false (ghost form)
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -521,7 +521,7 @@ do
         dead = true,  -- is_dead() returns true
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -566,7 +566,7 @@ do
     -- Override get_health to return nil (simulates ghost form with no health)
     player.get_health = function() return nil end
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -608,7 +608,7 @@ do
         buffs = { [8326] = true },
     })
     mock._objects = {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -651,7 +651,7 @@ local function build_goal_ctx(goal, objects, opts)
     mock.create_player({ pos = opts.me_pos or { x = 0, y = 0, z = 0 },
         hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
     mock._objects = objects or {}
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     return {
         zygor = {
             has_current_step = function() return true end,

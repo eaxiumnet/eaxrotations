@@ -8,7 +8,7 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local safe_api = require("EaxAutoQuester/safe_api_wrapper")
+local safe_api = require("safe_api_wrapper")
 
 -- ============================================================================
 -- S1: probe() with available function

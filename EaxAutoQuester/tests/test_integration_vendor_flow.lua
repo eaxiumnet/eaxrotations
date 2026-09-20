@@ -2,11 +2,14 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify vendor interaction: auto-repair, auto-sell, auto-close
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local vendor_manager = require("EaxAutoQuester/vendor_manager_sylvanas")
+local vendor_manager = require("vendor_manager_sylvanas")
 
 -- Test with no vendor frame
 local result = vendor_manager.handle_vendor()

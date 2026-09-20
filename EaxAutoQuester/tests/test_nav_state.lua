@@ -2,11 +2,14 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify NAV state transitions: IDLE (combat/arrived/failed/stuck), NAV
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local nav_state = require("EaxAutoQuester/quest_state/nav_state")
+local nav_state = require("quest_state/nav_state")
 
 -- Test run with combat
 local combat_player = mock.create_player({ pos = {x=0, y=0, z=0}, combat = true })
@@ -47,7 +50,7 @@ assert(nav_state.run(shared, ctx) == "IDLE", "nav max retries → IDLE")
 -- into this handler, so the contract lives here now.
 -- =============================================================================
 
-local utils = require("EaxAutoQuester/utils_sylvanas")
+local utils = require("utils_sylvanas")
 
 -- Counters for the movement inputs the mock does not record.
 local _jump_calls, _turn_calls = 0, 0

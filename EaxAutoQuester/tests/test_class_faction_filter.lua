@@ -36,7 +36,7 @@ end
 -- The module under test does not exist yet → will fail at require (RED)
 -- ============================================================================
 
-local filter = require("EaxAutoQuester/goal_filter_sylvanas")
+local filter = require("goal_filter_sylvanas")
 
 -- ============================================================================
 -- S1 — Quest already completed → (false, "completed")

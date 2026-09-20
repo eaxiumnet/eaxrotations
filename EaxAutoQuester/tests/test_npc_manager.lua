@@ -2,6 +2,9 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify NPC finding, object scanning, and enemy detection
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -19,7 +22,7 @@ local crate = mock.create_object({ pos = {x=7, y=0, z=0}, name = "Quest Crate", 
 
 mock._objects = { npc1, npc2, enemy, player_obj, dead_obj, crate }
 
-local npc_manager = require("EaxAutoQuester/npc_manager_sylvanas")
+local npc_manager = require("npc_manager_sylvanas")
 
 -- Test find_nearest_npc
 local nearest = npc_manager.find_nearest_npc({123, 456}, 50)
@@ -103,7 +106,7 @@ do
     -- Force a nil entry at position 1, then the valid NPC at position 2
     mock._objects = { nil, valid_npc }
 
-    local npc_manager = require("EaxAutoQuester/npc_manager_sylvanas")
+    local npc_manager = require("npc_manager_sylvanas")
     local result = npc_manager.find_nearest_npc({ 9296 }, 50)
     assert(result ~= nil,
         "S-NPC FAIL: find_nearest_npc must find NPC even when preceded by nil entry " ..

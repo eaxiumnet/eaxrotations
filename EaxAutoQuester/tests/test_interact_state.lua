@@ -2,11 +2,14 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify INTERACT state transitions: IDLE (timeout/handled), INTERACT
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local interact_state = require("EaxAutoQuester/quest_state/interact_state")
+local interact_state = require("quest_state/interact_state")
 
 -- Test run with no interaction module
 local shared = { _interact_start_time = 0, _interact_cooldown = 0 }

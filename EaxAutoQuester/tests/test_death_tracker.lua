@@ -2,6 +2,9 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify death recording, blacklist threshold, reset, and nil guards
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -9,7 +12,7 @@ mock.reset()
 -- Bootstrap _G.EaxAutoQuester (normally done by main.lua)
 _G.EaxAutoQuester = _G.EaxAutoQuester or {}
 
-local death_tracker = require("EaxAutoQuester/death_tracker_sylvanas")
+local death_tracker = require("death_tracker_sylvanas")
 
 -- =============================================================================
 -- S1: Fresh zone returns 0

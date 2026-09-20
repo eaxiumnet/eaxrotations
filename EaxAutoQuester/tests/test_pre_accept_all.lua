@@ -3,6 +3,9 @@
 -- Why: Verify accept_all_available() returns action string and handles edge cases
 -- Safety: No io.popen, os.execute, ffi.C, math.sqrt, debug.*
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -13,7 +16,7 @@ local function make_quest(id, title)
 end
 
 -- Load module under test once (test runner isolates per-file via snapshot/restore)
-local qi = require("EaxAutoQuester/quest_interaction_sylvanas")
+local qi = require("quest_interaction_sylvanas")
 
 -- ============================================================================
 -- S1: 1 available quest → action string returned

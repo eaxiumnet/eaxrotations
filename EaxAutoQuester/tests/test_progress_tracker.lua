@@ -30,7 +30,7 @@ end
 -- ============================================================================
 -- S1: check_progress tracks and detects progress
 -- ============================================================================
-local pt = require("EaxAutoQuester/progress_tracker_sylvanas")
+local pt = require("progress_tracker_sylvanas")
 pt.clear_all()
 
 mock.reset()

@@ -2,11 +2,14 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify DEAD state transitions: IDLE (resurrected), DEAD
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local dead_state = require("EaxAutoQuester/quest_state/dead_state")
+local dead_state = require("quest_state/dead_state")
 
 -- Test run with resurrected player
 local alive_player = mock.create_player({ pos = {x=0, y=0, z=0}, dead = false })

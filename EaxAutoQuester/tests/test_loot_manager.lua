@@ -2,6 +2,9 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify loot window processing and auto-loot scanning
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -9,7 +12,7 @@ mock.reset()
 local player = mock.create_player({ pos = {x=0, y=0, z=0} })
 
 -- Test try_loot with no loot window
-local loot_manager = require("EaxAutoQuester/loot_manager_sylvanas")
+local loot_manager = require("loot_manager_sylvanas")
 local result = loot_manager.try_loot()
 assert(result == false, "try_loot should return false when no loot window")
 

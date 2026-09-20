@@ -4,11 +4,14 @@
 -- Scenarios: S1 empty, S2 upgrade, S3 downgrade, S4 type mismatch, S5 keyword bonus, S6 classifier names
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local ok, eq = pcall(require, "EaxAutoQuester/equipment_compare_sylvanas")
+local ok, eq = pcall(require, "equipment_compare_sylvanas")
 assert(ok, "equipment_compare_sylvanas module must load without error")
 assert(eq ~= nil, "module must return a value")
 assert(type(eq.classify_slot) == "function", "classify_slot must be a function")

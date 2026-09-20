@@ -20,7 +20,7 @@ end
 -- S1: scan_quest_log filters headers, returns correct metadata
 -- ============================================================================
 package.loaded["quest_log_manager_sylvanas"] = nil
-local qm = require("EaxAutoQuester/quest_log_manager_sylvanas")
+local qm = require("quest_log_manager_sylvanas")
 
 mock.reset()
 mock.set_time(10.0)
@@ -78,7 +78,7 @@ print("  S4 PASS: blacklist prevents re-abandon")
 -- S5: no abandonment when log below threshold
 -- ============================================================================
 package.loaded["quest_log_manager_sylvanas"] = nil
-qm = require("EaxAutoQuester/quest_log_manager_sylvanas")
+qm = require("quest_log_manager_sylvanas")
 mock._input_calls = {}
 set_quest_log({
     { title = "Collect Apples", quest_id = 2, level = 10, is_complete = false, is_header = false },

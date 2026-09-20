@@ -10,7 +10,7 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local coordinator = require("EaxAutoQuester/quest_state/coordinator")
+local coordinator = require("quest_state/coordinator")
 
 -- Test update runs without error
 assert(type(coordinator.update) == "function", "coordinator.update is function")

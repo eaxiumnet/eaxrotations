@@ -28,10 +28,10 @@ local function build_ctx(zygor_step, questie_ids, visible_objects)
     else
         mock._player._pos = { x = 0, y = 0, z = 0 }
     end
-    local utils = require("EaxAutoQuester/utils_sylvanas")
-    local npc_manager = require("EaxAutoQuester/npc_manager_sylvanas")
+    local utils = require("utils_sylvanas")
+    local npc_manager = require("npc_manager_sylvanas")
     return {
-        zygor = require("EaxAutoQuester/zygor_reader_sylvanas"),
+        zygor = require("zygor_reader_sylvanas"),
         npc_manager = npc_manager,
         combat_helper = nil,
         utils = utils,
@@ -65,7 +65,7 @@ do
         goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
     }
     local ctx = build_ctx(step, { 7000 }, { questgiver })
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
 
     -- Run twice: first pass should set nav destination or target
     local shared = {
@@ -119,7 +119,7 @@ do
         goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
     }
     local ctx = build_ctx(step, { 7000 }, { questgiver })
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
     local shared = {
         _area_wait_timer = 0,
         _action_pause_timer = 0,
@@ -151,7 +151,7 @@ do
         goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
     }
     local ctx = build_ctx(step, nil, {})  -- questie_ids=nil → Questie not loaded
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
     local shared = {
         _area_wait_timer = 0,
         _action_pause_timer = 0,
@@ -197,10 +197,9 @@ do
         find_transport_npc = function() return nil end,
     }
     package.loaded["npc_db_sylvanas"] = mock_npc_db
-    package.loaded["EaxAutoQuester/npc_db_sylvanas"] = mock_npc_db
 
     local ctx = build_ctx(step, { 9999 }, {})  -- Questie lists 9999, no local 5500 NPC
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
     local shared = {
         _area_wait_timer = 0,
         _action_pause_timer = 0,
@@ -218,7 +217,7 @@ do
     assert(nav_dest ~= nil,
         "S4 FAIL: goal.npc_id=5500 path should set nav destination to npc_db spawn")
     local spawn = ctx.utils and (function()
-        local npc_db = require("EaxAutoQuester/npc_db_sylvanas")
+        local npc_db = require("npc_db_sylvanas")
         return npc_db.find_npc_spawn(5500, 0)
     end)()
     assert(spawn ~= nil, "S4 FAIL: test setup error — NPC 5500 not in spawn DB")
@@ -269,7 +268,7 @@ do
     mock._objects = { live_boar, dead_boar_corpse }
     mock.create_player({ pos = { x = 0, y = 0, z = 0 }, combat = false })
 
-    local utils = require("EaxAutoQuester/utils_sylvanas")
+    local utils = require("utils_sylvanas")
     local ctx = {
         zygor = {
             has_current_step = function() return true end,
@@ -289,14 +288,14 @@ do
         safe = function(v, fb) if v == nil then return fb end return v end,
         detect_open_frame = function() return false end,
     }
-    local npc_manager = require("EaxAutoQuester/npc_manager_sylvanas")
+    local npc_manager = require("npc_manager_sylvanas")
     ctx.npc_manager = npc_manager
     ctx.combat_helper = nil
     local NS = _G.EaxRotations
     local orig_start = NS and NS.start_auto_attack
     if NS then NS.start_auto_attack = function() end end
 
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
     local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
         _nav_destination = nil, _area_wait_timer = 0,
         _post_interact_timer = 0, _at_quest_object_timer = 0,
@@ -352,7 +351,7 @@ do
         goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
     }
     local ctx = build_ctx(step, { 327 }, { kobold })
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
     local NS = _G.EaxRotations
     local orig_start = NS and NS.start_auto_attack
     if NS then NS.start_auto_attack = function() end end
@@ -408,7 +407,7 @@ do
         goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
     }
     local ctx = build_ctx(step, { 7000 }, { questgiver })
-    local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+    local do_action = require("quest_state/do_action_state")
 
     local shared = {
         _area_wait_timer = 0,
@@ -440,7 +439,7 @@ end
 -- pacing (item 10). Moved from the deleted monolith; the contract lives here.
 -- ============================================================================
 
-local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+local do_action = require("quest_state/do_action_state")
 
 local function new_shared(goal_type)
     return {

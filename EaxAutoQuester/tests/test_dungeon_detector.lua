@@ -4,7 +4,7 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
 
-local dd = require("EaxAutoQuester/dungeon_detector_sylvanas")
+local dd = require("dungeon_detector_sylvanas")
 
 -- ============================================================================
 -- S1: is_dungeon_goal via step text
@@ -59,7 +59,7 @@ print("  S5 PASS: quest log objective scan")
 -- ============================================================================
 -- S6: goal_filter integration
 -- ============================================================================
-local gf = require("EaxAutoQuester/goal_filter_sylvanas")
+local gf = require("goal_filter_sylvanas")
 mock.reset()
 mock.set_time(10.0)
 local me = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })

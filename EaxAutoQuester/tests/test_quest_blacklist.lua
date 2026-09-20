@@ -9,7 +9,7 @@ package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.
 -- Bootstrap _G.EaxAutoQuester (normally done by main.lua)
 _G.EaxAutoQuester = _G.EaxAutoQuester or {}
 
-local quest_blacklist = require("EaxAutoQuester/quest_blacklist_sylvanas")
+local quest_blacklist = require("quest_blacklist_sylvanas")
 
 -- =============================================================================
 -- S1: 4 failures within 30 seconds → should_abandon = false (< 5)

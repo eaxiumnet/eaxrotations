@@ -8,7 +8,7 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local obj_scanner = require("EaxAutoQuester/object_scanner")
+local obj_scanner = require("object_scanner")
 
 -- ============================================================================
 -- S1: get_visible_objects() returns table

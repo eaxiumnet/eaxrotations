@@ -2,13 +2,16 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify repair detection, junk selling, and quest item buying
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
 local player = mock.create_player({ pos = {x=0, y=0, z=0} })
 
-local vendor_manager = require("EaxAutoQuester/vendor_manager_sylvanas")
+local vendor_manager = require("vendor_manager_sylvanas")
 
 -- Test should_repair with no repair needed
 assert(vendor_manager.should_repair() == false, "should_repair should be false when no cost")

@@ -2,12 +2,15 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify end-to-end state transitions: IDLE → NAV → DO_ACTION → IDLE
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
 local player = mock.create_player({ pos = {x=0, y=0, z=0} })
-local coordinator = require("EaxAutoQuester/quest_state/coordinator")
+local coordinator = require("quest_state/coordinator")
 
 -- Verify initial state
 local state = coordinator.get_state and coordinator.get_state() or nil

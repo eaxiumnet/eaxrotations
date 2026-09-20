@@ -36,7 +36,7 @@ setup_mounts()
 -- S1: try_mount — far destination, not mounted, not in combat → mounts
 -- ============================================================================
 package.loaded["mount_manager_sylvanas"] = nil
-local mm = require("EaxAutoQuester/mount_manager_sylvanas")
+local mm = require("mount_manager_sylvanas")
 
 mock.reset()
 setup_mounts()

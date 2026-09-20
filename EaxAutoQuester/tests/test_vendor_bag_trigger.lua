@@ -58,7 +58,7 @@ do
     -- Bypass 0.5s throttle
     mock.set_time(1.0)
 
-    local loot_manager = require("EaxAutoQuester/loot_manager_sylvanas")
+    local loot_manager = require("loot_manager_sylvanas")
     local result = loot_manager.auto_loot_all(5)
     assert(result == true, "S1: auto_loot_all should return true with lootable object")
 
@@ -85,7 +85,7 @@ do
 
     mock.set_time(2.0)  -- different time to avoid throttle collision with S1
 
-    local loot_manager = require("EaxAutoQuester/loot_manager_sylvanas")
+    local loot_manager = require("loot_manager_sylvanas")
     loot_manager.auto_loot_all(5)
 
     local flag = _G.EaxAutoQuester and _G.EaxAutoQuester._force_vendor_soon
@@ -126,7 +126,7 @@ do
     _G.EaxAutoQuester._force_vendor_soon = true
 
     -- Load coordinator and run update
-    local coordinator = require("EaxAutoQuester/quest_state/coordinator")
+    local coordinator = require("quest_state/coordinator")
     coordinator.update()
 
     -- Verify state transition via test accessor
@@ -163,7 +163,7 @@ do
         return { quality = 0, sell_price = 1 }
     end
 
-    local vendor_manager = require("EaxAutoQuester/vendor_manager_sylvanas")
+    local vendor_manager = require("vendor_manager_sylvanas")
 
     -- Without flag: green item (quality=2) should NOT be detected with threshold=1
     _G.EaxAutoQuester._force_vendor_soon = nil
@@ -210,7 +210,7 @@ do
 
     _G.EaxAutoQuester._force_vendor_soon = true
 
-    local vendor_manager = require("EaxAutoQuester/vendor_manager_sylvanas")
+    local vendor_manager = require("vendor_manager_sylvanas")
     vendor_manager.handle_vendor()
 
     local flag_after = _G.EaxAutoQuester._force_vendor_soon

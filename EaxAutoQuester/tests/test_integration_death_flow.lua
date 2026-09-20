@@ -2,12 +2,15 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify death handling: IDLE → DEAD → IDLE
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local dead_state = require("EaxAutoQuester/quest_state/dead_state")
-local idle_state = require("EaxAutoQuester/quest_state/idle_state")
+local dead_state = require("quest_state/dead_state")
+local idle_state = require("quest_state/idle_state")
 
 -- Test death detection in idle
 local dead_player = mock.create_player({ pos = {x=0, y=0, z=0}, dead = true, hp = 0 })

@@ -16,7 +16,7 @@ end
 -- ============================================================================
 -- S1: extract_destination
 -- ============================================================================
-local fp = require("EaxAutoQuester/flight_path_sylvanas")
+local fp = require("flight_path_sylvanas")
 assert(fp.extract_destination("Fly to Thunder Bluff") == "Thunder Bluff", "S1a FAIL")
 assert(fp.extract_destination("Take the flight path to Orgrimmar.") == "Orgrimmar", "S1b FAIL")
 assert(fp.extract_destination("Get the flight path to Crossroads") == "Crossroads", "S1c FAIL")

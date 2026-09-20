@@ -12,6 +12,9 @@ package.loaded["waypoint_fixer_sylvanas"] = {
     fix_z = function(pos) return pos end,
 }
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -20,10 +23,10 @@ mock.reset()
 mock._addon_loaded.zygor = true
 
 -- Clear cached module so it re-initializes with our mock setup
-package.loaded["EaxAutoQuester/zygor_reader_sylvanas"] = nil
+package.loaded["zygor_reader_sylvanas"] = nil
 
 -- Load module under test
-local zygor_reader = require("EaxAutoQuester/zygor_reader_sylvanas")
+local zygor_reader = require("zygor_reader_sylvanas")
 
 -- Helper: compare two world-coord result tables
 local function assert_result_eq(got, expected, label)

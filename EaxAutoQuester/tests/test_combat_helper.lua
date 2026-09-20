@@ -2,6 +2,9 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify target acquisition and combat helpers
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -13,7 +16,7 @@ local player_obj = mock.create_object({ pos = {x=0, y=0, z=0}, name = "Player", 
 
 mock._objects = { enemy, dead_enemy, player_obj }
 
-local combat_helper = require("EaxAutoQuester/combat_helper_sylvanas")
+local combat_helper = require("combat_helper_sylvanas")
 
 -- Test target_and_tag_nearest
 local tagged = combat_helper.target_and_tag_nearest(50)

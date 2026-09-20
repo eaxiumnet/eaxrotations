@@ -16,7 +16,7 @@ end
 -- ============================================================================
 -- S1: step_requires_hearth
 -- ============================================================================
-local sg = require("EaxAutoQuester/service_gossip_sylvanas")
+local sg = require("service_gossip_sylvanas")
 assert(sg.step_requires_hearth("Set your Hearthstone to Goldshire") == true, "S1a FAIL")
 assert(sg.step_requires_hearth("Set Hearth to Stormwind") == true, "S1b FAIL")
 assert(sg.step_requires_hearth("Make this inn your home") == true, "S1c FAIL")

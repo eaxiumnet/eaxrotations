@@ -2,11 +2,14 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify WAITING state transitions: IDLE (step appears), WAITING
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
-local waiting_state = require("EaxAutoQuester/quest_state/waiting_state")
+local waiting_state = require("quest_state/waiting_state")
 
 -- Test run with no Zygor
 local shared = {}

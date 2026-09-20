@@ -65,7 +65,7 @@ end
 -- ============================================================================
 -- S1: kill goal with no enemy → sets respawn wait timer
 -- ============================================================================
-local do_action = require("EaxAutoQuester/quest_state/do_action_state")
+local do_action = require("quest_state/do_action_state")
 mock.reset()
 mock.set_time(10.0)
 local shared_s1 = { _area_wait_timer = 0, _action_pause_timer = 0 }
@@ -78,7 +78,7 @@ print("  S1 PASS: no enemy → respawn wait set")
 -- ============================================================================
 -- S2: idle during respawn wait → stays IDLE, scans every 5s
 -- ============================================================================
-local idle = require("EaxAutoQuester/quest_state/idle_state")
+local idle = require("quest_state/idle_state")
 mock.reset()
 mock.set_time(10.0)
 local shared_s2 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0, _interact_cooldown = 0, _last_step_num = 1, _respawn_wait_until = 100.0, _respawn_target_name = "Test Boar", _respawn_last_scan = 0 }

@@ -2,6 +2,9 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify transport NPC lookup by type with keyword matching
 
+-- Path setup for standalone run
+package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
+
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
@@ -20,7 +23,7 @@ core.read_data_file = function(path)
     return nil
 end
 
-local npc_db = require("EaxAutoQuester/npc_db_sylvanas")
+local npc_db = require("npc_db_sylvanas")
 
 -- S1: type_hint "flight" → returns flight master
 local r1 = npc_db.find_transport_npc("flight", 1)
