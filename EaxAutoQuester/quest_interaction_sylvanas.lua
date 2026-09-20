@@ -39,78 +39,96 @@ local function get_player_gold()
     return 0
 end
 
---- Get NPC gossip quests that are flagged complete — static table reuse.
---- @param active_quests table Array of gossip_quest from get_gossip_active_quests()
---- @return table Array of complete-flagged gossip_quest entries
-local function get_completable_quests(active_quests)
-    _t.n = 0
-    if not active_quests then return _t end
+-- ============================================================================
+-- Framed quest selection — shared by accept_all_available and turn_in_completable
+-- ============================================================================
+--
+-- A gossip frame's quest_id is a 1-BASED ROW INDEX on the private-server builds
+-- (.api/core.lua, "GOSSIP ACROSS GAME VERSIONS"): it addresses the frame it was
+-- read from and nothing else. Selecting an entry rebuilds that list and the rows
+-- renumber, so a snapshot captured before an earlier selection must never be
+-- walked -- the next select would address whatever row now sits at that index
+-- (the wrong quest) or fall off the end (a skipped quest).
+--
+-- Each step therefore re-reads the frame and re-resolves its target from THAT
+-- read, and "already selected in this pass" is tracked by TITLE -- the documented
+-- portable identifier on every build -- never by the position that produced the id.
 
-    for i = 1, #active_quests do
-        local q = active_quests[i]
-        if q and q.is_complete then
-            _t.n = _t.n + 1
-            _t[_t.n] = q
+local _MAX_SELECT_STEPS = 8   -- anti-spin bound; a partial pass resumes next tick
+local _sel = {}               -- titles selected in the current pass
+
+--- Select every matching quest in the open gossip frame, one re-read per selection.
+-- @param getter function Returns the frame's current quest list.
+-- @param selector function(quest_id) Selects one row by the id it carried.
+-- @param complete_only boolean|nil When true, only entries flagged complete.
+-- @return number count selected (labels are written to the module _t table)
+local function select_from_frame(getter, selector, complete_only)
+    _t.n = 0
+    for k in pairs(_sel) do _sel[k] = nil end
+
+    local unnamed_seen = 0
+    for _ = 1, _MAX_SELECT_STEPS do
+        local ok, list = pcall(getter)
+        if not ok or not list or #list == 0 then break end
+
+        -- Resolve the target from THIS read only.
+        local target, label = nil, nil
+        local unnamed_here = 0
+        for i = 1, #list do
+            local q = list[i]
+            if q and q.quest_id and (not complete_only or q.is_complete) then
+                if q.title then
+                    if not _sel[q.title] then
+                        target, label = q, q.title
+                        break
+                    end
+                else
+                    -- No title: allow one unnamed entry per step, so the pass still
+                    -- advances without ever trusting a row from a previous read.
+                    unnamed_here = unnamed_here + 1
+                    if unnamed_here > unnamed_seen then
+                        target = q
+                        break
+                    end
+                end
+            end
         end
+        if not target then break end
+
+        if not pcall(selector, target.quest_id) then break end
+        if label then _sel[label] = true else unnamed_seen = unnamed_seen + 1 end
+        _t.n = _t.n + 1
+        _t[_t.n] = label or tostring(target.quest_id)
     end
-    return _t
+
+    return _t.n
 end
 
 -- ============================================================================
--- accept_all_available: Loop available gossip quests and select each
+-- accept_all_available: select every quest the gossip frame offers
 -- ============================================================================
 
 --- Select all available (unaccepted) quests from the gossip frame.
---- Calls select_gossip_available_quest for each, which transitions to
---- the quest detail frame for subsequent accept_quest().
+--- Selecting transitions to the quest detail frame for subsequent accept_quest().
 --- @return string|nil Action description or nil if none
 function M.accept_all_available()
-    local ok, available = pcall(function() return _quests.get_gossip_available_quests() end)
-    if not ok or not available or #available == 0 then return nil end
-
-    _t.n = 0
-    for i = 1, #available do
-        local q = available[i]
-        if q and q.quest_id then
-            local sel_ok = pcall(function() _quests.select_gossip_available_quest(q.quest_id) end)
-            if sel_ok then
-                _t.n = _t.n + 1
-                _t[_t.n] = q.title or tostring(q.quest_id)
-            end
-        end
-    end
-
-    if _t.n == 0 then return nil end
+    local count = select_from_frame(
+        _quests.get_gossip_available_quests, _quests.select_gossip_available_quest, false)
+    if count == 0 then return nil end
     return "accept_available:" .. table.concat(_t, ",", 1, _t.n)
 end
 
 -- ============================================================================
--- turn_in_completable: Loop gossip active quests flagged complete and select
+-- turn_in_completable: select every complete quest the frame offers
 -- ============================================================================
 
 --- Select each complete-flagged active quest from the gossip frame.
---- This transitions to the quest completion frame for complete_quest().
+--- Selecting transitions to the quest completion frame for complete_quest().
 --- @return string|nil Action description or nil if none
 function M.turn_in_completable()
-    local ok, active = pcall(function() return _quests.get_gossip_active_quests() end)
-    if not ok or not active or #active == 0 then return nil end
-
-    local completable = get_completable_quests(active)
-    if completable.n == 0 then return nil end
-
-    _t.n = 0
-    for i = 1, completable.n do
-        local q = completable[i]
-        if q and q.quest_id then
-            local sel_ok = pcall(function() _quests.select_gossip_active_quest(q.quest_id) end)
-            if sel_ok then
-                _t.n = _t.n + 1
-                _t[_t.n] = q.title or tostring(q.quest_id)
-            end
-        end
-    end
-
-    if _t.n == 0 then return nil end
+    local count = select_from_frame(
+        _quests.get_gossip_active_quests, _quests.select_gossip_active_quest, true)
+    if count == 0 then return nil end
     return "turn_in:" .. table.concat(_t, ",", 1, _t.n)
 end
 
