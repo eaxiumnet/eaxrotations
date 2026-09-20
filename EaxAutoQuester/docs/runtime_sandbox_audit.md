@@ -31,15 +31,26 @@ Scope: `EaxAutoQuester/**/*.lua` excluding `tests/`, `docs/` and the generated `
 Net result: **one guarded site**, everything else confirmed available and left alone — no defensive
 layers were added for documented functions.
 
-## Not a sandbox issue, recorded because the inventory surfaced it
+## Not a sandbox issue, recorded because the inventory surfaced it — now CLOSED
 
-The same bytecode pass shows plugin-internal state living in the **global** namespace:
+The same bytecode pass showed plugin-internal state living in the **global** namespace:
 `_stuck_level`, `_stuck_attempts`, `_stuck_recovery_timer` (`navigation_sylvanas.lua`) and
 `wp` / `next_state` / `nearby_count`, plus global function definitions such as
 `M_resolve_goal` (`goal_resolver_sylvanas.lua:201`) and `M_is_loaded`
-(`questie_reader_sylvanas.lua:242`, `zygor_reader_sylvanas.lua:239`). These resolve fine today but
-collide with any sibling plugin that picks the same name. Out of scope here (no behaviour change),
-worth a follow-up.
+(`questie_reader_sylvanas.lua:242`, `zygor_reader_sylvanas.lua:239`).
+
+The follow-up landed: **all of these are locals now**, and the correction to this note is that
+they did *not* "resolve fine today" — `_stuck_attempts` crashed the fallback stuck ladder with
+`attempt to perform arithmetic on global '_stuck_attempts'`, and `next_state` / `nearby_count`
+were nil reads (`next_state` made the coordinator's combat override unconditional; `nearby_count`
+printed nil). `navigation_sylvanas.lua` also gained a fourth undeclared read that this note never
+saw, `_get_item_info` in `quest_interaction_sylvanas.lua:246`, which silently forced every
+equipped item to compare as quality 0 during auto-equip.
+
+The full per-site inventory, the verdict for each site, the names deliberately left as globals
+and the text-check false positives are in `docs/global_hygiene_inventory.md`. The regression
+guard is `tests/test_global_hygiene.lua` (static bare-global checks plus runtime `_G`
+read/write tripwires and the coordinator's poisoned-global pin).
 
 ## Tests
 

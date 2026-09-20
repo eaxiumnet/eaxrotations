@@ -1,7 +1,11 @@
--- What: Unit tests for EaxAutoQuester/equipment_compare_sylvanas.lua
+-- What: Unit tests for EaxAutoQuester/equipment_compare_sylvanas.lua, plus S10, which pins
+--       where its caller gets the equipped item's quality from.
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify slot classification and equipment upgrade heuristic
--- Scenarios: S1 empty, S2 upgrade, S3 downgrade, S4 type mismatch, S5 keyword bonus, S6 classifier names
+-- Scenarios: S1 empty, S2 upgrade, S3 downgrade, S4 type mismatch, S5 keyword bonus, S6 classifier names,
+--            S10 auto_equip_best_reward's item-info source
+-- S10 fails if that source is an undeclared global again: the equipped quality then reads 0
+-- and the quality-1 downgrade wins.
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
 
 -- Path setup for standalone run
@@ -154,6 +158,52 @@ assert(slot == nil, "S8: candidate slot empty → slot_to_replace=nil")
 
 equip, slot = eq.should_equip("Crushed Soulspinner", 5, {})
 assert(equip == false, "S9: unclassified name → false")
+
+-- ============================================================================
+-- S10: what the caller actually compares against — quest_interaction_sylvanas
+-- auto_equip_best_reward() reads the EQUIPPED item's quality through the documented
+-- core.quests.get_item_info. That read used to be an undeclared global (`_get_item_info`),
+-- so the lookup always failed and every equipped item compared as quality 0 — every reward
+-- with quality >= 1 then looked like an upgrade. This scenario is the load-bearing pin:
+-- the equipped chest is quality 3, the FIRST reward choice is quality 1 (a downgrade) and
+-- the SECOND is quality 4 (an upgrade), so only the second may be taken.
+-- ============================================================================
+
+do
+    mock.reset()
+
+    local equipped_obj = mock.create_object({
+        pos = { x = 0, y = 0, z = 0 },
+        name = "Cured Leather Tunic",
+        item_id = 1001,
+    })
+    mock.create_player({
+        pos = { x = 0, y = 0, z = 0 },
+        equipped = { { object = equipped_obj, slot_id = 4 } },
+    })
+
+    mock._item_info[1001] = { name = "Cured Leather Tunic", quality = 3 }
+    mock._quest_rewards[1] = { link = "item:2002" }
+    mock._item_info["item:2002"] = { name = "Cheap Cloth Tunic", quality = 1 }
+    mock._quest_rewards[2] = { link = "item:2003" }
+    mock._item_info["item:2003"] = { name = "Superior Tunic", quality = 4 }
+
+    local qi = require("quest_interaction_sylvanas")
+    assert(type(qi.auto_equip_best_reward) == "function",
+        "S10 FAIL: quest_interaction_sylvanas.auto_equip_best_reward must exist")
+
+    mock._input_calls = {}
+    qi.auto_equip_best_reward()
+
+    local taken = nil
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "get_quest_reward" then taken = call[2] end
+    end
+    assert(taken == 2,
+        "S10 FAIL: the equipped item's quality must come from the documented get_item_info, so " ..
+        "only choice 2 (quality 4 > equipped 3) may be taken; took " .. tostring(taken))
+    print("S10 PASS: auto_equip reads equipped quality from core.quests.get_item_info")
+end
 
 print("PASS test_auto_equip")
 os.exit(0)

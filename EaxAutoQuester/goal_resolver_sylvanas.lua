@@ -198,7 +198,7 @@ end
 --- @param current_step_num number|nil Current Zygor step number
 --- @param me table|nil Local player unit
 --- @return table { npc_id, position, name, item_id, source }
-function M_resolve_goal(goal, current_step_num, me)
+local function M_resolve_goal(goal, current_step_num, me)
     if not goal then return { source = "unresolved" } end
 
     local goal_text = goal.text or goal.name or ""

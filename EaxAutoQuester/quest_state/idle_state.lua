@@ -415,9 +415,11 @@ function M.run(shared, ctx)
                         if wf_ok and wf and wf.fix_z then
                             fm = wf.fix_z(fm) or fm
                         end
-                        wp = fm
+                        -- Straight to the destination record: the `wp` local is declared much
+                        -- further down this function, so this used to write and read a global
+                        -- `wp` (a leak that also collided with any sibling plugin using the name).
                         ctx.debug_log("IDLE: flight step to " .. dest .. " → NAV to flight master " .. tostring(fm.name or "?"))
-                        shared._nav_destination = wp
+                        shared._nav_destination = fm
                         return "NAV"
                     end
                 end
@@ -441,9 +443,8 @@ function M.run(shared, ctx)
                     if wf_ok and wf and wf.fix_z then
                         inn = wf.fix_z(inn) or inn
                     end
-                    wp = inn
                     ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
-                    shared._nav_destination = wp
+                    shared._nav_destination = inn
                     return "NAV"
                 end
             end

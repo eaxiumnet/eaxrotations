@@ -26,6 +26,7 @@ M._trainer_services = {}
 M._gossip_available = {}
 M._gossip_active = {}
 M._quest_rewards = {}
+M._item_info = {}   -- id_or_link -> { name, quality, sell_price }; unset falls back to the default
 M._quest_money = 0
 M._gold = 0
 M._repair_cost = 0
@@ -54,6 +55,7 @@ function M.reset()
     M._gossip_active = {}
     M._gossip_options = {}
     M._quest_rewards = {}
+    M._item_info = {}
     M._quest_money = 0
     M._gold = 0
     M._repair_cost = 0
@@ -106,6 +108,7 @@ function M.create_player(opts)
         _casting = opts.casting or false,
         _channelling = opts.channelling or false,
         _buffs = opts.buffs or {},
+        _equipped = opts.equipped or {},
     }
 
     function p:get_health() return p._hp end
@@ -148,6 +151,10 @@ function M.create_player(opts)
         return 100
     end
     function p:get_level() return opts.get_level or 60 end
+    -- Equipped items: [{ object = <game_object with get_name/get_item_id>, slot_id = n }].
+    -- Empty by default, which leaves auto_equip's reward scan with no slot to compare — the
+    -- same "nothing to compare" outcome as before the method existed.
+    function p:get_equipped_items() return p._equipped end
     -- Alias x/y/z for squared_distance compatibility
     p.x = p._pos.x
     p.y = p._pos.y
@@ -175,6 +182,7 @@ function M.create_object(opts)
         _enemy = opts.enemy or false,
         _lootable = opts.lootable or false,
         _attackable = opts.attackable or false,
+        _item_id = opts.item_id or nil,
     }
 
     function o:get_position() return o._pos end
@@ -188,6 +196,7 @@ function M.create_object(opts)
     function o:is_enemy_with(other) return o._enemy end
     function o:can_attack(other) return o._attackable end
     function o:can_be_looted() return o._lootable end
+    function o:get_item_id() return o._item_id end
 
     return o
 end
@@ -374,8 +383,11 @@ M.quests = {
             table.remove(M._trainer_services, index)
         end
     end,
+    -- Per-item detail when a suite registers one (M._item_info[id_or_link]), otherwise the
+    -- historical nameless default — `should_equip` rejects a nil name, so suites that do not
+    -- opt in behave exactly as before.
     get_item_info = function(id)
-        return { quality = 0, sell_price = 1 }
+        return M._item_info[id] or { quality = 0, sell_price = 1 }
     end,
 }
 

@@ -78,7 +78,7 @@ end
 
 --- Get raw quest NPC IDs from Questie (no position scan).
 --- @return integer[]|nil Array of NPC IDs or nil if Questie not loaded
-function M_get_quest_npc_ids()
+local function M_get_quest_npc_ids()
     if not questie_loaded() then return nil end
     local ok, ids = pcall(_get_quest_npc_ids)
     if not ok or not ids or #ids == 0 then return nil end
@@ -90,7 +90,7 @@ end
 --- Get positions of visible quest-relevant NPCs from Questie.
 --- Cached with 2s throttle.
 --- @return table[]|nil Array of { npc_id, name, position } or nil
-function M_get_quest_npc_positions()
+local function M_get_quest_npc_positions()
     if not questie_loaded() then return nil end
 
     local utils = ensure_utils()
@@ -143,7 +143,7 @@ end
 --- Returns objective data with world positions (Z fixed via waypoint_fixer).
 --- @param quest_id number
 --- @return table[]|nil Array of objective info tables or nil
-function M_get_quest_objectives(quest_id)
+local function M_get_quest_objectives(quest_id)
     if not questie_loaded() then return nil end
     if not quest_id then return nil end
 
@@ -171,7 +171,7 @@ end
 --- Returns NPC/object spawn locations with world positions (Z fixed).
 --- @param quest_id number
 --- @return table[]|nil Array of { x, y, z, map_id, name, npc_id } or nil
-function M_get_quest_locations(quest_id)
+local function M_get_quest_locations(quest_id)
     if not questie_loaded() then return nil end
     if not quest_id then return nil end
 
@@ -199,7 +199,7 @@ end
 --- Uses game_object:is_quest_unit() — much more reliable than name matching.
 --- @param range number|nil Max search yards (default 50)
 --- @return game_object|nil Nearest quest unit, or nil
-function M_find_nearest_quest_unit(range)
+local function M_find_nearest_quest_unit(range)
     range = range or 50
     local range_sq = range * range
 
@@ -239,7 +239,7 @@ end
 
 --- Check if Questie addon itself is loaded.
 --- @return boolean
-function M_is_loaded()
+local function M_is_loaded()
     return questie_loaded()
 end
 

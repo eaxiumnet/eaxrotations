@@ -87,7 +87,7 @@ end
 
 --- Get current step info: number, completion, goals.
 --- @return table|nil { step_num, is_complete, goals[] } or nil if no step
-function M_get_current_step_info()
+local function M_get_current_step_info()
     local step = safe_get_step()
     if not step then return nil end
 
@@ -101,7 +101,7 @@ end
 --- Get current waypoint converted to world coordinates (vec3).
 --- Converts Zygor map coordinates (map_id, x, y) via izi.map_to_world().
 --- @return table|nil vec3 { x, y, z } or nil if no waypoint / conversion fails
-function M_get_current_waypoint_world()
+local function M_get_current_waypoint_world()
     if not zygor_loaded() then return nil end
 
     local ok, wp = pcall(_get_wp)
@@ -122,7 +122,7 @@ end
 
 --- Get all waypoints for current step converted to world coordinates.
 --- @return table[]|nil Array of vec3 { x, y, z } or nil if none
-function M_get_step_waypoints_world()
+local function M_get_step_waypoints_world()
     if not zygor_loaded() then return nil end
     if not _convert_map_to_world then return nil end
 
@@ -152,7 +152,7 @@ end
 
 --- Get the raw current waypoint info table.
 --- @return table|nil zygor_waypoint_info or nil if no waypoint
-function M_get_current_waypoint_raw()
+local function M_get_current_waypoint_raw()
     if not zygor_loaded() then return nil end
 
     local ok, wp = pcall(_get_wp)
@@ -172,7 +172,7 @@ end
 
 --- Get current objectives as a clean array of IDs (numbers or strings).
 --- @return (number|string)[]|nil Array of objective values or nil if none
-function M_get_current_objectives()
+local function M_get_current_objectives()
     if not zygor_loaded() then return nil end
 
     local ok, objectives = pcall(_get_objectives)
@@ -198,7 +198,7 @@ end
 
 --- Get sticky step goals (persistent goals that follow across steps).
 --- @return table[]|nil Array of { step_num, is_complete, goals[] } or nil if none
-function M_get_sticky_goals()
+local function M_get_sticky_goals()
     if not zygor_loaded() then return nil end
 
     local ok, stickies = pcall(_get_stickies)
@@ -225,7 +225,7 @@ end
 
 --- Check if Zygor has an active current step.
 --- @return boolean true if active step exists
-function M_has_current_step()
+local function M_has_current_step()
     if not zygor_loaded() then return false end
 
     local ok, has = pcall(_has_step)
@@ -236,7 +236,7 @@ end
 
 --- Check if Zygor addon itself is loaded.
 --- @return boolean
-function M_is_loaded()
+local function M_is_loaded()
     return zygor_loaded()
 end
 
@@ -244,7 +244,7 @@ end
 --- Returns the second waypoint if the current step has multiple waypoints.
 --- Falls back to nil if only one waypoint exists.
 --- @return table|nil vec3 { x, y, z } or nil
-function M_get_next_waypoint_world()
+local function M_get_next_waypoint_world()
     if not zygor_loaded() then return nil end
     if not _convert_map_to_world then return nil end
 

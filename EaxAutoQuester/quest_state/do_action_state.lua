@@ -774,8 +774,13 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             end
                         else
                             local _, enemy_pos = pcall(function() return best_enemy:get_position() end)
+                            -- Declared before the melee block so the attack log below can report
+                            -- the count this block measures. It used to be declared inside the
+                            -- `if enemy_pos` block, leaving that log to read a name that was
+                            -- neither declared nor assigned anywhere — a global nil, so the
+                            -- line always printed "nearby=nil".
+                            local nearby_count = 0
                             if enemy_pos then
-                                local nearby_count = 0
                                 for j = 1, limit do
                                     local other = objects[j]
                                     if other and other ~= best_enemy then

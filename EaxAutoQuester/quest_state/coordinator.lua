@@ -378,7 +378,11 @@ function M.update()
                     end
                 end
             end
-            if next_state ~= "IDLE" then
+            -- This tick's dispatched state does not exist yet here (dispatch runs after this
+            -- branch returns), so the override compares against the state that is current.
+            -- `next_state` used to be read here before its local declaration further down the
+            -- function, which made it a global nil and the condition always true.
+            if shared._state ~= "IDLE" then
                 if not shared._combat_override_logged then
                     shared._combat_override_logged = true
                     debug_log("Coordinator: combat override → IDLE")

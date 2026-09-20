@@ -243,7 +243,11 @@ function M.auto_equip_best_reward()
             local ok_name, name = pcall(function() return entry.object:get_name() end)
             local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
             if ok_name and ok_id and item_id then
-                local ok_info, info = pcall(function() return _get_item_info(item_id) end)
+                -- Documented source: core.quests.get_item_info(item_id_or_link) (.api/core.lua),
+                -- the same cached function this file already uses for reward links. The name
+                -- `_get_item_info` was declared nowhere, so the lookup always failed and every
+                -- equipped item compared as quality 0.
+                local ok_info, info = pcall(function() return _quests.get_item_info(item_id) end)
                 local quality = (ok_info and info and info.quality) or 0
                 local slot = eq.classify_slot(name)
                 if slot then

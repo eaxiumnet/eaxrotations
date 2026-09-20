@@ -21,6 +21,7 @@ return {
         "test_dungeon_detector.lua",
         "test_flight_path.lua",
         "test_frame_event_parity.lua",
+        "test_global_hygiene.lua",
         "test_goal_resolver.lua",
         "test_idle_state.lua",
         "test_integration_death_flow.lua",
