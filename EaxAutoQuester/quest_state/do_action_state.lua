@@ -1096,7 +1096,9 @@ function M.run(shared, ctx)
     local pause = 0.5
     if action_type == shared._last_action_type then
         shared._action_loop_count = (shared._action_loop_count or 0) + 1
-        pause = math.min(0.5 * math.pow(2, shared._action_loop_count), 2.0)
+        -- `2 ^ n`, not math.pow: the operator exists on every Lua the plugin runs on
+        -- (5.1 game runtime and 5.4 host tooling), math.pow was removed after 5.2.
+        pause = math.min(0.5 * (2 ^ shared._action_loop_count), 2.0)
     else
         shared._action_loop_count = 0
     end
