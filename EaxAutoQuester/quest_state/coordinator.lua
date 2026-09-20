@@ -268,12 +268,59 @@ local function take_frame_pulse()
 end
 
 -- ============================================================================
+-- Hoisted unit probes — no closure per tick (item 15)
+-- ============================================================================
+-- Every one of these used to be written inline as `pcall(function() return me:x() end)`, which
+-- allocates a closure on every tick and is the second largest per-tick garbage source after the
+-- context table. Hoisting the function and passing the unit as an argument keeps the exact same
+-- call and the exact same pcall protection, and allocates nothing.
+
+local function unit_is_in_combat(u) return u:is_in_combat() end
+local function unit_get_target(u) return u:get_target() end
+local function unit_is_dead(u) return u:is_dead() end
+local function unit_get_health(u) return u:get_health() end
+local function unit_is_casting_spell(u) return u:is_casting_spell() end
+local function unit_is_channelling_spell(u) return u:is_channelling_spell() end
+
+-- Wrath-client ghost form (buff 8326): is_dead() is false and HP is above zero, so the aura is
+-- the only tell. The method list and the id are hoisted for the same reason. The caller still
+-- wraps this in pcall, exactly as the inline version was.
+local _GHOST_AURA_METHODS = { "get_buffs", "get_auras", "get_debuffs" }
+local GHOST_AURA_ID = 8326
+local function unit_has_ghost_aura(u)
+    for i = 1, #_GHOST_AURA_METHODS do
+        local method = _GHOST_AURA_METHODS[i]
+        if u[method] then
+            local data = u[method](u)
+            if data then
+                for j = 1, #data do
+                    local b = data[j]
+                    if b then
+                        local id = b.buff_id or b.id or b.spell_id or b.aura_id
+                        if id == GHOST_AURA_ID or id == "8326" then return true end
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- ============================================================================
 -- Context Builder — assembles per-tick context for state handlers
 -- ============================================================================
 
 --- Build the context object passed to all state handlers each tick.
 --- Contains submodules, me, cached time, helper functions.
---- @return table context
+---
+--- ONE table, refreshed in place. It used to be a fresh 21-field table literal every tick,
+--- which was the largest single source of per-tick garbage on the hot path (item 15), against
+--- Pattern 4. Handlers read fields and never keep the table — the frame-event pulse is still
+--- read-and-clear, and every field below is rewritten on every call — so the same table is safe
+--- to hand out again and again.
+--- @return table context The shared per-tick context (same table every tick)
+local _ctx = {}
+
 local _probed_apis = nil
 
 local function ensure_probed_apis()
@@ -297,27 +344,26 @@ local function ensure_probed_apis()
 end
 
 local function build_context()
-    return {
-        zygor = ensure_zygor(),
-        nav = ensure_navigation(),
-        quest_interaction = ensure_quest_interaction(),
-        npc_manager = ensure_npc_manager(),
-        combat_helper = ensure_combat_helper(),
-        utils = ensure_utils(),
-        menu = ensure_menu(),
-        me = _get_local_player(),
-        now = _core_time(),
-        debug_log = debug_log,
-        log = log,
-        safe = safe,
-        detect_open_frame = idle_state.detect_open_frame,
-        frame_signalled = take_frame_pulse(),
-        object_scanner = ensure_object_scanner(),
-        safe_api = ensure_safe_api(),
-        probed = ensure_probed_apis(),
-        death_tracker = ensure_death_tracker(),
-        anti_detection = ensure_anti_detection(),
-    }
+    _ctx.zygor = ensure_zygor()
+    _ctx.nav = ensure_navigation()
+    _ctx.quest_interaction = ensure_quest_interaction()
+    _ctx.npc_manager = ensure_npc_manager()
+    _ctx.combat_helper = ensure_combat_helper()
+    _ctx.utils = ensure_utils()
+    _ctx.menu = ensure_menu()
+    _ctx.me = _get_local_player()
+    _ctx.now = _core_time()
+    _ctx.debug_log = debug_log
+    _ctx.log = log
+    _ctx.safe = safe
+    _ctx.detect_open_frame = idle_state.detect_open_frame
+    _ctx.frame_signalled = take_frame_pulse()
+    _ctx.object_scanner = ensure_object_scanner()
+    _ctx.safe_api = ensure_safe_api()
+    _ctx.probed = ensure_probed_apis()
+    _ctx.death_tracker = ensure_death_tracker()
+    _ctx.anti_detection = ensure_anti_detection()
+    return _ctx
 end
 
 -- ============================================================================
@@ -361,7 +407,7 @@ function M.update()
 
     local in_combat = false
     if ctx.me then
-        local ok, combat = pcall(function() return ctx.me:is_in_combat() end)
+        local ok, combat = pcall(unit_is_in_combat, ctx.me)
         in_combat = ok and combat == true
     end
     if in_combat then
@@ -384,7 +430,7 @@ function M.update()
                 -- behind while bot was navigating), we find the nearest enemy
                 -- and set it as target.
                 local current_target = nil
-                local ok, ct = pcall(function() return ctx.me:get_target() end)
+                local ok, ct = pcall(unit_get_target, ctx.me)
                 if ok then current_target = ct end
                 if not current_target then
                     local helper = ensure_combat_helper()
@@ -418,37 +464,20 @@ function M.update()
         local dead = false
 
         -- Check is_dead() first
-        local is_dead_ok, is_dead_v = pcall(function() return ctx.me:is_dead() end)
+        local is_dead_ok, is_dead_v = pcall(unit_is_dead, ctx.me)
         if is_dead_ok and is_dead_v then
             dead = true
         end
 
         -- Check ghost form buff (8326) — Wrath client ghost: is_dead()=false, HP>0
         if not dead then
-            local ghost_ok, ghost = pcall(function()
-                local aura_methods = { "get_buffs", "get_auras", "get_debuffs" }
-                for _, m in ipairs(aura_methods) do
-                    if ctx.me[m] then
-                        local data = ctx.me[m](ctx.me)
-                        if data then
-                            for i = 1, #data do
-                                local b = data[i]
-                                if b then
-                                    local id = b.buff_id or b.id or b.spell_id or b.aura_id
-                                    if id == 8326 or id == "8326" then return true end
-                                end
-                            end
-                        end
-                    end
-                end
-                return false
-            end)
+            local ghost_ok, ghost = pcall(unit_has_ghost_aura, ctx.me)
             if ghost_ok and ghost then dead = true end
         end
 
         -- Check HP <= 0 as fallback
         if not dead then
-            local hp_ok, hp = pcall(function() return ctx.me:get_health() end)
+            local hp_ok, hp = pcall(unit_get_health, ctx.me)
             if hp_ok and (hp == nil or hp <= 0) then dead = true end
         end
 
@@ -542,9 +571,9 @@ function M.update()
         local is_casting = false
         local is_channeling = false
         if ctx.me then
-            local cast_ok, casting = pcall(function() return ctx.me:is_casting_spell() end)
+            local cast_ok, casting = pcall(unit_is_casting_spell, ctx.me)
             if cast_ok and casting then is_casting = true end
-            local chan_ok, channeling = pcall(function() return ctx.me:is_channelling_spell() end)
+            local chan_ok, channeling = pcall(unit_is_channelling_spell, ctx.me)
             if chan_ok and channeling then is_channeling = true end
         end
         -- Camera jitter when idle/navigating (not casting)
@@ -646,6 +675,12 @@ end
 -- Test accessor: returns current state and nav destination (for unit tests)
 function M._test_inspect()
     return shared._state, shared._nav_destination
+end
+
+-- Test accessor: the per-tick context table handed to the handlers. Item 15 asserts it is the
+-- SAME table on every tick, which is what keeps the tick path allocation-free.
+function M._test_context()
+    return _ctx
 end
 
 -- Global export (parity with the previous loader): lets other EaxAutoQuester modules

@@ -51,6 +51,7 @@ return {
         "test_state_machine_ownership.lua",
         "test_static_popup.lua",
         "test_step_lookahead.lua",
+        "test_tick_allocation.lua",
         "test_transport_helper.lua",
         "test_utils_sylvanas.lua",
         "test_vendor_bag_trigger.lua",

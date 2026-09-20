@@ -86,6 +86,12 @@ M.toggle_keybind  = _core_menu.keybind(7, true, IDs.toggle_keybind)
 --- @param key string Widget key/ID
 --- @param fallback any Value returned if widget is nil
 --- @return any
+-- Hoisted widget probes (item 15). M.get is read on every tick (the coordinator refreshes its
+-- debug flag through it), and the inline `pcall(function() ... end)` form allocated a closure per
+-- call. Same call, same pcall protection, no closure.
+local function widget_get_state(w) return w:get_state() end
+local function widget_get(w) return w:get() end
+
 function M.get(key, fallback)
     if not key then return fallback end
 
@@ -94,14 +100,14 @@ function M.get(key, fallback)
 
     -- Checkbox: use get_state()
     if widget.get_state then
-        local ok, val = pcall(function() return widget:get_state() end)
+        local ok, val = pcall(widget_get_state, widget)
         if ok and val ~= nil then return val end
         return fallback
     end
 
     -- Slider / Combobox: use get()
     if widget.get then
-        local ok, val = pcall(function() return widget:get() end)
+        local ok, val = pcall(widget_get, widget)
         if ok and val ~= nil then return val end
         return fallback
     end

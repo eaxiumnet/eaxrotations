@@ -111,6 +111,13 @@ end
 local _last_player_near_time = 0
 local _player_pause_until = 0
 
+-- Hoisted probes (item 15): this runs on every tick, and the inline `pcall(function() ... end)`
+-- form allocated a closure for the player plus two per visible object, every tick. Passing the
+-- function and the object keeps the call and the pcall protection identical and allocates
+-- nothing.
+local function unit_get_position(u) return u:get_position() end
+local function unit_is_player(u) return u:is_player() end
+
 --- Check for nearby players and pause bot briefly if one is detected.
 --- Returns true if bot should pause this tick.
 --- @param range number Detection range in yards (default 30)
@@ -125,7 +132,7 @@ function M.check_player_proximity(range)
     local ok, me = pcall(core.object_manager.get_local_player)
     if not ok or not me then return false end
 
-    local ok_pos, my_pos = pcall(function() return me:get_position() end)
+    local ok_pos, my_pos = pcall(unit_get_position, me)
     if not ok_pos or not my_pos then return false end
 
     local ok_objs, objects = pcall(core.object_manager.get_visible_objects)
@@ -134,9 +141,9 @@ function M.check_player_proximity(range)
     for i = 1, math.min(#objects, 50) do
         local obj = objects[i]
         if obj then
-            local ok_player, is_player = pcall(function() return obj:is_player() end)
+            local ok_player, is_player = pcall(unit_is_player, obj)
             if ok_player and is_player then
-                local ok_opp, other_pos = pcall(function() return obj:get_position() end)
+                local ok_opp, other_pos = pcall(unit_get_position, obj)
                 if ok_opp and other_pos then
                     local dx = (other_pos.x or 0) - (my_pos.x or 0)
                     local dy = (other_pos.y or 0) - (my_pos.y or 0)
