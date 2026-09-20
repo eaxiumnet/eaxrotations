@@ -26,6 +26,7 @@ Pipeline (mirrors AGENTS.md "Refresh pipeline", Forever flavor):
 
 import argparse
 import os
+import re
 import sqlite3
 import sys
 
@@ -34,6 +35,18 @@ DBC_DB = os.path.join(ROOT, "wowheadScrape", "dbc_extract", "wowsims_forever.db"
 OUTPUT = os.path.join(
     ROOT, "EaxRotations", "shared", "wowhead_data_bridge_spell_index_forever_sylvanas.lua"
 )
+
+# The stub's marker is the Lua assignment below, NOT the flag's name: the
+# generated bridge header explains the flag in prose ("no __forever_stub
+# flag"), so a substring test calls every live bridge a stub. That is what
+# build_forever_bridge.py --check reported for the whole 69913 refresh
+# (2026-09-20) while the Lua audit -- which reads the field -- was green.
+STUB_ASSIGNMENT = re.compile(r"^\s*M\.__forever_stub\s*=\s*true", re.M)
+
+
+def bridge_is_stub(content):
+    """True only when the bridge still carries the stub assignment."""
+    return STUB_ASSIGNMENT.search(content) is not None
 
 SCHOOL_MAP = {
     1: "physical",
@@ -481,7 +494,7 @@ def check_bridge():
         return 2
     with open(OUTPUT, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
-    if "__forever_stub" in content:
+    if bridge_is_stub(content):
         print("FAIL: bridge is still the STUB (scaffold mode)")
         return 2
     if "M.spell_index_forever = {" not in content:

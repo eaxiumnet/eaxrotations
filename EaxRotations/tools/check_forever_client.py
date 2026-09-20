@@ -19,10 +19,10 @@ Usage:
 Exit codes: 0 = Forever client detected; 1 = not detected (prereqs reported).
 """
 
+import importlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 
@@ -32,7 +32,15 @@ KNOWN_PRODUCTS = {
     "wow_classic_era",
     "wow_classic_anniversary",
     "wow_anniversary",
+    "wow_classic_beta",
 }
+
+# The Forever beta shipped as `wow_classic_beta` (folder `_classic_beta_`);
+# no `wow_forever` product exists. Detection keys on these surfaces rather
+# than on the word "forever" in a name -- which is why the 2026-09-20 scan
+# reported an installed 1.60.1.69913 client as NOT PRESENT.
+FOREVER_PRODUCTS = {"wow_classic_beta"}
+FOREVER_FOLDERS = {"_classic_beta_"}
 
 BNET_AGENT_DIR = r"C:\ProgramData\Battle.net\Agent"
 BNET_CONFIG = os.path.join(
@@ -61,7 +69,8 @@ def read_bytes(path):
 
 
 def scan_products():
-    """Return (forever_hits, version_strings) from every known product surface."""
+    """(forever_hits, version_strings, forever_version) from every known
+    product surface."""
     hits, versions = [], []
 
     # 1. Install-root folders (a _forever_ folder or any new product folder).
@@ -72,26 +81,21 @@ def scan_products():
                 if tag not in {"retail", "classic", "classic era",
                                "classic_era", "anniversary"} and tag:
                     hits.append("folder:" + entry)
-                if "forever" in tag:
+                if "forever" in tag or entry in FOREVER_FOLDERS:
                     hits.append("FOREVER-FOLDER:" + entry)
     except OSError:
         pass
 
-    # 2. .build.info product lines (any product outside the known set).
-    build_info = read_bytes(os.path.join(WOW_ROOT, ".build.info")).decode(
-        "utf-8", "replace")
-    for line in build_info.splitlines()[1:]:
-        if not line.strip():
-            continue
-        parts = line.split("|")
-        if len(parts) >= 15:
-            product, version = parts[14].strip(), parts[12].strip()
-            if product and product not in KNOWN_PRODUCTS:
-                hits.append("build-info:" + product)
-            if "forever" in product.lower():
-                hits.append("FOREVER-PRODUCT:" + product)
-            if version:
-                versions.append(product + "=" + version)
+    # 2. .build.info product lines (any product outside the known set),
+    # parsed by the module that owns that file's shape.
+    for product, version in _repo_tool("build_forever_database") \
+            .build_info_versions(WOW_ROOT).items():
+        if product not in KNOWN_PRODUCTS:
+            hits.append("build-info:" + product)
+        if "forever" in product.lower() or product in FOREVER_PRODUCTS:
+            hits.append("FOREVER-PRODUCT:" + product)
+        if version:
+            versions.append(product + "=" + version)
 
     # 3. Battle.net agent product.db + user config.
     agent_db = read_bytes(os.path.join(BNET_AGENT_DIR, "product.db"))
@@ -108,7 +112,38 @@ def scan_products():
     except ValueError:
         pass
 
-    return sorted(set(hits)), versions
+    forever_version = None
+    for v in versions:
+        product, _, ver = v.partition("=")
+        if product in FOREVER_PRODUCTS and ver:
+            forever_version = ver
+    return sorted(set(hits)), versions, forever_version
+
+
+def _repo_tool(name):
+    """Import a module from the repo's tools/ directory (not a package, so it
+    has to go on sys.path).
+
+    Import failure raises on purpose: a silent fallback is what produced the
+    false "stub" reading this tool was fixed for (2026-09-20).
+    """
+    tools_dir = os.path.join(REPO, "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    return importlib.import_module(name)
+
+
+def datamine_stamp():
+    """(client_version, extracted_at) of the built community package.
+
+    Consumes tools/build_forever_database.py, which stamps the package and owns
+    its path. No zip-name fallback: a folder name is not evidence of what a
+    package contains.
+    """
+    bd = _repo_tool("build_forever_database")
+    if not os.path.isfile(bd.OUT_DB):
+        return None, None
+    return bd.package_stamp(bd.OUT_DB)
 
 
 def prereq_report():
@@ -131,15 +166,22 @@ def prereq_report():
     out["anniversary_tbc_db"] = any(os.path.isfile(p) for p in tbc_candidates)
     out["forever_db_extracted"] = os.path.isfile(FOREVER_DB)
     bridge = read_bytes(BRIDGE).decode("utf-8", "replace")
-    out["bridge_is_stub"] = "__forever_stub" in bridge
+    # Reported as "bridge_live" so an OK reads as good news: pre-beta the
+    # correct answer is the stub, from beta day on it is a real index (the
+    # audit flips modes on the same signal).
+    out["bridge_live"] = not _repo_tool(
+        "build_forever_bridge").bridge_is_stub(bridge)
     return out
 
 
 def main():
     as_json = "--json" in sys.argv
-    hits, versions = scan_products()
+    hits, versions, client_version = scan_products()
     prereqs = prereq_report()
     detected = any(h.startswith("FOREVER-") for h in hits)
+    data_version, data_when = datamine_stamp()
+    up_to_date = bool(client_version and data_version
+                      and client_version == data_version)
 
     if as_json:
         print(json.dumps({
@@ -163,10 +205,25 @@ def main():
         else:
             print("FOREVER CLIENT: NOT PRESENT",
                   "(unusual surfaces: " + (", ".join(hits) or "none") + ")")
+        print("datamine freshness:")
+        if not data_version:
+            print("  datamine: no built package found (%s)"
+                  % _repo_tool("build_forever_database").OUT_DB)
+        elif not client_version:
+            print("  datamine %s; client build unknown" % data_version)
+        elif up_to_date:
+            print("  UP TO DATE  datamine %s == client %s"
+                  % (data_version, client_version))
+        else:
+            print("  STALE       datamine %s (extracted %s) vs client %s"
+                  % (data_version, data_when, client_version))
+            print("              re-run dbc_runbook.md step 1 for this build")
         print("runbook prereqs:")
         for k, ok in sorted(prereqs.items()):
             print(f"  {'OK ' if ok else '-- '} {k}")
-        if prereqs["bridge_is_stub"]:
+        if prereqs["bridge_live"]:
+            print("  bridge: live (audit enforces real spell-ID resolution)")
+        else:
             print("  bridge: stub (audit in scaffold mode -- correct pre-beta)")
     return 0 if detected else 1
 

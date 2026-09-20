@@ -5,6 +5,37 @@
 > client DBC. Wowhead/Icy Veins data is supplementary detail. This runbook
 > clones the existing TBC pipeline for the Forever beta client.
 
+## Status (updated 2026-09-20: re-extracted at 1.60.1.69913 — data unchanged, settings now reproducible)
+
+**2026-09-20 refresh (69913):** the client patched to **1.60.1.69913** on
+2026-09-18 while the package still described 69893. The re-extraction ran
+clean (119 tables) and the two builds are **identical everywhere the pipeline
+reads**: `tools/forever_dbc_diff.py` reports 0 lane-surface deltas (1,696
+player spells / 1,646 names either way), all 119 tables have equal row counts,
+and the 12 core tables hash identical. The patch was client code, not data.
+
+Three fixes came out of the refresh:
+
+- **The settings file is generated now.** `tools/build_forever_settings.py
+  --tool-dir <copy>` writes `appsettings.forever_world.json` (119 tables =
+  `CORE13` + `WORLD_TABLES`), so step 1 is reproducible from the repo instead
+  of depending on a hand-written file inside a throwaway tool copy. `--check`
+  compares an existing file against the canonical list.
+- **A stale `DBDCache/` breaks a re-extraction.** The DBD provider trusts any
+  cached `.dbd` younger than a day, so a tool copy carrying another build's
+  cache dies mid-run with `No definition found for this file` — which reads
+  like a missing table but is a missing *definition*. Clear `DBDCache/`
+  before extracting; upstream WoWDBDefs already carries 1.60.1.69913, so a
+  fresh fetch resolves every table.
+- **Two gates called a live bridge a stub.** `build_forever_bridge.py --check`
+  and `check_forever_client.py` tested `"__forever_stub" in content`, which
+  matches the generated header's own prose; both now use the structural test
+  (`M.__forever_stub = true`) owned by
+  `build_forever_bridge.bridge_is_stub`. The client scan also could not see the
+  beta at all (it keyed on the word "forever", while the product is
+  `wow_classic_beta`); it now reports the installed build and whether the built
+  package matches it (`UP TO DATE` / `STALE`).
+
 ## Status (updated 2026-09-17: 119-table extraction, icons + mounts, world/NPC/item package)
 
 **2026-09-17 icons + mounts extension:** the extraction is now **119 tables**
@@ -102,12 +133,23 @@ Run from the repo root (or the forever worktree):
 #    expect "C:\Program Files (x86)\World of Warcraft\_forever_\" (folder
 #    name unconfirmed) and a new product line in .build.info.
 
-# 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9 required):
-cd ../scripts-backup-20260630-095300/tbc-new/tools/DB2ToSqlite && dotnet run --
-    -o /c/newbot/scripts/wowheadScrape/dbc_extract/wowsims_forever.db
-#    Full package (109 tables incl. world/NPC/item): use the settings file
-#    appsettings.forever_world.json instead of the default appsettings.json:
-#      dotnet DB2ToSqliteTool.dll -s appsettings.forever_world.json -o <db>
+# 1. Extract the DBC (DB2ToSqlite lives in the tbc-new backup; .NET 9
+#    required). Work on a COPY of that tree, never on the backup itself:
+#      cp -r <backup>/DB2ToSqlite <work>/_tool_DB2ToSqlite
+#    a) generate the settings (119 tables = CORE13 + WORLD_TABLES; the file
+#       used to be hand-written inside a throwaway copy, i.e. unreproducible):
+#      python tools/build_forever_settings.py --tool-dir <work>/_tool_DB2ToSqlite
+#    b) CLEAR <work>/_tool_DB2ToSqlite/DBDCache/ -- the DBD provider trusts
+#       any cache younger than a day, so a copy carrying another build's cache
+#       dies with "No definition found for this file" (reads like a missing
+#       table; it is a missing definition). Upstream WoWDBDefs has 1.60.1.69913.
+#    c) run with cwd = the tool copy root: the DLL sits in bin/Debug/net9.0,
+#       and the relative paths (dbfilesclient/, DBDCache/, cache/) hang off it:
+cd <work>/_tool_DB2ToSqlite && dotnet bin/Debug/net9.0/DB2ToSqliteTool.dll \
+    -s appsettings.forever_world.json \
+    -o <repo>/wowheadScrape/dbc_extract/wowsims_forever.db
+#    Then diff the new extraction against the last one before rebuilding:
+#      python tools/forever_dbc_diff.py --old <prev db> --new <new db>
 #    The table list = 13 core + WORLD_TABLES (tools/build_forever_database.py).
 #    New/unstable tables: probe with tools/probe_forever_tables.py first --
 #    a missing table aborts the run with "File not found in root" and the DB
