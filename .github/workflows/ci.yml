@@ -52,13 +52,16 @@ jobs:
         # without lfs, and 4 rotation suites + the behavioral battery use it.
         run: luarocks install luafilesystem
 
-      - name: luac -p syntax gate (all EaxRotations .lua)
-        # Mirrors pre-commit step [1/15] (luac parse).
+      - name: luac -p syntax gate (every tracked .lua: EaxRotations + EaxAutoQuester)
+        # Mirrors pre-commit step [1/20] (luac parse) — which sweeps the plugin
+        # too. EaxAutoQuester needs it here: the battery never loads the 7
+        # generated npc_spawns chunks (8 MB, loaded lazily at runtime), so
+        # without this sweep nothing in CI ever lexes them.
         # NOTE: self-contained on tracked files — tools/, AGENTS.md and .github/
         # are untracked by design, so the workflow runs the tracked gate
         # directly instead of shelling out to the local tools/ scripts.
         run: |
-          find EaxRotations -name '*.lua' -print0 | while IFS= read -r -d '' f; do
+          find EaxRotations EaxAutoQuester -name '*.lua' -print0 | while IFS= read -r -d '' f; do
             luac -p "$f" || { echo "FAIL: luac -p $f"; exit 1; }
           done
 

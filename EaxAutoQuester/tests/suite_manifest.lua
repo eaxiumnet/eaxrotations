@@ -27,6 +27,7 @@ return {
         "test_integration_vendor_flow.lua",
         "test_interact_state.lua",
         "test_loot_manager.lua",
+        "test_lua51_compat.lua",
         "test_mount_manager.lua",
         "test_nav_state.lua",
         "test_npc_db.lua",
