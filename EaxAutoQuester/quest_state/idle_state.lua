@@ -60,34 +60,11 @@ end
 --- @param ctx table Per-tick context with submodules, me, helpers
 --- @return string next_state
 function M.run(shared, ctx)
-    local zygor = ctx.zygor
-    if not zygor then
-        ctx.debug_log("IDLE: Zygor not available → WAITING")
-        return "WAITING"
-    end
-
-    -- No active step → WAITING
-    if not zygor.has_current_step() then
-        ctx.debug_log("IDLE: no step → WAITING")
-        return "WAITING"
-    end
-
-    -- Cast/channel pause: if the player is mid-cast or mid-channel (e.g. after
-    -- clicking a gathering node like "Milly's Harvest"), the bot must stay in
-    -- IDLE and NOT move, re-target, or re-interact. Any of those would cancel
-    -- the cast/channel and break the quest. Live observed: Milly's Harvest
-    -- pumpkins in Northshire Valley require a 2-3s channel to gather the
-    -- quest item. Re-targeting the pumpkin cancels the channel and the quest
-    -- never progresses.
-    if ctx.me then
-        local casting_ok, is_casting = pcall(function() return ctx.me:is_casting_spell() end)
-        local channelling_ok, is_channelling = pcall(function() return ctx.me:is_channelling_spell() end)
-        if (casting_ok and is_casting) or (channelling_ok and is_channelling) then
-            return "IDLE"
-        end
-    end
-
-    -- Death check: if player is dead, transition to DEAD state.
+    -- Death check FIRST — before the guidance/step gate. A dead or ghosted
+    -- player must enter DEAD even when there is no current step, or Zygor is
+    -- absent entirely; otherwise the machine parks in WAITING and the corpse
+    -- run never starts. (The retired monolith also checked death before its
+    -- guidance logic.)
     -- Checks is_dead() AND HP. Handles ghost-form: ghost players have
     -- is_dead()=false but get_health() returns nil (no body, no health).
     -- The old logic missed ghost-form deaths because `hp and hp <= 0`
@@ -143,6 +120,33 @@ function M.run(shared, ctx)
         if dead then
             ctx.debug_log("IDLE: player dead → DEAD")
             return "DEAD"
+        end
+    end
+
+    local zygor = ctx.zygor
+    if not zygor then
+        ctx.debug_log("IDLE: Zygor not available → WAITING")
+        return "WAITING"
+    end
+
+    -- No active step → WAITING
+    if not zygor.has_current_step() then
+        ctx.debug_log("IDLE: no step → WAITING")
+        return "WAITING"
+    end
+
+    -- Cast/channel pause: if the player is mid-cast or mid-channel (e.g. after
+    -- clicking a gathering node like "Milly's Harvest"), the bot must stay in
+    -- IDLE and NOT move, re-target, or re-interact. Any of those would cancel
+    -- the cast/channel and break the quest. Live observed: Milly's Harvest
+    -- pumpkins in Northshire Valley require a 2-3s channel to gather the
+    -- quest item. Re-targeting the pumpkin cancels the channel and the quest
+    -- never progresses.
+    if ctx.me then
+        local casting_ok, is_casting = pcall(function() return ctx.me:is_casting_spell() end)
+        local channelling_ok, is_channelling = pcall(function() return ctx.me:is_channelling_spell() end)
+        if (casting_ok and is_casting) or (channelling_ok and is_channelling) then
+            return "IDLE"
         end
     end
 
