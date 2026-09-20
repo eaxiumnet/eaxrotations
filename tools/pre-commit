@@ -53,8 +53,9 @@
 #      write-side complement that catches reads of never-produced fields;
 #      legacy-fallback chains and module records pinned in
 #      NO_WRITER_ALLOWLIST with evidence) + self-test
-#  20. EaxAutoQuester battery (the plugin's own 38 suites, tracked at
-#      EaxAutoQuester/ since the restore): a quester regression must not be able
+#  20. EaxAutoQuester battery (every suite the plugin's own runner discovers,
+#      tracked at EaxAutoQuester/ since the restore): a quester regression must
+#      not be able
 #      to land behind the rotations' green matrix. Its runtime is the same Lua
 #      5.1 this hook pins for everything else. EaxAutoQuester/*.lua is also part
 #      of step 1's luac -p sweep.
