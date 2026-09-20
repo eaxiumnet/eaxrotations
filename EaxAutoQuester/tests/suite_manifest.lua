@@ -30,6 +30,8 @@ return {
         "test_loot_manager.lua",
         "test_lua51_compat.lua",
         "test_mount_manager.lua",
+        "test_nav_client_contract.lua",
+        "test_nav_client_parity.lua",
         "test_nav_state.lua",
         "test_npc_db.lua",
         "test_npc_manager.lua",

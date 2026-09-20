@@ -215,6 +215,16 @@ do
     end
 end
 
+-- Navigation client probe (startup): resolve SentinelNavClient, subscribe its events and
+-- ask its server for a health result. Additive: with no client present this does nothing and
+-- every navigation uses the simple_movement fallback exactly as before.
+do
+    local ok, navigation = pcall(require, "navigation_sylvanas")
+    if ok and navigation and navigation.install then
+        pcall(navigation.install)
+    end
+end
+
 function NS.init_modules() return init_modules() end
 function NS.get_utils() return _utils end
 function NS.get_menu() return _menu end
