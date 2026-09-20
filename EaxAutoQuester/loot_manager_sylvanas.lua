@@ -19,8 +19,6 @@ local _get_local_player = core.object_manager.get_local_player
 
 -- Static table reuse (Pattern 4 from AGENTS.md) — avoids per-frame GC churn
 local _t = { n = 0 }
-local _gold_indices = { n = 0 }
-local _item_indices = { n = 0 }
 
 -- ============================================================================
 -- Module Table
@@ -48,38 +46,41 @@ end
 -- ============================================================================
 
 --- Iterate all items in the open loot window.
---- Gold slots are looted first (priority), then item slots.
+--- Gold slots are looted first (priority), then the remaining item slots.
 --- Closes the window when done.
+---
+--- Two index rules, both documented:
+---  1. LOOT SLOTS ARE 0 BASED. "Every loot index below is 0 based, running 0 to this
+---     count minus 1" (.api/core.lua:1025), and core.input.loot_item / confirm_loot_slot
+---     match it (:1849, :2123). Walking 1..count skips slot 0 and reads one past the end.
+---  2. TAKING A SLOT COMPACTS THE WINDOW, so a captured list of slots goes stale. Walk
+---     each pass DOWNWARD: removing a higher slot never shifts a lower one. The count is
+---     re-read for the second pass for the same reason (vendor's sell loop does this too).
 --- @return boolean true if loot window was processed successfully
 function M.try_loot()
     local count_ok, count = pcall(_get_loot_item_count)
-    if not count_ok or not count or count < 1 then
+    if not count_ok or type(count) ~= "number" or count < 1 then
         return false
     end
 
-    -- Separate gold indices from item indices in a single pass
-    _gold_indices.n = 0
-    _item_indices.n = 0
-
-    for i = 1, count do
+    -- Pass 1: gold (priority), classified against the live window, highest slot first
+    for i = count - 1, 0, -1 do
         local is_gold_ok, is_gold = pcall(_get_loot_is_gold, i)
         if is_gold_ok and is_gold then
-            _gold_indices.n = _gold_indices.n + 1
-            _gold_indices[_gold_indices.n] = i
-        else
-            _item_indices.n = _item_indices.n + 1
-            _item_indices[_item_indices.n] = i
+            pcall(_loot_item, i)
         end
     end
 
-    -- Loot gold first (priority)
-    for j = 1, _gold_indices.n do
-        pcall(_loot_item, _gold_indices[j])
-    end
-
-    -- Loot items second
-    for j = 1, _item_indices.n do
-        pcall(_loot_item, _item_indices[j])
+    -- Pass 2: item slots (gold is already gone), again highest slot first. A slot whose
+    -- gold check fails is treated as an item, i.e. looted rather than left behind.
+    local count2_ok, count2 = pcall(_get_loot_item_count)
+    if count2_ok and type(count2) == "number" then
+        for i = count2 - 1, 0, -1 do
+            local is_gold_ok, is_gold = pcall(_get_loot_is_gold, i)
+            if not (is_gold_ok and is_gold) then
+                pcall(_loot_item, i)
+            end
+        end
     end
 
     -- Close loot window after processing

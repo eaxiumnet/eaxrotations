@@ -116,16 +116,20 @@ function M.maintenance_check()
     local ok, count = pcall(core.quests.get_num_quest_log_entries)
     if not ok or not count or count < _ABANDON_THRESHOLD then return 0 end
 
-    local grey = M.find_grey_quests()
-    if #grey == 0 then return 0 end
-
-    -- Abandon up to 3 grey quests per check (gentle)
+    -- Abandon up to 3 grey quests per check (gentle). The log is index addressed and
+    -- 1 based (game-ui.md:1455), and every abandonment REMOVES an entry, renumbering the
+    -- rest, so indexes captured in one scan are stale for the next abandon - a snapshot
+    -- walk ends up abandoning a quest that was never grey. Re-scan per step and act on
+    -- the index that read just returned; the blacklist (_abandoned_quest_ids) stops the
+    -- next scan from re-picking the same quest.
     local abandoned = 0
-    for i = 1, math.min(#grey, 3) do
-        local q = grey[i]
-        if M.abandon_quest(q.quest_id, q.index) then
-            abandoned = abandoned + 1
-        end
+    for _ = 1, 3 do
+        local grey = M.find_grey_quests()
+        if #grey == 0 then break end
+
+        local q = grey[1]
+        if not M.abandon_quest(q.quest_id, q.index) then break end
+        abandoned = abandoned + 1
     end
 
     return abandoned

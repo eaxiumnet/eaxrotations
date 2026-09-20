@@ -15,6 +15,10 @@ local _mock_time = 0
 M._player = nil
 M._objects = {}
 M._loot_items = {}
+M._loot_compacts = false   -- true: looting a slot removes it and the rest renumber
+M._looted_names = {}       -- names actually looted, in order
+M._quest_log_compacts = false  -- true: abandoning removes the entry and the rest renumber
+M._pending_abandon_index = nil
 M._vendor_items = {}
 M._trainer_services = {}
 M._gossip_available = {}
@@ -66,6 +70,10 @@ function M.reset()
     M._battlefield_status = {}
     M._quest_log = {}
     M._battlefield_status = {}
+    M._loot_compacts = false
+    M._looted_names = {}
+    M._quest_log_compacts = false
+    M._pending_abandon_index = nil
 end
 
 function M.get_time() return _mock_time end
@@ -218,6 +226,16 @@ M.input = {
     end,
     loot_item = function(index)
         M._input_calls[#M._input_calls + 1] = { "loot_item", index }
+        -- Loot indexes are 0 based on every build (core.lua get_loot_item_count:
+        -- "running 0 to this count minus 1"; confirm_loot_slot: "matching
+        -- core.input.loot_item"), which is why the fixture is read at index + 1.
+        local item = M._loot_items[index + 1]
+        if item then
+            M._looted_names[#M._looted_names + 1] = item.name
+            if M._loot_compacts then
+                table.remove(M._loot_items, index + 1)
+            end
+        end
     end,
     close_loot = function()
         M._input_calls[#M._input_calls + 1] = { "close_loot" }
@@ -314,9 +332,17 @@ M.quests = {
     get_quest_log_title = function(index) return M._quest_log[index] or nil end,
     set_abandon_quest = function(index)
         M._input_calls[#M._input_calls + 1] = { "set_abandon_quest", index }
+        -- abandon_quest() confirms whatever was marked here, so remember it.
+        M._pending_abandon_index = index
     end,
     abandon_quest = function()
         M._input_calls[#M._input_calls + 1] = { "abandon_quest" }
+        -- The quest log is index addressed and 1 based (game-ui.md:1455). Real
+        -- abandonment removes the entry, so model that when asked to.
+        if M._quest_log_compacts and M._pending_abandon_index then
+            table.remove(M._quest_log, M._pending_abandon_index)
+        end
+        M._pending_abandon_index = nil
     end,
     get_trainer_service_info = function(index) return M._trainer_services[index] or nil end,
     get_trainer_service_cost = function(index)

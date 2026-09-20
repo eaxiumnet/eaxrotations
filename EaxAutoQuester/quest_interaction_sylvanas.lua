@@ -451,8 +451,10 @@ function M.handle_any_frame(step_text)
     -- Priority 1: Loot frame — auto-loot all
     local ok_loot, loot_count = pcall(function() return _game_ui.get_loot_item_count() end)
     if ok_loot and loot_count and loot_count > 0 then
-        -- Auto-loot all available items
-        for i = 1, loot_count do
+        -- Auto-loot all available items. Loot slots are 0 BASED (.api/core.lua:1025),
+        -- and taking a slot compacts the window, so walk DOWNWARD: a lower slot is never
+        -- shifted by removing a higher one.
+        for i = loot_count - 1, 0, -1 do
             pcall(function() _input.loot_item(i) end)
         end
         pcall(function() _input.close_loot() end)
