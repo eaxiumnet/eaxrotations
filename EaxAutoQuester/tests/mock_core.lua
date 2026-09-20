@@ -39,6 +39,9 @@ M._questie_npcs = {}
 M._frames = {}
 M._graphics_calls = {}
 M._input_calls = {}
+-- Every confirm input answers true by default; set false to model a client whose confirm call
+-- was not reached.
+M._confirm_answered = true
 
 -- ============================================================================
 -- Reset
@@ -83,6 +86,9 @@ function M.reset()
     M._game_event_callback = nil
     M._game_event_registrations = 0
     M._game_event_raises = false
+    M._confirm_answered = true
+    M._helper_capacity = nil
+    M._helper_used = nil
 end
 
 function M.get_time() return _mock_time end
@@ -277,6 +283,16 @@ M.input = {
     use_item_position = function(item_id, position)
         M._input_calls[#M._input_calls + 1] = { "use_item_position", item_id, position }
     end,
+    -- Confirm inputs (item 14). Both return the documented `ran` boolean, and
+    -- M._confirm_answered lets a suite model a client that did not reach its confirm call.
+    confirm_loot_slot = function(loot_slot)
+        M._input_calls[#M._input_calls + 1] = { "confirm_loot_slot", loot_slot }
+        return M._confirm_answered
+    end,
+    confirm_binder = function()
+        M._input_calls[#M._input_calls + 1] = { "confirm_binder" }
+        return M._confirm_answered
+    end,
     has_dungeon_proposal = function()
         return M._dungeon_proposal
     end,
@@ -398,6 +414,79 @@ M.spell_book = {
 
 M._bag_slots = { [0] = 16, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }  -- backpack 16, others default 0 (no bag equipped)
 
+-- ============================================================================
+-- common/utility/inventory_helper stand-in (item 14)
+-- ============================================================================
+
+-- The plugin reads bag slots and bag-space totals from the documented owner of both
+-- (.api/core.lua:889 - "common/utility/inventory_helper.lua owns that conversion and is the
+-- supported way to get a usable pair"), so the harness provides it. bag_slot is deliberately
+-- NOT the raw core.inventory slot_id: it carries BAG_SLOT_SHIFT, so a regression that passes
+-- the raw slot_id (or the snapshot position) fails instead of coincidentally matching.
+local BAG_SLOT_SHIFT = 7
+
+--- slot_data list for the current bag fixtures, with the documented (bag_id, bag_slot) pair.
+--- @return table[]
+function M.build_bag_slots()
+    local slots = {}
+    for bag_id = 0, 4 do
+        local items = M._bag_items[bag_id] or {}
+        for index = 1, #items do
+            local item = items[index]
+            slots[#slots + 1] = {
+                item = item.object,
+                bag_id = bag_id,
+                bag_slot = index + BAG_SLOT_SHIFT,
+                global_slot = bag_id * 100 + index,
+                stack_count = 1,
+            }
+        end
+    end
+    return slots
+end
+
+--- Capacity/used the stand-in reports. nil derives them from the raw fixtures; a suite can
+--- set them to model the helper's own layout knowledge (its totals cover the backpack, which
+--- core.inventory.get_num_bag_slots(0) never does — it answers 0 on every build).
+M._helper_capacity = nil
+M._helper_used = nil
+
+function M.helper_capacity()
+    if M._helper_capacity then return M._helper_capacity end
+    local total = 0
+    for bag_id = 0, 4 do total = total + (M._bag_slots[bag_id] or 0) end
+    return total
+end
+
+function M.helper_used()
+    if M._helper_used then return M._helper_used end
+    local used = 0
+    for bag_id = 0, 4 do used = used + #(M._bag_items[bag_id] or {}) end
+    return used
+end
+
+--- Register the stand-in as the module require() resolves.
+function M.install_inventory_helper()
+    package.loaded["common/utility/inventory_helper"] = {
+        get_character_bag_slots = function() return M.build_bag_slots() end,
+        get_all_slots = function() return M.build_bag_slots() end,
+        get_total_bag_capacity = function() return M.helper_capacity() end,
+        get_total_used_slots = function() return M.helper_used() end,
+        get_total_free_slots = function()
+            local free = M.helper_capacity() - M.helper_used()
+            if free < 0 then free = 0 end
+            return free
+        end,
+    }
+end
+
+--- Remove the stand-in. Only meaningful BEFORE production code resolves it: a successful
+--- resolve is cached (deliberately), a missing one is not, so an absent-then-present pair of
+--- checks in that order sees both branches.
+function M.uninstall_inventory_helper()
+    package.loaded["common/utility/inventory_helper"] = nil
+end
+
 M.inventory = {
     get_gold = function() return M._gold end,
     get_total_repair_cost = function() return M._repair_cost end,
@@ -484,6 +573,10 @@ function M.install()
     -- Make core.time a function so modules that cache it can call it
     M.time = function() return _mock_time end
     _G.core = M
+    -- The documented client mini-lib the plugin reads bag slots and bag-space totals from.
+    -- Suites that need the "mini-lib absent" branch call M.uninstall_inventory_helper()
+    -- BEFORE any production code resolves it (a successful resolve is cached on purpose).
+    M.install_inventory_helper()
 end
 
 function M.uninstall()

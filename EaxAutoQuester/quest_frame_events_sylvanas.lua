@@ -163,6 +163,20 @@ function M.on_game_event(name, args)
     end
 end
 
+--- Read and clear the last recorded bind-confirm prompt, when it is the one asked for.
+--- Additive read of state this module already records: it does not touch the pulse, the
+--- frame classification or the polling path. The caller decides whether the prompt answers
+--- an action of its own (item 14) — this module never answers a prompt itself.
+--- @param name string|nil Event name to match, or nil for whatever was recorded.
+--- @return table|nil record { name = string, args = table|nil }
+function M.take_confirm(name)
+    local record = _last_confirm
+    if not record then return nil end
+    if name and record.name ~= name then return nil end
+    _last_confirm = nil
+    return record
+end
+
 --- Read and clear the pulse. The coordinator calls this once per tick, before dispatching,
 --- so a pulse is worth exactly one tick: it can never be acted on after the frame that
 --- raised it has gone, and an unread pulse cannot accumulate.

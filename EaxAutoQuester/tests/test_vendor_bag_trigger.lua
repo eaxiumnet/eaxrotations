@@ -185,14 +185,29 @@ do
     mock._input_calls = {}
     local sold = vendor_manager.sell_junk()
     assert(sold >= 1, "S4c FAIL: sell_junk should sell at least 1 item with flag. Got sold=" .. tostring(sold))
-    -- Verify a use_container_item call was recorded for bag 0
+    -- Verify the sale names the item through the documented (bag_id, bag_slot) pair. The raw
+    -- core.inventory slot_id (300 here) must never reach use_container_item: "Passing a raw
+    -- slot_id straight from get_items_in_bag targets the item NEXT to the one you meant"
+    -- (.api/core.lua:1749-1750) — in a sale, someone else's item.
     local sell_calls = 0
+    local sell_bag, sell_slot = nil, nil
     for _, call in ipairs(mock._input_calls) do
-        if call[1] == "use_container_item" then sell_calls = sell_calls + 1 end
+        if call[1] == "use_container_item" then
+            sell_calls = sell_calls + 1
+            sell_bag, sell_slot = call[2], call[3]
+        end
     end
     assert(sell_calls >= 1,
         "S4c FAIL: sell_junk should make use_container_item calls. Got " .. tostring(sell_calls))
-    print("  S4c PASS: sell_junk sells green item aggressively when flag set")
+    local pair = mock.build_bag_slots()[1]
+    assert(sell_bag == pair.bag_id,
+        "S4d FAIL: bag_id should come from inventory_helper; got " .. tostring(sell_bag))
+    assert(sell_slot == pair.bag_slot,
+        "S4e FAIL: bag_slot should come from inventory_helper (" .. tostring(pair.bag_slot) ..
+        "), got " .. tostring(sell_slot))
+    assert(sell_slot ~= make_item(300).slot_id,
+        "S4f FAIL: the raw core.inventory slot_id must never be passed as the bag slot")
+    print("  S4c PASS: sell_junk sells through the documented (bag_id, bag_slot) pair")
 end
 
 -- ============================================================================

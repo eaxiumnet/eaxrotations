@@ -13,6 +13,7 @@ return {
         "test_auto_equip.lua",
         "test_class_faction_filter.lua",
         "test_combat_helper.lua",
+        "test_confirm_inputs.lua",
         "test_coordinator.lua",
         "test_dead_state.lua",
         "test_death_tracker.lua",

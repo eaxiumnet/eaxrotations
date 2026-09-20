@@ -3,11 +3,15 @@
 -- Why: Automate vendor interactions — repair gear, sell junk, buy quest items
 -- Safety: All vendor access nil-guarded via pcall; static table reuse for vendor item list
 -- Decision: Standalone module (not EaxRotations), caches core API at load
+-- API shapes (item 14): selling reads its (bag_id, bag_slot) pair from the documented owner
+--     (common/utility/inventory_helper) because a raw core.inventory slot_id names the item
+--     NEXT to the one meant; buying passes the 1-based index the vendor list was READ with
+--     (the documented base for core.input.buy_item) instead of the undocumented
+--     vendor_item_index field or the position of a compacted snapshot.
 
 -- Hot-path API caching at module load (Pattern 2 from AGENTS.md)
 local _get_total_repair_cost = core.inventory.get_total_repair_cost
 local _get_gold = core.inventory.get_gold
-local _get_items_in_bag = core.inventory.get_items_in_bag
 local _get_vendor_item_count = core.game_ui.get_vendor_item_count
 local _get_vendor_item_info = core.game_ui.get_vendor_item_info
 local _repair_all_items = core.input.repair_all_items
@@ -15,13 +19,60 @@ local _buy_item = core.input.buy_item
 local _use_container_item = core.input.use_container_item
 local _get_item_info = core.quests.get_item_info
 local _core_log = core.log
-local _core_time = core.time
 
 -- Static table reuse for vendor item list building (Pattern 4 from AGENTS.md)
 local _t = { n = 0 }
+-- Lockstep companion to _t: the 1-based vendor index each snapshot entry was READ with.
+local _t_index = { n = 0 }
 
--- Bag IDs: 0 = backpack, 1-4 = equipped bags
-local BAG_IDS = { 0, 1, 2, 3, 4 }
+-- The documented owner of the (bag_id, bag_slot) pair. Cached on success only, so a build
+-- that loads the mini-lib late still picks it up.
+local _inv_helper = nil
+local function get_inventory_helper()
+    if _inv_helper then return _inv_helper end
+    local ok, mod = pcall(require, "common/utility/inventory_helper")
+    if ok and type(mod) == "table" then _inv_helper = mod end
+    return _inv_helper
+end
+
+--- Character-bag slots, as the documented owner reports them.
+---
+--- core.input.use_container_item's arguments "are the bag_id and bag_slot that
+--- common/utility/inventory_helper.lua hands you; that module owns the shift from the raw
+--- core.inventory.get_items_in_bag slot_id and is the supported way to get this pair. Passing a
+--- raw slot_id straight from get_items_in_bag targets the item NEXT to the one you meant"
+--- (.api/core.lua:1747-1750). In a sale that means selling an item nobody chose, and
+--- get_items_in_bag(0) is not even the backpack — it is the whole player container, worn gear
+--- and the bag objects included (:859-876) — so the raw scan also offered equipped gear up as
+--- junk. When the mini-lib is absent the honest answer is "no slots", not a raw slot_id.
+--- @return table[]|nil
+local function get_bag_slots()
+    local helper = get_inventory_helper()
+    if not helper or type(helper.get_character_bag_slots) ~= "function" then return nil end
+    local ok, slots = pcall(helper.get_character_bag_slots, helper)
+    if not ok or type(slots) ~= "table" then return nil end
+    return slots
+end
+
+--- Item id of one slot_data entry; nil when the entry carries nothing readable.
+--- @param slot table|nil
+--- @return integer|nil
+local function slot_item_id(slot)
+    local item = slot and slot.item
+    if not item then return nil end
+    local ok_id, item_id = pcall(function() return item:get_item_id() end)
+    if not ok_id or type(item_id) ~= "number" then return nil end
+    return item_id
+end
+
+--- Whether a slot is one of the containers the pair convention covers (0 = backpack, 1-4 =
+--- the equipped bags). Anything else is not something this module may sell out of.
+--- @param slot table|nil
+--- @return boolean
+local function is_character_bag(slot)
+    local bag_id = slot and slot.bag_id
+    return type(bag_id) == "number" and bag_id >= 0 and bag_id <= 4
+end
 
 -- Grey item quality = 0 (Poor)
 local QUALITY_GREY = 0
@@ -53,18 +104,16 @@ local function should_sell_junk()
     local force = ns and ns._force_vendor_soon
     local max_quality = force and QUALITY_GREEN or QUALITY_GREY
 
-    for _, bag_id in ipairs(BAG_IDS) do
-        local ok, items = pcall(_get_items_in_bag, bag_id)
-        if ok and items then
-            for _, item in ipairs(items) do
-                if item and item.object and item.object.get_item_id then
-                    local item_id = item.object:get_item_id()
-                    if item_id and item_id > 0 then
-                        local info_ok, info = pcall(_get_item_info, item_id)
-                        if info_ok and info and (info.quality or 0) <= max_quality then
-                            return true
-                        end
-                    end
+    local slots = get_bag_slots()
+    if not slots then return false end
+
+    for _, slot in ipairs(slots) do
+        if is_character_bag(slot) then
+            local item_id = slot_item_id(slot)
+            if item_id and item_id > 0 then
+                local info_ok, info = pcall(_get_item_info, item_id)
+                if info_ok and info and (info.quality or 0) <= max_quality then
+                    return true
                 end
             end
         end
@@ -79,29 +128,34 @@ end
 --- Sell junk items in inventory to the open vendor.
 --- Normal mode: grey only. Aggressive mode (force flag): up to green.
 --- Uses use_container_item which sells items when vendor frame is open.
+--- Identity comes from the documented (bag_id, bag_slot) pair, never from a raw
+--- core.inventory slot_id (see get_bag_slots). The count is the number of sell attempts the
+--- client was asked to make — use_container_item has no documented result to confirm a sale
+--- with, so it stays what it always was.
 --- @return number count Number of items sold
 local function sell_junk()
     local ns = _G.EaxAutoQuester
     local force = ns and ns._force_vendor_soon
     local max_quality = force and QUALITY_GREEN or QUALITY_GREY
 
+    local slots = get_bag_slots()
+    if not slots then
+        if _core_log then
+            _core_log("[EaxAutoQuester] inventory_helper unavailable - not selling (a raw slot_id names the wrong item)")
+        end
+        return 0
+    end
+
     local count = 0
-    for _, bag_id in ipairs(BAG_IDS) do
-        local ok, items = pcall(_get_items_in_bag, bag_id)
-        if ok and items then
-            -- Process in reverse order so slot shifts don't affect remaining items
-            for i = #items, 1, -1 do
-                local item = items[i]
-                if item and item.object and item.object.get_item_id then
-                    local item_id = item.object:get_item_id()
-                    if item_id and item_id > 0 then
-                        local info_ok, info = pcall(_get_item_info, item_id)
-                        if info_ok and info and (info.quality or 0) <= max_quality then
-                            local sell_ok = pcall(_use_container_item, bag_id, item.slot_id)
-                            if sell_ok then
-                                count = count + 1
-                            end
-                        end
+    for _, slot in ipairs(slots) do
+        if is_character_bag(slot) then
+            local item_id = slot_item_id(slot)
+            if item_id and item_id > 0 then
+                local info_ok, info = pcall(_get_item_info, item_id)
+                if info_ok and info and (info.quality or 0) <= max_quality then
+                    local sell_ok = pcall(_use_container_item, slot.bag_id, slot.bag_slot)
+                    if sell_ok then
+                        count = count + 1
                     end
                 end
             end
@@ -125,13 +179,20 @@ local function buy_quest_items(quest_items)
 
     local bought = 0
 
-    -- Build vendor item list into static reuse table (Pattern 4)
+    -- Build vendor item list into static reuse table (Pattern 4), each entry carrying the
+    -- 1-based index it was READ with. Both readers and the buyer share one base: the vendor
+    -- list is 1-based (.api/core.lua:1272 - "vendor_item_id is 1-indexed (internally adjusted
+    -- to 0-indexed)") and core.input.buy_item's index is 1-based too (docs "Vendor
+    -- Interaction": "The vendor item index (1-based)"). The struct field vendor_item_index has
+    -- no documented base, and the snapshot POSITION was wrong the moment a read failed: the
+    -- list compacts and every later position then names an earlier vendor slot.
     _t.n = 0
     for i = 1, vendor_count do
         local info_ok, info = pcall(_get_vendor_item_info, i)
         if info_ok and info then
             _t.n = _t.n + 1
             _t[_t.n] = info
+            _t_index[_t.n] = i
         end
     end
 
@@ -144,7 +205,7 @@ local function buy_quest_items(quest_items)
             for j = 1, _t.n do
                 local vendor_item = _t[j]
                 if vendor_item and vendor_item.item_name and vendor_item.item_name:lower() == target_name then
-                    local index = vendor_item.vendor_item_index or j
+                    local index = _t_index[j]
                     local buy_ok = pcall(_buy_item, index, quantity)
                     if buy_ok then
                         bought = bought + 1
@@ -156,8 +217,9 @@ local function buy_quest_items(quest_items)
         end
     end
 
-    -- Clear static table
+    -- Clear static tables
     _t.n = 0
+    _t_index.n = 0
     return bought
 end
 

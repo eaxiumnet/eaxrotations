@@ -3,6 +3,11 @@
 -- Why: Centralize loot logic with gold priority, throttle, and nil-guards
 -- Safety: All game_ui/input calls pcall-wrapped; static table reuse; 0.5s throttle via utils
 -- Decision: Standalone module (not EaxRotations), caches core API at load
+-- API shapes (item 14): loot_object is UNITS AND CORPSES ONLY and refuses everything else, so
+--     containers go through use_object; loot indices are 0 based; bag-space numbers come from
+--     common/utility/inventory_helper, the documented owner of both them and the (bag_id,
+--     bag_slot) pair, because the raw core.inventory bindings are shifted against each other
+--     and get_items_in_bag(0) is the whole player container, not the backpack.
 
 -- Hot-path API caching at module load (Pattern 2 from AGENTS.md)
 local _core_time = core.time
@@ -14,11 +19,16 @@ local _get_loot_is_gold = core.game_ui.get_loot_is_gold
 local _loot_item = core.input.loot_item
 local _close_loot = core.input.close_loot
 local _loot_object = core.input.loot_object
+local _use_object = core.input.use_object
+local _confirm_loot_slot = core.input.confirm_loot_slot
 local _get_visible_objects = core.object_manager.get_visible_objects
 local _get_local_player = core.object_manager.get_local_player
 
 -- Static table reuse (Pattern 4 from AGENTS.md) — avoids per-frame GC churn
 local _t = { n = 0 }
+-- Lockstep companion to _t: true at an index means that object is a container (chest, herb or
+-- ore node, bobber) and has to be opened with use_object rather than loot_object.
+local _t_is_container = { n = 0 }
 
 -- ============================================================================
 -- Module Table
@@ -44,6 +54,32 @@ end
 -- ============================================================================
 -- try_loot — process currently open loot window
 -- ============================================================================
+
+--- Answer a bind-on-pickup prompt the client is holding for a slot this pass looted.
+--- This is the plugin's own action: the window only gets here because the plugin looted
+--- every slot it found, and taking a BoP item is what raises the prompt. It is answered
+--- only from inside that emptying pass, so a prompt the player raised by looting by hand is
+--- left alone for the player to answer.
+--- The slot comes from the recorded event and needs the documented conversion: "WoW's own
+--- LOOT_BIND_CONFIRM event reports the 1 BASED slot, so forwarding args[1] straight from that
+--- event confirms the wrong slot: subtract one first" (core.input.confirm_loot_slot).
+--- @return boolean confirmed True when a prompt was answered
+local function answer_loot_bind_confirm()
+    local bridge_ok, bridge = pcall(require, "quest_frame_events_sylvanas")
+    if not bridge_ok or type(bridge) ~= "table" or type(bridge.take_confirm) ~= "function" then
+        return false
+    end
+    local ok_rec, record = pcall(bridge.take_confirm, "LOOT_BIND_CONFIRM")
+    if not ok_rec or not record or type(record.args) ~= "table" then return false end
+    local one_based = tonumber(record.args[1])
+    if not one_based then return false end
+    if not _confirm_loot_slot then return false end
+    local ok = pcall(_confirm_loot_slot, one_based - 1)
+    if ok and _core_log then
+        _core_log("[EaxAutoQuester] Confirmed bind-on-pickup loot slot " .. tostring(one_based - 1))
+    end
+    return ok
+end
 
 --- Empty the currently open loot window. THE single owner of that behavior: the live
 --- frame branch (quest_interaction_sylvanas.handle_any_frame, priority 1) and
@@ -89,6 +125,13 @@ function M.try_loot()
         end
     end
 
+    -- A BoP slot is held open by a bind prompt: answer it and LEAVE THE WINDOW OPEN, so the
+    -- next tick takes the item the client has just released. Closing here would drop it —
+    -- the item never entered the bags, and the window taking it away is the only record.
+    if answer_loot_bind_confirm() then
+        return true, count
+    end
+
     -- Close loot window after processing
     pcall(_close_loot)
 
@@ -99,30 +142,49 @@ end
 -- Internal: compute bag fullness percentage (0-100)
 -- ============================================================================
 
---- Bag capacity snapshot from the two inventory APIs that actually exist
---- (core.inventory.get_num_bag_slots / get_items_in_bag — there is no
---- get_num_free_slots in the runtime API surface).
+--- The documented owner of the bag-slot pair and of the bag-space numbers:
+--- "common/utility/inventory_helper.lua owns that conversion and is the supported way to get a
+--- usable pair" (.api/core.lua:889-890). Cached on success only, so a build that loads the
+--- mini-lib late still picks it up.
+local _inv_helper = nil
+local function get_inventory_helper()
+    if _inv_helper then return _inv_helper end
+    local ok, mod = pcall(require, "common/utility/inventory_helper")
+    if ok and type(mod) == "table" then _inv_helper = mod end
+    return _inv_helper
+end
+
+--- Bag capacity snapshot, read from the documented owner of those numbers.
+---
+--- The previous version paired core.inventory.get_items_in_bag(N) with
+--- get_num_bag_slots(N), which the runtime docs call out as a silent mistake: the two bindings
+--- are shifted by one ("the pairing you want is get_num_bag_slots(N) alongside
+--- get_items_in_bag(N - 1). Passing the same number to both asks about two different bags and
+--- the mistake is silent", :906-909), and get_num_bag_slots(0) fails an internal range guard
+--- and answers 0 on every build (:923-929). get_items_in_bag(0) is not the backpack either —
+--- it is the whole player container, equipped gear and the bag objects included, with the
+--- backpack proper starting at BAG_1_REAL_START (:859-876) — so the used count carried worn
+--- gear while the total was missing a bag. inventory_helper owns both numbers, and its
+--- get_total_free_slots / get_total_bag_capacity / get_total_used_slots are the documented read.
 --- Returns nil when the inventory cannot be read, so callers can tell
 --- "unknown" apart from "known empty".
 --- @return integer|nil free_slots
 --- @return integer|nil total_slots
 --- @return integer|nil used_slots
 local function get_bag_space()
-    local total_slots = 0
-    local used_slots = 0
-    for bag_id = 0, 4 do
-        local ok, slots = pcall(core.inventory.get_num_bag_slots, bag_id)
-        if ok and type(slots) == "number" then
-            total_slots = total_slots + slots
-            local ok_items, items = pcall(core.inventory.get_items_in_bag, bag_id)
-            if ok_items and type(items) == "table" then
-                used_slots = used_slots + #items
-            end
-        end
-    end
-    if total_slots <= 0 then return nil, nil, nil end
-    local free_slots = total_slots - used_slots
+    local helper = get_inventory_helper()
+    if not helper then return nil, nil, nil end
+
+    local ok_free, free_slots = pcall(helper.get_total_free_slots, helper)
+    local ok_total, total_slots = pcall(helper.get_total_bag_capacity, helper)
+    if not ok_free or type(free_slots) ~= "number" then return nil, nil, nil end
+    if not ok_total or type(total_slots) ~= "number" or total_slots <= 0 then return nil, nil, nil end
     if free_slots < 0 then free_slots = 0 end
+
+    local ok_used, used_slots = pcall(helper.get_total_used_slots, helper)
+    if not ok_used or type(used_slots) ~= "number" then
+        used_slots = total_slots - free_slots
+    end
     return free_slots, total_slots, used_slots
 end
 
@@ -176,6 +238,9 @@ function M.auto_loot_all(range)
             -- Check if object can be looted
             local can_loot_ok, can_loot = pcall(function() return obj:can_be_looted() end)
             if can_loot_ok and can_loot then
+                -- Only an object proven NOT to be a unit is routed to use_object; a failed
+                -- is_unit() keeps the object on loot_object, which is what it got before.
+                local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
                 -- Check distance (squared, no math.sqrt — Pattern 3)
                 local pos_ok, pos = pcall(function() return obj:get_position() end)
                 if pos_ok and pos then
@@ -189,6 +254,7 @@ function M.auto_loot_all(range)
                     if dist_sq <= max_range_sq then
                         _t.n = _t.n + 1
                         _t[_t.n] = obj
+                        _t_is_container[_t.n] = (unit_ok and is_unit == false) or false
                     end
                 end
             end
@@ -197,12 +263,18 @@ function M.auto_loot_all(range)
 
     if _t.n < 1 then return false end
 
-    -- Process each lootable object
+    -- Process each lootable object. The opener is chosen per object because the two APIs are
+    -- documented for different kinds: loot_object is "UNITS AND CORPSES ONLY. The native path
+    -- rejects anything that is not a unit and answers false straight away, so a fishing
+    -- bobber, chest, herb node or ore node cannot be looted through this" (.api/core.lua:2121),
+    -- while use_object is "the entry point for world objects rather than units: fishing
+    -- bobbers, chests, herb and ore nodes, mailboxes" (:2143). A chest handed to loot_object
+    -- answered false, left the container shut, and was still counted as handled.
     for j = 1, _t.n do
         local obj = _t[j]
-        -- Open loot window via loot_object
-        local loot_ok = pcall(_loot_object, obj)
-        if loot_ok then
+        local opener = _t_is_container[j] and _use_object or _loot_object
+        local opened = opener and pcall(opener, obj)
+        if opened then
             -- Process the loot window contents
             M.try_loot()
         end

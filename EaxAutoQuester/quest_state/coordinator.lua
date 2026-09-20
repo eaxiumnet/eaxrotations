@@ -324,11 +324,29 @@ end
 -- Public API
 -- ============================================================================
 
+--- Answer the engine prompts the plugin's own actions raised (item 14). CONFIRM_BINDER
+--- follows the innkeeper bind gossip option service_gossip selects itself; the prompt outlives
+--- the gossip frame, so it cannot be answered from INTERACT and has to come from this seam,
+--- which runs on every tick whatever the state.
+local _service_gossip = nil
+local function answer_own_prompts()
+    if not _service_gossip then
+        local ok, mod = pcall(require, "service_gossip_sylvanas")
+        if ok and type(mod) == "table" then _service_gossip = mod end
+    end
+    if _service_gossip and type(_service_gossip.answer_bind_confirm) == "function" then
+        pcall(_service_gossip.answer_bind_confirm)
+    end
+end
+
 --- Called each on_pre_tick — runs current state logic.
 --- Reads debug flag from menu each tick.
 function M.update()
     -- Ensure utils loaded (needed by most state functions)
     ensure_utils()
+
+    -- Engine prompts raised by the plugin's own actions (never by the player's).
+    answer_own_prompts()
 
     -- Refresh debug flag from menu each tick
     local menu = ensure_menu()
