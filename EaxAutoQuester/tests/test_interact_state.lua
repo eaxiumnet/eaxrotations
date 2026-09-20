@@ -66,5 +66,94 @@ assert(took["First"] == 1 and took["Second"] == 1 and #mock._looted_names == 2,
     table.concat(mock._looted_names, ","))
 print("  loot branch PASS: 0-based slots, compacting window, both items looted")
 
+-- ============================================================================
+-- Trainer frame: the offer list carries no id (.api/core.lua:4379-4383 — only
+-- spell_name/rank/category), and the docs never say whether buying removes the
+-- service from the list (quests.md:881-941). So the walk must be correct under
+-- BOTH: re-read the offers per step and act on the index that read returned.
+-- Names are deliberately not in list order, so a walk that buys by position
+-- instead of by identity cannot produce the expected set.
+-- ============================================================================
+
+-- S-T1: list does NOT compact — behaviour must match the single-pass walk exactly
+mock.reset()
+mock._player = mock.create_player({ pos = {x=0, y=0, z=0} })
+mock._gold = 500
+mock._trainer_services = {
+    { spell_name = "Ice Lance",        cost = 100 },   -- index 1, affordable
+    { spell_name = "Blink",            cost = 0   },   -- index 2, free -> skipped
+    { spell_name = "Frostbolt",        cost = 250 },   -- index 3, affordable
+    { spell_name = "Arcane Brilliance", cost = 9000 },  -- index 4, unaffordable
+}
+mock._trainer_compacts = false
+mock._input_calls = {}
+
+local trainer_action = quest_interaction.handle_trainer()
+assert(trainer_action == "trainer:2spells(1:Ice Lance,3:Frostbolt)",
+    "S-T1a FAIL: stable list should buy the two affordable services in index order, got " ..
+    tostring(trainer_action))
+assert(#mock._trainer_bought_names == 2
+    and mock._trainer_bought_names[1] == "Ice Lance"
+    and mock._trainer_bought_names[2] == "Frostbolt",
+    "S-T1b FAIL: bought " .. table.concat(mock._trainer_bought_names, ","))
+local buy_indexes = {}
+for _, call in ipairs(mock._input_calls) do
+    if call[1] == "buy_trainer_service" then buy_indexes[#buy_indexes + 1] = call[2] end
+end
+assert(#buy_indexes == 2 and buy_indexes[1] == 1 and buy_indexes[2] == 3,
+    "S-T1c FAIL: expected buys at indexes 1,3 got " .. table.concat(buy_indexes, ","))
+print("  trainer stable PASS: same buys, same order, same report")
+
+-- S-T2: list DOES compact — every service must still be bought exactly once
+mock.reset()
+mock._player = mock.create_player({ pos = {x=0, y=0, z=0} })
+mock._gold = 1000
+mock._trainer_services = {
+    { spell_name = "Frostbolt", cost = 100 },
+    { spell_name = "Blink",     cost = 100 },
+    { spell_name = "Ice Lance", cost = 100 },
+}
+mock._trainer_compacts = true
+mock._input_calls = {}
+
+trainer_action = quest_interaction.handle_trainer()
+local bought = {}
+for _, name in ipairs(mock._trainer_bought_names) do bought[name] = (bought[name] or 0) + 1 end
+assert(bought["Frostbolt"] == 1 and bought["Blink"] == 1 and bought["Ice Lance"] == 1
+    and #mock._trainer_bought_names == 3,
+    "S-T2a FAIL: a compacting list must still buy all 3 services, bought: " ..
+    table.concat(mock._trainer_bought_names, ","))
+assert(#mock._trainer_services == 0,
+    "S-T2b FAIL: the offer list should be empty, " .. tostring(#mock._trainer_services) .. " left")
+local prefix = "trainer:3spells("
+assert(type(trainer_action) == "string" and trainer_action:sub(1, #prefix) == prefix,
+    "S-T2c FAIL: expected a 3spells report, got " .. tostring(trainer_action))
+print("  trainer compacting PASS: every service bought once, none skipped")
+
+-- S-T3: compacting list, tight gold — the step must re-check affordability against
+-- the list as it now stands, so it can never buy a service it did not select
+mock.reset()
+mock._player = mock.create_player({ pos = {x=0, y=0, z=0} })
+mock._gold = 200
+mock._trainer_services = {
+    { spell_name = "Frostbolt",         cost = 100 },   -- affordable
+    { spell_name = "Arcane Brilliance", cost = 9000 },  -- never affordable
+    { spell_name = "Blink",             cost = 100 },   -- affordable, shifts to index 2
+    { spell_name = "Ice Lance",         cost = 100 },   -- unaffordable once gold is spent
+}
+mock._trainer_compacts = true
+mock._input_calls = {}
+
+trainer_action = quest_interaction.handle_trainer()
+bought = {}
+for _, name in ipairs(mock._trainer_bought_names) do bought[name] = (bought[name] or 0) + 1 end
+assert(bought["Frostbolt"] == 1 and bought["Blink"] == 1 and #mock._trainer_bought_names == 2,
+    "S-T3a FAIL: expected Frostbolt+Blink only, bought: " ..
+    table.concat(mock._trainer_bought_names, ","))
+assert(not bought["Arcane Brilliance"] and not bought["Ice Lance"],
+    "S-T3b FAIL: bought a service that was not affordable: " ..
+    table.concat(mock._trainer_bought_names, ","))
+print("  trainer affordability PASS: only affordable, freshly selected services bought")
+
 print("PASS test_interact_state")
 os.exit(0)

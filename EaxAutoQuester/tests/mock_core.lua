@@ -19,6 +19,8 @@ M._loot_compacts = false   -- true: looting a slot removes it and the rest renum
 M._looted_names = {}       -- names actually looted, in order
 M._quest_log_compacts = false  -- true: abandoning removes the entry and the rest renumber
 M._pending_abandon_index = nil
+M._trainer_compacts = false    -- true: buying a service removes it and the rest renumber
+M._trainer_bought_names = {}   -- names actually bought, in order
 M._vendor_items = {}
 M._trainer_services = {}
 M._gossip_available = {}
@@ -74,6 +76,8 @@ function M.reset()
     M._looted_names = {}
     M._quest_log_compacts = false
     M._pending_abandon_index = nil
+    M._trainer_compacts = false
+    M._trainer_bought_names = {}
 end
 
 function M.get_time() return _mock_time end
@@ -351,6 +355,13 @@ M.quests = {
     end,
     buy_trainer_service = function(index)
         M._input_calls[#M._input_calls + 1] = { "buy_trainer_service", index }
+        -- Trainer services are addressed by index and carry no id, so record WHICH
+        -- service the index resolved to, then optionally model the list renumbering.
+        local service = M._trainer_services[index]
+        if service then M._trainer_bought_names[#M._trainer_bought_names + 1] = service.spell_name end
+        if M._trainer_compacts then
+            table.remove(M._trainer_services, index)
+        end
     end,
     get_item_info = function(id)
         return { quality = 0, sell_price = 1 }

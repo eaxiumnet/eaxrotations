@@ -400,6 +400,15 @@ end
 
 --- Handle trainer frame — buy all affordable unlearned spells.
 --- Checks player gold against each service cost before purchasing.
+---
+--- The docs do not say whether buying a service removes it from the offer list
+--- (quests.md, Trainer Functions), so the walk may not assume either way: a single
+--- pass over a captured count skips whatever shifts into an index already visited if
+--- the list compacts, and a plain re-scan would re-buy the same service if it does not.
+--- Each step therefore re-reads the offer list and buys the first affordable service it
+--- has not already bought, addressing it by the index that read just returned.
+--- "Already bought" is tracked by spell name, the only identifier a trainer_service_info
+--- carries (.api/core.lua:4379-4383 has no id field).
 --- @return string|nil Action description or nil if no trainer frame
 function M.handle_trainer()
     local ok_count, num_services = pcall(function() return _quests.get_num_trainer_services() end)
@@ -409,29 +418,44 @@ function M.handle_trainer()
     if player_gold < 1 then return nil end
 
     local bought_count = 0
+    local bought = {}   -- spell name -> true
     _t.n = 0
 
-    for i = 1, num_services do
-        -- Get service info
-        local ok_info, info = pcall(function() return _quests.get_trainer_service_info(i) end)
-        if not ok_info or not info then break end
+    -- A purchase can only remove an offer, never add one, so the list read on entry
+    -- bounds how many services this pass may buy.
+    for _ = 1, num_services do
+        local ok_n, n = pcall(function() return _quests.get_num_trainer_services() end)
+        if not ok_n or not n or n < 1 then break end
 
-        -- Get service cost
-        local ok_cost, cost = pcall(function() return _quests.get_trainer_service_cost(i) end)
-        if not ok_cost or not cost then break end
+        -- Pick a target from the list as it stands right now
+        local target_index, target_name, target_cost = nil, nil, nil
+        for i = 1, n do
+            local ok_info, info = pcall(function() return _quests.get_trainer_service_info(i) end)
+            if not ok_info or not info then break end
 
-        local service_cost = cost.service_cost or 0
+            local name = info.spell_name or ("service#" .. tostring(i))
+            if not bought[name] then
+                local ok_cost, cost = pcall(function() return _quests.get_trainer_service_cost(i) end)
+                local service_cost = (ok_cost and cost and cost.service_cost) or 0
 
-        -- Skip if too expensive
-        if service_cost > 0 and service_cost <= player_gold then
-            local ok_buy = pcall(function() _quests.buy_trainer_service(i) end)
-            if ok_buy then
-                bought_count = bought_count + 1
-                _t.n = _t.n + 1
-                _t[_t.n] = tostring(i) .. ":" .. (info.spell_name or "unknown")
-                player_gold = player_gold - service_cost
+                -- Skip free services and anything too expensive
+                if service_cost > 0 and service_cost <= player_gold then
+                    target_index, target_name, target_cost = i, name, service_cost
+                    break
+                end
             end
         end
+
+        if not target_index then break end
+
+        local ok_buy = pcall(function() _quests.buy_trainer_service(target_index) end)
+        if not ok_buy then break end
+
+        bought[target_name] = true
+        bought_count = bought_count + 1
+        _t.n = _t.n + 1
+        _t[_t.n] = tostring(target_index) .. ":" .. target_name
+        player_gold = player_gold - target_cost
     end
 
     if bought_count == 0 then return nil end
