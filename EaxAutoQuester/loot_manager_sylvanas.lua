@@ -45,7 +45,10 @@ end
 -- try_loot — process currently open loot window
 -- ============================================================================
 
---- Iterate all items in the open loot window.
+--- Empty the currently open loot window. THE single owner of that behavior: the live
+--- frame branch (quest_interaction_sylvanas.handle_any_frame, priority 1) and
+--- auto_loot_all both call this, so the 0-based range, the gold-first order and the
+--- compaction-safe walk exist in one place.
 --- Gold slots are looted first (priority), then the remaining item slots.
 --- Closes the window when done.
 ---
@@ -56,11 +59,14 @@ end
 ---  2. TAKING A SLOT COMPACTS THE WINDOW, so a captured list of slots goes stale. Walk
 ---     each pass DOWNWARD: removing a higher slot never shifts a lower one. The count is
 ---     re-read for the second pass for the same reason (vendor's sell loop does this too).
---- @return boolean true if loot window was processed successfully
+--- The set of slots looted does not depend on which way the window behaves, so both
+--- callers see the same result either way.
+--- @return boolean processed True when a loot window was open and has been emptied
+--- @return integer slots The slot count read on entry (0 when no window was open)
 function M.try_loot()
     local count_ok, count = pcall(_get_loot_item_count)
     if not count_ok or type(count) ~= "number" or count < 1 then
-        return false
+        return false, 0
     end
 
     -- Pass 1: gold (priority), classified against the live window, highest slot first
@@ -86,7 +92,7 @@ function M.try_loot()
     -- Close loot window after processing
     pcall(_close_loot)
 
-    return true
+    return true, count
 end
 
 -- ============================================================================

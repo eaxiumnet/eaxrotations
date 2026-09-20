@@ -21,6 +21,27 @@ local _game_ui = core.game_ui
 local _inventory = core.inventory
 local _input = core.input
 
+-- The loot module is the single owner of emptying a loot window (0-based slots, gold
+-- first, a walk that survives the window compacting) — loot_manager_sylvanas.try_loot.
+-- It is resolved once here and retried lazily, so no second copy of those index rules
+-- can grow back in this file.
+local _loot_manager = nil
+do
+    local ok, mod = pcall(require, "loot_manager_sylvanas")
+    if ok and mod then _loot_manager = mod end
+end
+
+--- @return table|nil The loot module, if it can be loaded.
+local function get_loot_manager()
+    if _loot_manager and _loot_manager.try_loot then return _loot_manager end
+    local ok, mod = pcall(require, "loot_manager_sylvanas")
+    if ok and mod and mod.try_loot then
+        _loot_manager = mod
+        return mod
+    end
+    return nil
+end
+
 -- ============================================================================
 -- Module Table
 -- ============================================================================
@@ -476,17 +497,15 @@ end
 --- @return string|nil Action description or nil if no frame handled
 function M.handle_any_frame(step_text)
     _core_log("[EaxAutoQuester-DEBUG] handle_any_frame: checking frames...")
-    -- Priority 1: Loot frame — auto-loot all
-    local ok_loot, loot_count = pcall(function() return _game_ui.get_loot_item_count() end)
-    if ok_loot and loot_count and loot_count > 0 then
-        -- Auto-loot all available items. Loot slots are 0 BASED (.api/core.lua:1025),
-        -- and taking a slot compacts the window, so walk DOWNWARD: a lower slot is never
-        -- shifted by removing a higher one.
-        for i = loot_count - 1, 0, -1 do
-            pcall(function() _input.loot_item(i) end)
+    -- Priority 1: Loot frame — emptied by its single owner, which reads the slot count,
+    -- loots gold first and walks downward so a compacting window cannot shift a slot that
+    -- has not been visited yet.
+    local loot_manager = get_loot_manager()
+    if loot_manager then
+        local looted, loot_count = loot_manager.try_loot()
+        if looted then
+            return "loot:" .. tostring(loot_count) .. "items"
         end
-        pcall(function() _input.close_loot() end)
-        return "loot:" .. tostring(loot_count) .. "items"
     end
 
     -- Priority 2: Gossip frame (quest interaction + service gossip)
