@@ -69,13 +69,22 @@ checked-out sources and the live `package.loaded` table:
 3. exactly one file under `quest_state/` owns the shared state table (`coordinator.lua`),
    every handler keeps the `function M.run(shared, ctx)` dispatch contract, and only the
    coordinator defines `update()` / `stop_navigation()`;
-4. no suite loads a plugin module through a path-prefixed identity — the suites and
-   production share one module table per file, so a suite cannot pass against a copy.
+4. neither a suite nor a production module loads anything through a path-prefixed
+   identity (`EaxAutoQuester/<module>`), and nothing is resident in `package.loaded`
+   under one — so every suite, and the machine itself, exercises exactly the table
+   production runs.
 
 Item 4 is the one that matters most in practice: before this phase, suites loaded
 `EaxAutoQuester/quest_state/idle_state` while the coordinator loaded `quest_state/idle_state`.
 Same file, two tables — so a stub or an assertion in a suite touched nothing the live machine
 used. Both spellings now resolve to one identity, and the runtime half of item 4 pins it.
+
+The same defect existed inside production and is now fixed there too: `goal_filter_sylvanas`,
+`quest_state/idle_state` and `quest_state/do_action_state` loaded `safe_api_wrapper`,
+`goal_filter_sylvanas`, `goal_resolver_sylvanas` and `quest_blacklist_sylvanas` prefixed while
+everything else loaded them bare. Beyond splitting caches, the prefixed spelling only resolves
+when the working directory is the install root, so those `pcall` loads could fail silently in
+game and drop the blacklist / dungeon-filter / abandon paths without a word.
 
 ### Retired behaviour
 

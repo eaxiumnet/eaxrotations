@@ -4,8 +4,9 @@
 --      suite loaded, while the suites covered a modular machine nothing required. This
 --      suite fails if that fork ever returns: main.lua must load only the modular machine,
 --      the retired loader must stay deleted, exactly one file may own the shared state
---      table, every handler must keep the run(shared, ctx) contract, and no suite may load
---      a private copy of a module production uses.
+--      table, every handler must keep the run(shared, ctx) contract, and no suite or
+--      production module may load a module through a path-prefixed identity — that
+--      spelling resolves to a different table, so a suite could pass against a copy.
 -- Safety: read-only source scans (io.open) plus require identity checks. Requires modules by
 --      their bare production identity, so a suite can never pass against a duplicate table.
 
@@ -198,6 +199,43 @@ assert(#offenders == 0,
     "suites must load plugin modules by their production identity (bare name); " ..
     "duplicate-identity loads found: " .. table.concat(offenders, " | "))
 
+-- 4b. source scan: production code must not create a second identity either. A
+-- path-prefixed require resolves to a different table than every bare require of
+-- the same file, so module-level caches split and the suites (which load bare)
+-- end up covering a copy the live machine never touches.
+local prod_targets = { "main.lua" }
+for _, name in ipairs(QS_FILES) do prod_targets[#prod_targets + 1] = "quest_state/" .. name .. ".lua" end
+do
+    local ok, lfs = pcall(require, "lfs")
+    if ok and lfs and lfs.dir then
+        for entry in lfs.dir(ROOT) do
+            if entry:match("%.lua$") then prod_targets[#prod_targets + 1] = entry end
+        end
+        for entry in lfs.dir(ROOT .. "quest_state") do
+            if entry:match("%.lua$") then prod_targets[#prod_targets + 1] = "quest_state/" .. entry end
+        end
+    end
+end
+
+local prod_offenders = {}
+for _, rel in ipairs(prod_targets) do
+    local src = read_source(rel)
+    if src then
+        for line in lines_of(src) do
+            local is_require = line:match("require%s*%(%s*\"" .. PREFIX) or
+                               line:match("require%s*,%s*\"" .. PREFIX)
+            local is_stub = line:match("package%.loaded%[%s*\"" .. PREFIX)
+            if is_require or is_stub then
+                prod_offenders[#prod_offenders + 1] = rel .. " :: " .. line:gsub("^%s+", "")
+                break
+            end
+        end
+    end
+end
+assert(#prod_offenders == 0,
+    "production code must require plugin modules by their bare identity; " ..
+    "duplicate-identity loads found: " .. table.concat(prod_offenders, " | "))
+
 -- Runtime side: the machine the suites reach is the machine production loads.
 local coordinator = require("quest_state/coordinator")
 assert(type(coordinator.update) == "function", "coordinator.update must be a function")
@@ -213,5 +251,32 @@ end
 assert(package.loaded[PREFIX .. "quest_state/coordinator"] == nil,
     "the coordinator must not be resident under a second identity")
 
+-- Modules that were split across identities before this phase: production loaded
+-- them path-prefixed while the suites loaded them bare. Require them the way
+-- production does and pin that no prefixed copy exists.
+local SHARED_MODULES = {
+    "safe_api_wrapper", "goal_filter_sylvanas",
+    "goal_resolver_sylvanas", "quest_blacklist_sylvanas",
+}
+local dupes = {}
+for key in pairs(package.loaded) do
+    if type(key) == "string" and key:sub(1, #PREFIX) == PREFIX
+       and not key:match("^" .. PREFIX .. "tests/") then
+        dupes[#dupes + 1] = key
+    end
+end
+table.sort(dupes)
+assert(#dupes == 0,
+    "plugin modules must never be resident under a path-prefixed identity; found: " ..
+    table.concat(dupes, ", "))
+
+for _, name in ipairs(SHARED_MODULES) do
+    -- Load failure is acceptable under the mock harness; a duplicate identity is not.
+    pcall(require, name)
+    assert(package.loaded[PREFIX .. name] == nil,
+        name .. " must not be resident under a second identity")
+end
+
 print("state machine: 1 owner, " .. tostring(#QS_FILES) .. " modules, " ..
-    tostring(#suites) .. " suites on the production identity (" .. discovery .. " discovery)")
+    tostring(#prod_targets) .. " production sources, " ..
+    tostring(#suites) .. " suites — all on the production identity (" .. discovery .. " discovery)")
