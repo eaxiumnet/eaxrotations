@@ -1,5 +1,5 @@
 -- What: Quest state machine coordinator — holds shared state, dispatches to handlers
--- When: update() called each on_pre_tick by quest_state_sylvanas.lua; render_debug() each on_render
+-- When: update() called each on_pre_tick by main.lua; render_debug() each on_render
 -- Why: Centralize state transitions: IDLE→NAV/INTERACT/DO_ACTION/WAITING with retry/backoff
 -- Safety: All submodules lazy-loaded via pcall; nil-guarded state fields; no math.sqrt()
 -- Decision: Standalone state machine (not EaxRotations), uses submodule APIs
@@ -568,12 +568,17 @@ function M.render_debug()
 end
 
 -- ============================================================================
--- Exports — thin loader (quest_state_sylvanas.lua) delegates to this module
+-- Exports — the state machine's public API (loaded by main.lua)
 -- ============================================================================
 
 -- Test accessor: returns current state and nav destination (for unit tests)
 function M._test_inspect()
     return shared._state, shared._nav_destination
 end
+
+-- Global export (parity with the previous loader): lets other EaxAutoQuester modules
+-- and user tooling reach the live state machine without re-requiring it.
+_G.EaxAutoQuester = _G.EaxAutoQuester or {}
+_G.EaxAutoQuester.quest_state = M
 
 return M

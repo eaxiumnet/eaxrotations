@@ -50,7 +50,9 @@ local function init_modules()
     ok, _menu = pcall(require, "menu_sylvanas")
     if ok then _t.n = _t.n + 1; _t[_t.n] = "menu" else _menu = nil end
 
-    ok, _quest_state = pcall(require, "quest_state_sylvanas")
+    -- Modular state machine: coordinator owns shared state and dispatches to the
+    -- quest_state/* handlers (the machine the test battery exercises).
+    ok, _quest_state = pcall(require, "quest_state/coordinator")
     if ok then _t.n = _t.n + 1; _t[_t.n] = "quest_state" else _quest_state = nil end
 
     state.initialized = true
