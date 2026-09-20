@@ -36,8 +36,6 @@ PKG = os.path.join(ROOT, "wowheadScrape", "dbc_extract", "forever_community")
 DB_PATH = os.path.join(PKG, "forever_datamine.db")
 TALENTS_PATH = os.path.join(PKG, "talents.json")
 RACES_PATH = os.path.join(PKG, "races.json")
-README_SRC = os.path.join(
-    ROOT, "EaxRotations", "docs", "forever", "datamine", "README.md")
 BRIDGE_SRC = os.path.join(
     ROOT, "EaxRotations", "shared",
     "wowhead_data_bridge_spell_index_forever_sylvanas.lua")
@@ -66,60 +64,59 @@ def render_desc(text):
     return TOKEN_RE.sub(lambda m: "<code>%s</code>" % m.group(0), safe)
 
 
-def load_package():
-    if not os.path.exists(DB_PATH):
-        print("ERROR: datamine DB not found: %s" % DB_PATH)
-        print("       Run tools/build_forever_database.py first.")
-        sys.exit(2)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        meta = dict(conn.execute("SELECT k, v FROM meta").fetchall())
-        spells = []
-        for r in conn.execute(
-                "SELECT s.id, s.name, s.class, s.level, r.rank_no, s.school,"
-                " s.cooldown_s, s.gcd_s, s.description, s.aura_description,"
-                " s.is_heal, s.aoe FROM player_spells s "
-                "JOIN spell_ranks r ON r.spell_id = s.id ORDER BY s.id"):
-            d = dict(r)
-            effs = []
-            for e in conn.execute(
-                    "SELECT idx, effect, aura, base_points, misc, targets,"
-                    " trigger_spell, radius, coefficient FROM spell_effects"
-                    " WHERE spell_id = ? ORDER BY idx", (d["id"],)):
-                ed = dict(e)
-                effs.append([ed["idx"], ed["effect"], ed["aura"],
-                             ed["base_points"], ed["misc"], ed["targets"],
-                             ed["trigger_spell"]])
-            # Other ranks of the same (class, name) ladder for the chip row.
-            ladder = [x["spell_id"] for x in conn.execute(
-                "SELECT r2.spell_id FROM spell_ranks r1 "
-                "JOIN spell_ranks r2 ON r2.name = r1.name "
-                "AND COALESCE(r2.class,'') = COALESCE(r1.class,'') "
-                "WHERE r1.spell_id = ? ORDER BY r2.rank_no", (d["id"],))]
-            spells.append({
-                "id": d["id"], "name": d["name"], "class": d["class"],
-                "level": d["level"], "rank": d["rank_no"],
-                "school": d["school"], "cd": d["cooldown_s"],
-                "gcd": d["gcd_s"],
-                "desc": render_desc(d["description"]),
-                "auradesc": render_desc(d["aura_description"]),
-                "heal": bool(d["is_heal"]), "aoe": bool(d["aoe"]),
-                "effects": effs, "ladder": ladder,
-            })
-    finally:
-        conn.close()
-    with open(TALENTS_PATH, encoding="utf-8") as f:
-        talents = json.load(f)
-    with open(RACES_PATH, encoding="utf-8") as f:
-        races = json.load(f)
-    return spells, talents, races, meta
-
-
 def blob(obj):
     """Compact JSON safe to embed in an application/json script block."""
     return SCRIPT_CLOSE_RE.sub("<\\/script", json.dumps(obj, ensure_ascii=False,
                                                         separators=(",", ":")))
+
+
+# Client filler rows ("Deprecated ..." items, "Not Used ..." zones). One list
+# feeds the three things that must agree: the viewer's tag regex, the README's
+# SQL filter, and the README's counts. They had drifted -- the README told
+# friends to filter with NOT LIKE '%DEPRECATED%' while the viewer tagged seven
+# markers, so following the README left 145 of the 568 tagged items and all 36
+# tagged zones in place (2026-09-21 audit).
+PLACEHOLDER_MARKERS = ("deprecated", "not used", "unused", "zzold", "[ph]",
+                       "placeholder", "obsolete")
+PLACEHOLDER_SRC = "|".join(m.replace("[", "\[").replace("]", "\]")
+                       for m in PLACEHOLDER_MARKERS)
+PLACEHOLDER_RE = re.compile(PLACEHOLDER_SRC, re.I)
+
+
+def sql_placeholder_keep(column="name"):
+    """The filter the README documents, generated from the same marker list the
+    viewer's regex is built from (SQLite LIKE ignores ASCII case, so the two
+    select exactly the same rows)."""
+    return "\n  AND ".join("%s NOT LIKE '%%%s%%'" % (column, m)
+                           for m in PLACEHOLDER_MARKERS)
+
+
+def placeholder_counts(conn, extra):
+    """Rows the viewer tags `placeholder`, counted both documented ways.
+
+    Returns {"items": (tagged, total), "zones": (tagged, total)}. Exits if the
+    tag regex and the SQL filter disagree, or if the shipped JSON and the DB
+    view it mirrors disagree on row count -- the README's numbers are only
+    honest while all four agree.
+    """
+    keep = sql_placeholder_keep("name")
+    out = {}
+    for key, view, rows in (("items", "item_index", extra["items"]),
+                            ("zones", "zones", extra["zones"])):
+        total_sql = conn.execute("SELECT COUNT(*) FROM %s" % view).fetchone()[0]
+        if total_sql != len(rows):
+            sys.exit("ERROR: %s has %d rows in the DB view '%s' but %d in the "
+                     "shipped JSON" % (key, total_sql, view, len(rows)))
+        kept = conn.execute("SELECT COUNT(*) FROM %s WHERE %s"
+                            % (view, keep)).fetchone()[0]
+        tagged_sql = total_sql - kept
+        tagged_re = sum(1 for r in rows
+                        if PLACEHOLDER_RE.search(r.get("name") or ""))
+        if tagged_re != tagged_sql:
+            sys.exit("ERROR: placeholder counts disagree for %s: viewer tag %d, "
+                     "documented SQL filter %d" % (key, tagged_re, tagged_sql))
+        out[key] = (tagged_re, total_sql)
+    return out
 
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -361,6 +358,27 @@ function byId(id) {
   for (var i = 0; i < SPELLS.length; i++) if (SPELLS[i].id === id) return SPELLS[i];
   return null;
 }
+// Ranking key for every searchable list: exact name first, then prefix, then
+// substring; client placeholder rows ("Deprecated ..." items, "Not Used ..."
+// zones) sink below live rows at every tier but stay listed. The pattern is
+// injected at build time from PLACEHOLDER_MARKERS, so this tag and the SQL
+// filter the README documents cannot drift apart.
+var PLACEHOLDER_RE = /{PLACEHOLDER_SRC}/i;
+function isPlaceholder(name) { return PLACEHOLDER_RE.test(name || ""); }
+function searchKey(name, q) {
+  var n = name.toLowerCase();
+  var tier = (n === q) ? 0 : (n.indexOf(q) === 0 ? 1 : 2);
+  return isPlaceholder(name) ? 10 + tier : tier;
+}
+// Rank one list's matches, then cap (each tab used to repeat this block).
+function rankMatches(matches, q, nameOf, cap) {
+  if (q) {
+    matches.sort(function (a, b) {
+      return searchKey(nameOf(a), q) - searchKey(nameOf(b), q);
+    });
+  }
+  return matches.slice(0, cap);
+}
 function filtered() {
   var q = document.getElementById("q").value.trim().toLowerCase();
   var out = [];
@@ -374,9 +392,10 @@ function filtered() {
       else if (s.name.toLowerCase().indexOf(q) < 0) continue;
     }
     out.push(s);
-    if (out.length >= 200) break;
   }
-  return out;
+  // Alphabetical order buries what you typed: searching "Sap" led with "Black
+  // Sapphire" and the talent "Improved Sap" above the rogue ability itself.
+  return rankMatches(out, q, function (s) { return s.name; }, 200);
 }
 function renderList() {
   var list = filtered();
@@ -386,12 +405,18 @@ function renderList() {
   for (var i = 0; i < list.length; i++) {
     var s = list[i];
     var color = CLASS_COLORS[s["class"]] || "#c9d1d9";
+    var sub = (s.rank != null ? 'R' + s.rank + ' &middot; ' : '')
+      + 'lvl ' + (s.level != null ? s.level : '—');
     html += '<div class="row" data-id="' + s.id + '">' + iconHtml(s.icon, 18)
       + '<span class="nm" style="color:' + color + '">'
-      + esc(s.name) + '</span><span class="meta">R' + s.rank + ' &middot; lvl ' + s.level
-      + ' &middot; ' + esc(s.school) + (s.cd != null ? ' &middot; ' + s.cd + 's CD' : '') + '</span></div>';
+      + esc(s.name) + '</span><span class="meta">' + sub
+      + ' &middot; ' + esc(s.school)
+      + (s.cd > 0 ? ' &middot; ' + s.cd + 's CD' : '')
+      + (isPlaceholder(s.name) ? ' &middot; <span class="idtag">placeholder</span>' : '')
+      + '</span></div>';
   }
-  document.getElementById("results").innerHTML = html;
+  document.getElementById("results").innerHTML = html
+    || '<p class="note">No spells match.</p>';
   var rows = document.getElementById("results").children;
   for (var j = 0; j < rows.length; j++) {
     rows[j].onclick = (function(el) { return function() { showDetail(+el.getAttribute("data-id")); }; })(rows[j]);
@@ -403,10 +428,12 @@ function showDetail(id) {
   var color = CLASS_COLORS[s["class"]] || "#c9d1d9";
   var h = '<div class="tooltip"><h3 style="color:' + color + '">'
     + iconHtml(s.icon, 32) + esc(s.name) + '</h3>'
-    + '<div class="sub">Rank ' + s.rank + ' &middot; requires level ' + s.level
+    + '<div class="sub">' + (s.rank != null ? 'Rank ' + s.rank + ' &middot; ' : '')
+    + 'requires level ' + (s.level != null ? s.level : '—')
     + ' &middot; ' + esc(s.school) + ' &middot; id ' + s.id + '</div>';
   h += '<div>GCD ' + (s.gcd != null ? s.gcd + 's' : '—')
-    + ' &middot; cooldown ' + (s.cd != null ? s.cd + 's' : '— (no DBC row)') + '</div>';
+    + ' &middot; cooldown ' + (s.cd > 0 ? s.cd + 's'
+        : (s.cd === 0 ? 'none' : '— (no DBC row)')) + '</div>';
   if (s.desc) h += '<div class="desc">' + s.desc + '</div>';
   if (s.auradesc) h += '<div class="desc" style="color:#9d9d9d">' + s.auradesc + '</div>';
   h += '<table><tr><th>#</th><th>effect</th><th>aura</th><th>base</th><th>targets</th><th>trigger</th></tr>';
@@ -425,13 +452,23 @@ function showDetail(id) {
     }
     h += '</div>';
   }
-  h += '</div>';
+  h += '<div><button class="cbtn">copy</button></div></div>';
   var box = document.getElementById("detail");
   box.innerHTML = h;
+  // Ladder buttons only: the copy button is wired by wireCopy below.
   var btns = box.getElementsByTagName("button");
   for (var b = 0; b < btns.length; b++) {
+    if (btns[b].className === "cbtn") continue;
     btns[b].onclick = (function(el) { return function() { showDetail(+el.getAttribute("data-id")); }; })(btns[b]);
   }
+  var lines = [s.name + " (id " + s.id + ")",
+    (s.rank != null ? "rank " + s.rank + " | " : "") + "lvl "
+      + (s.level != null ? s.level : "—") + " | " + s.school
+      + (s["class"] ? " | " + s["class"] : ""),
+    "GCD " + (s.gcd != null ? s.gcd + "s" : "—") + " | cooldown "
+      + (s.cd > 0 ? s.cd + "s" : (s.cd === 0 ? "none" : "none (no DBC row)"))];
+  if (s.desc) lines.push(String(s.desc).replace(/<[^>]+>/g, ""));
+  wireCopy(box, lines.join("\\n"));
   box.scrollIntoView();
 }
 /* ---------- items tab ---------- */
@@ -459,9 +496,9 @@ function itemsFiltered() {
       else if (it.name.toLowerCase().indexOf(q) < 0) continue;
     }
     out.push(it);
-    if (out.length >= 250) break;
   }
-  return out;
+  // "thunderfury" used to lead with the client's "... DEPRECATED" row.
+  return rankMatches(out, q, function (it) { return it.name; }, 250);
 }
 function renderItems() {
   var list = itemsFiltered();
@@ -476,7 +513,9 @@ function renderItems() {
       + qcol(it.q) + '">' + esc(it.name) + '</span><span class="meta">ilvl ' + it.ilvl
       + (it.req ? ' &middot; req ' + it.req : '')
       + (it.slot ? ' &middot; ' + esc(it.slot) : '')
-      + ' &middot; ' + esc(it.cls) + '</span></div>';
+      + ' &middot; ' + esc(it.cls)
+      + (isPlaceholder(it.name) ? ' &middot; <span class="idtag">placeholder</span>' : '')
+      + '</span></div>';
   }
   document.getElementById("iresults").innerHTML = html
     || '<p class="note">No items match.</p>';
@@ -623,29 +662,49 @@ function wmatch(name, id) {
   return String(name).toLowerCase().indexOf(q) >= 0;
 }
 function renderWorld() {
-  var html = "", count = 0;
+  var html = "", capped = false;
+  // Same rank-then-cap order as the Spells/Items tabs, so client filler rows
+  // ("Not Used Deadmines") tag below the real zone.
+  var wq = wstate.q.trim().toLowerCase();
   if (wstate.mode === "zones") {
-    for (var i = 0; i < ZONES.length && count < 300; i++) {
-      var z = ZONES[i];
-      if (!wmatch(z.name, z.id)) continue;
+    var zh = [];
+    for (var zi = 0; zi < ZONES.length; zi++) {
+      if (wmatch(ZONES[zi].name, ZONES[zi].id)) zh.push(ZONES[zi]);
+    }
+    var zn = zh.length;
+    zh = rankMatches(zh, wq, function (z) { return z.name; }, 300);
+    if (zh.length < zn) capped = true;
+    for (var i = 0; i < zh.length; i++) {
+      var z = zh[i];
       html += '<div class="row" data-kind="zone" data-id="' + z.id
         + '"><span class="nm">' + esc(z.name) + '</span><span class="meta">'
-        + esc(z.map) + ' &middot; id ' + z.id + '</span></div>';
-      count++;
+        + esc(z.map) + ' &middot; id ' + z.id
+        + (isPlaceholder(z.name)
+           ? ' &middot; <span class="idtag">placeholder</span>' : '')
+        + '</span></div>';
     }
   } else if (wstate.mode === "places") {
-    for (var j = 0; j < PLACES.length && count < 300; j++) {
-      var p = PLACES[j];
-      if (wstate.ptype && p.type !== wstate.ptype) continue;
-      if (!wmatch(p.name || p.type, p.id)) continue;
+    var pl = [];
+    for (var pi = 0; pi < PLACES.length; pi++) {
+      var pj = PLACES[pi];
+      if (wstate.ptype && pj.type !== wstate.ptype) continue;
+      if (wmatch(pj.name || pj.type, pj.id)) pl.push(pj);
+    }
+    var pn = pl.length;
+    pl = rankMatches(pl, wq, function (p) { return p.name || p.type; }, 300);
+    if (pl.length < pn) capped = true;
+    for (var j = 0; j < pl.length; j++) {
+      var p = pl[j];
       html += '<div class="row" data-kind="' + p.type + '" data-id="' + p.id
         + '"><span class="nm">' + esc(p.name || p.type)
         + '</span><span class="meta">' + esc(p.map) + ' &middot; ' + p.x + ', '
-        + p.y + ' &middot; id ' + p.id + '</span></div>';
-      count++;
+        + p.y + ' &middot; id ' + p.id
+        + (isPlaceholder(p.name)
+           ? ' &middot; <span class="idtag">placeholder</span>' : '')
+        + '</span></div>';
     }
   } else if (wstate.mode === "mounts") {
-    for (var mo_i = 0; mo_i < MOUNTS.length && count < 300; mo_i++) {
+    for (var mo_i = 0, moShown = 0; mo_i < MOUNTS.length && moShown < 300; mo_i++) {
       var mo = MOUNTS[mo_i];
       if (!wmatch(mo.name, mo.id)) continue;
       html += '<div class="row" data-kind="mount" data-id="' + mo.id
@@ -653,8 +712,9 @@ function renderWorld() {
         + 'type ' + mo.type + (mo.kind ? '/' + mo.kind : '')
         + ' &middot; spell ' + mo.spell + ' &middot; id ' + mo.id
         + '</span></div>';
-      count++;
+      moShown++;
     }
+    if (mo_i < MOUNTS.length) capped = true;
   } else {
     var nodes = [], routes = [];
     for (var k = 0; k < TAXI.nodes.length; k++) {
@@ -687,10 +747,12 @@ function renderWorld() {
         + routes[t][0].waypoints + ' waypoints &middot; id '
         + routes[t][0].id + '</span></div>';
     }
-    count = nodes.length + routes.length;
   }
-  document.getElementById("wcount").textContent = count
-    + (count >= 300 ? "+ (capped — refine the search)" : "") + " entries";
+  // Rows actually rendered, not the pre-cap match count: zones, places and
+  // mounts cap at 300 (flagged below), the flight list does not.
+  var rowsShown = html.split('class="row"').length - 1;
+  document.getElementById("wcount").textContent = rowsShown
+    + (capped ? "+ (capped — refine the search)" : "") + " entries";
   var host = document.getElementById("wresults");
   host.innerHTML = html || '<p class="note">Nothing matches.</p>';
   wireRows(host, showWorld);
@@ -887,9 +949,9 @@ else init();
 # --check below scans the shipped README for leaks.
 FRIENDS_README_TEMPLATE = """# WoW Forever Datamine — beta {VERSION}
 
-Spell, talent, trainer, race and proc data read straight from the WoW
-Forever beta client files (build {VERSION}, extracted {DATE} UTC). No
-guessing, no fansite scraping — every number here is what the client
+Spell, talent, item, trainer, race, proc and world data read straight from
+the WoW Forever beta client files (build {VERSION}, extracted {DATE} UTC).
+No guessing, no fansite scraping — every number here is what the client
 itself ships.
 
 If the beta patches, this package goes stale: compare the version in the
@@ -973,20 +1035,35 @@ any editor:
 
 ## Read this before theorycrafting (data quirks)
 
-- **Rank 1 is not the lowest id.** A few classic ladders number out of
-  order: Holy Strike rank 1 is spell 679 (level 6), not 678 (level 12);
-  Consecration rank 1 is 26573 (level 20), not 20116 (level 30). The viewer
-  walks ladders in true rank order — trust the R1/R2/... chips, not the ids.
-- **One name, several different spells.** The client reuses names across
-  roles: Arcane Blast is both an aura (400573) and a nuke (400574);
-  Missile Barrage is a talent (400588) and a proc (400589); same story for
-  Maelstrom Weapon. Hot Streak additionally keeps a legacy row (48108)
-  beside the real proc (400625). Always check the effect table / tooltip
-  before citing an id.
-- **Blank cooldown does NOT mean no cooldown.** Cooldowns live in two client
-  columns and only one is extracted here (Holy Shock, Holy Strike and Lava
-  Burst keep theirs in the other one). A blank cell means "no data", not
-  "spammable".
+- **Rank 1 is not the lowest id, and a chip is the only rank marker.** A few
+  classic ladders number out of order: Holy Strike rank 1 is spell 679 (level
+  6), not 678 (level 12); Consecration rank 1 is 26573 (level 20), not 20116
+  (level 30). Rows the client ships under the same name without a chip (aura,
+  trigger, legacy) are support rows, not ranks you can learn.
+- **One name, several different spells.** The client reuses a name across
+  roles: Arcane Blast is both an aura and a nuke, Missile Barrage both a
+  talent and a proc, Maelstrom Weapon likewise, and Hot Streak keeps a legacy
+  row beside the real proc. Search the name, then compare the effect table and
+  tooltip before citing an id.
+- **Blank is not zero.** Consecration 8s, Holy Strike 12s, Holy Shock 10s,
+  Lay on Hands 20min, Rebirth 30min and Reincarnation 1h all read correctly
+  here. A blank cell means the client ships no cooldown row for that spell,
+  not that it is spammable — treat anything you have not seen in game as
+  provisional.
+- **The client ships placeholder rows next to the real ones.** Cut content
+  keeps its client name with a marker inside it ("Thunderfury, Blessed Blade
+  of the Windseeker DEPRECATED", "Not Used Deadmines") and carries its own
+  placeholder stats: the DEPRECATED Thunderfury reads "req 100 / Main Hand"
+  where the real item (id 19019) is "req 60 / One-Hand". The viewer tags those
+  rows `placeholder` and ranks them below live rows. **This build tags
+  {NPH_ITEMS} of {NITEMS} items and {NPH_ZONES} of {NZONES} zones**, counted at
+  build time from the same marker list the viewer matches. The same set in SQL
+  (`LIKE` here is case-insensitive, so it matches the tag exactly):
+
+  ```sql
+  SELECT * FROM item_index WHERE {PLACEHOLDER_SQL};
+  SELECT * FROM zones      WHERE {PLACEHOLDER_SQL};
+  ```
 - **Item stats are computed for you, but armor/damage are not.** The client
   stores stat shares and item level; the files here compute the real values
   (verified on famous items like Lionheart Helm and Thunderfury). Armor and
@@ -996,8 +1073,10 @@ any editor:
   stand for resolve in-game, not in this package.
 - **No hotfix data.** The beta ships no usable hotfix cache for its own
   build, so this is base client data; numbers can still move before launch.
-- **Items are not included** (the beta's item-property table doesn't extract
-  cleanly yet) — spells, talents, trainers, races and procs only.
+- **Items are included** (~19k named items with computed stat values,
+  on-use/equip effects, prices and set ids) — but item stats are hidden in
+  game until first discovered, so treat any stat you have not seen in-game
+  as provisional.
 
 ## Where this came from
 
@@ -1007,16 +1086,20 @@ rebuilt from scratch after every beta patch. If your client is newer than
 """
 
 
-def build_friends_readme(meta, nspells, ntalents, nitems):
+def build_friends_readme(meta, nspells, ntalents, nitems, placeholder):
     date = meta.get("extracted_at_utc", "?")
     if date.endswith(" UTC"):
         date = date[:-len(" UTC")]
     return (FRIENDS_README_TEMPLATE
-            .replace("{VERSION}", meta.get("client_version", "?"))
+            .replace("{VERSION}", client_version(meta))
             .replace("{DATE}", date)
             .replace("{NSPELLS}", str(nspells))
             .replace("{NITEMS}", str(nitems))
-            .replace("{NTALENTS}", str(ntalents)))
+            .replace("{NTALENTS}", str(ntalents))
+            .replace("{NZONES}", str(placeholder["zones"][1]))
+            .replace("{NPH_ITEMS}", str(placeholder["items"][0]))
+            .replace("{NPH_ZONES}", str(placeholder["zones"][0]))
+            .replace("{PLACEHOLDER_SQL}", sql_placeholder_keep()))
 
 
 def build_viewer(spells, talents, races, meta, extra):
@@ -1066,7 +1149,7 @@ def build_viewer(spells, talents, races, meta, extra):
                                for e in i.get("effects", [])]}
                   for i in extra["items"]]
     tokens = {
-        "{VERSION}": html.escape(meta.get("client_version", "?")),
+        "{VERSION}": html.escape(client_version(meta)),
         "{DATE}": html.escape(meta.get("extracted_at_utc", "?")),
         "{NSPELLS}": str(len([s for s in spells if s["class"]])),
         "{NTALENTS}": str(sum(len(t["talents"]) for t in talents)),
@@ -1085,11 +1168,12 @@ def build_viewer(spells, talents, races, meta, extra):
                          "count": extra["icons"].get("count", 0),
                          "index": extra["icons"].get("index", {})}),
         "{MOUNTS}": blob(extra["mounts"]),
-        "{META}": blob({"version": meta.get("client_version", "?"),
+        "{META}": blob({"version": client_version(meta),
                         "build": meta.get("client_build", "?")}),
         "{CLASS_COLORS}": json.dumps(CLASS_COLORS),
         "{EFFECT_HINTS}": json.dumps({2: "damage", 6: "apply aura",
                                       10: "heal"}),
+        "{PLACEHOLDER_SRC}": PLACEHOLDER_SRC,
     }
     page = HTML_TEMPLATE
     for token, value in tokens.items():
@@ -1116,11 +1200,15 @@ def load_inputs():
             d["effects"] = [dict(e) for e in conn.execute(
                 "SELECT * FROM spell_effects WHERE spell_id = ? ORDER BY idx",
                 (d["id"],))]
+            # Unranked rows are excluded: the client's aura/trigger rows
+            # share the name but are not ranks (see build_forever_database.py),
+            # and numbering them made a 7-rank ladder render 34 chips.
             ladder = [x["spell_id"] for x in conn.execute(
                 "SELECT r2.spell_id FROM spell_ranks r1 "
                 "JOIN spell_ranks r2 ON r2.name = r1.name AND "
                 "COALESCE(r2.class,'') = COALESCE(r1.class,'') "
-                "WHERE r1.spell_id = ? ORDER BY r2.rank_no", (d["id"],))]
+                "WHERE r1.spell_id = ? AND r2.rank_no IS NOT NULL "
+                "ORDER BY r2.rank_no", (d["id"],))]
             d["ladder"] = ladder
             spells.append(d)
         talents = json.load(open(os.path.join(PKG, "talents.json"),
@@ -1162,12 +1250,28 @@ def load_inputs():
                 extra[key] = [json.loads(ln) for ln in f if ln.strip()]
             else:
                 extra[key] = json.load(f)
+    # The viewer's tag and the README's SQL filter have to select the same rows,
+    # and the README's counts have to be this build's own (they were frozen
+    # prose once). Count both ways; placeholder_counts exits on any mismatch.
+    conn = sqlite3.connect(db_path)
+    try:
+        extra["placeholder"] = placeholder_counts(conn, extra)
+    finally:
+        conn.close()
     return spells, talents, races, meta, extra
 
 
-def zip_name(meta):
-    return "forever-datamine-%s.zip" % (meta.get("client_version", "unknown")
-                                        .replace(".", "_"))
+def client_version(meta):
+    """The client build this package describes -- the fact that names the
+    folder, the zip and the viewer header. build_forever_database.py stamps it
+    and its --check fails on an unknown stamp, so a missing value here is a
+    build-order error, not something to render as "unknown".
+    """
+    version = meta.get("client_version")
+    if not version or version == "unknown":
+        sys.exit("ERROR: package meta has no client_version -- rebuild the "
+                 "package with tools/build_forever_database.py first")
+    return version
 
 
 def build_all():
@@ -1185,8 +1289,15 @@ def build_all():
             "effects": s["effects"], "ladder": s["ladder"],
             "icon": smeta.get(str(s["id"]), {}).get("icon", 0),
         })
+    # Ladder order, not id order: a name's rows read R1..Rn top-down, then the
+    # unranked support rows. Id order showed "R2 · lvl 12" above "R1 · lvl 6"
+    # for Holy Strike, and the 200-row cap sampled ids rather than names
+    # (2026-09-20 playtest). The `rank is None` term keeps support rows last:
+    # sorting them as rank 0 put them above R1.
+    shaped.sort(key=lambda x: ((x["name"] or "").lower(),
+                               x["rank"] is None, x["rank"] or 0, x["id"]))
     return (build_viewer(shaped, talents, races, meta, extra), spells,
-            talents, races, meta)
+            talents, races, meta, extra["placeholder"])
 
 
 ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
@@ -1196,12 +1307,12 @@ ZIP_MEMBERS = ("forever_datamine.db", "spells.jsonl", "by_name.json",
                "models_index.json")
 
 
-def build_zip(page, meta, nspells, ntalents):
+def build_zip(page, meta, nspells, ntalents, placeholder):
     """Write index.html + assemble the shareable zip. Returns zip path."""
     with open(os.path.join(PKG, VIEWER_NAME), "w", encoding="utf-8",
               newline="\n") as f:
         f.write(page)
-    top = "forever-datamine-%s" % meta.get("client_version", "unknown")
+    top = "forever-datamine-%s" % client_version(meta)
     zpath = os.path.join(PKG, top + ".zip")
     items_path = os.path.join(PKG, "items.jsonl")
     nitems = 0
@@ -1237,7 +1348,8 @@ def build_zip(page, meta, nspells, ntalents):
             sys.exit(2)
         z.write(models_js, top + "/models.js")
         z.writestr(top + "/README.md",
-                   build_friends_readme(meta, nspells, ntalents, nitems))
+                   build_friends_readme(meta, nspells, ntalents, nitems,
+                                        placeholder))
         if os.path.exists(BRIDGE_SRC):
             z.write(BRIDGE_SRC, top + "/bridge/" + os.path.basename(BRIDGE_SRC))
         for member in ZIP_MEMBERS:
@@ -1373,10 +1485,10 @@ def main():
     args = parser.parse_args()
     if args.check:
         sys.exit(check_bundle())
-    page, spells, talents, races, meta = build_all()
+    page, spells, talents, races, meta, placeholder = build_all()
     nspells = len([s for s in spells if s["class"]])
     ntalents = sum(len(t["talents"]) for t in talents)
-    zpath = build_zip(page, meta, nspells, ntalents)
+    zpath = build_zip(page, meta, nspells, ntalents, placeholder)
     print("Viewer:  %s (%s bytes)" % (
         os.path.join(PKG, VIEWER_NAME),
         format(os.path.getsize(os.path.join(PKG, VIEWER_NAME)), ",")))

@@ -57,6 +57,12 @@ import build_forever_bridge as bb
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DB = os.path.join(ROOT, "wowheadScrape", "dbc_extract", "wowsims_forever.db")
+
+# The Forever beta product line in .build.info. The DB2ToSqlite output carries
+# no build stamp, so the client install is the only local authority on which
+# build a package describes.
+CLIENT_PRODUCT = "wow_classic_beta"
+DEFAULT_BASE_DIR = r"C:\Program Files (x86)\World of Warcraft"
 OUT_DIR = os.path.join(ROOT, "wowheadScrape", "dbc_extract", "forever_community")
 
 OUT_DB = os.path.join(OUT_DIR, "forever_datamine.db")
@@ -310,6 +316,7 @@ def load(conn):
     for r in conn.execute(
             "SELECT s.ID, sn.Name_lang, sm.SchoolMask, sm.CastingTimeIndex, "
             "sl.SpellLevel, sl.BaseLevel, sco.SpellClassSet, sc.RecoveryTime, "
+            "sc.CategoryRecoveryTime, "
             "sc.StartRecoveryTime, s.Description_lang, s.AuraDescription_lang, "
             "s.NameSubtext_lang "
             "FROM Spell s "
@@ -377,18 +384,28 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
 
     # Positional ranks per (class-or-'', name), ordered by (level, id).
     # Documented convenience, not client truth (see README quirks).
-    order = sorted(spells.values(),
-                   key=lambda s: (s["Name_lang"] or "",
-                                  class_of(s["SpellClassSet"]) or "",
-                                  level_of(s) if level_of(s) else 9999,
-                                  s["ID"]))
-    rank_of = {}
-    last_key, n = None, 0
-    for s in order:
+    #
+    # Only rows that carry a cast/timing row are ranks. The client ships
+    # aura/trigger/legacy rows under the same name -- Lightning Shield has 4
+    # rows per level -- and counting them inflated every chip in the viewer
+    # (a 7-rank ladder showed "R9"/"R13", 2026-09-20 playtest). A name with no
+    # cast rows at all (passive auras) keeps plain numbering so nothing loses
+    # its ladder, and rows left unnumbered get no rank field at all.
+    def _is_cast_rank(s):
+        return (isinstance(s.get("StartRecoveryTime"), (int, float))
+                or isinstance(s.get("RecoveryTime"), (int, float)))
+
+    ladders = {}
+    for s in spells.values():
         key = ((class_of(s["SpellClassSet"]) or ""), s["Name_lang"])
-        n = n + 1 if key == last_key else 1
-        last_key = key
-        rank_of[s["ID"]] = n
+        ladders.setdefault(key, []).append(s)
+    rank_of = {}
+    for rows in ladders.values():
+        numbered = [s for s in rows if _is_cast_rank(s)] or rows
+        numbered.sort(key=lambda s: (level_of(s) if level_of(s) else 9999,
+                                     s["ID"]))
+        for i, s in enumerate(numbered, 1):
+            rank_of[s["ID"]] = i
 
     out_spells = {}
     for sid, s in spells.items():
@@ -410,7 +427,21 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
                 is_heal = True
             if _is_aoe(e["Effect"], a, b):
                 aoe = True
-        rec, grec = s["RecoveryTime"], s["StartRecoveryTime"]
+        # BOTH cooldown columns count. The client files a spell's real cooldown
+        # under CategoryRecoveryTime whenever it shares a recovery category
+        # (Consecration 8s, Holy Strike 12s, Lay on Hands 20min, Rebirth 30min);
+        # reading RecoveryTime alone shipped cooldown_s = 0.0 for 1,687 spells
+        # that do have one, and the viewer printed "0s CD" for them
+        # (2026-09-20 playtest). max() is what the game enforces and what
+        # wowsims computes for a lone caster.
+        # None (row absent) stays distinct from 0 (row present, no cooldown):
+        # the viewer prints "— (no DBC row)" for the first and "none" for the
+        # second, and collapsing them would lose that.
+        if s["RecoveryTime"] is None and s["CategoryRecoveryTime"] is None:
+            rec = None
+        else:
+            rec = max(s["RecoveryTime"] or 0, s["CategoryRecoveryTime"] or 0)
+        grec = s["StartRecoveryTime"]
         dms = durations.get(dur_index.get(sid, 0)) or 0
         rendered = _render_tokens(s["Description_lang"] or "", effs, radii,
                                   dms, target_caps.get(sid))
@@ -420,7 +451,7 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
             "id": sid, "name": s["Name_lang"],
             "subtext": s["NameSubtext_lang"] or "",
             "class": cls, "class_set": s["SpellClassSet"],
-            "level": lvl, "rank": rank_of[sid],
+            "level": lvl, "rank": rank_of.get(sid),
             "school": _school(s["SchoolMask"] or 1),
             "school_mask": s["SchoolMask"],
             "cast_idx": s["CastingTimeIndex"],
@@ -512,7 +543,11 @@ def build(spells, effects, talents, tabs, skills, sla, races, procs,
         "id": r["ID"], "name": r["Name_lang"], "alliance": r["Alliance"],
         "starting_level": r["StartingLevel"], "faction": r["FactionID"],
         "playable_bit": r["PlayableRaceBit"],
-        "playable": (r["PlayableRaceBit"] or -1) >= 0,
+        # Not `or -1`: race 1 (Human) carries PlayableRaceBit 0, and `0 or -1`
+        # is -1, which marked every classic race with bit 0 unplayable
+        # (viewer showed Human as "—", 2026-09-20 playtest).
+        "playable": (r["PlayableRaceBit"] is not None
+                     and r["PlayableRaceBit"] >= 0),
     } for r in sorted(races, key=lambda r: r["ID"])]
 
     out_procs = []
@@ -1095,8 +1130,10 @@ def check_package():
         if spot not in by_name:
             problems.append("by_name.json missing %r" % spot)
             break
-    if not meta.get("client_build"):
-        problems.append("meta table lacks client_build")
+    if not meta.get("client_build") or meta.get("client_build") == "unknown":
+        problems.append("meta table lacks a resolved client_build "
+                        "(rebuild with --client-build or a readable "
+                        ".build.info)")
     # World/NPC mirror + curated artifacts.
     conn2 = sqlite3.connect(OUT_DB)
     try:
@@ -1166,6 +1203,56 @@ def check_package():
     return 0
 
 
+def build_info_versions(base_dir):
+    """{product: version} from <base_dir>/.build.info (empty if unreadable).
+
+    Single owner of .build.info parsing: the stamp and the client-freshness
+    check both read it, so they cannot disagree about the beta product line.
+    """
+    versions = {}
+    try:
+        with open(os.path.join(base_dir, ".build.info"),
+                  encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return versions
+    for line in lines[1:]:
+        parts = line.split("|")
+        if len(parts) >= 15:
+            product, version = parts[14].strip(), parts[12].strip()
+            if product and version:
+                versions[product] = version
+    return versions
+
+
+def client_stamp():
+    """(version, build) of the installed client this package describes.
+
+    Returns (None, None) when .build.info carries no CLIENT_PRODUCT line, so
+    the caller writes "unknown" rather than a stale constant -- the 69893
+    constant survived a 69913 re-extraction that way, which is exactly the
+    drift this package exists to make visible.
+    """
+    version = build_info_versions(DEFAULT_BASE_DIR).get(CLIENT_PRODUCT)
+    if version:
+        return version, version.split(".")[-1]
+    return None, None
+
+
+def package_stamp(db_path=OUT_DB):
+    """(client_version, extracted_at_utc) recorded in the package's meta table.
+
+    Single owner of "which build does this package describe": the bundle names
+    the zip from it and the freshness check compares it with the client.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        meta = dict(conn.execute("SELECT k, v FROM meta").fetchall())
+    finally:
+        conn.close()
+    return meta.get("client_version"), meta.get("extracted_at_utc")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Forever DBC -> community datamine package")
     parser.add_argument("--check", action="store_true",
@@ -1178,10 +1265,15 @@ def main():
         print("       Run DB2ToSqlite on the Forever beta client first")
         print("       (docs/forever/dbc_runbook.md step 1).")
         sys.exit(2)
+    client_version, client_build = client_stamp()
+    if client_version is None:
+        print("WARNING: no %s entry in %s/.build.info -- client_version "
+              "stays 'unknown' and --check will fail"
+              % (CLIENT_PRODUCT, DEFAULT_BASE_DIR))
     stamp = {
-        "client_version": "1.60.1.69893",
-        "client_build": "69893",
-        "client_product": "wow_classic_beta",
+        "client_version": client_version or "unknown",
+        "client_build": client_build or "unknown",
+        "client_product": CLIENT_PRODUCT,
         "extracted_at_utc": datetime.datetime.now(
             datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "generator": "tools/build_forever_database.py",

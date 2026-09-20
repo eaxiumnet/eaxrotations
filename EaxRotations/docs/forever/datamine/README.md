@@ -1,10 +1,19 @@
-# WoW Forever Community Datamine (beta 1.60.1.69893)
+# WoW Forever Community Datamine (beta 1.60.1.69913)
 
 > Datamined 2026-09-17 from the Forever beta client (`wow_classic_beta`
-> 1.60.1.69893) with `tools/build_forever_database.py`. The client DBC is
+> 1.60.1.69893) and re-extracted 2026-09-20 at **1.60.1.69913** with
+> `tools/build_forever_database.py`. The client DBC is
 > the authoritative source of truth (repo law); Wowhead/tooltips are
 > supplementary. Everything below regenerates from a beta install — no
 > bytes here are hand-written.
+>
+> **The 69913 re-extraction is data-identical to 69893**: `forever_dbc_diff.py`
+> reports 0 lane-surface deltas (1,696 player spells / 1,646 names both ways),
+> all 119 tables have equal row counts, and the 12 core tables
+> (SpellName, SpellMisc, SpellLevels, SpellClassOptions, SpellCooldowns,
+> Talent, TalentTab, ChrRaces, SpellAuraOptions, ItemSparse, SkillLineAbility,
+> SpellPower) hash identical. That patch was client code, not data, so the
+> 69893-era notes below still hold.
 
 ## What lives here
 
@@ -99,8 +108,15 @@ rg '"quality": 4.*"req": 60' items.jsonl         # epic level-60 items (rough)
 
 Regeneration (needs the beta installed; see `docs/forever/dbc_runbook.md`):
 ```
-dotnet DB2ToSqliteTool.dll -s appsettings.forever_world.json -o wowheadScrape/dbc_extract/wowsims_forever.db
-python tools/build_forever_database.py            # rebuild this package
+# 0. settings: the 119-table appsettings, derived from CORE13 + WORLD_TABLES
+python tools/build_forever_settings.py --tool-dir <tool copy>
+#    --check compares an existing settings file against the canonical list
+#    Clear <tool copy>/DBDCache/ first: a stale cache fails the extraction
+#    with "No definition found for this file" (not "table missing").
+#    Run from the tool copy root; the DLL sits in bin/Debug/net9.0.
+dotnet bin/Debug/net9.0/DB2ToSqliteTool.dll -s appsettings.forever_world.json -o wowheadScrape/dbc_extract/wowsims_forever.db
+python tools/forever_dbc_diff.py --old <previous db> --new wowheadScrape/dbc_extract/wowsims_forever.db   # lane-surface delta since the last build
+python tools/build_forever_database.py            # rebuild this package (stamps the build read from .build.info)
 python tools/build_forever_database.py --check    # verify it
 python tools/build_forever_icons.py --blp-dir <exported icons> --out-dir wowheadScrape/dbc_extract/forever_community
 python tools/build_forever_icons.py --out-dir wowheadScrape/dbc_extract/forever_community --check
@@ -173,15 +189,18 @@ and only carries non-zero fields.
   name table on the client; proc/buff identification above comes from
   effect shapes + description text, flagged per case in the kit docs.
 - **Cooldowns live in two columns.** `RecoveryTime` (most nukes) vs
-  `CategoryRecoveryTime` (Holy Shock 10s, Holy Strike 12s, Lava Burst 10s
-  all live here); `cooldown_s` in this package uses `RecoveryTime`, so a
-  NULL/0.0 there does NOT mean "no cooldown" — check category-gated
-  spells in-game.
+  `CategoryRecoveryTime` (Holy Shock 10s, Holy Strike 12s, Consecration 8s,
+  Lay on Hands 20min, Rebirth 30min all live here). `cooldown_s` is the
+  larger of the two, which is what the game enforces (verified 2026-09-20
+  against Icy Veins/Wowhead for those spells). Reading `RecoveryTime` alone
+  reported 0s for 617 castable rows before that fix.
 - **BaseLevel 0/NULL rows** are helper/trigger/aura rows, not castable
-  ranks (they sort last in `rank_no` by construction).
-- **Hotfixes**: the extractor found hotfix caches for builds 68940/69795
-  only; the beta build is 69893, so NO hotfixes applied (matches a fresh
-  beta datamine; re-extract after beta patches land).
+  ranks: they carry no `rank_no` at all and are excluded from rank
+  ladders/chip rows (only rows with a cast/timing row are numbered).
+- **Hotfixes**: the hotfix caches present on this client are for builds
+  68940/69795 only; the beta builds (69893 and 69913) carry none, so NO
+  hotfixes applied (matches a fresh beta datamine; re-extract after beta
+  patches land).
 - **`ItemRandomProperties` extraction crashes** this DB2ToSqlite build on
   the 1.60 client; `ItemRandomSuffix`, `WorldSafeLocs`, `WorldMapArea`,
   `CharStartOutfit`, `SoundEntries` and the `Gt*` game tables are likewise
