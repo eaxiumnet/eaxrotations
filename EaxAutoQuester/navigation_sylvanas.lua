@@ -97,10 +97,15 @@ local function get_nav_tolerance_sq()
     return NAV_TOLERANCE_SQ
 end
 
--- Color (lazy)
+-- Color (lazy, attempted once)
 local _color = nil
+local _color_attempted = false
 local function get_color()
-    if not _color then
+    if not _color and not _color_attempted then
+        -- Attempted once: `common/color` is supplied by the API the plugin loaded at startup,
+        -- so a missing module cannot appear later in the session -- and retrying the failed
+        -- require on every draw allocated an error string on the render path (item 15).
+        _color_attempted = true
         local ok, c = pcall(require, "common/color")
         if ok then _color = c end
     end
@@ -874,35 +879,64 @@ end
 -- Visual Rendering — client navmesh path + destination marker
 -- ============================================================================
 
+-- Hoisted so the per-frame path allocates nothing (item 15, render half): both calls were
+-- inline `pcall(function() ... end)` closures built on every frame the marker was drawn.
+local function client_current_path(client) return client:get_current_path() end
+local function unit_get_position(u) return u:get_position() end
+
+-- The marker's colours are constants of the colour module, but `c.green(n)` builds a NEW
+-- colour instance per call, so drawing the marker allocated five of them on every frame.
+-- They are cached per module identity (get_color latches the module, so it cannot change
+-- under a live cache); the two cyan shades are built on first use because only the client
+-- path needs them.
+local _marker_colors = nil
+local function marker_colors(c)
+    local cache = _marker_colors
+    if cache and cache.owner == c then return cache end
+    cache = {
+        owner = c,
+        ring_outer = c.green(60),
+        ring_mid = c.green(200),
+        ring_inner = c.green(255),
+        path_line = c.green(150),
+    }
+    _marker_colors = cache
+    return cache
+end
+
 function M.render_visual()
     local c = get_color()
     if not c or not _destination then return end
+    local col = marker_colors(c)
 
     -- Draw the client's navmesh path (multi-step waypoints)
     if _client and not _is_fallback then
-        local ok, path = pcall(function() return _client:get_current_path() end)
+        local ok, path = pcall(client_current_path, _client)
         if ok and path and #path > 0 then
+            local node, segment = col.node, col.segment
+            if not node then node = c.cyan(180); col.node = node end
+            if not segment then segment = c.cyan(70); col.segment = segment end
             for i = 1, #path do
                 if i % 6 == 1 or i == 1 or i == #path then
-                    pcall(core.graphics.circle_3d, path[i], 0.5, c.cyan(180), 5, 1.5)
+                    pcall(core.graphics.circle_3d, path[i], 0.5, node, 5, 1.5)
                 end
                 if i < #path then
-                    pcall(core.graphics.line_3d, path[i], path[i + 1], c.cyan(70), 1.5, 1.0, false)
+                    pcall(core.graphics.line_3d, path[i], path[i + 1], segment, 1.5, 1.0, false)
                 end
             end
         end
     end
 
     -- Destination marker (green rings)
-    pcall(core.graphics.circle_3d_filled, _destination, 3.0, c.green(60))
-    pcall(core.graphics.circle_3d, _destination, 3.0, c.green(200), 2.0, 0.3)
-    pcall(core.graphics.circle_3d, _destination, 2.0, c.green(255), 1.5, 0.5)
+    pcall(core.graphics.circle_3d_filled, _destination, 3.0, col.ring_outer)
+    pcall(core.graphics.circle_3d, _destination, 3.0, col.ring_mid, 2.0, 0.3)
+    pcall(core.graphics.circle_3d, _destination, 2.0, col.ring_inner, 1.5, 0.5)
 
     -- Path line from player
     local me = _get_local_player()
     if me then
-        local _, pos = pcall(function() return me:get_position() end)
-        if pos then pcall(core.graphics.line_3d, pos, _destination, c.green(150), 1.0, 0.5, false) end
+        local ok, pos = pcall(unit_get_position, me)
+        if ok and pos then pcall(core.graphics.line_3d, pos, _destination, col.path_line, 1.0, 0.5, false) end
     end
 end
 

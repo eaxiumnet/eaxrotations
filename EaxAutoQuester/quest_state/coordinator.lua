@@ -616,11 +616,22 @@ end
 
 --- Render debug overlay when debug mode is enabled.
 --- Shows current state, nav retries, step number, destination, goal type.
+-- Hoisted render probes (item 15, render half): the marker call and the debug-text draw were
+-- inline `pcall(function() ... end)` closures, so `on_render` built a closure on every frame
+-- whether or not debug was on. Calling the function with its unit as an argument keeps the
+-- call and the pcall protection identical and allocates nothing.
+local function nav_render_visual(mod) return mod.render_visual(mod) end
+
+local function draw_debug_text(text)
+    local g = core and core.graphics
+    if g and g.draw_text then g.draw_text(10, 10, text) end
+end
+
 function M.render_debug()
     -- Always render navigation visual marker (destination + path)
     local nav = ensure_navigation()
     if nav and nav.render_visual then
-        pcall(function() nav.render_visual() end)
+        pcall(nav_render_visual, nav)
     end
 
     -- Debug text overlay (only when debug log enabled)
@@ -655,9 +666,7 @@ function M.render_debug()
 
     -- Render as on-screen text via core.graphics
     local text = table.concat(_t, "\n", 1, _t.n)
-    pcall(function()
-        core.graphics.draw_text(10, 10, text)
-    end)
+    pcall(draw_debug_text, text)
 end
 
 -- ============================================================================
