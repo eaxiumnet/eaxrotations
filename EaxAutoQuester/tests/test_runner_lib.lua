@@ -29,6 +29,127 @@ function M.parse_args(arg, default_root)
 end
 
 -- ---------------------------------------------------------------------------
+-- Suite discovery — the single source of truth for "what runs"
+--
+-- The runner must never report a green total over a partial battery, so discovery
+-- either yields every suite in the directory or refuses to run. A hardcoded
+-- fallback list used to hide missing suites when luafilesystem was unavailable:
+-- it named a subset of the directory, so a partial run looked complete.
+-- ---------------------------------------------------------------------------
+
+local MANIFEST_NAME = "suite_manifest.lua"
+local SUITE_PATTERN = "^test_.*%.lua$"
+
+--- Load the checked-in manifest of suite filenames.
+--- `read` is injectable for tests.
+--- @return table|nil manifest, string|nil reason
+function M.load_manifest(dir, read)
+    read = read or function(path)
+        local f = io.open(path, "r")
+        if not f then return nil end
+        local data = f:read("*a")
+        f:close()
+        return data
+    end
+
+    local path = dir .. "/" .. MANIFEST_NAME
+    local src = read(path)
+    if not src then return nil, "manifest missing: " .. path end
+
+    -- The manifest is data, not code: pull the names out of its `names = { ... }`
+    -- block instead of executing the file. That keeps the loader free of
+    -- loadstring/load (which differ across Lua versions) and means a malformed
+    -- manifest can only ever produce a set mismatch, which the cross-check below
+    -- turns into a refusal.
+    local block = src:match("names%s*=%s*{([^}]*)}")
+    if not block then
+        return nil, path .. " must contain a names = { ... } block"
+    end
+
+    local names = {}
+    for name in block:gmatch('"([^"]+)"') do
+        if name:sub(-4) == ".lua" then names[#names + 1] = name end
+    end
+    if #names == 0 then
+        return nil, path .. " lists no suites"
+    end
+
+    local manifest = { names = names }
+    local set = {}
+    for _, name in ipairs(names) do set[name] = true end
+    manifest.set = set
+    manifest.count = #names
+    return manifest, nil
+end
+
+--- Discover every suite to run — all of them, or a reason why none can be run.
+--- @param dir string Directory holding the suites
+--- @param opts table|nil { lfs = <module|false>, read = <fn> }. Omit `lfs` to use the
+---        real module; pass `false` to exercise the unavailable path.
+--- @return table|nil names, string|nil reason
+function M.discover_suites(dir, opts)
+    opts = opts or {}
+
+    local manifest, manifest_reason = M.load_manifest(dir, opts.read)
+    if not manifest then return nil, manifest_reason end
+
+    local lfs = opts.lfs
+    if lfs == nil then
+        local ok, mod = pcall(require, "lfs")
+        lfs = ok and mod or nil
+    end
+    if not lfs then
+        return nil, "luafilesystem unavailable: cannot enumerate " .. dir .. " (" ..
+            tostring(manifest.count) .. " suites are listed in " .. MANIFEST_NAME ..") — " ..
+            "refusing to run a partial battery"
+    end
+
+    local found = {}
+    local listed_ok = pcall(function()
+        for entry in lfs.dir(dir) do
+            if type(entry) == "string" and entry:match(SUITE_PATTERN) then
+                found[#found + 1] = entry
+            end
+        end
+    end)
+    if not listed_ok then
+        return nil, "cannot read " .. dir .. " (lfs.dir failed) — refusing to run a partial battery"
+    end
+    if #found == 0 then
+        return nil, "no suites found in " .. dir .. " (" .. tostring(manifest.count) ..
+            " listed in " .. MANIFEST_NAME .. ") — refusing to report green over an empty battery"
+    end
+
+    table.sort(found)
+
+    local on_disk = {}
+    for _, name in ipairs(found) do on_disk[name] = true end
+
+    local unlisted, missing = {}, {}
+    for _, name in ipairs(found) do
+        if not manifest.set[name] then unlisted[#unlisted + 1] = name end
+    end
+    for _, name in ipairs(manifest.names) do
+        if not on_disk[name] then missing[#missing + 1] = name end
+    end
+
+    if #unlisted > 0 or #missing > 0 then
+        local parts = {}
+        if #unlisted > 0 then
+            parts[#parts + 1] = tostring(#unlisted) .. " on disk but not in the manifest (" ..
+                table.concat(unlisted, ", ") .. ")"
+        end
+        if #missing > 0 then
+            parts[#parts + 1] = tostring(#missing) .. " in the manifest but not on disk (" ..
+                table.concat(missing, ", ") .. ")"
+        end
+        return nil, "suite discovery/manifest drift: " .. table.concat(parts, "; ")
+    end
+
+    return found, nil
+end
+
+-- ---------------------------------------------------------------------------
 -- Output capture
 -- ---------------------------------------------------------------------------
 

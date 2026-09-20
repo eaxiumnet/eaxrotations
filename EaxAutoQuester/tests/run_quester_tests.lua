@@ -11,67 +11,23 @@ local mode, root = test_runner.parse_args(arg, "EaxAutoQuester/tests")
 package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
 
 -- ---------------------------------------------------------------------------
--- Discover test files
+-- Discover test files (complete set or abort)
 -- ---------------------------------------------------------------------------
 
-local test_files = {}
-
--- Try to list files using lfs or os.execute fallback
-local has_lfs, lfs = pcall(require, "lfs")
-if has_lfs and lfs then
-    for file in lfs.dir(root) do
-        if file:match("^test_.*%.lua$") then
-            test_files[#test_files + 1] = root .. "/" .. file
-        end
-    end
-else
-    -- Fallback: hardcode known test files if lfs unavailable
-    local known_tests = {
-        "test_utils_sylvanas.lua",
-        "test_npc_manager.lua",
-        "test_combat_helper.lua",
-        "test_loot_manager.lua",
-        "test_vendor_manager.lua",
-        "test_vendor_bag_trigger.lua",
-        "test_idle_state.lua",
-        "test_nav_state.lua",
-        "test_interact_state.lua",
-        "test_do_action_state.lua",
-        "test_waiting_state.lua",
-        "test_dead_state.lua",
-        "test_death_tracker.lua",
-        "test_coordinator.lua",
-        "test_object_scanner.lua",
-        "test_safe_api_wrapper.lua",
-        "test_integration_quest_flow.lua",
-        "test_integration_vendor_flow.lua",
-        "test_integration_death_flow.lua",
-        "test_auto_equip.lua",
-        "test_quest_blacklist.lua",
-        "test_waypoint_fixer.lua",
-        "test_static_popup.lua",
-        "test_flight_path.lua",
-        "test_respawn_wait.lua",
-        "test_quest_log_manager.lua",
-        "test_service_gossip.lua",
-        "test_progress_tracker.lua",
-        "test_dungeon_detector.lua",
-        "test_mount_manager.lua",
-        "test_diagnostic_dump.lua",
-        "test_state_machine_ownership.lua",
-    }
-    for _, file in ipairs(known_tests) do
-        local path = root .. "/" .. file
-        local f = io.open(path, "r")
-        if f then
-            f:close()
-            test_files[#test_files + 1] = path
-        end
-    end
+-- Discovery refuses to yield a partial set: without luafilesystem it aborts
+-- instead of falling back to a hand-kept list, and it cross-checks the directory
+-- against tests/suite_manifest.lua in both directions (see discover_suites).
+local names, discover_reason = test_runner.discover_suites(root)
+if not names then
+    io.stderr:write("ERROR: suite discovery failed — " .. tostring(discover_reason) .. "\n")
+    io.stderr:write("ERROR: refusing to run — a partial battery must never report green.\n")
+    os.exit(3)
 end
 
--- Sort for deterministic order
-table.sort(test_files)
+local test_files = {}
+for i, name in ipairs(names) do
+    test_files[i] = root .. "/" .. name
+end
 
 -- ---------------------------------------------------------------------------
 -- Run tests

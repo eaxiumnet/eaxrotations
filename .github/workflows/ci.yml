@@ -87,6 +87,17 @@ jobs:
         # needed on a clean checkout.
         run: lua EaxRotations/tests/run_verify_all.lua
 
+      - name: EaxAutoQuester battery (quester gate)
+        # Mirrors pre-commit step [20/20] verbatim: same runner, same --quiet
+        # flag, same pinned Lua 5.1 the game runtime approximates. The plugin is
+        # tracked at the repo root and loaded by two sibling plugins, so it needs
+        # its own gate here — verify_all above covers EaxRotations/ only, and
+        # without this a quester regression could land while every rotation suite
+        # stayed green. The runner refuses to start if it cannot enumerate every
+        # suite (tests/suite_manifest.lua is cross-checked against the directory),
+        # so this step can never pass over a partial battery.
+        run: lua EaxAutoQuester/tests/run_quester_tests.lua --quiet
+
       - name: release-staleness guard (shipped version vs newest published tag)
         # Fails when header.lua ships a version that was never published — i.e.
         # a `release: vX.Y.Z` commit is on master but the tag/Release users
