@@ -2,13 +2,16 @@
 -- When: Loaded at startup; record_failure() called by quest interaction handlers
 -- Why: Prevent infinite retry loops on broken quests (missing NPC, unsolvable gossip, area fail)
 -- Safety: Standalone module; no hard dependencies; clock injection for testing
--- Decision: In-memory only (no persistence); clock via core.time() with os.clock() fallback
+-- Decision: In-memory only (no persistence); clock via core.time() with documented,
+--           same-unit fallbacks. No os.* call: the runtime sandbox does not document
+--           os as available (see docs/runtime_sandbox_audit.md).
 
 -- ============================================================================
 -- Hot-path API Caching at Module Load (Pattern 2 from AGENTS.md)
 -- ============================================================================
 
-local _core_time = nil
+local _core_time, _core_cpu_time = nil, nil
+local _tick = 0
 
 -- ============================================================================
 -- Module Table (defined first, exported at end)
@@ -26,18 +29,40 @@ local WINDOW_SECONDS = 60
 local ABANDON_THRESHOLD = 5
 
 -- ============================================================================
--- Default clock: use core.time() with pcall guard, fallback to os.clock()*100
+-- Default clock: core.time() (documented: seconds since injection) with two
+-- fallbacks, both in the SAME unit so the 60s window keeps meaning 60 seconds:
+--   core.cpu_time()  documented (nanoseconds) -> divided to seconds
+--   tick counter     one unit per call, when no clock API exists at all
+--
+-- os.clock() was used here and is deliberately gone: .api/core.lua documents
+-- os.date()/os.time() as unavailable in the sandboxed Lua (core.get_local_time
+-- exists for exactly that reason), so no os.* function may be assumed to exist.
 -- ============================================================================
+
+local function _probe(name)
+    local ok, fn = pcall(function() return core[name] end)
+    if ok and type(fn) == "function" then return fn end
+    return nil
+end
 
 local function _default_clock()
     if _core_time == nil then
-        local ok
-        ok, _core_time = pcall(function() return core.time end)
+        _core_time = _probe("time")
     end
     if _core_time then
         return _core_time()
     end
-    return os.clock() * 100
+    if _core_cpu_time == nil then
+        _core_cpu_time = _probe("cpu_time")
+    end
+    if _core_cpu_time then
+        return _core_cpu_time() / 1e9
+    end
+    -- No clock API present: stay monotonic, one unit per call. The 60-second
+    -- window becomes a 60-event window in this mode; it is only reachable when
+    -- the module runs with no core API at all.
+    _tick = _tick + 1
+    return _tick
 end
 
 local _clock = _default_clock

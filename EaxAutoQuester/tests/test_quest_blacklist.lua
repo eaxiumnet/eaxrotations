@@ -126,5 +126,82 @@ do
     print("  S5 PASS: quest 100 and 200 tracked independently")
 end
 
+-- =============================================================================
+-- S6-S9: the three clock fallbacks (production prefers core.time(); os.* is not
+-- assumed to exist because .api/core.lua documents os.date()/os.time() as
+-- unavailable in the sandboxed Lua — see docs/runtime_sandbox_audit.md).
+-- Each case re-requires the module with a stubbed _G.core, because the default
+-- clock is chosen inside the module; the runner restores _G after the suite.
+-- =============================================================================
+
+-- S6: core.time() present → the window is measured in SECONDS
+do
+    package.loaded["quest_blacklist_sylvanas"] = nil
+    local t = 0
+    _G.core = { time = function() return t end }
+    local mod = require("quest_blacklist_sylvanas")
+
+    for i = 1, 5 do
+        mod.record_failure(601, "area_fail")
+        t = t + 10
+    end
+    assert(mod.should_abandon(601) == true,
+        "S6 FAIL: 5 failures 10s apart via core.time must abandon inside 60s")
+
+    mod.reset()
+    t = 0
+    for i = 1, 5 do
+        mod.record_failure(602, "area_fail")
+        t = t + 70
+    end
+    assert(mod.should_abandon(602) == false,
+        "S6 FAIL: failures 70s apart must fall out of the 60s window " ..
+        "(proves a seconds clock, not a call counter)")
+
+    print("  S6 PASS: core.time() drives the 60s window in seconds")
+end
+
+-- S7: core.time() absent, core.cpu_time() present → NANOseconds scaled to seconds
+do
+    package.loaded["quest_blacklist_sylvanas"] = nil
+    local ns = 0
+    _G.core = { cpu_time = function() return ns end }
+    local mod = require("quest_blacklist_sylvanas")
+
+    for i = 1, 5 do
+        mod.record_failure(603, "area_fail")
+        ns = ns + 10 * 1e9   -- 10 seconds expressed in nanoseconds
+    end
+    assert(mod.should_abandon(603) == true,
+        "S7 FAIL: 5 failures 10s apart via core.cpu_time must abandon — raw " ..
+        "nanoseconds left unscaled would put every entry outside the 60s window")
+
+    print("  S7 PASS: core.cpu_time() nanoseconds scaled to the same second unit")
+end
+
+-- S8: no clock API exposed → monotonic tick counter still works
+-- S9: `core` absent entirely → no error (the sandbox-unknown case)
+do
+    package.loaded["quest_blacklist_sylvanas"] = nil
+    _G.core = {}
+    local mod = require("quest_blacklist_sylvanas")
+    for i = 1, 5 do mod.record_failure(604, "area_fail") end
+    assert(mod.should_abandon(604) == true,
+        "S8 FAIL: with no clock API the tick counter must still count 5 failures")
+
+    package.loaded["quest_blacklist_sylvanas"] = nil
+    _G.core = nil
+    local mod2 = require("quest_blacklist_sylvanas")
+    local ok, result = pcall(function()
+        for i = 1, 5 do mod2.record_failure(605, "area_fail") end
+        return mod2.should_abandon(605)
+    end)
+    assert(ok, "S9 FAIL: module must degrade without error when core is absent: " .. tostring(result))
+    assert(result == true,
+        "S9 FAIL: tick fallback must still abandon after 5 failures, got " .. tostring(result))
+
+    print("  S8 PASS: no clock API -> tick counter; core absent -> no error")
+end
+
 print("PASS test_quest_blacklist")
 os.exit(0)
