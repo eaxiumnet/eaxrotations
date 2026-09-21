@@ -362,6 +362,8 @@ print(string.format("  T9 PASS: client-path render allocates %.2f B/frame (%d no
 
 -- ============================================================================
 -- T10-T14: the tick path, measured once per coordinator state
+-- (T15-T17, at the end of the file, cover the per-frame paths outside the coordinator:
+--  main.lua's on_render / on_render_menu / on_pre_tick and the warning overlay.)
 -- ============================================================================
 -- Why one scenario per state: the T2/T3 half measures whichever state the fixture sits in, so
 -- a regression confined to WAITING, INTERACT, NAV or DEAD never reaches the number. Each
@@ -545,5 +547,180 @@ for i = 1, #TICK_STATES do
         spec.label, spec.name, bytes_300, bytes_1000, spec.bound,
         spec.name, entered_300, entered_1000))
 end
+
+-- ============================================================================
+-- T15-T17: the per-frame paths outside the coordinator
+-- ============================================================================
+-- The halves above measure `coordinator.update()` and `coordinator.render_debug()`. They do not
+-- reach the two callbacks main.lua registers around them, and those are per-frame too:
+--   on_render      -> the warning overlay (only while a warning is up) + render_debug
+--   on_render_menu -> menu_sylvanas.render()'s tree body, once per open-menu frame
+--   on_pre_tick    -> has_local_player + check_enabled (menu reads, keybind probe) +
+--                     combat_helper.auto_face_enemy + coordinator.update
+-- Measured before the fix on the pinned Lua 5.1.5 (n=300, collector stopped):
+--   warning up, colour module present   448.34 B/frame  (3-line table + concat, position
+--                                                        table, fresh colour instance)
+--   warning up, colour module absent    225.84 B/frame  (a `require("common/color")` retried
+--                                                        every frame: 33.51 B of error string)
+--   menu render                          32.00 B/frame  (a fresh tree-body closure per frame)
+--   on_pre_tick (WAITING)               104.00 B/frame  (keybind pcall closure 24.00 +
+--                                                        auto_face_enemy's two inline unit
+--                                                        probes 80.00)
+-- After: 0.00 in all four, with the fix's output proven identical by assertion below.
+
+-- The harness registers nothing, so main.lua's callbacks have to be captured to be driven.
+local captured_callbacks = {}
+local real_register_render = core.register_on_render_callback
+local real_register_menu = core.register_on_render_menu_callback
+local real_register_pre_tick = core.register_on_pre_tick_callback
+
+-- A pinned vec2 for the overlay's screen read: the harness builds a fresh table per call (96 B),
+-- and whether the client's binding returns a fresh vec2 each frame is not documented
+-- (`core.graphics.get_screen_size()` -> vec2, scraped_docs_md/dev/api/graphics.md:484). The
+-- plugin reads x/y and keeps neither, and the read cannot be hoisted out of the frame while the
+-- overlay is up because the window can be resized under it -- so it is pinned here the way T2
+-- pins the aura table, and the bound covers the plugin's own per-frame work.
+local SCREEN_STUB = { x = 1920, y = 1080 }
+local WARNING_TEXT = "Navigation failed - check path"
+local WARNING_DRAW = "!!! EaxAutoQuester !!!\n" .. WARNING_TEXT .. "\nManual input may be required"
+local WARN_BOUND = 8
+
+--- Build a world in `spec`'s fixture and capture main.lua's three callbacks.
+--- @param spec table
+--- @return table NS the plugin namespace
+--- @return table callbacks { render, menu_render, pre_tick }
+local function main_scenario(spec)
+    for i = 1, #STATE_FRESH do package.loaded[STATE_FRESH[i]] = nil end
+    package.loaded["main"] = nil
+    package.loaded["common/utility/simple_movement"] = make_mover()
+    package.loaded["common/utility/coords_helper"] = COORDS_STUB
+    package.loaded["common/color"] = spec.color_stub or nil
+    _G.SentinelNavClient = nil
+    mock.reset()
+    _G.EaxAutoQuester = nil
+    silence_inputs()
+    silence_graphics()
+    core.graphics.text_2d = function() end
+    core.graphics.get_screen_size = function() return SCREEN_STUB end
+    captured_callbacks = {}
+    core.register_on_render_callback = function(fn) captured_callbacks.render = fn end
+    core.register_on_render_menu_callback = function(fn) captured_callbacks.menu_render = fn end
+    core.register_on_pre_tick_callback = function(fn) captured_callbacks.pre_tick = fn end
+
+    local player = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    local pinned_auras = {}
+    player.get_buffs = function() return pinned_auras end
+    player.get_auras = player.get_buffs
+    player.get_debuffs = player.get_buffs
+    if spec.zygor then
+        mock._addon_loaded.zygor = true
+        mock._zygor_step = spec.zygor
+    end
+    mock.set_time(1.0)
+
+    local NS = require("main")
+    NS.init_modules()
+    core.register_on_render_callback = real_register_render
+    core.register_on_render_menu_callback = real_register_menu
+    core.register_on_pre_tick_callback = real_register_pre_tick
+    return NS, captured_callbacks
+end
+
+-- T15: the warning overlay, on_render, colour module present (the shipped case)
+local WARN_COLOR_STUB = { red = function(a) return { r = 255, g = 0, b = 0, a = a or 255 } end }
+local NS15, cb15 = main_scenario({ zygor = nil, color_stub = WARN_COLOR_STUB })
+assert(cb15.render and cb15.menu_render and cb15.pre_tick, "fixture FAIL: main.lua did not register all three callbacks")
+NS15.set_warning(WARNING_TEXT, 60)
+
+-- Measure with the draw silenced (the recorder below appends a table per call), then take one
+-- frame with it recording to assert the drawn output is unchanged.
+local warn_bytes = per_call_bytes(300, cb15.render)
+local draws = {}
+core.graphics.text_2d = function(...)
+    local call = { "text_2d" }
+    for i = 1, select("#", ...) do call[#call + 1] = select(i, ...) end
+    draws[#draws + 1] = call
+end
+cb15.render()
+cb15.render()
+core.graphics.text_2d = function() end
+assert(#draws == 2, string.format(
+    "T15a FAIL: two frames drew %d times, so the measurement is not the overlay", #draws))
+local draw = draws[1]
+assert(draw[1] == "text_2d" and draw[2] == WARNING_DRAW,
+    "T15b FAIL: the overlay text changed: " .. tostring(draw[2]))
+assert(type(draw[3]) == "table" and draw[3].x == 1920 * 0.5 - 100 and draw[3].y == 1080 * 0.4,
+    string.format("T15c FAIL: the overlay position changed (%s, %s)",
+        tostring(draw[3] and draw[3].x), tostring(draw[3] and draw[3].y)))
+assert(draw[4] == 16 and type(draw[5]) == "table" and draw[5].a == 255 and draw[6] == false,
+    "T15d FAIL: the overlay's font size, colour or centering changed")
+assert(warn_bytes <= WARN_BOUND, string.format(
+    "T15e FAIL: the warning overlay allocated %.2f B/frame (n=300), bound is %d", warn_bytes, WARN_BOUND))
+print(string.format("  T15 PASS: warning overlay allocates %.2f B/frame (n=300), bound %d; draws once per frame with unchanged text, position and colour", warn_bytes, WARN_BOUND))
+
+-- T15b: no warning up -- the common case for a user who never triggers one
+local NS15b, cb15b = main_scenario({ zygor = nil, color_stub = WARN_COLOR_STUB })
+local warn_idle = per_call_bytes(300, cb15b.render)
+assert(warn_idle <= WARN_BOUND, string.format(
+    "T15b FAIL: on_render allocated %.2f B/frame with no warning up (n=300), bound is %d", warn_idle, WARN_BOUND))
+print(string.format("  T15b PASS: on_render allocates %.2f B/frame with no warning up, bound %d", warn_idle, WARN_BOUND))
+
+-- T15c: colour module absent -- the retried failed `require` per drawn frame
+local NS15c, cb15c = main_scenario({ zygor = nil })
+NS15c.set_warning(WARNING_TEXT, 60)
+local warn_nocolor = per_call_bytes(300, cb15c.render)
+assert(warn_nocolor <= WARN_BOUND, string.format(
+    "T15c FAIL: the overlay allocated %.2f B/frame without a colour module (n=300), bound is %d",
+    warn_nocolor, WARN_BOUND))
+print(string.format("  T15c PASS: overlay allocates %.2f B/frame with no colour module, bound %d", warn_nocolor, WARN_BOUND))
+
+-- T16: the menu render, driven through the real tree body. The harness tree node drops the
+-- callback, so it is given one that calls it -- without that the body would never run and the
+-- measurement would be of a stub.
+local NS16, cb16 = main_scenario({ zygor = nil, color_stub = WARN_COLOR_STUB })
+local menu16 = require("menu_sylvanas")
+local tree_renders = 0
+menu16.tree.render = function(_, name, body) tree_renders = tree_renders + 1; if body then body() end end
+local widget_renders = 0
+for _, key in ipairs({ "enable", "btn_start", "auto_loot", "debug", "vendor_threshold", "nav_tolerance", "toggle_keybind" }) do
+    local widget = menu16[key]
+    if widget and widget.render then
+        local real_render = widget.render
+        widget.render = function(...) widget_renders = widget_renders + 1; return real_render(...) end
+    end
+end
+local menu_bytes = per_call_bytes(300, cb16.menu_render)
+assert(tree_renders >= 300 and widget_renders >= 300 * 7, string.format(
+    "T16a FAIL: the tree body ran %d times and rendered %d widgets over 305 frames -- the fixture measured a stub, not the menu",
+    tree_renders, widget_renders))
+assert(menu_bytes <= WARN_BOUND, string.format(
+    "T16b FAIL: the menu render allocated %.2f B/frame (n=300), bound is %d", menu_bytes, WARN_BOUND))
+print(string.format("  T16 PASS: menu render allocates %.2f B/frame (n=300), bound %d; the real tree body ran and rendered %d widgets", menu_bytes, WARN_BOUND, widget_renders))
+
+-- T17: the on_pre_tick wrapper -- the frame path the tick half does not reach, because it
+-- drives coordinator.update() directly. The machine sits in WAITING (the T2/T10 fixture), so
+-- everything measured here is the wrapper: the player guard, the menu reads, the keybind probe,
+-- the combat face and the handler dispatch.
+local NS17, cb17 = main_scenario({ zygor = nil, color_stub = WARN_COLOR_STUB })
+local coordinator17 = NS17.get_quest_state()
+local updates = 0
+local real_update = coordinator17.update
+coordinator17.update = function(...) updates = updates + 1; return real_update(...) end
+local faces = 0
+local combat17 = require("combat_helper_sylvanas")
+local real_face = combat17.auto_face_enemy
+combat17.auto_face_enemy = function(...) faces = faces + 1; return real_face(...) end
+local keybind_reads = 0
+local keybind17 = require("menu_sylvanas").toggle_keybind
+local real_keybind = keybind17.get_toggle_state
+keybind17.get_toggle_state = function(self) keybind_reads = keybind_reads + 1; return real_keybind(self) end
+
+local pre_bytes = per_call_bytes(300, cb17.pre_tick)
+assert(updates >= 300 and faces >= 300 and keybind_reads >= 300, string.format(
+    "T17a FAIL: over 305 frames the wrapper updated the machine %d times, faced an enemy %d times and read the keybind %d times",
+    updates, faces, keybind_reads))
+assert(pre_bytes <= WARN_BOUND, string.format(
+    "T17b FAIL: on_pre_tick allocated %.2f B/frame (n=300), bound is %d", pre_bytes, WARN_BOUND))
+print(string.format("  T17 PASS: on_pre_tick allocates %.2f B/frame (n=300), bound %d; update/face/keybind all ran every frame", pre_bytes, WARN_BOUND))
 
 print("PASS test_tick_allocation")

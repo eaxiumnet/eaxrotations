@@ -9,7 +9,6 @@ local _core_menu = core.menu
 
 -- Static table for combobox option labels (Pattern 4 from AGENTS.md)
 local _combo_labels = { n = 0 }
-local _t = { n = 0 }
 
 -- ============================================================================
 -- Menu IDs — prefix: "eaxaq_<feature>_<subfeature>"
@@ -119,84 +118,87 @@ end
 -- Render
 -- ============================================================================
 
+--- The tree body. A module-level function rather than a closure built in `M.render`: the body
+--- was handed to `M.tree:render` as a fresh closure on every menu frame (measured 32 B/frame),
+--- and it only ever reads the widgets that were created once at load — `_combo_labels` is the
+--- same static table it has always been, so the body itself allocates nothing.
+local function render_tree_body()
+    -- Checkboxes — core features
+    if M.enable then
+        M.enable:render("Enable AutoQuester", "Master toggle — enables or disables the entire auto-questing system")
+    end
+
+    -- Control buttons row
+    if M.btn_start then M.btn_start:render("Start", "Begin auto-questing") end
+    if M.btn_stop then M.btn_stop:render("Stop", "Stop all movement and disable") end
+    if M.btn_pause then M.btn_pause:render("Pause", "Pause navigation (keep enabled)") end
+    if M.btn_resume then M.btn_resume:render("Resume", "Resume after pause") end
+
+    if M.auto_accept then
+        M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
+    end
+
+    if M.auto_turnin then
+        M.auto_turnin:render("Auto-turnin Quests", "Automatically turn in completed quests when interacting with quest NPCs")
+    end
+
+    if M.auto_loot then
+        M.auto_loot:render("Auto-loot", "Automatically loot quest-relevant items from corpses and objects")
+    end
+
+    if M.auto_repair then
+        M.auto_repair:render("Auto-repair", "Automatically repair equipment at vendors when durability is low")
+    end
+
+    if M.auto_vendor then
+        M.auto_vendor:render("Auto-vendor", "Automatically sell grey and low-quality items at vendors")
+    end
+
+    if M.auto_train then
+        M.auto_train:render("Auto-train", "Automatically train new spells and skills from class trainers")
+    end
+
+    if M.debug then
+        M.debug:render("Debug Logging", "Enable verbose debug output to the Sylvanas log console")
+    end
+
+    -- Combobox — vendor threshold
+    if M.vendor_threshold then
+        -- Build labels list from pre-defined options on every render
+        _combo_labels.n = 0
+        for i = 1, #VENDOR_OPTIONS do
+            _combo_labels.n = _combo_labels.n + 1
+            _combo_labels[_combo_labels.n] = VENDOR_OPTIONS[i]
+        end
+        M.vendor_threshold:render(
+            "Vendor Sell Threshold",
+            _combo_labels,
+            "Minimum quality to auto-vendor. Grey = junk only, Blue = up to rare quality"
+        )
+    end
+
+    -- Sliders
+    if M.interact_range then
+        M.interact_range:render("Interaction Range", "Maximum distance (yards) to consider quest objects/NPCs as interactable")
+    end
+
+    if M.nav_tolerance then
+        M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
+    end
+
+    -- Keybind
+    if M.toggle_keybind then
+        M.toggle_keybind:render("Toggle Plugin Keybind", "Keybind to enable/disable the auto-questing plugin on the fly")
+    end
+end
+
 --- Render the full EaxAutoQuester menu tree.
 --- Called every frame by main.lua's on_render_menu callback.
 function M.render()
     if not M.tree then return end
 
-    -- Populate tree node label — clears children each frame
-    _t.n = 0
-
-    -- Begin tree with callback
-    M.tree:render("EaxAutoQuester", function()
-        -- Checkboxes — core features
-        if M.enable then
-            M.enable:render("Enable AutoQuester", "Master toggle — enables or disables the entire auto-questing system")
-        end
-
-        -- Control buttons row
-        if M.btn_start then M.btn_start:render("Start", "Begin auto-questing") end
-        if M.btn_stop then M.btn_stop:render("Stop", "Stop all movement and disable") end
-        if M.btn_pause then M.btn_pause:render("Pause", "Pause navigation (keep enabled)") end
-        if M.btn_resume then M.btn_resume:render("Resume", "Resume after pause") end
-
-        if M.auto_accept then
-            M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
-        end
-
-        if M.auto_turnin then
-            M.auto_turnin:render("Auto-turnin Quests", "Automatically turn in completed quests when interacting with quest NPCs")
-        end
-
-        if M.auto_loot then
-            M.auto_loot:render("Auto-loot", "Automatically loot quest-relevant items from corpses and objects")
-        end
-
-        if M.auto_repair then
-            M.auto_repair:render("Auto-repair", "Automatically repair equipment at vendors when durability is low")
-        end
-
-        if M.auto_vendor then
-            M.auto_vendor:render("Auto-vendor", "Automatically sell grey and low-quality items at vendors")
-        end
-
-        if M.auto_train then
-            M.auto_train:render("Auto-train", "Automatically train new spells and skills from class trainers")
-        end
-
-        if M.debug then
-            M.debug:render("Debug Logging", "Enable verbose debug output to the Sylvanas log console")
-        end
-
-        -- Combobox — vendor threshold
-        if M.vendor_threshold then
-            -- Build labels list from pre-defined options on every render
-            _combo_labels.n = 0
-            for i = 1, #VENDOR_OPTIONS do
-                _combo_labels.n = _combo_labels.n + 1
-                _combo_labels[_combo_labels.n] = VENDOR_OPTIONS[i]
-            end
-            M.vendor_threshold:render(
-                "Vendor Sell Threshold",
-                _combo_labels,
-                "Minimum quality to auto-vendor. Grey = junk only, Blue = up to rare quality"
-            )
-        end
-
-        -- Sliders
-        if M.interact_range then
-            M.interact_range:render("Interaction Range", "Maximum distance (yards) to consider quest objects/NPCs as interactable")
-        end
-
-        if M.nav_tolerance then
-            M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
-        end
-
-        -- Keybind
-        if M.toggle_keybind then
-            M.toggle_keybind:render("Toggle Plugin Keybind", "Keybind to enable/disable the auto-questing plugin on the fly")
-        end
-    end)
+    -- Begin tree with the hoisted body
+    M.tree:render("EaxAutoQuester", render_tree_body)
 end
 
 -- ============================================================================

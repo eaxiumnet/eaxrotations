@@ -13,6 +13,16 @@ local _use_item_target = core.input.use_item_target
 -- Static table reuse for enemy scan (Pattern 4 from AGENTS.md)
 local _enemies = { n = 0 }
 
+-- Hoisted unit probes. Every one of these was an inline `pcall(function() ... end)`, which built
+-- a closure on each call: two of them on every frame (auto_face_enemy's no-target path, which
+-- main.lua's on_pre_tick reaches) and the rest on each combat scan.
+local function unit_get_target(u) return u:get_target() end
+local function unit_is_alive(u) return u:is_alive() end
+local function unit_is_player(u) return u:is_player() end
+local function unit_is_enemy_with(u, other) return u:is_enemy_with(other) end
+local function unit_get_position(u) return u:get_position() end
+local function unit_is_in_combat(u) return u:is_in_combat() end
+
 -- ============================================================================
 -- Squared Distance — local copy avoids cross-module dep (Pattern 3)
 -- ============================================================================
@@ -70,9 +80,9 @@ local function target_and_tag_nearest(range)
                     -- has a target" and then never added it — so no target was
                     -- ever acquired whenever that call was unavailable.
                     local engaged_by_other = false
-                    local tgt_ok, e_target = pcall(function() return obj:get_target() end)
+                    local tgt_ok, e_target = pcall(unit_get_target, obj)
                     if tgt_ok and e_target and e_target ~= me then
-                        local e_ok, e_is_player = pcall(function() return e_target:is_player() end)
+                        local e_ok, e_is_player = pcall(unit_is_player, e_target)
                         if e_ok and e_is_player then
                             engaged_by_other = true
                         end
@@ -109,7 +119,7 @@ local function target_and_tag_nearest(range)
     local ok, result = pcall(_set_target, nearest)
     if not ok then return false end
     pcall(core.input.interact_with_object, nearest)
-    local _, npos = pcall(function() return nearest:get_position() end)
+    local _, npos = pcall(unit_get_position, nearest)
     if npos then pcall(core.input.look_at_3d, npos) end
     return result == true
 end
@@ -187,13 +197,13 @@ local function auto_face_enemy()
     if not me then return false end
 
     -- Face any valid enemy target, even before combat starts (kill goal may have tagged it)
-    local target_ok, target = pcall(function() return me:get_target() end)
+    local target_ok, target = pcall(unit_get_target, me)
     if target_ok and target then
-        local alive_ok, alive = pcall(function() return target:is_alive() end)
+        local alive_ok, alive = pcall(unit_is_alive, target)
         if alive_ok and alive then
-            local enemy_ok, is_enemy = pcall(function() return target:is_enemy_with(me) end)
+            local enemy_ok, is_enemy = pcall(unit_is_enemy_with, target, me)
             if enemy_ok and is_enemy then
-                local _, tpos = pcall(function() return target:get_position() end)
+                local _, tpos = pcall(unit_get_position, target)
                 if tpos then
                     pcall(core.input.look_at_3d, tpos)
                     -- Small random jitter on facing to avoid robotic precision
@@ -207,7 +217,7 @@ local function auto_face_enemy()
     end
 
     -- No target — find and tag nearest enemy only if in combat
-    local combat_ok, in_combat = pcall(function() return me:is_in_combat() end)
+    local combat_ok, in_combat = pcall(unit_is_in_combat, me)
     if not combat_ok or not in_combat then return false end
 
     return target_and_tag_nearest(30)

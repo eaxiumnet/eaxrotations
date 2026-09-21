@@ -69,6 +69,12 @@ end
 
 local _prev_enabled = nil  -- track transitions for hard stop
 
+--- Hoisted keybind probe: `pcall(function() return _menu.toggle_keybind:get_toggle_state() end)`
+--- built a closure on every tick, which is the one allocation left on this path (the button
+--- probes below are plain method calls, and the `pcall(function() ... end)` set calls only run
+--- when a button is actually clicked).
+local function keybind_toggle_state(widget) return widget:get_toggle_state() end
+
 --- Read menu checkbox for enabled state, handle keybind toggle.
 --- When disabled, immediately stop all navigation.
 local function check_enabled()
@@ -80,7 +86,7 @@ local function check_enabled()
 
     -- Read keybind toggle: if keybind is pressed, toggle checkbox state
     if _menu.toggle_keybind then
-        local ok, toggle = pcall(function() return _menu.toggle_keybind:get_toggle_state() end)
+        local ok, toggle = pcall(keybind_toggle_state, _menu.toggle_keybind)
         if ok then
             local prev = _menu._last_kb_toggle
             if prev ~= nil and toggle ~= prev then
@@ -128,6 +134,41 @@ local function check_enabled()
     _prev_enabled = state.enabled
 end
 
+-- ============================================================================
+-- Warning overlay
+-- ============================================================================
+-- What used to allocate on every drawn frame while a warning was up (measured 448.34 B/frame
+-- with the colour module present, 225.84 without): a fresh `lines` table plus the concatenated
+-- text, the position table literal, a `require("common/color")` retried every frame (an error
+-- string per frame on a build that does not supply the module) and a fresh colour instance.
+-- The overlay is redrawn every frame, so all of it has to be built once instead: the text only
+-- changes when the message does, the position table is reused, and the colour module is
+-- attempted once and its instance cached -- the same latch the navigation marker uses.
+local WARNING_HEADER = "!!! EaxAutoQuester !!!"
+local WARNING_FOOTER = "Manual input may be required"
+local _warn_lines = { WARNING_HEADER, "", WARNING_FOOTER }
+local _warn_pos = { x = 0, y = 0 }
+local _warn_text = nil
+local _warn_text_for = nil
+local _warn_color = nil
+local _warn_color_attempted = false
+
+--- The warning colour, resolved once. `common/color` is supplied by the API the plugin loads
+--- at startup, so a missing module cannot appear later in the session, and retrying the failed
+--- require allocated an error string per drawn frame.
+--- @return table|nil
+local function warning_color()
+    if not _warn_color and not _warn_color_attempted then
+        _warn_color_attempted = true
+        local ok, color = pcall(require, "common/color")
+        if ok and color and color.red then
+            local ok_red, red = pcall(color.red, 255)
+            if ok_red then _warn_color = red end
+        end
+    end
+    return _warn_color
+end
+
 --- Render warning overlay — always shows when warning is active.
 --- Uses core.graphics.text_2d(text, position, font_size, color, centered).
 local function render_warnings()
@@ -137,19 +178,20 @@ local function render_warnings()
         return
     end
 
-    local lines = {}
-    lines[#lines + 1] = "!!! EaxAutoQuester !!!"
-    lines[#lines + 1] = tostring(state.warning_msg)
-    lines[#lines + 1] = "Manual input may be required"
+    -- Rebuilt only when the message changes; identical output, no per-frame concat.
+    if _warn_text_for ~= state.warning_msg then
+        _warn_text_for = state.warning_msg
+        _warn_lines[2] = tostring(state.warning_msg)
+        _warn_text = table.concat(_warn_lines, "\n")
+    end
 
-    local text = table.concat(lines, "\n")
     local screen = core.graphics.get_screen_size()
     if screen then
-        local cx = (screen.x or 1280) * 0.5
-        local cy = (screen.y or 720) * 0.4
-        local ok, color = pcall(require, "common/color")
-        if ok and color then
-            pcall(core.graphics.text_2d, text, { x = cx - 100, y = cy }, 16, color.red(255), false)
+        _warn_pos.x = (screen.x or 1280) * 0.5 - 100
+        _warn_pos.y = (screen.y or 720) * 0.4
+        local color = warning_color()
+        if color then
+            pcall(core.graphics.text_2d, _warn_text, _warn_pos, 16, color, false)
         end
     end
 end
