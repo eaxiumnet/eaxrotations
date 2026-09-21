@@ -12,6 +12,31 @@
 --        ONE closure (56 B) fails. T3 is 256 B/tick on the unpinned fixture, because
 --        mock_core's p:get_buffs builds a fresh table on every call: that is harness noise
 --        (95.57 B/tick), not plugin cost, and T2 pins the fixture to show the difference.
+-- Per-state (T10-T14): the tick half used to measure whichever state the fixture happened to
+--        sit in, so a regression in any other state hid behind that one number. It now drives
+--        five fixtures, each of which really settles in its state and stays there, and counts
+--        that state's handler entries per tick, so a fixture that drifted cannot be measured as
+--        if it had not. Measured on the pinned Lua 5.1.5 (n=300 / n=1000, two runs, identical):
+--          WAITING    -0.43 /    0.00  clean — bound 8 (measured + 8, so any added byte fails)
+--          IDLE      388.07 /  387.89  idle_state.run's seven head probes are inline
+--                                      `pcall(function() ... end)` closures: the death check
+--                                      (is_dead, get_health, one per aura method) and the
+--                                      cast/channel pause (is_casting_spell, is_channelling_spell)
+--          INTERACT  320.31 /  319.97  two Zygor step-info tables per tick: interact_state asks
+--                                      zygor_reader.get_current_step_info() once for the
+--                                      flight-path section and once for the frame handler, and
+--                                      that reader builds a fresh three-field table per call
+--          NAV       385.24 /  384.29  nav_state's inline is_in_combat closure (56) +
+--                                      navigation.update's fallback mover probes (104) +
+--                                      mount_manager.update → try_mount's four closures (225)
+--          DEAD        0.00 /   -0.13  clean — bound 8 (measured + 8, so any added byte fails)
+--        The three non-zero bounds are RATCHETS around today's measured cost, not an
+--        endorsement of it: each is measured + 8 B, and the run-to-run spread above is under
+--        1 B, so ANY added per-tick allocation fails in its own state — down to a no-upvalue
+--        closure, which costs 20 B (a closure that captures an upvalue costs ~56). Removing the
+--        known 388/320/385 (hoisting idle_state's head probes, the duplicate step-info read,
+--        nav_state/navigation/mount_manager's closures) is a separate pass; these bounds only
+--        stop the cost growing meanwhile.
 -- What this cannot prove: anything about the in-game client's own per-call allocation (a real
 --        aura read may hand back a fresh table, and the client's own callbacks are not measured
 --        here), or the collector's timing under load. The render half (T4-T8) drives the real
@@ -334,5 +359,191 @@ assert(render_client <= RENDER_BOUND_BYTES,
         render_client, RENDER_BOUND_BYTES))
 print(string.format("  T9 PASS: client-path render allocates %.2f B/frame (%d nodes / %d segments drawn), bound %d",
     render_client, cyan_nodes, cyan_segments, RENDER_BOUND_BYTES))
+
+-- ============================================================================
+-- T10-T14: the tick path, measured once per coordinator state
+-- ============================================================================
+-- Why one scenario per state: the T2/T3 half measures whichever state the fixture sits in, so
+-- a regression confined to WAITING, INTERACT, NAV or DEAD never reaches the number. Each
+-- scenario below asserts three things: the fixture settled in its state, every measured tick
+-- dispatched exactly that state's handler and no other, and the per-tick cost is within the
+-- state's bound.
+
+local STATE_HANDLER = {
+    WAITING = "quest_state/waiting_state",
+    IDLE = "quest_state/idle_state",
+    INTERACT = "quest_state/interact_state",
+    NAV = "quest_state/nav_state",
+    DEAD = "quest_state/dead_state",
+    DO_ACTION = "quest_state/do_action_state",
+}
+
+-- Fresh per state: the module-level caches (the coordinator's submodule handles, the handlers'
+-- own throttles and lazy loads, navigation's committed destination, utils' throttle clock) must
+-- not carry one scenario into the next one's measurement.
+local STATE_FRESH = {
+    "quest_state/coordinator", "quest_state/idle_state", "quest_state/nav_state",
+    "quest_state/interact_state", "quest_state/do_action_state", "quest_state/waiting_state",
+    "quest_state/dead_state", "navigation_sylvanas", "quest_interaction_sylvanas",
+    "zygor_reader_sylvanas", "utils_sylvanas", "anti_detection_sylvanas",
+    "waypoint_fixer_sylvanas", "flight_path_sylvanas", "mount_manager_sylvanas",
+    "static_popup_sylvanas", "loot_manager_sylvanas", "combat_helper_sylvanas",
+    "service_gossip_sylvanas", "goal_resolver_sylvanas", "object_scanner",
+    "shared/corpse_loot",
+    -- menu_sylvanas publishes itself at _G.EaxAutoQuester.menu and answers unknown keys with the
+    -- caller's fallback, which is where navigation gets its arrival tolerance (3) from. A stub
+    -- that answers every key with false makes navigation throw on `false * false`.
+    "menu_sylvanas",
+}
+
+-- The mock records every input call by appending a table (harness allocation) and performs none
+-- of the movement the plugin asks for. Replaced with no-ops for the same reason T2 pins the aura
+-- fixture. `loot_item` matters twice: a looted slot drains the window, and the INTERACT fixture
+-- needs it held open.
+local INPUT_STUBS = { "jump", "turn_left_start", "turn_left_stop", "turn_right_start",
+    "turn_right_stop", "loot_item", "loot_object", "close_loot", "set_target",
+    "interact_with_object", "use_object", "use_item", "move_to", "look_at", "look_at_3d" }
+
+local function silence_inputs()
+    for i = 1, #INPUT_STUBS do core.input[INPUT_STUBS[i]] = function() end end
+end
+
+-- Zygor waypoints reach the world through coords_helper (waypoint_fixer.map_to_world_fixed) and
+-- the harness has no such module, so the NAV fixture could not produce a destination without
+-- this stand-in — it converts the way the documented fallback does (map coords * 100).
+local COORDS_STUB = {
+    map_to_world = function(_, map_id, pos) return { x = pos.x * 100, y = pos.y * 100, z = 0 } end,
+    get_terrain_height = function() return 0 end,
+}
+
+local STEP_BARE = { num = 1, is_complete = false, goals = {}, waypoint = nil, waypoints = {} }
+-- A waypoint 70yd away: far past IDLE's 40yd nav threshold but inside the same map.
+local STEP_FAR = { num = 1, is_complete = false, goals = {},
+    waypoint = { map_id = 1, x = 0.5, y = 0.5 }, waypoints = {} }
+local LOOT_WINDOW = {
+    { id = 11, name = "First", is_gold = false },
+    { id = 12, name = "Second", is_gold = false },
+}
+
+local TICK_STATES = {
+    {
+        label = "T10", name = "WAITING", bound = 8, note = "no guidance available",
+        fixture = function() end,  -- no Zygor step: IDLE hands over to WAITING, which holds it
+    },
+    {
+        label = "T11", name = "IDLE", bound = 396, note = "mid-cast gather channel",
+        zygor = STEP_BARE,
+        -- Mid-cast is the documented reason IDLE exists (idle_state.lua:143-150): the bot must
+        -- not move, re-target or re-interact while a gather channel is running.
+        fixture = function(player) player._casting = true end,
+    },
+    {
+        label = "T12", name = "INTERACT", bound = 328, note = "loot window open",
+        zygor = STEP_BARE,
+        fixture = function() mock._loot_items = LOOT_WINDOW end,
+    },
+    {
+        label = "T13", name = "NAV", bound = 393, note = "navigating to a waypoint",
+        zygor = STEP_FAR,
+        fixture = function() end,
+    },
+    {
+        label = "T14", name = "DEAD", bound = 8, note = "player dead",
+        zygor = STEP_BARE,
+        fixture = function(player) player._dead = true; player._hp = 0 end,
+    },
+}
+
+--- Build a world in `spec`'s fixture and return the coordinator plus per-handler entry counts.
+--- @param spec table
+--- @return table coordinator
+--- @return table entered handler name -> entries
+--- @return function reset_counts
+local function state_scenario(spec)
+    for i = 1, #STATE_FRESH do package.loaded[STATE_FRESH[i]] = nil end
+    package.loaded["common/utility/simple_movement"] = make_mover()
+    package.loaded["common/utility/coords_helper"] = COORDS_STUB
+    package.loaded["common/color"] = nil
+    _G.SentinelNavClient = nil
+    mock.reset()
+    _G.EaxAutoQuester = {}
+    silence_inputs()
+    silence_graphics()
+
+    local player = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    local pinned_auras = {}
+    player.get_buffs = function() return pinned_auras end
+    player.get_auras = player.get_buffs
+    player.get_debuffs = player.get_buffs
+    if spec.zygor then
+        mock._addon_loaded.zygor = true
+        mock._zygor_step = spec.zygor
+    end
+    spec.fixture(player)
+    mock.set_time(1.0)
+
+    local coordinator = require("quest_state/coordinator")
+
+    local entered = {}
+    for state in pairs(STATE_HANDLER) do entered[state] = 0 end
+    for state, module_name in pairs(STATE_HANDLER) do
+        local handler = require(module_name)
+        local real_run = handler.run
+        handler.run = function(shared, ctx)
+            entered[state] = entered[state] + 1
+            return real_run(shared, ctx)
+        end
+    end
+    local function reset_counts()
+        for state in pairs(entered) do entered[state] = 0 end
+    end
+    return coordinator, entered, reset_counts
+end
+
+for i = 1, #TICK_STATES do
+    local spec = TICK_STATES[i]
+    local coordinator, entered, reset_counts = state_scenario(spec)
+    for _ = 1, 3 do coordinator.update() end  -- settle: the first tick is the transition into it
+    local settled = coordinator._test_inspect()
+    assert(settled == spec.name, string.format(
+        "%sa FAIL: the %s fixture (%s) settled in %s, not %s — it would measure the wrong state",
+        spec.label, spec.name, spec.note, tostring(settled), spec.name))
+
+    reset_counts()
+    local bytes_300 = per_call_bytes(300, coordinator.update)
+    local others = ""
+    for state, count in pairs(entered) do
+        if state ~= spec.name and count > 0 then
+            others = others .. " " .. state .. "=" .. tostring(count)
+        end
+    end
+    local entered_300 = entered[spec.name]
+    local held_300 = coordinator._test_inspect()
+
+    reset_counts()
+    local bytes_1000 = per_call_bytes(1000, coordinator.update)
+    local entered_1000 = entered[spec.name]
+    local held_1000 = coordinator._test_inspect()
+
+    assert(held_300 == spec.name and held_1000 == spec.name, string.format(
+        "%sb FAIL: the machine left %s during measurement (%s after n=300, %s after n=1000)",
+        spec.label, spec.name, tostring(held_300), tostring(held_1000)))
+    assert(entered_300 >= 300 and entered_1000 >= 1000, string.format(
+        "%sc FAIL: %s ran %d times in the n=300 window and %d in the n=1000 window — a fixture " ..
+        "that never dispatches the handler measures nothing",
+        spec.label, spec.name, entered_300, entered_1000))
+    assert(others == "", string.format(
+        "%sd FAIL: another handler ran during the %s window:%s — the fixture is not state-pure",
+        spec.label, spec.name, others))
+    assert(bytes_300 <= spec.bound and bytes_1000 <= spec.bound, string.format(
+        "%se FAIL: the %s tick allocated %.2f B/tick (n=300) and %.2f B/tick (n=1000), bound is %d",
+        spec.label, spec.name, bytes_300, bytes_1000, spec.bound))
+
+    print(string.format(
+        "  %s PASS: %s tick allocates %.2f B/tick (n=300) and %.2f (n=1000), bound %d; " ..
+        "%s dispatched every tick (%d/%d) with no other handler running",
+        spec.label, spec.name, bytes_300, bytes_1000, spec.bound,
+        spec.name, entered_300, entered_1000))
+end
 
 print("PASS test_tick_allocation")
