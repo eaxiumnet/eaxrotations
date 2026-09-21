@@ -1,16 +1,18 @@
-# Per-state tick allocation audit — closing the three non-zero bounds
+# Per-state tick allocation audit — every coordinator state, down to zero
 
-`tests/test_tick_allocation.lua` measures the real `coordinator.update()` per coordinator state
-(T10-T14), driven by `tests/mock_core` with the collector stopped (gross bytes per tick, n=300
-and n=1000, pinned Lua 5.1.5). When the per-state half was added, three of the five states were
-non-zero and their bounds were recorded as *ratchets* around measured debt, with the attribution
-of each state already written down. This pass removes that debt: **all five bounds are now 8 B**
-(measured + 8, against a run-to-run spread under 1.5 B), so any added per-tick allocation fails
-in its own state — down to a single no-upvalue closure, which costs 20 B.
+`tests/test_tick_allocation.lua` measures the real `coordinator.update()` per coordinator state,
+driven by `tests/mock_core` with the collector stopped (gross bytes per tick, n=300 and n=1000,
+pinned Lua 5.1.5). When the per-state half was added it covered five states (T10-T14), three of
+them non-zero with their bounds recorded as *ratchets* around measured debt; this pass closes that
+debt and adds the sixth state (DO_ACTION, T18). **All six bounds are now 8 B** (measured + 8,
+against a run-to-run spread under 1.5 B), so any added per-tick allocation fails in its own state
+— down to a single no-upvalue closure, which costs 20 B.
 
 Nothing here is a behaviour change, and nothing here is asserted: the four fixes are the hoisting
 and reuse the attribution named, each is killed by a mutant that reinstates exactly it, and the
 whole tick sequence is proven identical to the pre-change tree by transcript diff (section 4).
+The sixth state is a coverage addition only — it measured zero — and section 5 states exactly how
+far its fixture reaches and what it leaves uncovered.
 
 ---
 
@@ -23,6 +25,7 @@ whole tick sequence is proven identical to the pre-change tree by transcript dif
 | INTERACT | 320.31 / 319.97 | **0.31 / -0.03** | 8 | two fresh three-field step-info tables per tick |
 | NAV | 385.24 / 384.29 | **1.24 / 0.29** | 8 | `nav_state`'s combat probe, `navigation.update`'s fallback mover probes, `mount_manager.update`'s four probes |
 | DEAD | 0.00 / -0.13 | 0.00 / -0.13 | 8 | clean already |
+| DO_ACTION | not measured | 0.00 / -0.13 | 8 | clean, but only its wait tick is pinnable — section 5 |
 
 Two independent runs at both sizes gave the same numbers to the hundredth, and the suite
 reproduces them.
@@ -88,7 +91,55 @@ restored from `HEAD`:
   walk inside INTERACT, the state whose per-tick cost this pass removed.
 * `diff /tmp/tr_before.txt /tmp/tr_after.txt` prints **nothing**: the transcripts are byte-identical.
 
-## 5. What this cannot prove
+## 5. DO_ACTION (T18) — the sixth state, and what its fixture can and cannot cover
+
+`DO_ACTION` was the one coordinator state the gate never covered, even though the pass above
+showed the machine really ticking there. The gate now drives it too: **0.00 / −0.13 B/tick,
+settled in DO_ACTION, its handler entered on every tick (305/1005) with no other handler running,
+bound 8**.
+
+That number needed a fixture decision, and the honest version of it is narrower than the other
+five, so it is recorded here rather than implied:
+
+| fixture shape tried | where it settled | measured (n=300) | why it cannot be the T18 fixture |
+|---|---|---|---|
+| area goal, no NPC, **frozen clock** | DO_ACTION, pure | **0.00** | this is T18 — but see below: the measured tick is the armed wait, not an evaluation |
+| area goal, no NPC, clock **+0.1/tick** | DO_ACTION (295/300) | 13.51 amortized | 5 evaluation cycles (25 step-info reads, 5 NPC/enemy scans) and 5 one-tick IDLE hand-offs: the purity assertion *correctly* fails |
+| area goal, no NPC, clock **+0.5/tick** | DO_ACTION (275/300) | 33.03 amortized | same, 25 cycles and 25 hand-offs in the window |
+| `kill` goal, quest mob present | **IDLE** | 224.79 | the kill branch acts and returns IDLE on its first tick |
+| `use` goal, crate present | **IDLE** | 176.74 | the use branch acts and returns IDLE on its first tick |
+
+The structural reason, from the handler itself (`do_action_state.lua:1010-1030`, `:1100-1110`):
+DO_ACTION is **transient**. Every acting branch finishes by returning `"IDLE"` (after arming an
+action-pause), and the only path that returns `"DO_ACTION"` is an armed wait
+(`shared._area_wait_timer` / `shared._action_pause_timer`, compared against `ctx.now`). With the
+mock clock frozen, the measured tick is therefore the wait's early return, and the state's
+evaluation path is *not* in the measurement window. With the clock advancing, the evaluation runs
+— and the tick necessarily alternates with IDLE, so the purity assertion the other five states
+satisfy cannot hold. No fixture satisfies both, and inventing one would mean changing behaviour.
+
+So the T18 bound is honest about its scope: it pins that **entering DO_ACTION and holding in its
+wait costs nothing**, which is where this state spends its steady time, and it does not claim to
+bound the evaluation path. Both mutants were applied to the entry path (the precedent the other
+five states used) and each fails T18 and only T18:
+
+| mutant | all six states (n=300) | gate |
+|---|---|---|
+| E — a no-op `pcall(function() end)` at the top of `M.run` | **DO_ACTION 20.00**; the other five unchanged | `T18e FAIL: the DO_ACTION tick allocated 20.00 B/tick (n=300) and 19.87 B/tick (n=1000), bound is 8` |
+| F — `local _t = { now = ctx.now }` at the top of `M.run` | **DO_ACTION 64.00**; the other five unchanged | `T18e FAIL: the DO_ACTION tick allocated 64.00 B/tick (n=300) and 63.87 B/tick (n=1000), bound is 8` |
+
+### What the DO_ACTION measurement surfaced instead
+
+Chasing the evaluation path turned up a real, *unbounded* cost on the live path — in **IDLE**, not
+DO_ACTION: with a goal step the machine acts on and hands back, the ticks that follow are IDLE
+ticks, and they measure **120.79 B/tick** (kill goal, no enemy in range), **224.79 B/tick** (kill
+goal with an enemy present, `combat_helper.is_current_target_valid` 310 times in the window) and
+**176.74 B/tick** (use goal). The gate's IDLE scenario is the mid-cast gather pause, which returns
+at the top of the handler, so none of that goal-evaluation wiring is under any bound today. It is
+its own pass (it needs its own fixture, and possibly the same hoisting), and this one does not
+touch it.
+
+## 6. What this cannot prove
 
 The measurement is the desktop interpreter's view of `tests/mock_core`. The client's own per-call
 allocation is not measured and cannot be from here: a real `get_buffs`, `get_position`,

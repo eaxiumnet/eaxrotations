@@ -12,9 +12,10 @@
 --        ONE closure (56 B) fails. T3 is 256 B/tick on the unpinned fixture, because
 --        mock_core's p:get_buffs builds a fresh table on every call: that is harness noise
 --        (95.57 B/tick), not plugin cost, and T2 pins the fixture to show the difference.
--- Per-state (T10-T14): the tick half used to measure whichever state the fixture happened to
---        sit in, so a regression in any other state hid behind that one number. It now drives
---        five fixtures, each of which really settles in its state and stays there, and counts
+-- Per-state (T10-T14, plus T18 for DO_ACTION): the tick half used to measure whichever state the
+--        fixture happened to sit in, so a regression in any other state hid behind that one
+--        number. It now drives six fixtures — every state the coordinator has — each of which
+--        really settles in its state and stays there, and counts
 --        that state's handler entries per tick, so a fixture that drifted cannot be measured as
 --        if it had not. Measured on the pinned Lua 5.1.5 (n=300 / n=1000, two runs, identical):
 --          WAITING    -0.43 /    0.00  clean — bound 8
@@ -22,7 +23,15 @@
 --          INTERACT    0.31 /   -0.03  was 320.31 / 319.97 — bound 8
 --          NAV         1.24 /    0.29  was 385.24 / 384.29 — bound 8
 --          DEAD        0.00 /   -0.13  clean — bound 8
---        All five bounds are 8 B — measured + 8, with the run-to-run spread above under 1.5 B —
+--          DO_ACTION   0.00 /   -0.13  clean — bound 8, with a scope caveat: DO_ACTION is a
+--                                      transient state, so the only tick that holds in it is
+--                                      the armed area wait — see the T18 entry below, which
+--                                      records the fixture shapes that could not be pinned and
+--                                      why (an acting fixture leaves on its first tick; with the
+--                                      clock advancing it is 13.51 B/tick amortized over 5
+--                                      evaluation cycles but 5 IDLE hand-offs, so the purity
+--                                      assertion would rightly fail)
+--        All six bounds are 8 B — measured + 8, with the run-to-run spread above under 1.5 B —
 --        so ANY added per-tick allocation fails in its own state: down to a no-upvalue closure,
 --        which costs 20 B (one that captures an upvalue costs ~56). What the three non-clean
 --        states used to pay, and what closed it:
@@ -361,9 +370,9 @@ print(string.format("  T9 PASS: client-path render allocates %.2f B/frame (%d no
     render_client, cyan_nodes, cyan_segments, RENDER_BOUND_BYTES))
 
 -- ============================================================================
--- T10-T14: the tick path, measured once per coordinator state
--- (T15-T17, at the end of the file, cover the per-frame paths outside the coordinator:
---  main.lua's on_render / on_render_menu / on_pre_tick and the warning overlay.)
+-- T10-T14 and T18: the tick path, measured once per coordinator state — every state the
+-- coordinator has. (T15-T17, at the end of the file, cover the per-frame paths outside the
+--  coordinator: main.lua's on_render / on_render_menu / on_pre_tick and the warning overlay.)
 -- ============================================================================
 -- Why one scenario per state: the T2/T3 half measures whichever state the fixture sits in, so
 -- a regression confined to WAITING, INTERACT, NAV or DEAD never reaches the number. Each
@@ -428,6 +437,9 @@ local LOOT_WINDOW = {
     { id = 11, name = "First", is_gold = false },
     { id = 12, name = "Second", is_gold = false },
 }
+-- An area goal (the only goal type that keeps the machine in DO_ACTION at all -- see T18).
+local STEP_AREA_GOAL = { num = 2, is_complete = false,
+    goals = { { npc_id = 4242, is_complete = false } }, waypoint = nil, waypoints = {} }
 
 local TICK_STATES = {
     {
@@ -455,6 +467,28 @@ local TICK_STATES = {
         label = "T14", name = "DEAD", bound = 8, note = "player dead",
         zygor = STEP_BARE,
         fixture = function(player) player._dead = true; player._hp = 0 end,
+    },
+    {
+        -- T18 keeps its own label because T15-T17 are the render half above; it belongs to this
+        -- group and runs in the same loop.
+        --
+        -- What this bound covers, measured rather than assumed: DO_ACTION is a transient state
+        -- by design. Its acting branches (kill, use/click/loot, talk) hand straight back to IDLE
+        -- on the tick they act, so every acting fixture tried here settled in IDLE and never in
+        -- DO_ACTION, carrying 120.79-224.79 B/tick of IDLE work instead. The only tick that HOLDS
+        -- in DO_ACTION is the armed area wait (do_action_state.lua:1012-1020), and under the
+        -- harness's frozen clock that is the tick this scenario measures: the goal evaluation,
+        -- the scans and the wait arming all happen on the one tick that enters the wait.
+        -- Measured with the clock advancing instead (`mock.set_time` + 0.1/tick, 300 ticks):
+        -- 13.51 B/tick amortized with 5 evaluation cycles in the window and 5 one-tick IDLE
+        -- hand-offs -- which is why the advancing fixture cannot be used here: its purity
+        -- assertion (no other handler running) would fail, correctly. So this scenario bounds
+        -- the entry/wait path of a state that spends its steady time there, and it is honest
+        -- about not covering the evaluation path; docs/tick_allocation_audit.md section 5 has
+        -- the fixture shapes tried and their numbers.
+        label = "T18", name = "DO_ACTION", bound = 8, note = "area goal, armed wait",
+        zygor = STEP_AREA_GOAL,
+        fixture = function() end,
     },
 }
 
