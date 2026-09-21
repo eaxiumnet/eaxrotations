@@ -13,6 +13,25 @@ local corpse_loot = require("shared/corpse_loot")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 
+-- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
+-- on the tick path, which built a closure per call — the death check alone cost three per tick,
+-- plus one per ghost-aura method it scanned. The probes are module-level, handed their unit as
+-- the pcall argument, so the pcall protection and every return value are unchanged.
+local function unit_is_dead(u) return u:is_dead() end
+local function unit_get_health(u) return u:get_health() end
+local function unit_aura_read(u, method) return u[method](u) end
+local function unit_is_casting(u) return u:is_casting_spell() end
+local function unit_is_channelling(u) return u:is_channelling_spell() end
+local function unit_is_in_combat(u) return u:is_in_combat() end
+local function unit_get_target(u) return u:get_target() end
+local function unit_can_attack(u, other) return u:can_attack(other) end
+local function unit_get_position(u) return u:get_position() end
+local function movement_pause_light(mh, secs) return mh:pause_movement_light(secs) end
+local function movement_look_at(mh, secs, pitch, target) return mh:look_at_target(secs, pitch, target) end
+
+-- The ghost-aura method list was rebuilt as a table literal on every tick; it never changes.
+local AURA_METHODS = { "get_buffs", "get_auras", "get_debuffs" }
+
 -- ============================================================================
 -- Frame Detection — lightweight probe without handling
 -- Used by IDLE state to detect open UI frames before transitioning to INTERACT
@@ -80,13 +99,13 @@ function M.run(shared, ctx)
         local ghost_found = false
 
         if ctx.me.is_dead then
-            local ok, result = pcall(function() return ctx.me:is_dead() end)
+            local ok, result = pcall(unit_is_dead, ctx.me)
             is_dead_v = (ok and tostring(result)) or "err"
             if ok and result then dead = true end
         end
 
         if not dead then
-            local hp_ok, hp = pcall(function() return ctx.me:get_health() end)
+            local hp_ok, hp = pcall(unit_get_health, ctx.me)
             hp_v = (hp_ok and tostring(hp)) or "err"
             if hp_ok then
                 if hp == nil or hp <= 0 then dead = true end
@@ -96,10 +115,9 @@ function M.run(shared, ctx)
         end
 
         if not dead then
-            local aura_methods = { "get_buffs", "get_auras", "get_debuffs" }
-            for _, m in ipairs(aura_methods) do
+            for _, m in ipairs(AURA_METHODS) do
                 if ctx.me[m] then
-                    local ok, data = pcall(function() return ctx.me[m](ctx.me) end)
+                    local ok, data = pcall(unit_aura_read, ctx.me, m)
                     if ok and data then
                         for i = 1, #data do
                             local b = data[i]
@@ -143,8 +161,8 @@ function M.run(shared, ctx)
     -- quest item. Re-targeting the pumpkin cancels the channel and the quest
     -- never progresses.
     if ctx.me then
-        local casting_ok, is_casting = pcall(function() return ctx.me:is_casting_spell() end)
-        local channelling_ok, is_channelling = pcall(function() return ctx.me:is_channelling_spell() end)
+        local casting_ok, is_casting = pcall(unit_is_casting, ctx.me)
+        local channelling_ok, is_channelling = pcall(unit_is_channelling, ctx.me)
         if (casting_ok and is_casting) or (channelling_ok and is_channelling) then
             return "IDLE"
         end
@@ -153,7 +171,7 @@ function M.run(shared, ctx)
     -- Combat check first: if in combat, skip frame handling
     local in_combat = false
     if ctx.me then
-        local ok, combat = pcall(function() return ctx.me:is_in_combat() end)
+        local ok, combat = pcall(unit_is_in_combat, ctx.me)
         in_combat = ok and combat == true
     end
     if in_combat then
@@ -165,14 +183,14 @@ function M.run(shared, ctx)
         shared._interact_cooldown = 0
         if ctx.me then
             local target = nil
-            local _, t = pcall(function() return ctx.me:get_target() end)
+            local _, t = pcall(unit_get_target, ctx.me)
             if t then target = t end
             if target then
                 -- Close distance if enemy is attacking from range (prevents desync death)
-                local ok_att, can_att = pcall(function() return target:can_attack(ctx.me) end)
+                local ok_att, can_att = pcall(unit_can_attack, target, ctx.me)
                 if ok_att and can_att then
-                    local _, me_pos = pcall(function() return ctx.me:get_position() end)
-                    local _, t_pos = pcall(function() return target:get_position() end)
+                    local _, me_pos = pcall(unit_get_position, ctx.me)
+                    local _, t_pos = pcall(unit_get_position, target)
                     if me_pos and t_pos and ctx.utils then
                         local d_sq = ctx.utils.squared_distance(me_pos, t_pos)
                         if d_sq > 100 then  -- 10 yards squared
@@ -185,9 +203,9 @@ function M.run(shared, ctx)
                 local mh_ok, mh = pcall(require, "common/utility/movement_handler")
                 if mh_ok and mh and mh.look_at_target then
                     if mh.pause_movement_light then
-                        pcall(function() mh:pause_movement_light(0.5) end)
+                        pcall(movement_pause_light, mh, 0.5)
                     end
-                    pcall(function() mh:look_at_target(0.5, 0, target) end)
+                    pcall(movement_look_at, mh, 0.5, 0, target)
                 end
             end
         end

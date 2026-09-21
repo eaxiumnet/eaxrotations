@@ -23,6 +23,16 @@ local MOUNT_COOLDOWN = 3.0        -- seconds between mount attempts
 local _last_mount_attempt = 0
 local _cached_mount_index = nil   -- cache first usable mount
 
+-- Hoisted probes and input calls (perf pass): `M.update` runs on every NAV tick, and each of these
+-- was an inline `pcall(function() ... end)` that built a closure per call — three or four per tick.
+-- Module-level functions handed their arguments through the pcall keep every return value and the
+-- pcall's error protection exactly as they were.
+local function unit_is_mounted(u) return u:is_mounted() end
+local function unit_is_in_combat(u) return u:is_in_combat() end
+local function unit_get_position(u) return u:get_position() end
+local function input_mount(idx) return core.input.mount(idx) end
+local function input_dismount() return core.input.dismount() end
+
 -- ============================================================================
 -- Helpers
 -- ============================================================================
@@ -32,7 +42,7 @@ local _cached_mount_index = nil   -- cache first usable mount
 -- @return boolean
 local function is_mounted(me)
     if not me then return false end
-    local ok, mounted = pcall(function() return me:is_mounted() end)
+    local ok, mounted = pcall(unit_is_mounted, me)
     return ok and mounted == true
 end
 
@@ -41,7 +51,7 @@ end
 -- @return boolean
 local function is_in_combat(me)
     if not me then return false end
-    local ok, combat = pcall(function() return me:is_in_combat() end)
+    local ok, combat = pcall(unit_is_in_combat, me)
     return ok and combat == true
 end
 
@@ -69,7 +79,7 @@ end
 -- @return number|nil
 local function dist_sq_to_dest(me, dest)
     if not me or not dest then return nil end
-    local ok, pos = pcall(function() return me:get_position() end)
+    local ok, pos = pcall(unit_get_position, me)
     if not ok or not pos then return nil end
     local dx = (pos.x or 0) - (dest.x or 0)
     local dy = (pos.y or 0) - (dest.y or 0)
@@ -104,7 +114,7 @@ function M.try_mount(me, dest)
     local mount_idx = find_usable_mount()
     if not mount_idx then return false end
 
-    local ok = pcall(function() core.input.mount(mount_idx) end)
+    local ok = pcall(input_mount, mount_idx)
     if ok and core.log then
         core.log("[EaxAutoQuester] Mounting up")
     end
@@ -121,14 +131,14 @@ function M.try_dismount(me, dest, force)
     if not is_mounted(me) then return false end
 
     if force then
-        pcall(function() core.input.dismount() end)
+        pcall(input_dismount)
         return true
     end
 
     if dest then
         local d_sq = dist_sq_to_dest(me, dest)
         if d_sq and d_sq <= DISMOUNT_DISTANCE_SQ then
-            pcall(function() core.input.dismount() end)
+            pcall(input_dismount)
             if core.log then
                 core.log("[EaxAutoQuester] Dismounting — close to destination")
             end

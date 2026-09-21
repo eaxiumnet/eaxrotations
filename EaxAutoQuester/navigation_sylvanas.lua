@@ -25,6 +25,16 @@ local _core_time = core.time
 local _core_log = core.log
 local _get_local_player = core.object_manager.get_local_player
 
+-- Hoisted probes (perf pass): `M.update` runs on every NAV tick, and the fallback half built three
+-- inline `pcall(function() ... end)` closures per tick; `stop_internal` built two more on every
+-- stop. Module-level functions handed their arguments through the pcall keep every return value
+-- and the pcall's error protection exactly as they were.
+local function unit_get_position(u) return u:get_position() end
+local function mover_process(mover) return mover:process() end
+local function mover_is_moving(mover) return mover:is_moving() end
+local function mover_stop(mover) return mover:stop() end
+local function client_stop(client) return client:stop() end
+
 -- Module table
 local M = {}
 
@@ -147,9 +157,9 @@ end
 -- Stop movement
 local function stop_internal()
     if _client and not _is_fallback then
-        pcall(function() _client:stop() end)
+        pcall(client_stop, _client)
     elseif _fallback_mover then
-        pcall(function() _fallback_mover:stop() end)
+        pcall(mover_stop, _fallback_mover)
     end
     _destination = nil
     _stuck_timer = 0
@@ -832,17 +842,17 @@ function M.update()
 
     if not _fallback_mover then return end
 
-    pcall(function() _fallback_mover:process() end)
+    pcall(mover_process, _fallback_mover)
     local me = _get_local_player()
     if not me then return end
-    local _, pos = pcall(function() return me:get_position() end)
+    local _, pos = pcall(unit_get_position, me)
     if not pos then return end
 
     if sq_distance(pos, _destination) <= get_nav_tolerance_sq() then
         _state = "ARRIVED"; stop_internal(); fire_callback(true); return
     end
 
-    local mov_ok, moving = pcall(function() return _fallback_mover:is_moving() end)
+    local mov_ok, moving = pcall(mover_is_moving, _fallback_mover)
     if mov_ok and not moving then
         _state = "FAILED"; stop_internal(); fire_callback(false, "stopped"); return
     end
@@ -882,7 +892,7 @@ end
 -- Hoisted so the per-frame path allocates nothing (item 15, render half): both calls were
 -- inline `pcall(function() ... end)` closures built on every frame the marker was drawn.
 local function client_current_path(client) return client:get_current_path() end
-local function unit_get_position(u) return u:get_position() end
+-- `unit_get_position` is hoisted at the top of this file (the tick half uses it too).
 
 -- The marker's colours are constants of the colour module, but `c.green(n)` builds a NEW
 -- colour instance per call, so drawing the marker allocated five of them on every frame.

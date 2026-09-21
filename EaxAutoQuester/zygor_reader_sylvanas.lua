@@ -85,17 +85,25 @@ end
 -- Public API
 -- ============================================================================
 
+-- One table, refreshed in place (Pattern 4). Every production caller reads the fields inside
+-- the call that returned it — none stores it across ticks and none mutates it, which is what
+-- makes the reuse safe — and some ask for it two or three times in a single tick (interact_state
+-- once for the flight-path section and again for the frame handler, do_action_state twice in the
+-- area branch), which used to be a fresh three-field table per request: interact_state's tick
+-- measured 320.31 B. The table is valid for the call that returned it; do not keep it.
+local _EMPTY_GOALS = {}
+local _step_info = { step_num = 0, is_complete = false, goals = _EMPTY_GOALS }
+
 --- Get current step info: number, completion, goals.
 --- @return table|nil { step_num, is_complete, goals[] } or nil if no step
 local function M_get_current_step_info()
     local step = safe_get_step()
     if not step then return nil end
 
-    return {
-        step_num    = step.num or 0,
-        is_complete = step.is_complete or false,
-        goals       = step.goals or {},
-    }
+    _step_info.step_num    = step.num or 0
+    _step_info.is_complete = step.is_complete or false
+    _step_info.goals       = step.goals or _EMPTY_GOALS
+    return _step_info
 end
 
 --- Get current waypoint converted to world coordinates (vec3).

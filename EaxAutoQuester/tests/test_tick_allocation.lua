@@ -17,26 +17,26 @@
 --        five fixtures, each of which really settles in its state and stays there, and counts
 --        that state's handler entries per tick, so a fixture that drifted cannot be measured as
 --        if it had not. Measured on the pinned Lua 5.1.5 (n=300 / n=1000, two runs, identical):
---          WAITING    -0.43 /    0.00  clean — bound 8 (measured + 8, so any added byte fails)
---          IDLE      388.07 /  387.89  idle_state.run's seven head probes are inline
---                                      `pcall(function() ... end)` closures: the death check
---                                      (is_dead, get_health, one per aura method) and the
---                                      cast/channel pause (is_casting_spell, is_channelling_spell)
---          INTERACT  320.31 /  319.97  two Zygor step-info tables per tick: interact_state asks
---                                      zygor_reader.get_current_step_info() once for the
---                                      flight-path section and once for the frame handler, and
---                                      that reader builds a fresh three-field table per call
---          NAV       385.24 /  384.29  nav_state's inline is_in_combat closure (56) +
---                                      navigation.update's fallback mover probes (104) +
---                                      mount_manager.update → try_mount's four closures (225)
---          DEAD        0.00 /   -0.13  clean — bound 8 (measured + 8, so any added byte fails)
---        The three non-zero bounds are RATCHETS around today's measured cost, not an
---        endorsement of it: each is measured + 8 B, and the run-to-run spread above is under
---        1 B, so ANY added per-tick allocation fails in its own state — down to a no-upvalue
---        closure, which costs 20 B (a closure that captures an upvalue costs ~56). Removing the
---        known 388/320/385 (hoisting idle_state's head probes, the duplicate step-info read,
---        nav_state/navigation/mount_manager's closures) is a separate pass; these bounds only
---        stop the cost growing meanwhile.
+--          WAITING    -0.43 /    0.00  clean — bound 8
+--          IDLE        0.07 /   -0.11  was 388.07 / 387.89 — bound 8
+--          INTERACT    0.31 /   -0.03  was 320.31 / 319.97 — bound 8
+--          NAV         1.24 /    0.29  was 385.24 / 384.29 — bound 8
+--          DEAD        0.00 /   -0.13  clean — bound 8
+--        All five bounds are 8 B — measured + 8, with the run-to-run spread above under 1.5 B —
+--        so ANY added per-tick allocation fails in its own state: down to a no-upvalue closure,
+--        which costs 20 B (one that captures an upvalue costs ~56). What the three non-clean
+--        states used to pay, and what closed it:
+--          IDLE       seven inline `pcall(function() ... end)` closures in idle_state.run's head:
+--                     the death check (is_dead, get_health, one per aura method scanned) and the
+--                     cast/channel pause. Now module-level probes handed their unit.
+--          INTERACT   zygor_reader.get_current_step_info built a fresh three-field table per
+--                     call and interact_state asks twice a tick (the flight-path section and the
+--                     frame handler). The reader now refreshes ONE table (Pattern 4); the header
+--                     of that function states why no caller can leak state through it.
+--          NAV        nav_state's combat probe, navigation.update's fallback mover probes and
+--                     mount_manager.update -> try_mount's probes: all module-level now.
+--        An A/B transcript of a scripted multi-state tick sequence against the pre-change files
+--        is byte-identical apart from the allocation numbers (see docs/tick_allocation_audit.md).
 -- What this cannot prove: anything about the in-game client's own per-call allocation (a real
 --        aura read may hand back a fresh table, and the client's own callbacks are not measured
 --        here), or the collector's timing under load. The render half (T4-T8) drives the real
@@ -369,7 +369,9 @@ print(string.format("  T9 PASS: client-path render allocates %.2f B/frame (%d no
 -- a regression confined to WAITING, INTERACT, NAV or DEAD never reaches the number. Each
 -- scenario below asserts three things: the fixture settled in its state, every measured tick
 -- dispatched exactly that state's handler and no other, and the per-tick cost is within the
--- state's bound.
+-- state's bound. All five bounds are 8 B (measured + 8): the fixtures are not pinned to hide
+-- cost, the plugin's tick path really is allocation-free in every state now, and the pinned
+-- window where a closure is the smallest possible regression is 20 B above the bound.
 
 local STATE_HANDLER = {
     WAITING = "quest_state/waiting_state",
@@ -433,19 +435,19 @@ local TICK_STATES = {
         fixture = function() end,  -- no Zygor step: IDLE hands over to WAITING, which holds it
     },
     {
-        label = "T11", name = "IDLE", bound = 396, note = "mid-cast gather channel",
+        label = "T11", name = "IDLE", bound = 8, note = "mid-cast gather channel",
         zygor = STEP_BARE,
         -- Mid-cast is the documented reason IDLE exists (idle_state.lua:143-150): the bot must
         -- not move, re-target or re-interact while a gather channel is running.
         fixture = function(player) player._casting = true end,
     },
     {
-        label = "T12", name = "INTERACT", bound = 328, note = "loot window open",
+        label = "T12", name = "INTERACT", bound = 8, note = "loot window open",
         zygor = STEP_BARE,
         fixture = function() mock._loot_items = LOOT_WINDOW end,
     },
     {
-        label = "T13", name = "NAV", bound = 393, note = "navigating to a waypoint",
+        label = "T13", name = "NAV", bound = 8, note = "navigating to a waypoint",
         zygor = STEP_FAR,
         fixture = function() end,
     },

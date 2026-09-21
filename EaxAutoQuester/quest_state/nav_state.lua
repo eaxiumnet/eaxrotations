@@ -9,6 +9,12 @@
 
 local M = {}
 
+-- Hoisted probes (perf pass): this handler runs every tick the bot is travelling, and each of
+-- these was an inline `pcall(function() ... end)` closure built per call. Module-level functions
+-- handed their unit through the pcall keep every return value and the pcall's error protection.
+local function unit_is_in_combat(u) return u:is_in_combat() end
+local function unit_get_position(u) return u:get_position() end
+
 -- ============================================================================
 -- State: NAV — Navigate to destination with retry logic
 -- ============================================================================
@@ -28,7 +34,7 @@ function M.run(shared, ctx)
 
     -- Combat check: stop navigation and let EaxRotations handle
     if ctx.me then
-        local ok, combat = pcall(function() return ctx.me:is_in_combat() end)
+        local ok, combat = pcall(unit_is_in_combat, ctx.me)
         if ok and combat then
             local nav = ctx.nav
             if nav then nav.stop() end
@@ -110,7 +116,7 @@ function M.run(shared, ctx)
             if shared._nav_retries >= 2 then
                 local dest = shared._nav_destination
                 if ctx.me and dest then
-                    local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
+                    local pos_ok, pos = pcall(unit_get_position, ctx.me)
                     if pos_ok and pos and pos.z then
                         local z_diff = math.abs((dest.z or 0) - pos.z)
                         local xy_dist_sq = ((dest.x or 0) - pos.x)^2 + ((dest.y or 0) - pos.y)^2
@@ -141,7 +147,7 @@ function M.run(shared, ctx)
     -- Handle terminal navigation states
     if nav_state_val == "ARRIVED" then
         if shared._nav_destination and ctx.me then
-            local _, pos = pcall(function() return ctx.me:get_position() end)
+            local _, pos = pcall(unit_get_position, ctx.me)
             if pos and ctx.utils then
                 local dist_sq = ctx.utils.squared_distance(pos, shared._nav_destination)
                 if dist_sq > 9 then
