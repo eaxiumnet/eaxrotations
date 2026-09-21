@@ -4,9 +4,11 @@
 driven by `tests/mock_core` with the collector stopped (gross bytes per tick, n=300 and n=1000,
 pinned Lua 5.1.5). When the per-state half was added it covered five states (T10-T14), three of
 them non-zero with their bounds recorded as *ratchets* around measured debt; this pass closes that
-debt and adds the sixth state (DO_ACTION, T18). **All six bounds are now 8 B** (measured + 8,
-against a run-to-run spread under 1.5 B), so any added per-tick allocation fails in its own state
-— down to a single no-upvalue closure, which costs 20 B.
+debt and adds the sixth state (DO_ACTION, T18). A later pass adds a seventh scenario, T19, for the
+path the bot spends most of its life on — IDLE while it evaluates a goal, which the T11 fixture
+(mid-cast) cannot reach. **All seven bounds are now 8 B** (measured + 8, against a run-to-run
+spread under 1.5 B), so any added per-tick allocation fails in its own state — down to a single
+no-upvalue closure, which costs 20 B.
 
 Nothing here is a behaviour change, and nothing here is asserted: the four fixes are the hoisting
 and reuse the attribution named, each is killed by a mutant that reinstates exactly it, and the
@@ -26,6 +28,7 @@ far its fixture reaches and what it leaves uncovered.
 | NAV | 385.24 / 384.29 | **1.24 / 0.29** | 8 | `nav_state`'s combat probe, `navigation.update`'s fallback mover probes, `mount_manager.update`'s four probes |
 | DEAD | 0.00 / -0.13 | 0.00 / -0.13 | 8 | clean already |
 | DO_ACTION | not measured | 0.00 / -0.13 | 8 | clean, but only its wait tick is pinnable — section 5 |
+| IDLE (goal evaluation, T19) | 120.79 / 120.24 | **0.45 / 0.14** | 8 | two fresh `{}` defaults on the tick path and a per-tick closure inside `object_scanner` — section 6 |
 
 Two independent runs at both sizes gave the same numbers to the hundredth, and the suite
 reproduces them.
@@ -139,14 +142,97 @@ at the top of the handler, so none of that goal-evaluation wiring is under any b
 its own pass (it needs its own fixture, and possibly the same hoisting), and this one does not
 touch it.
 
-## 6. What this cannot prove
+## 6. IDLE while it evaluates a goal (T19) — the busiest live path, and it was unbounded
+
+Section 5 ended by naming a cost no bound could see: IDLE ticks that actually evaluate a goal. The
+T11 fixture is the mid-cast gather pause, which returns at the top of the handler, so the goal
+evaluation, the goal filter, the goal details and the autoloot scan all sat outside every bound
+while running on the path the bot spends most of its life on.
+
+### The fixture, and why this shape
+
+`T19` is a **kill goal with no enemy in range**. Of the goal shapes tried, it is the one that both
+holds IDLE and evaluates on every tick: the goal loop runs, `goal_filter.passes` runs, the goal
+details are built, the autoloot scan runs, and the state stays IDLE because there is nothing to
+act on. The shapes that do act cannot pin it — a kill goal with an enemy present and a use goal
+with a crate both settled in IDLE for a single tick and handed the machine to DO_ACTION/NAV, so
+the purity assertion ("no other handler running") would fail for them, correctly. Same settled,
+same purity, same n=300/n=1000 discipline as the other six scenarios.
+
+**120.79 / 120.24 B/tick → 0.45 / 0.14 B/tick, bound 8.** T11's fixture and the other five
+bounds are untouched.
+
+### Attribution (bisection by early return, then per site)
+
+The handler was bisected by inserting `do return "IDLE" end` before each region and measuring:
+
+| up to | B/tick | segment |
+|---|---|---|
+| death block | 0.07 | death / cast / combat / quest-log maintenance — free |
+| has-active-goal block | 32.07 | **the has-active-goal probe: 32.00** |
+| autoloot | 88.07 | **the autoloot scan: 56.00** |
+| step info + goals + debug log | 120.79 | **the goal loop and details: 32.72** |
+| post-interact / at-object / flight / hearth / respawn wait | 120.79 | tail — free for this fixture |
+
+Each segment was then confirmed by a one-edit mutant, which is what identified the exact sites:
+
+| site | measured when reverted | what it was |
+|---|---|---|
+| `idle_state.lua:236` — has-active-goal default | **+32.00** | `ctx.safe(step.goals, {})` built a fresh table every tick |
+| `idle_state.lua:317` — goal-loop default | **+32.00** | the same literal in the second place |
+| `shared/corpse_loot` → `object_scanner.get_player_pos` | **+56.00** | an inline `pcall(function() ... end)` closure rebuilt on every cache refresh — i.e. once per tick for anything that scans |
+| `idle_state.lua:340-347` — goal-details debug log | **+0.34** | `debug_log(...)` was handed a freshly concatenated string that it then discarded (`shared._debug` false) |
+| `goal_filter.passes` | **+0.39** | not fixed; sub-byte, and inside a module this pass did not otherwise touch |
+
+The three fixes: `EMPTY_GOALS` is a module-level empty table handed to `ctx.safe` in both places
+(`safe` only ever *returns* its default — coordinator.lua:127 — and both call sites only iterate
+it, so one shared table is correct as well as cheaper); `object_scanner` hoists the position probe
+and calls `pcall(unit_get_position, me)`; the goal-details log is guarded by `shared._debug`, which
+is the same output when debug is on and no concatenation when it is off.
+
+### Mutants
+
+| mutant | all seven scenarios (n=300) | gate |
+|---|---|---|
+| G — fresh `{}` back at the has-active-goal probe | **T19 32.45**; T11 0.07, T12 0.31, T13 1.24, T18 0.00 unchanged | `T19e FAIL: … 32.45 B/tick (n=300) and 32.13 (n=1000), bound is 8` |
+| H — fresh `{}` back at the goal loop | **T19 32.45**; the other six unchanged | `T19e FAIL: … 32.45 / 32.13, bound is 8` |
+| I — `object_scanner` probe back inline | **T19 56.45**; the other six unchanged | `T19e FAIL: … 56.45 / 56.13, bound is 8` |
+| J — debug-log guard removed | T19 0.79 — **survives** (under the 8 B bound) | — |
+
+G, H and I each fail T19 and only T19, which is what makes them load-bearing for this scenario:
+T11 returns at the top of the handler, so it never reaches any of the three sites. J is recorded
+rather than dressed up: the guard is worth having (a string that is built to be discarded should
+not be built), but at 0.34 B/tick it is below the bound's resolution, so the gate cannot prove it
+and does not claim to.
+
+### The proof of no behaviour change
+
+A scripted 54-tick sequence through the real coordinator — no guidance, a bare step, a loot window
+with a gold slot between two items, a mid-cast channel, a waypoint 70yd out, a combat override,
+death, an area goal, a **kill goal with no enemy (this pass's path, 10 ticks)** and guidance
+disappearing — recorded per tick as state + navigation state + every input call + every log line,
+run against the working tree and against a shadow copy whose two changed production files were
+restored from `HEAD`: **176 lines, all six coordinator states (WAITING 10, IDLE 11, INTERACT 6,
+NAV 12, DEAD 5, DO_ACTION 12), 64 log lines, 6 input-call lines, and `diff` prints nothing.** The
+goal-details line appears in both transcripts exactly twice, which is the direct proof that the
+`shared._debug` guard changed allocation and not output.
+
+### Deliberately not fixed
+
+`do_action_state.lua:1036` carries the same fresh-`{}` default on DO_ACTION's evaluation path. It
+is one line and the same class, but no bound covers that tick (section 5: DO_ACTION's evaluation
+cannot be pinned pure), so the change could not be proven here and is left named instead.
+
+## 7. What this cannot prove
 
 The measurement is the desktop interpreter's view of `tests/mock_core`. The client's own per-call
 allocation is not measured and cannot be from here: a real `get_buffs`, `get_position`,
 `is_mounted()` or `core.addons.zygor.get_current_step_info` may hand back a fresh table of its own
 — in which case the *plugin* still allocates nothing, but the tick is not free in the client. The
 fixtures' stubs (the aura table, the loot window, the movement stand-ins, the coords helper) are
-exactly the places a real build could differ. The transcript covers the states and the paths the
-script drives; it is not a claim about paths no fixture reaches, such as the SentinelNavClient
+exactly the places a real build could differ. T19 is one goal shape among many: it is the shape
+that holds IDLE and evaluates, but a bot evaluating a *loot* or *talk* goal runs different
+branches, and those ticks are not in this bound. The transcript covers the states and the paths
+the script drives; it is not a claim about paths no fixture reaches, such as the SentinelNavClient
 navmesh tick or the vendor/trainer frames. And the render half (T4-T9, T15-T17) is measured
 separately, with its own caveats in `docs/render_path_audit.md`.

@@ -32,6 +32,13 @@ local function movement_look_at(mh, secs, pitch, target) return mh:look_at_targe
 -- The ghost-aura method list was rebuilt as a table literal on every tick; it never changes.
 local AURA_METHODS = { "get_buffs", "get_auras", "get_debuffs" }
 
+-- Shared empty-goals default (perf pass): `ctx.safe(step.goals, {})` built a fresh table on every
+-- tick in the two places below — the has-active-goal probe and the goal loop — which measured
+-- 32.00 B each on the goal-evaluation path. `safe()` only ever RETURNS its default (it never
+-- writes to it, coordinator.lua:127), and both call sites only iterate the result, so one shared
+-- table is correct as well as cheaper.
+local EMPTY_GOALS = {}
+
 -- ============================================================================
 -- Frame Detection — lightweight probe without handling
 -- Used by IDLE state to detect open UI frames before transitioning to INTERACT
@@ -233,7 +240,7 @@ function M.run(shared, ctx)
         if zygor and zygor.has_current_step and zygor.has_current_step() then
             local step = zygor.get_current_step_info and zygor.get_current_step_info()
             if step and not step.is_complete then
-                local goals = ctx.safe(step.goals, {})
+                local goals = ctx.safe(step.goals, EMPTY_GOALS)
                 for i = 1, #goals do
                     local g = goals[i]
                     local complete = false
@@ -314,7 +321,7 @@ function M.run(shared, ctx)
     end
 
     -- Find first uncompleted goal
-    local goals = ctx.safe(step.goals, {})
+    local goals = ctx.safe(step.goals, EMPTY_GOALS)
     local current_goal = nil
 
     for i = 1, #goals do
@@ -337,8 +344,10 @@ function M.run(shared, ctx)
         end
     end
 
-    -- Debug: log current goal details
-    if current_goal and type(current_goal) == "table" then
+    -- Debug: log current goal details. Guarded by the debug flag (perf pass): the concatenation
+    -- builds a string on every tick and `debug_log` then discards it when debug is off, which is
+    -- the normal case (0.34 B/tick measured even for a short message). Same output when on.
+    if shared._debug and current_goal and type(current_goal) == "table" then
         local g_text = tostring(current_goal.text or current_goal.name or "nil")
         local g_npc = tostring(current_goal.npc_id or current_goal.target_id or "nil")
         local g_target = tostring(current_goal.target or current_goal.npc or "nil")

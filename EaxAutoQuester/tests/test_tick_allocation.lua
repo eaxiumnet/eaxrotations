@@ -14,7 +14,8 @@
 --        (95.57 B/tick), not plugin cost, and T2 pins the fixture to show the difference.
 -- Per-state (T10-T14, plus T18 for DO_ACTION): the tick half used to measure whichever state the
 --        fixture happened to sit in, so a regression in any other state hid behind that one
---        number. It now drives six fixtures — every state the coordinator has — each of which
+--        number. It now drives seven fixtures — every state the coordinator has, plus a second
+--        IDLE scenario for the goal-evaluation path — each of which
 --        really settles in its state and stays there, and counts
 --        that state's handler entries per tick, so a fixture that drifted cannot be measured as
 --        if it had not. Measured on the pinned Lua 5.1.5 (n=300 / n=1000, two runs, identical):
@@ -31,7 +32,13 @@
 --                                      clock advancing it is 13.51 B/tick amortized over 5
 --                                      evaluation cycles but 5 IDLE hand-offs, so the purity
 --                                      assertion would rightly fail)
---        All six bounds are 8 B — measured + 8, with the run-to-run spread above under 1.5 B —
+--          IDLE (T19)  0.45 /    0.14  was 120.79 / 120.24 — bound 8, and this is the busiest
+--                                      live path: IDLE while it evaluates a goal, which the T11
+--                                      fixture (mid-cast, returns at the top of the handler)
+--                                      cannot reach (kill goal, no enemy: 32.00 + 32.00 from two
+--                                      fresh `{}` defaults, 56.00 from a per-tick closure inside
+--                                      object_scanner)
+--        All seven bounds are 8 B — measured + 8, with the run-to-run spread above under 1.5 B —
 --        so ANY added per-tick allocation fails in its own state: down to a no-upvalue closure,
 --        which costs 20 B (one that captures an upvalue costs ~56). What the three non-clean
 --        states used to pay, and what closed it:
@@ -440,6 +447,11 @@ local LOOT_WINDOW = {
 -- An area goal (the only goal type that keeps the machine in DO_ACTION at all -- see T18).
 local STEP_AREA_GOAL = { num = 2, is_complete = false,
     goals = { { npc_id = 4242, is_complete = false } }, waypoint = nil, waypoints = {} }
+-- A kill goal with no enemy in range: the shape that makes IDLE evaluate a goal on every tick
+-- (see T19). Every other goal shape acts and hands the machine to DO_ACTION or NAV on its first
+-- tick, so it cannot pin IDLE's evaluation path.
+local STEP_KILL_GOAL = { num = 2, is_complete = false,
+    goals = { { type = "kill", npc_id = 4242, is_complete = false } }, waypoint = nil, waypoints = {} }
 
 local TICK_STATES = {
     {
@@ -488,6 +500,21 @@ local TICK_STATES = {
         -- the fixture shapes tried and their numbers.
         label = "T18", name = "DO_ACTION", bound = 8, note = "area goal, armed wait",
         zygor = STEP_AREA_GOAL,
+        fixture = function() end,
+    },
+    {
+        -- T19: IDLE while it EVALUATES a goal — the busiest live path there is, and the one the
+        -- T11 fixture (the mid-cast gather pause, which returns at the top of the handler) cannot
+        -- reach. The kill-goal-no-enemy shape is the fixture that holds IDLE and evaluates on
+        -- every tick: the goal loop runs, the goal filter runs, the goal details are built, the
+        -- autoloot scan runs, and the state stays IDLE because there is no enemy to act on. The
+        -- shapes that DO act (kill goal with an enemy, use goal with a crate) settled in IDLE for
+        -- exactly one tick and then handed over to DO_ACTION/NAV, so they cannot be pinned pure.
+        -- Measured before this pass: 120.79 / 120.24 B/tick, attributed by bisection to three
+        -- sites, all now fixed -- see docs/tick_allocation_audit.md section 6 and the mutants
+        -- below. The other five states' bounds and T11's fixture are untouched.
+        label = "T19", name = "IDLE", bound = 8, note = "kill goal, no enemy — evaluating",
+        zygor = STEP_KILL_GOAL,
         fixture = function() end,
     },
 }

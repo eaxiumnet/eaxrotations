@@ -29,12 +29,18 @@ local _cache = {
 -- Internal Helpers
 -- ============================================================================
 
+-- Hoisted probe (perf pass): this was an inline `pcall(function() ... end)` closure rebuilt on
+-- every cache refresh — i.e. on every tick that scans anything, which is most of them. It was
+-- measured at 56.00 B/tick through idle_state's goal evaluation alone (`try_loot_nearest_corpse`
+-- → `get_visible_objects` → `ensure_cache`), and every other caller of this module paid it too.
+local function unit_get_position(u) return u:get_position() end
+
 --- Get player position with nil-guard.
 --- @return table|nil { x, y, z }
 local function get_player_pos()
     local me = _get_local_player()
     if not me then return nil end
-    local ok, pos = pcall(function() return me:get_position() end)
+    local ok, pos = pcall(unit_get_position, me)
     if ok and pos then return pos end
     return nil
 end
