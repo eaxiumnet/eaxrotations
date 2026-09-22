@@ -637,6 +637,87 @@ do
 end
 
 -- ============================================================================
+-- C14: the arrival probe — what the client reports vs where the player is
+-- ============================================================================
+do
+    mock.reset(); mock.set_time(0)
+    -- Player stands 13 yd from DEST (the "arrived 13yd short" shape from the live log).
+    local short_pos = vec(DEST.x + 13, DEST.y, DEST.z)
+    local player = mock.create_player({ pos = short_pos })
+    mock._player = player
+    local client = make_client({ reachable = true })
+    local nav = fresh_nav(client, make_fallback())
+    nav.navigate_to(DEST, function() end)
+
+    -- The client reports arrived via its event; the probe must record the requested
+    -- destination, the player's actual (short) position, and the source of the signal.
+    client.events.arrived()
+    assert(nav.get_state() == "ARRIVED", "C14 FAIL: event arrival must be accepted")
+    assert(mock.log_contains("NAV arrival probe (event)"),
+        "C14 FAIL: the probe must log on an event arrival")
+    assert(mock.log_contains("dest=" .. string.format("%.1f,%.1f,%.1f", DEST.x, DEST.y, DEST.z)),
+        "C14 FAIL: the probe must record the requested destination")
+    assert(mock.log_contains("player=" .. string.format("%.1f,%.1f,%.1f", short_pos.x, short_pos.y, short_pos.z)),
+        "C14 FAIL: the probe must record the player's actual position")
+    assert(mock.log_contains("dist=13.0"),
+        "C14 FAIL: the probe must record the shortfall distance")
+    print("C14 PASS: probe records dest, player pos and dist on a short event arrival")
+end
+
+do
+    -- Same shape through the polled state path: source must read "polled".
+    mock.reset(); mock.set_time(0)
+    local short_pos = vec(DEST.x + 13, DEST.y, DEST.z)
+    local player = mock.create_player({ pos = short_pos })
+    mock._player = player
+    local client = make_client({ state = "arrived" })
+    local nav = fresh_nav(client, make_fallback())
+    nav.navigate_to(DEST, function() end)
+    nav.update()
+    assert(nav.get_state() == "ARRIVED", "C14b FAIL: polled arrival must be accepted")
+    assert(mock.log_contains("NAV arrival probe (polled)"),
+        "C14b FAIL: the probe must log on a polled arrival")
+    print("C14b PASS: probe logs with source=polled on a polled arrival")
+end
+
+do
+    -- Fallback (simple_movement) arrival: probe fires with source=fallback and dist ~ 0.
+    mock.reset(); mock.set_time(0)
+    local player = mock.create_player({ pos = DEST })
+    mock._player = player
+    local client = make_client({ reachable = true })
+    local nav = fresh_nav(client, make_fallback())
+    nav.navigate_to(DEST, function() end)
+    client.state = "failed"                -- keep the client out of the way; force fallback?
+    -- NOTE: reaching the fallback path in-test requires the client to be absent, not failed.
+    -- Use a clientless navigation instead.
+    nav = fresh_nav(nil, make_fallback())
+    local arrived = false
+    nav.navigate_to(DEST, function() arrived = true end)
+    mock.set_time(0.5); nav.update()       -- fallback mover processes; player is on DEST
+    assert(arrived, "C14c FAIL: a clientless walk to an occupied destination must arrive")
+    assert(mock.log_contains("NAV arrival probe (fallback)"),
+        "C14c FAIL: the probe must log on a fallback arrival")
+    assert(mock.log_contains("dist=0.0"),
+        "C14c FAIL: fallback arrival distance must read ~0")
+    print("C14c PASS: probe logs with source=fallback and dist 0 on a direct walk")
+end
+
+do
+    -- Negative control: a failed navigation must NOT log a probe (it is an arrival probe).
+    mock.reset(); mock.set_time(0)
+    local player = mock.create_player({ pos = vec(0, 0, 0) })
+    mock._player = player
+    local client = make_client({ reachable = false })
+    local nav = fresh_nav(client, make_fallback())
+    nav.navigate_to(DEST, function() end)
+    assert(nav.get_state() == "FAILED", "C14d FAIL: unreachable destination must fail")
+    assert(not mock.log_contains("NAV arrival probe"),
+        "C14d FAIL: a failed navigation must not log an arrival probe")
+    print("C14d PASS: probe stays silent on a failed navigation")
+end
+
+-- ============================================================================
 -- C15: the direct-movement rescue — nav_state's last escalation — reaches a mover.
 -- The handler asks the navigation module (`nav.move_direct`); the module has to answer,
 -- or the branch is a no-op whatever the handler does.

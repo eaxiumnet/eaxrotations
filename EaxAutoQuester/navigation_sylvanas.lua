@@ -90,6 +90,7 @@ local _health = { checked = false, ok = false, at = nil, pending = false }
 local _last_client_state = nil
 local _saw_arrived_event = false
 local _saw_failed_event = false
+local _arrival_source = nil       -- which arrival path fired last: "event" | "polled" | "fallback"
 local _stuck_events = 0           -- "stuck" events since the last observed progress
 local _last_progress = nil        -- { percent =, index = } of the last progress change
 local _stall_since = nil          -- core_time the no-progress window began (nil = on track)
@@ -131,8 +132,35 @@ local function sq_distance(a, b)
 end
 
 -- Fire callback nil-guarded
+--- Arrival probe: on every successful arrival, record the requested destination, the
+--- player's actual position and the client's own view. The `arrived` event carries no
+--- payload (docs: sentinel-navigation, event table) and `get_destination` returns the
+--- requested — not the snapped — target, so the probe gathers its own evidence. Runs once
+--- per navigation (only on success), never per tick; goes through core.log.
+local function log_arrival_probe(source)
+    local dest = _destination
+    if not dest then return end          -- stop_internal() already cleared it; nothing to probe
+    local dist = "nil"
+    local pos_s = "nil"
+    local me = _get_local_player()
+    if me then
+        local ok, pos = pcall(unit_get_position, me)
+        if ok and pos then
+            pos_s = string.format("%.1f,%.1f,%.1f", pos.x or 0, pos.y or 0, pos.z or 0)
+            dist = string.format("%.1f", sq_distance(pos, dest) ^ 0.5)  -- 2D yards, sq_distance is 2D
+        end
+    end
+    _core_log(string.format(
+        "[EaxAutoQuester] NAV arrival probe (%s): dest=%.1f,%.1f,%.1f player=%s dist=%s client_state=%s progress_index=%s",
+        tostring(source), dest.x or 0, dest.y or 0, dest.z or 0,
+        pos_s, dist,
+        tostring(_last_client_state),
+        tostring(_last_progress and _last_progress.index or "nil")))
+end
+
 local function fire_callback(success, reason)
     if not _arrived_cb then return end
+    if success then log_arrival_probe(_arrival_source or "unknown") end
     local cb = _arrived_cb
     _arrived_cb = nil
     local ok, err = pcall(cb, success, reason)
@@ -152,16 +180,19 @@ local function reset_client_tracking()
     _stall_since = nil
     _last_client_state = nil
     _validate_started = 0
+    _arrival_source = nil
 end
 
 -- Stop movement
+--- Note: `_destination` deliberately survives a stop here — it is what the arrival probe
+--- reads at success sites (which call stop_internal() before firing), and the public M.stop
+--- clears it explicitly. Failure paths clear it before their fire_callback(false, ...).
 local function stop_internal()
     if _client and not _is_fallback then
         pcall(client_stop, _client)
     elseif _fallback_mover then
         pcall(mover_stop, _fallback_mover)
     end
-    _destination = nil
     _stuck_timer = 0
     _last_position = nil
     _last_pos_time = 0
@@ -302,6 +333,7 @@ end
 local function on_sentinel_arrived()
     if _state ~= "NAVIGATING" and _state ~= "VALIDATING" then return end
     _saw_arrived_event = true
+    _arrival_source = "event"
     -- Arrival is the client's call, not a distance comparison: it snaps off-mesh targets to
     -- the nearest reachable point, so "within 3 yards of the requested coordinate" is not
     -- the same question as "the client says it arrived".
@@ -689,6 +721,7 @@ function M.stop()
     local was_nav = (_state == "NAVIGATING" or _state == "VALIDATING")
     _generation = _generation + 1
     _state = "IDLE"; stop_internal()
+    _destination = nil
     if was_nav then fire_callback(false, "cancelled") end
 end
 
@@ -799,6 +832,7 @@ local function update_client_path()
 
     if cstate == "arrived" then
         _state = "ARRIVED"
+        _arrival_source = "polled"
         stop_internal()
         fire_callback(true)
         return
@@ -893,6 +927,7 @@ function M.update()
     if not pos then return end
 
     if sq_distance(pos, _destination) <= get_nav_tolerance_sq() then
+        _arrival_source = "fallback"
         _state = "ARRIVED"; stop_internal(); fire_callback(true); return
     end
 

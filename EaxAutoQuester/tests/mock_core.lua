@@ -73,6 +73,7 @@ function M.reset()
     M._graphics_calls = {}
     M._input_calls = {}
     M._player_buffs = {}
+    M._logs = {}
     M._dungeon_proposal = false
     M._battlefield_status = {}
     M._quest_log = {}
@@ -556,8 +557,27 @@ M.menu = {
     tree_node = function() return { render = function() end } end,
 }
 
-function M.log(msg) end
-function M.log_warning(msg) end
+-- Log capture: the mock records what the plugin logs so a suite can pin a probe line.
+-- Reset clears it; _logs is a bounded ring (last N lines) so a runaway log cannot grow it.
+M._logs = {}
+local LOG_CAP = 200
+function M.log(msg)
+    if #M._logs >= LOG_CAP then table.remove(M._logs, 1) end
+    M._logs[#M._logs + 1] = tostring(msg)
+end
+function M.log_warning(msg)
+    if #M._logs >= LOG_CAP then table.remove(M._logs, 1) end
+    M._logs[#M._logs + 1] = "WARN " .. tostring(msg)
+end
+function M.last_log_line()
+    return M._logs[#M._logs] or nil
+end
+function M.log_contains(sub)
+    for _, line in ipairs(M._logs) do
+        if string.find(line, sub, 1, true) then return true end
+    end
+    return false
+end
 function M.register_on_pre_tick_callback(fn) end
 function M.register_on_render_callback(fn) end
 function M.register_on_render_menu_callback(fn) end

@@ -124,3 +124,34 @@ repeating one waypoint — `IDLE: area goal — wp 8/9 is unreachable — retiri
 step` once, followed by `navigating to wp` at a *different* index — and, if the whole step is
 unreachable, `none of the N step waypoints is reachable — waiting for the retry` rather than a
 once-a-second ping-pong, with `re-patrolling the step's waypoints` at most once a minute.
+
+## The arrival probe (2026-09-22)
+
+`navigation_sylvanas.lua` now logs one line on **every** successful arrival:
+
+```
+[EaxAutoQuester] NAV arrival probe (<source>): dest=x,y,z player=x,y,z dist=<yd> client_state=<s> progress_index=<n>
+```
+
+`<source>` is `event` (the client's `arrived` event), `polled` (its top-level state read on
+tick), or `fallback` (a simple_movement distance arrival). It fires through `fire_callback`,
+so no arrival path can skip it, and it reads `_destination` which now survives
+`stop_internal()` so the probe and the failure paths see the same lifetime.
+
+This is the instrument for the live loop where `SentinelNavClient` reported `arrived` while
+the player stood 13yd from the requested point: the scraped client doc (v0.0.8,
+"Off-mesh targets auto-snap") says a slightly off-mesh target is snapped to the nearest
+reachable point and the `arrived` event carries no payload, so the shortfall was previously
+invisible. The probe records the requested destination against the player's actual position
+each time, so a snap shows up as a recurring non-zero `dist` on the same `dest`.
+
+What to look for in game: `dist=` persistently non-zero on one `dest=` identifies the
+off-mesh point (check its `z` against the player's — the doc names wrong/unknown `z` as the
+common cause); `progress_index` stuck at the same value says the client considered its
+snapped path finished. Note that the idle_state area sweep does **not** run `fix_z` on the
+waypoints it publishes (only the retreat point and other producers do), so area waypoints
+are the likeliest snap candidates.
+
+Pinned by C14–C14d in `tests/test_nav_client_contract.lua` (probe fires on all three
+arrival paths with the right source label, records dest/player/dist, stays silent on a
+failed navigation); M1 mutant confirms the suite fails when the probe is removed.
