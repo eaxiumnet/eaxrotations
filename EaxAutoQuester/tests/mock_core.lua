@@ -187,6 +187,9 @@ function M.create_object(opts)
         _guid = opts.guid or "obj_" .. tostring(math.random(100000)),
         _enemy = opts.enemy or false,
         _lootable = opts.lootable or false,
+        -- has_loot is a SEPARATE probe from can_be_looted (and may be left out entirely: a build
+        -- without the method must answer "no evidence", not "no loot").
+        _has_loot = opts.has_loot,
         _attackable = opts.attackable or false,
         _item_id = opts.item_id or nil,
     }
@@ -202,6 +205,7 @@ function M.create_object(opts)
     function o:is_enemy_with(other) return o._enemy end
     function o:can_attack(other) return o._attackable end
     function o:can_be_looted() return o._lootable end
+    function o:has_loot() return o._has_loot end
     function o:get_item_id() return o._item_id end
 
     return o

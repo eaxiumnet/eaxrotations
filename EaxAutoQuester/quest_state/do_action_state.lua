@@ -13,6 +13,29 @@ local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
 -- ============================================================================
+-- Corpse filter — shared by every target scan in this file
+-- ============================================================================
+
+--- True when a unit is a corpse: dead, or a body that still reports lootable.
+--- The real-game is_dead() is unreliable for a corpse that still holds loot (it can report
+--- false), while can_be_looted() reliably reports true for a corpse — the Stonetusk Boar loop
+--- (bot kept targeting the same 2yd "enemy") is what taught the enemy scan this. Game objects
+--- are never corpses: a lootable chest is a valid interaction target, so only units are
+--- filtered, and a corpse can never be chosen as an enemy or an interaction target.
+--- @param obj game_object|nil
+--- @return boolean
+local function unit_is_corpse(obj)
+    if not obj then return false end
+    local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+    if not (ok_unit and is_unit) then return false end
+    local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
+    if ok_dead and is_dead then return true end
+    local ok_loot, can_loot = pcall(function() return obj:can_be_looted() end)
+    if ok_loot and can_loot then return true end
+    return false
+end
+
+-- ============================================================================
 -- Talk-target discovery ladder — ported from the monolith's live talk branch
 -- (docs/phase1_port_list.md item 9). The modular talk branch only knew has a
 -- quest-NPC-id lookup at 20yd; goals whose NPC carries no Questie/Zygor id
@@ -616,16 +639,23 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             for _, name in ipairs(names_to_try) do
                 local objects = npc.find_interactable_objects(name, ctx.object_scanner)
                 if objects and #objects > 0 then
+                    -- A corpse is not a target. find_interactable_objects matches by NAME and
+                    -- includes dead units, and a looted corpse still reports is_dead() — so a
+                    -- kill objective whose mobs all lay dead under the player kept
+                    -- "targeted enemy '<name>', auto-attacking" on the corpse every tick, for as
+                    -- long as Zygor's step stayed open (live: Stonevault Shaman).
                     local obj = nil
                     local best_dist_sq = 1e9
                     local _, me_pos_scan = pcall(function() return ctx.me:get_position() end)
                     for _, candidate in ipairs(objects) do
-                        local _, cpos = pcall(function() return candidate:get_position() end)
-                        if cpos and me_pos_scan and ctx.utils then
-                            local dsq = ctx.utils.squared_distance(me_pos_scan, cpos)
-                            if dsq < best_dist_sq then
-                                best_dist_sq = dsq
-                                obj = candidate
+                        if not unit_is_corpse(candidate) then
+                            local _, cpos = pcall(function() return candidate:get_position() end)
+                            if cpos and me_pos_scan and ctx.utils then
+                                local dsq = ctx.utils.squared_distance(me_pos_scan, cpos)
+                                if dsq < best_dist_sq then
+                                    best_dist_sq = dsq
+                                    obj = candidate
+                                end
                             end
                         end
                     end
@@ -648,19 +678,20 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             pcall(core.input.look_at, obj_pos)
                         end
                     end
-                    pcall(core.input.set_target, obj)
-
-                    -- Distinguish quest objects from enemy units.
-                    -- Enemy units (e.g. "Young Forest Bear") should NOT get the
-                    -- 5s quest-object timer — that timer locks the bot in IDLE
-                    -- while the enemy is free to attack. Let EaxRotations handle
-                    -- combat via auto-attack on the selected target.
-                    local is_enemy = false
-                    if ctx.me then
-                        local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
-                        if ok_unit and is_unit then
-                            local ok_att, can_att = pcall(function() return obj:can_attack(ctx.me) end)
-                            if ok_att and can_att then is_enemy = true end
+                    if not obj then
+                        -- Every match for this name was a corpse, so there is nothing here to
+                        -- attack or use. Act on nothing and try the next name — this is the case
+                        -- that used to target the player's own looted kill once per tick.
+                        ctx.debug_log("DO_ACTION: area — '" .. tostring(name) .. "' matched only corpses, skipping")
+                    else
+                        -- A hostile is only selected AFTER the pull gate has had its say. Selecting
+                        -- is not harmless: it is what the rotation's combat path keys off, and it
+                        -- is the visible half of "the bot walked up to the mob and started
+                        -- something" — on an empty bar or in a crowd, none of that may begin. Quest
+                        -- objects and friendly NPCs are untouched by the gate (it only ever refuses
+                        -- hostiles), so their selection stays exactly where it was.
+                        if not is_enemy then
+                            pcall(core.input.set_target, obj)
                         end
                     end
 
@@ -709,25 +740,9 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if ok_unit and is_unit then
                             local ok_attack, can_attack = pcall(function() return obj:can_attack(ctx.me) end)
                             if ok_attack and can_attack then
-                                local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
-                                local dead_filtered = ok_dead and is_dead
-                                -- Also filter lootable units — the real-game
-                                -- is_dead() check is unreliable (returns false
-                                -- for corpses that still have loot), but
-                                -- can_be_looted() reliably returns true for
-                                -- corpses. A lootable "enemy" is a corpse
-                                -- that hasn't been looted yet, not a live
-                                -- target. Live observed: Stonetusk Boar loop
-                                -- — bot kept targeting the same 2yd "enemy"
-                                -- because the API said it was alive (it was
-                                -- actually a corpse with loot).
-                                if not dead_filtered then
-                                    local ok_loot, can_loot = pcall(function() return obj:can_be_looted() end)
-                                    if ok_loot and can_loot then
-                                        dead_filtered = true
-                                    end
-                                end
-                                if not dead_filtered then
+                                -- Dead or lootable units are not enemies (single owner: the
+                                -- same filter the name path above uses).
+                                if not unit_is_corpse(obj) then
                                     local ok_name, obj_name = pcall(function() return obj:get_name() end)
                     if ok_name and obj_name then
                         local obj_name_lower = obj_name:lower()

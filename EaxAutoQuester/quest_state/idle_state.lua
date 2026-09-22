@@ -39,6 +39,14 @@ local AURA_METHODS = { "get_buffs", "get_auras", "get_debuffs" }
 -- table is correct as well as cheaper.
 local EMPTY_GOALS = {}
 
+-- How long a goal whose targets are all corpses underfoot is left alone. Same value do_action_state
+-- uses when the kill lane finds nothing to kill: one wait, two producers.
+local RESPAWN_WAIT_SECONDS = 60
+
+-- How long a covered pass over a movement-only step's waypoints is left alone before the sweep
+-- starts another one. Without it a completed pass re-issued its whole path on the next tick.
+local SWEEP_RELAP_SECONDS = 60
+
 -- ============================================================================
 -- Frame Detection — lightweight probe without handling
 -- Used by IDLE state to detect open UI frames before transitioning to INTERACT
@@ -561,6 +569,10 @@ function M.run(shared, ctx)
         -- IDLE->NAV->ARRIVED->IDLE forever, because SentinelNavClient resolves it
         -- instantly and this block re-fires every tick.
         local objective_in_range = false
+        -- What the scan saw, for the goal-type branches below: a goal whose only matches are corpses
+        -- underfoot is a respawn wait, and a live match is the objective itself.
+        local corpse_underfoot = false
+        local living_match = false
         if type(current_goal) == "table" and ctx.me and ctx.npc_manager
             and ctx.npc_manager.find_interactable_objects then
             local goal_target = ctx.safe(current_goal.target, ctx.safe(current_goal.npc, nil))
@@ -668,6 +680,21 @@ function M.run(shared, ctx)
                 if target and target ~= "" then has_target = true end
                 if text and text ~= "" then has_target = true end
             end
+            if has_target and corpse_underfoot and not living_match then
+                -- Everything this goal names is a corpse where the bot is standing: there is nothing
+                -- here to kill or use, so acting again would only re-enter DO_ACTION once a tick
+                -- (the freeze). Wait for the mobs to come back instead.
+                if (shared._respawn_wait_until or 0) == 0 then
+                    shared._respawn_wait_until = ctx.now + RESPAWN_WAIT_SECONDS
+                    shared._respawn_target_name = ctx.safe(current_goal.target, nil)
+                    if shared._debug then
+                        ctx.debug_log("IDLE: '" .. tostring(shared._respawn_target_name) ..
+                            "' is a corpse underfoot and nothing alive matches — waiting for respawn")
+                    end
+                end
+                return "IDLE"
+            end
+
             if not has_target then
                 local zygor_module = ctx.zygor
                 local all_wps = zygor_module and zygor_module.get_step_waypoints_world and zygor_module.get_step_waypoints_world()

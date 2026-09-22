@@ -1,7 +1,31 @@
--- What: Corpse loot helper — scan for nearest dead non-player unit and loot or NAV to it
+-- What: Corpse loot helper — scan for the nearest lootable dead unit and loot it or NAV to it
 -- When: Called by IDLE state (and potentially other states) to handle autoloot
 -- Why: Extract duplicate corpse loot logic from idle_state.lua into a single helper
--- Safety: nil-guarded; returns nil on cooldown, no corpse, or loot window open
+-- Safety: nil-guarded; returns nil on cooldown, nothing lootable, or loot window open
+-- Decision: A corpse is recognised by TWO probes, and neither is sufficient alone — the truth
+--   table below is the whole rule:
+--
+--     is_dead()  can_be_looted()  has_loot()      verdict
+--     ---------  --------------  ------------    ---------------------------------
+--     false      true            -               CORPSE — loot it. is_dead() reporting false
+--                                                 for a corpse that still holds loot is a
+--                                                 recorded live defect (do_action_state.lua,
+--                                                 the Stonetusk Boar loop), so requiring it
+--                                                 silently stopped autoloot after a kill.
+--     true       true            -               CORPSE
+--     true       false           true            CORPSE — can_be_looted() is false while
+--                                                 has_loot() says there is something in it.
+--     true       false           false/nil       already emptied → skip. This is what keeps
+--                                                 the emptied-corpse loop shut: a corpse we
+--                                                 looted still reports is_dead(), and the loop
+--                                                 was "looting corpse (0yd)" every 2s for
+--                                                 minutes (live: Stonevault Shaman).
+--     false      false/nil       -               not a corpse → skip
+--
+--   can_be_looted() (scraped_docs_md/dev/api/game-object.md, "Loot and Interaction") and
+--   has_loot() (.api/game_object.lua, "whether the game object contains loot") are read with
+--   pcall, so a build without either answers "no evidence" rather than "no loot" — a missing
+--   method can never silently disable autoloot.
 
 -- ============================================================================
 -- Module Table
@@ -15,6 +39,37 @@ local M = {}
 
 local LOOT_DIST_SQ = 9      -- 3yd — within range to immediately loot
 local MAX_OBJECT_SCAN = 50  -- cap visible object scan
+
+-- Method probes, called through pcall so a missing method is "no evidence" (see the header).
+local function unit_is_unit(u) return u:is_unit() end
+local function unit_is_player(u) return u:is_player() end
+local function unit_is_dead(u) return u:is_dead() end
+local function unit_can_be_looted(u) return u:can_be_looted() end
+local function unit_has_loot(u) return u:has_loot() end
+local function unit_get_position(u) return u:get_position() end
+
+--- Is this unit a corpse, and is it proven to have nothing left in it?
+--- See the truth table in the header: `can_be_looted() == true` stands on its own, and only a
+--- definite "nothing in it" answer excludes a corpse — the answer that keeps the emptied-corpse
+--- loop shut without making `is_dead()` (the unreliable probe) a requirement.
+--- @param obj game_object
+--- @return boolean corpse, boolean proven_empty
+local function corpse_state(obj)
+    local ok_dead, is_dead = pcall(unit_is_dead, obj)
+    local ok_can, can_loot = pcall(unit_can_be_looted, obj)
+    local ok_has, has_loot = pcall(unit_has_loot, obj)
+
+    local lootable_now = ok_can and can_loot == true
+    local corpse = lootable_now or (ok_dead and is_dead == true)
+
+    -- has_loot() answers "anything left?" directly; can_be_looted() == false answers the same
+    -- thing on builds where has_loot() is silent, but only when has_loot() has not said otherwise.
+    local has_answer = ok_has and (has_loot == true or has_loot == false)
+    local proven_empty = (has_answer and has_loot == false)
+        or (ok_can and can_loot == false and not (has_answer and has_loot == true))
+
+    return corpse, proven_empty
+end
 
 -- ============================================================================
 -- Public API
@@ -62,14 +117,14 @@ function M.try_loot_nearest_corpse(shared, ctx, max_nav_dist_sq, debug_tag)
         local obj = objects[i]
         if not obj then break end
 
-        local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+        local ok_unit, is_unit = pcall(unit_is_unit, obj)
         if ok_unit and is_unit then
-            local ok_player, is_player = pcall(function() return obj:is_player() end)
+            local ok_player, is_player = pcall(unit_is_player, obj)
             if not (ok_player and is_player) then
-                local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
-                if ok_dead and is_dead then
-                    local ok_pos, opos = pcall(function() return obj:get_position() end)
-                    local _, me_pos = pcall(function() return ctx.me:get_position() end)
+                local corpse, proven_empty = corpse_state(obj)
+                if corpse and not proven_empty then
+                    local ok_pos, opos = pcall(unit_get_position, obj)
+                    local _, me_pos = pcall(unit_get_position, ctx.me)
                     if ok_pos and opos and me_pos and ctx.utils then
                         local dist_sq = ctx.utils.squared_distance(me_pos, opos)
                         if dist_sq < best_loot_sq then
@@ -88,7 +143,7 @@ function M.try_loot_nearest_corpse(shared, ctx, max_nav_dist_sq, debug_tag)
 
     -- Within 3yd (9 dist_sq) → loot immediately
     if best_loot_sq <= LOOT_DIST_SQ then
-        local _, lpos = pcall(function() return best_loot:get_position() end)
+        local _, lpos = pcall(unit_get_position, best_loot)
         if lpos then
             pcall(core.input.look_at, lpos)
         end
@@ -101,7 +156,7 @@ function M.try_loot_nearest_corpse(shared, ctx, max_nav_dist_sq, debug_tag)
 
     -- Within nav range (or no limit) → set NAV destination
     if max_nav_dist_sq == nil or best_loot_sq <= max_nav_dist_sq then
-        local _, lpos = pcall(function() return best_loot:get_position() end)
+        local _, lpos = pcall(unit_get_position, best_loot)
         if lpos then
             shared._nav_destination = lpos
         end

@@ -83,6 +83,7 @@ do
         unit = true,
         valid = true,
         dead = true,
+        lootable = true,  -- can_be_looted(): a fresh kill, not a body already emptied
         guid = "corpse_15yd_quest",
     })
     mock.reset()
@@ -135,6 +136,7 @@ do
         unit = true,
         valid = true,
         dead = true,
+        lootable = true,
         guid = "corpse_15yd_noquest",
     })
     mock.reset()
@@ -177,6 +179,53 @@ do
     print("  S1b PASS: no quest → bot autoloots distant corpse (15yd)")
 end
 
+-- S1c — a corpse that is NOT lootable (already emptied) is never approached or looted.
+-- The live Stonevault Shaman loop: is_dead() stays true on a body the player has already
+-- looted, and the scan recognised the corpse by that flag alone, so the bot walked back to
+-- it and "looted" it every two minutes until the step changed. can_be_looted() is what
+-- separates a fresh kill from a body already emptied.
+do
+    local emptied = mock.create_object({
+        pos = { x = 15, y = 0, z = 0 },
+        name = "Stonevault Shaman",
+        unit = true,
+        valid = true,
+        dead = true,
+        lootable = false,  -- already looted
+        guid = "corpse_emptied",
+    })
+    mock.reset()
+    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, hp = 10000, max_hp = 10000, mana = 10000, max_mana = 10000 })
+    mock._objects = { emptied }
+    local utils = require("utils_sylvanas")
+    local ctx = {
+        zygor = {
+            has_current_step = function() return true end,
+            get_current_step_info = function() return { is_complete = false, goals = {}, step_num = 1 } end,
+            get_current_waypoint_world = function() return nil end,
+        },
+        nav = { is_navigating = function() return false end, stop = function() end },
+        utils = utils,
+        me = mock._player,
+        now = 100.0,
+        debug_log = function() end,
+        log = function() end,
+        safe = function(v, fb) if v == nil then return fb end return v end,
+        detect_open_frame = function() return false end,
+    }
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0, _nav_destination = nil, _area_wait_timer = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(shared._nav_destination == nil,
+        "S1c FAIL: the bot navigated to a corpse that cannot be looted")
+    assert(next_state ~= "NAV",
+        "S1c FAIL: an already-looted corpse must not drive NAV (got: " .. tostring(next_state) .. ")")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "loot_object",
+            "S1c FAIL: loot_object was called on an already-looted corpse")
+    end
+    print("  S1c PASS: already-looted corpse ignored → no NAV, no loot_object")
+end
+
 -- S2 — corpse 2yd away → bot loots immediately
 do
     local corpse = mock.create_object({
@@ -185,6 +234,7 @@ do
         unit = true,
         valid = true,
         dead = true,
+        lootable = true,
         guid = "corpse_2yd",
     })
     local ctx = build_idle_ctx({ corpse }, { x = 0, y = 0, z = 0 })
@@ -231,6 +281,7 @@ do
         unit = true,
         valid = true,
         dead = true,
+        lootable = true,
         guid = "corpse_cooldown",
     })
     local ctx = build_idle_ctx({ corpse }, { x = 0, y = 0, z = 0 })
