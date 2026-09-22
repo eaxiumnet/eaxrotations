@@ -41,3 +41,30 @@ it.
 
 After three attempts the handler reports `quest_giveup`, `interact_state` leaves for a 60s cooldown,
 one warning names the step, and the player finishes the turn-in by hand. Bounded, and quiet.
+
+## 2. Facing has one owner, and a look-at lock is not a snap
+
+`movement_handler:look_at_target(lock_duration, delay, target)` **holds** a facing for that
+duration and releases only when it expires or is unlocked (`scraped_docs_md/dev/api/
+movement-handler.md`). It is not a point-at-instant call.
+
+The quest states re-issued it with `0.5` from every combat tick, at whatever unit was selected —
+so the character was servo-driven continuously. Worst at a mob circling in melee, at an alternating
+"best enemy", and at the client's stale target after a kill, which is a corpse. That is the
+"spinning around in circles" report.
+
+`shared/facing.lua` is now the only file that may issue the call (`test_no_turn_keys.lua` S4 scans
+all 50 production files and fails on any other site), and it aims at most once per 3 seconds, only
+when the target is outside a 60-degree cone, and never at a dead or lootable unit. When the client
+cannot answer (`get_direction()` missing), it degrades to "aim once per interval" — a character
+that cannot turn cannot cast, which is worse than a slow turn.
+
+The turn keys (`turn_left_start` / `turn_right_start`) are banned outright by the same suite: they
+begin *holding* an arrow key until a matching stop, and one was already started with no stop
+anywhere in the plugin.
+
+## Related
+
+- `docs/mount_and_travel.md` — the same shape of bug: a 1.5s cast attempted from a tick that is
+  already walking.
+- `tests/test_quest_turnin.lua`, `tests/test_facing.lua` — the scenarios behind every claim above.

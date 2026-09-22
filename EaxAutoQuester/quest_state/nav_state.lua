@@ -464,19 +464,15 @@ function M.run(shared, ctx)
 
         -- Progressive stuck recovery: a character wedged on geometry never frees
         -- itself from a plain wait, so escalate before the 2s backoff — retry 1
-        -- jumps, retry 2 jumps and taps a random turn. (Ported:
-        -- docs/phase1_port_list.md item 4.)
-        if shared._nav_retries == 1 then
+        -- and retry 2 both jump. (Ported: docs/phase1_port_list.md item 4.)
+        --
+        -- The turn tap retry 2 used to add is gone. It called turn_*_start and then turn_*_stop in
+        -- the SAME tick, which turns for zero frames and so never helped a wedged character — while
+        -- being one forgotten *_stop away from holding an arrow key down forever (that is exactly
+        -- what combat_helper's unpaired turn did: "I'm spinning around in circles"). The quester no
+        -- longer drives the turn keys at all; the jump and the re-issued path do the work.
+        if shared._nav_retries == 1 or shared._nav_retries == 2 then
             pcall(core.input.jump)
-        elseif shared._nav_retries == 2 then
-            pcall(core.input.jump)
-            if math.random(2) == 1 then
-                pcall(core.input.turn_left_start)
-                pcall(core.input.turn_left_stop)  -- brief tap
-            else
-                pcall(core.input.turn_right_start)
-                pcall(core.input.turn_right_stop)
-            end
         end
 
         -- 2s pause on stuck

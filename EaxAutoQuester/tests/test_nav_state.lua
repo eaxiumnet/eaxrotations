@@ -159,9 +159,12 @@ do
     assert(nav_state.run(s2, stuck_ctx()) == "NAV", "N4b: stuck retry stays in NAV")
     assert(s2._nav_retries == 2, "N4b FAIL: retry counter should reach 2")
     assert(_jump_calls == 1, "N4b FAIL: second stuck retry should jump")
-    assert(_turn_calls == 1,
-        "N4b FAIL: second stuck retry should tap exactly one turn (got " .. tostring(_turn_calls) .. ")")
-    print("  N4 PASS: stuck escalation — jump, then jump + random turn tap")
+    -- The turn tap retry 2 used to add is gone: start+stop in one tick turns for zero frames, so
+    -- it never unwedged anything, and it left an arrow key one forgotten stop away from being held
+    -- down (combat_helper did exactly that, and the player spun). The quester drives no turn keys.
+    assert(_turn_calls == 0,
+        "N4b FAIL: the quester must never drive the turn keys (got " .. tostring(_turn_calls) .. ")")
+    print("  N4 PASS: stuck escalation — jump only, no turn keys")
 end
 
 -- N5 — arrival settles for 1.5s before IDLE re-evaluates

@@ -207,10 +207,12 @@ local function auto_face_enemy()
                 local _, tpos = pcall(unit_get_position, target)
                 if tpos then
                     pcall(core.input.look_at_3d, tpos)
-                    -- Small random jitter on facing to avoid robotic precision
-                    if math.random(3) == 1 then
-                        pcall(math.random(2) == 1 and core.input.turn_right_start or core.input.turn_left_start)
-                    end
+                    -- NO turn-key jitter here. core.input.turn_left_start / turn_right_start START a
+                    -- turn that only the matching *_stop ends (scraped_docs_md/dev/api/input.md), and
+                    -- this call had no matching stop anywhere in the plugin: it began rotating the
+                    -- player on a random 1-in-3 roll at the first enemy contact and never stopped
+                    -- (live: "I'm spinning around in circles"). If robotic precision ever needs
+                    -- hiding, jitter the look TARGET; never hold a turn key.
                 end
                 return true
             end

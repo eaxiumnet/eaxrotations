@@ -234,6 +234,8 @@ local MODULES = {
     "questie_reader_sylvanas", "safe_api_wrapper", "service_gossip_sylvanas",
     "static_popup_sylvanas", "utils_sylvanas", "vendor_manager_sylvanas",
     "waypoint_fixer_sylvanas", "zygor_reader_sylvanas", "shared/corpse_loot",
+    "shared/facing", "shared/goal_names", "shared/nav_destination", "shared/objective_match", "shared/pull_safety",
+    "shared/spawn_patrol",
     "quest_state/coordinator", "quest_state/dead_state", "quest_state/do_action_state",
     "quest_state/idle_state", "quest_state/interact_state", "quest_state/nav_state",
     "quest_state/waiting_state",

@@ -9,6 +9,7 @@
 
 local M = {}
 
+local facing = require("shared/facing")
 local goal_names = require("shared/goal_names")
 local objective_match = require("shared/objective_match")
 local pull_safety = require("shared/pull_safety")
@@ -436,6 +437,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                             return false
                         end
+                        -- shared/facing: one look-at lock per interval, never at a corpse or while already
+                        -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
+                        -- character at a moving mob (the "spinning in circles" report).
+                        facing.ensure(ctx.me, enemy)
                         local NS = _G.EaxRotations
                         if NS and NS.start_auto_attack then
                             local ok = pcall(function() NS.start_auto_attack(enemy) end)
@@ -948,13 +953,6 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                                 nearby_count = hostiles
                                 -- shared/facing: throttled, cone-checked aim (see shared/facing.lua).
                                 facing.ensure(ctx.me, best_enemy)
-                                local mh_ok, mh = pcall(require, "common/utility/movement_handler")
-                                if mh_ok and mh and mh.look_at_target then
-                                    if mh.pause_movement_light then
-                                        pcall(function() mh:pause_movement_light(0.5) end)
-                                    end
-                                    pcall(function() mh:look_at_target(0.5, 0, best_enemy) end)
-                                end
                             end
                             local NS = _G.EaxRotations
                             if NS and NS.start_auto_attack then
@@ -1128,6 +1126,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                             return false
                         end
+                        -- shared/facing: one look-at lock per interval, never at a corpse or while already
+                        -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
+                        -- character at a moving mob (the "spinning in circles" report).
+                        facing.ensure(ctx.me, enemy)
                         local NS = _G.EaxRotations
                         if NS and NS.start_auto_attack then
                             pcall(function() NS.start_auto_attack(enemy) end)

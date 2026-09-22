@@ -12,9 +12,16 @@ local M = {}
 local corpse_loot = require("shared/corpse_loot")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
+-- Shared owners IDLE asks rather than reimplements:
+--   objective_match  — "is this unit the goal's objective?" (ids first, whole names second)
+--   nav_destination  — who owns where the bot walks next, incl. the pull gate's claim
+--   spawn_patrol     — the spawn-point sweep a respawn wait walks
+--   facing           — the one place that may issue a look-at lock
+--   pull_safety      — is the bot allowed to start this fight at all (the hold)
 local objective_match = require("shared/objective_match")
 local nav_destination = require("shared/nav_destination")
 local spawn_patrol = require("shared/spawn_patrol")
+local facing = require("shared/facing")
 local pull_safety = require("shared/pull_safety")
 
 -- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
@@ -30,8 +37,8 @@ local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_target(u) return u:get_target() end
 local function unit_can_attack(u, other) return u:can_attack(other) end
 local function unit_get_position(u) return u:get_position() end
-local function movement_pause_light(mh, secs) return mh:pause_movement_light(secs) end
-local function movement_look_at(mh, secs, pitch, target) return mh:look_at_target(secs, pitch, target) end
+-- (The movement_handler look-at/pause probes that used to live here are gone: shared/facing.lua
+--  owns the look-at lock, and a second caller issuing its own was the spin it exists to stop.)
 
 -- The ghost-aura method list was rebuilt as a table literal on every tick; it never changes.
 local AURA_METHODS = { "get_buffs", "get_auras", "get_debuffs" }
@@ -219,13 +226,10 @@ function M.run(shared, ctx)
                         end
                     end
                 end
-                local mh_ok, mh = pcall(require, "common/utility/movement_handler")
-                if mh_ok and mh and mh.look_at_target then
-                    if mh.pause_movement_light then
-                        pcall(movement_pause_light, mh, 0.5)
-                    end
-                    pcall(movement_look_at, mh, 0.5, 0, target)
-                end
+                -- Face the enemy through the single owner of facing (shared/facing.lua): one lock
+                -- per interval, never at a corpse, and no second writer of the movement handler's
+                -- look-at. This used to be an inline pause+look_at every tick, which is the spin.
+                facing.ensure(ctx.me, target)
             end
         end
         return "IDLE"
