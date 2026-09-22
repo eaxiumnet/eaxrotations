@@ -12,6 +12,7 @@ local M = {}
 local corpse_loot = require("shared/corpse_loot")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
+local objective_match = require("shared/objective_match")
 
 -- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
 -- on the tick path, which built a closure per call — the death check alone cost three per tick,
@@ -495,6 +496,26 @@ function M.run(shared, ctx)
                     return "DO_ACTION"
                 end
             end
+            -- The enemy probe answers only for attackable hostiles, and it reads one list: a mob
+            -- that has come back is the thing being waited for even when that probe is blind to it.
+            -- Identity decides — the goal's OWN mobs, never a lookalike under a longer name (live:
+            -- waiting on Rock Elemental 92 while killing Lesser Rock Elementals).
+            if npc and npc.find_interactable_objects and type(current_goal) == "table" then
+                local probe = ctx.safe(current_goal.target, ctx.safe(current_goal.npc, nil))
+                if probe and probe ~= "" then
+                    local objects = npc.find_interactable_objects(probe, ctx.object_scanner)
+                    local matches = objects and objective_match.only(current_goal, objects)
+                    for i = 1, #(matches or EMPTY_GOALS) do
+                        local ok_dead, dead = pcall(unit_is_dead, matches[i])
+                        if not (ok_dead and dead == true) then
+                            shared._respawn_wait_until = 0
+                            shared._respawn_target_name = nil
+                            ctx.debug_log("IDLE: respawn detected — resuming")
+                            return "DO_ACTION"
+                        end
+                    end
+                end
+            end
         end
         ctx.debug_log("IDLE: waiting for respawn" .. (shared._respawn_target_name and " (" .. shared._respawn_target_name .. ")" or ""))
         return "IDLE"
@@ -602,20 +623,36 @@ function M.run(shared, ctx)
                     end
                 end
 
-                local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
+                local pos_ok, pos = pcall(unit_get_position, ctx.me)
                 local best_obj = nil
                 local best_dist_sq = 2500  -- 50yd squared
                 if pos_ok and pos and ctx.utils then
                     for _, name in ipairs(names_to_try) do
                         local objects = ctx.npc_manager.find_interactable_objects(name, ctx.object_scanner)
                         if objects then
-                            for _, obj in ipairs(objects) do
-                                local ok_opos, opos = pcall(function() return obj:get_position() end)
-                                if ok_opos and opos then
-                                    local dsq = ctx.utils.squared_distance(pos, opos)
-                                    if dsq < best_dist_sq then
-                                        best_dist_sq = dsq
-                                        best_obj = obj
+                            -- IDENTITY, not similarity: the name lookup is a substring match, so
+                            -- "Lesser Rock Elemental" answers for "Rock Elemental". The scan must
+                            -- not call a lookalike "my objective", and it must not act on a corpse:
+                            -- a dead match underfoot used to report the objective "in range (0yd)"
+                            -- forever while the bot stood in the corpse pile it had just made.
+                            local matches = objective_match.only(current_goal, objects)
+                            if matches then
+                                for i = 1, #matches do
+                                    local obj = matches[i]
+                                    local ok_opos, opos = pcall(unit_get_position, obj)
+                                    if ok_opos and opos then
+                                        local dsq = ctx.utils.squared_distance(pos, opos)
+                                        local ok_dead, dead = pcall(unit_is_dead, obj)
+                                        dead = ok_dead and dead == true
+                                        if dead then
+                                            if dsq <= 100 then corpse_underfoot = true end
+                                        else
+                                            living_match = true
+                                            if dsq < best_dist_sq then
+                                                best_dist_sq = dsq
+                                                best_obj = obj
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -624,7 +661,7 @@ function M.run(shared, ctx)
                 end
 
                 if best_obj then
-                    local ok_opos, opos = pcall(function() return best_obj:get_position() end)
+                    local ok_opos, opos = pcall(unit_get_position, best_obj)
                     if ok_opos and opos then
                         -- Game objects often report z=0, which is off the navmesh;
                         -- fall back to the player's own Z.
@@ -700,7 +737,7 @@ function M.run(shared, ctx)
                 local all_wps = zygor_module and zygor_module.get_step_waypoints_world and zygor_module.get_step_waypoints_world()
                 if all_wps and #all_wps > 0 and ctx.me then
                     local visited = shared._visited_waypoints or {}
-                    local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
+                    local pos_ok, pos = pcall(unit_get_position, ctx.me)
                     if pos_ok and pos and ctx.utils then
                         local best_wp = nil
                         local best_dist_sq = 1e9

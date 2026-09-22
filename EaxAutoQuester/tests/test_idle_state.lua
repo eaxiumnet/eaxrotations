@@ -788,5 +788,108 @@ do
     print("  P3 PASS: action pause active → IDLE")
 end
 
+-- =============================================================================
+-- P4-P7 — objective-first must not confuse a corpse for the objective, and must stop
+-- at the class's engagement distance. Live bug: a kill goal whose mobs were all dead
+-- matched a CORPSE under the player's feet and reported "in range (0yd) - skip NAV"
+-- forever, so the bot stood in the corpse pile instead of moving on. The same scan is
+-- what walked a priest to melee range (5yd) before this.
+-- =============================================================================
+do
+    local combat_helper = require("combat_helper_sylvanas")
+
+    -- P4 — only a corpse matches the goal name → NOT the objective. The corpse sits ON the
+    -- player and the class is ranged, so counting it would put the goal "in range (0yd)" and
+    -- the bot would act on nothing (the live symptom); the waypoint must drive NAV instead.
+    -- Autoloot is left on cooldown so the objective scan is what runs: otherwise IDLE loots
+    -- the corpse first, which is correct behaviour but proves nothing about the scan.
+    local corpse = mock.create_object({
+        pos = { x = 0, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, dead = true, attackable = true, enemy = true, guid = "corpse_1",
+    })
+    local wp = { x = 500, y = 0, z = 5 }
+    local ctx = build_goal_ctx({ type = "kill", npc_id = 0, target = "Stonevault Shaman" }, { corpse },
+        { waypoint = wp })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST: a 28yd engagement band makes the corpse "in range" if counted
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 200.0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "NAV",
+        "P4 FAIL: a corpse must not satisfy a kill objective (got " .. tostring(next_state) .. ")")
+    assert(shared._nav_destination ~= corpse:get_position(),
+        "P4 FAIL: the bot navigated to the corpse as if it were the objective")
+    assert(shared._nav_engage_sq == nil,
+        "P4 FAIL: no live objective was found, so no engagement stand-off should be set")
+    print("  P4 PASS: corpse ignored → waypoint NAV, not 'in range (0yd)'")
+
+    -- P4b — the same goal with a LIVE mob on top of the player is genuinely in range: proves
+    -- the scan still works, so P4's NAV really comes from skipping the corpse.
+    local live_mob = mock.create_object({
+        pos = { x = 0, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, attackable = true, enemy = true, guid = "live_0",
+    })
+    ctx = build_goal_ctx({ type = "kill", npc_id = 0, target = "Stonevault Shaman" }, { live_mob },
+        { waypoint = wp })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5
+    shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0 }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "DO_ACTION",
+        "P4b FAIL: a live mob in range must be acted on (got " .. tostring(next_state) .. ")")
+    print("  P4b PASS: live objective on top of the player → DO_ACTION (scan still finds it)")
+
+    -- P8 — the live Stonevault Shaman shape, and the goal table here is the one the client
+    -- really sends: a named target and NO `type` field, so IDLE classifies it as "area" (the
+    -- goal[34] the player's log showed). The player has killed (and looted) those mobs, Zygor's
+    -- step has not advanced, and the bot is standing where the objective is — its waypoint is in
+    -- range, so nothing drives NAV. A corpse underfoot with no living match means there is
+    -- nothing here to kill or use, so the goal must stay out of DO_ACTION — that re-entry, once
+    -- per tick, was the freeze — and wait for the mobs on the existing bounded respawn timer,
+    -- which resumes the kill the moment an enemy appears.
+    local underfoot = mock.create_object({
+        pos = { x = 0, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, dead = true, lootable = false,
+        attackable = true, enemy = true, guid = "corpse_underfoot",
+    })
+    ctx = build_goal_ctx({ npc_id = 0, target = "Stonevault Shaman" }, { underfoot },
+        { waypoint = { x = 5, y = 0, z = 0 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST
+    shared = { _interact_cooldown = 0, _loot_cooldown = 200.0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0, _debug = true }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "IDLE",
+        "P8 FAIL: a goal whose targets are all corpses underfoot must not re-enter DO_ACTION " ..
+        "(got " .. tostring(next_state) .. ")")
+    assert(shared._respawn_wait_until > ctx.now,
+        "P8 FAIL: the goal must wait for its mobs to respawn")
+    assert(shared._nav_destination == nil,
+        "P8 FAIL: nothing should be navigated to — the only match was a corpse")
+    print("  P8 PASS: all targets dead underfoot → respawn wait, not a DO_ACTION loop")
+
+    -- P8b — the same shape with a LIVE mob underfoot must still act, so P8's IDLE really comes
+    -- from there being nothing alive rather than from the goal being skipped blindly.
+    local respawned = mock.create_object({
+        pos = { x = 0, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, attackable = true, enemy = true, guid = "shaman_back",
+    })
+    ctx = build_goal_ctx({ npc_id = 0, target = "Stonevault Shaman" }, { underfoot, respawned },
+        { waypoint = { x = 5, y = 0, z = 0 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5
+    shared = { _interact_cooldown = 0, _loot_cooldown = 200.0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0, _debug = true }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "DO_ACTION",
+        "P8b FAIL: one live target among the corpses must be acted on (got " .. tostring(next_state) .. ")")
+    print("  P8b PASS: a respawned target beside the corpse → DO_ACTION (gate is not blind)")
+end
+
 print("PASS test_idle_state")
 os.exit(0)

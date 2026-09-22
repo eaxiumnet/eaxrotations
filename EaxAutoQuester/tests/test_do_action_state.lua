@@ -585,5 +585,112 @@ do
     print("  P10b PASS: talk pacing — 0.3s frame wait")
 end
 
+-- S19 — the kill lane must kill the mob the GOAL names, not the nearest one.
+-- Live: on the guide's `kill Rock Elemental##92+` / `collect 3 Large Stone Slab##4627 |q 711/1`
+-- the bot killed LESSER Rock Elementals. Two defects met: the goal's id was dropped (the bridge
+-- leaves npc_id at 0 and `goal.npc_id or goal.target_id` returns 0, because 0 is truthy in Lua),
+-- and the name lookup matched substrings, so "Lesser Rock Elemental" satisfied "Rock Elementals"
+-- (it contains it). The slab drops from creature 92 only. This scenario is the regression test:
+-- the LESSER one is nearer and must not be touched.
+do
+    mock.reset()
+    local rock = mock.create_object({
+        pos = { x = 30, y = 0, z = 0 },
+        name = "Rock Elemental",
+        npc_id = 92,
+        unit = true, valid = true, enemy = true, attackable = true,
+        guid = "rock_92",
+    })
+    local lesser = mock.create_object({
+        pos = { x = 5, y = 0, z = 0 },
+        name = "Lesser Rock Elemental",
+        npc_id = 2735,
+        unit = true, valid = true, enemy = true, attackable = true,
+        guid = "lesser_2735",
+    })
+    -- Zygor's raw goal for that step: the trailing + pluralises the name, and the id is the mob
+    -- that drops the item. npc_id is the bridge's zero, target_id carries the identity.
+    local step = {
+        num = 50,
+        is_complete = false,
+        waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+        goals = { { type = "kill", target = "Rock Elementals", npc_id = 0, target_id = 92, quest_id = 711 } },
+    }
+    local ctx = build_ctx(step, nil, { lesser, rock })
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    if NS then NS.start_auto_attack = function() end end
+
+    local do_action = require("quest_state/do_action_state")
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0,
+        _post_interact_timer = 0, _at_quest_object_timer = 0,
+        _action_pause_timer = 0, _last_step_num = 50, _last_goal_type = "kill",
+        _respawn_wait_until = 12345 }
+    do_action.run(shared, ctx)
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+
+    local targeted_rock, targeted_lesser = false, false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" then
+            if call[2] == rock then targeted_rock = true end
+            if call[2] == lesser then targeted_lesser = true end
+        end
+    end
+    assert(not targeted_lesser,
+        "S19 FAIL: the nearer LESSER Rock Elemental was targeted — it does not drop Large Stone " ..
+        "Slab (creature 92 does), so the objective cannot advance")
+    assert(targeted_rock,
+        "S19 FAIL: the goal's own mob (Rock Elemental, id 92) was not targeted — the id was " ..
+        "dropped again (a zero npc_id hides target_id) or the name won over the id")
+    print("  S19 PASS: the kill lane targets the goal's own mob (id), never the nearer lookalike")
+end
+-- S25 — the AREA lane must act on the goal's own mob too.
+-- The same step reaches this lane whenever Zygor's goal type is "area" (the live logs are full of
+-- `DO_ACTION: area — approaching '<name>'`), and it picks by name. With the LESSER lookalike nearer,
+-- "Rock Elementals" matched it — the name lookup is a substring test and the Lesser contains the
+-- Rock. This goal carries no id, so the name is the only evidence there is, and it must be exact.
+do
+    mock.reset()
+    local rock = mock.create_object({ pos = { x = 45, y = 0, z = 0 }, name = "Rock Elemental",
+        npc_id = 92, unit = true, valid = true, enemy = true, attackable = true, guid = "rock_92" })
+    local lesser = mock.create_object({ pos = { x = 3, y = 0, z = 0 }, name = "Lesser Rock Elemental",
+        npc_id = 2735, unit = true, valid = true, enemy = true, attackable = true, guid = "lesser_2735" })
+    local step = {
+        num = 51,
+        is_complete = false,
+        waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+        goals = { { type = "area", target = "Rock Elementals", npc_id = 0 } },
+    }
+    local ctx = build_ctx(step, nil, { lesser, rock })
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    if NS then NS.start_auto_attack = function() end end
+
+    local do_action = require("quest_state/do_action_state")
+    local shared = { _nav_destination = nil, _area_wait_timer = 0, _action_pause_timer = 0,
+        _last_step_num = 51, _last_goal_type = "area", _interact_cooldown = 0, _loot_cooldown = 0,
+        _post_interact_timer = 0, _at_quest_object_timer = 0 }
+    do_action.run(shared, ctx)
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+
+    local targeted_lesser = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == lesser then targeted_lesser = true end
+    end
+    assert(not targeted_lesser,
+        "S25a FAIL: the area lane targeted the nearer LESSER Rock Elemental — it drops nothing on " ..
+        "this objective (Rock Elemental, id 92, does)")
+    local dest = shared._nav_destination
+    assert(dest ~= nil, "S25b FAIL: the area lane should be heading somewhere")
+    local dx, dy = (dest.x or 0) - 45, (dest.y or 0) - 0
+    assert(dx * dx + dy * dy < 1,
+        "S25c FAIL: the area lane must walk to the goal's own mob at 45yd, got " ..
+        tostring(dest.x) .. "," .. tostring(dest.y))
+    print("  S25 PASS: the area lane ignores the nearer lookalike and heads for the goal's mob")
+end
+
 print("PASS test_do_action_state")
 os.exit(0)

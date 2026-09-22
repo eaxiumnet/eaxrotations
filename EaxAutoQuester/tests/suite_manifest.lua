@@ -49,6 +49,7 @@ return {
         "test_runner_lib.lua",
         "test_safe_api_wrapper.lua",
         "test_service_gossip.lua",
+        "test_objective_match.lua",
         "test_state_machine_ownership.lua",
         "test_static_popup.lua",
         "test_step_lookahead.lua",

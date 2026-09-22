@@ -130,6 +130,10 @@ local function find_nearest_npc(ids, range)
 end
 
 --- Find visible objects whose name contains given substring (case-insensitive).
+--- The match is deliberately loose (a goal's name is a human string, and the world name may carry
+--- a suffix), which means a caller that needs "my objective" must filter the result by identity:
+--- "Lesser Rock Elemental" contains "Rock Elemental", and only one of them drops the item
+--- (shared/objective_match.lua).
 --- @param name_filter string|nil Substring to match
 --- @return game_object[]|nil Matching objects, or nil
 local function find_interactable_objects(name_filter)

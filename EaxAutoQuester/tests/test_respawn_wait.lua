@@ -133,5 +133,91 @@ result = idle.run(shared_s5, ctx)
 assert(shared_s5._respawn_wait_until == 0, "S5a FAIL: expired timer should be cleared")
 print("  S5 PASS: expired respawn timer → retry")
 
+-- ============================================================================
+-- S9 — a live goal target ends the wait even when the enemy probe sees nothing
+-- The enemy probe only answers for hostiles it can attack, and reads at most the first 50 visible
+-- objects; a freshly spawned mob of the goal's own name is the thing being waited for.
+-- ============================================================================
+do
+    local function live_mob(dead)
+        return mock.create_object({ name = "Lesser Rock Elemental", pos = { x = 20, y = 0, z = 0 },
+            unit = true, dead = dead, enemy = true, attackable = true })
+    end
+
+    mock.reset()
+    mock.set_time(900.0)
+    local shared_s9 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+        _interact_cooldown = 0, _last_step_num = 47, _respawn_wait_until = 1000.0,
+        _respawn_target_name = "Lesser Rock Elementals", _respawn_last_scan = 0 }
+    local ctx9 = make_ctx(900.0, false)
+    ctx9.zygor.get_current_step_info = function()
+        return { text = "Kill Lesser Rock Elementals", is_complete = false, step_num = 47,
+                 goals = { { type = "kill", target = "Lesser Rock Elementals", npc_id = 0 } } }
+    end
+    local found = { live_mob(false) }
+    ctx9.npc_manager.find_interactable_objects = function() return found end
+    -- A corpse under the same name is NOT a respawn. The wait continues — whether it spends the
+    -- tick walking to the next spawn point (NAV) or standing (IDLE) is S6/S7's business, so what
+    -- is asserted here is that it does not resume as if the objective were present.
+    found[1].is_dead = function() return true end
+    local res9a = idle.run(shared_s9, ctx9)
+    assert(res9a ~= "DO_ACTION",
+        "S9a FAIL: a corpse of the goal's own mob must not end the wait, got " .. tostring(res9a))
+    assert(shared_s9._respawn_wait_until > 0,
+        "S9b FAIL: the wait must still be armed after a corpse was found")
+    -- The live one does, even though the enemy probe answers nothing.
+    found[1] = live_mob(false)
+    shared_s9._respawn_last_scan = 0
+    local res9 = idle.run(shared_s9, ctx9)
+    assert(res9 == "DO_ACTION",
+        "S9c FAIL: a live goal target must end the respawn wait, got " .. tostring(res9))
+    assert(shared_s9._respawn_wait_until == 0, "S9d FAIL: the wait must be cleared")
+    print("  S9 PASS: a live goal target ends the wait; a corpse of the same name does not")
+end
+
+-- ============================================================================
+-- S11 — the wait ends for the mob the GOAL names, not for a lookalike
+-- Live: on the guide's `kill Rock Elemental##92+` / `collect 3 Large Stone Slab##4627 |q 711/1`,
+-- the bot killed LESSER Rock Elementals — a different creature (2735) that drops nothing on this
+-- objective. The name lookup matches substrings, and "Lesser Rock Elemental" contains
+-- "Rock Elemental"; the goal itself carries the id (Zygor's targetid), which is the identity.
+-- ============================================================================
+do
+    local function rock_mob(name, npc_id)
+        return mock.create_object({ name = name, pos = { x = 20, y = 0, z = 0 }, npc_id = npc_id,
+            unit = true, dead = false, enemy = true, attackable = true })
+    end
+
+    mock.reset()
+    mock.set_time(1200.0)
+    local shared_s11 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+        _interact_cooldown = 0, _last_step_num = 50, _respawn_wait_until = 1300.0,
+        _respawn_target_name = "Rock Elementals", _respawn_last_scan = 0 }
+    local ctx11 = make_ctx(1200.0, false)
+    ctx11.zygor.get_current_step_info = function()
+        return { text = "Kill Rock Elementals", is_complete = false, step_num = 50,
+                 goals = { { type = "kill", target = "Rock Elementals", npc_id = 0, target_id = 92 } } }
+    end
+
+    -- A live LESSER Rock Elemental is present: not the objective, so the wait stands.
+    local lesser = rock_mob("Lesser Rock Elemental", 2735)
+    ctx11.npc_manager.find_interactable_objects = function() return { lesser } end
+    local res11a = idle.run(shared_s11, ctx11)
+    assert(res11a ~= "DO_ACTION",
+        "S11a FAIL: a Lesser Rock Elemental is not the Rock Elemental the goal names, got " ..
+        tostring(res11a) .. " — the objective (and its drop) cannot advance from it")
+    assert(shared_s11._respawn_wait_until > 0,
+        "S11b FAIL: the wait must stay armed while only a lookalike is present")
+
+    -- The goal's own mob ends it.
+    local rock = rock_mob("Rock Elemental", 92)
+    ctx11.npc_manager.find_interactable_objects = function() return { lesser, rock } end
+    shared_s11._respawn_last_scan = 0
+    local res11 = idle.run(shared_s11, ctx11)
+    assert(res11 == "DO_ACTION",
+        "S11c FAIL: the goal's own mob must end the wait, got " .. tostring(res11))
+    assert(shared_s11._respawn_wait_until == 0, "S11d FAIL: the wait must be cleared")
+    print("  S11 PASS: a lookalike does not end the wait; the goal's own mob does")
+end
 print("PASS test_respawn_wait")
 os.exit(0)

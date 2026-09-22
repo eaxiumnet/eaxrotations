@@ -9,6 +9,8 @@
 
 local M = {}
 
+local goal_names = require("shared/goal_names")
+local objective_match = require("shared/objective_match")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
@@ -274,7 +276,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
 
         -- Fallback: try to find by goal NPC ID
         if type(goal) == "table" and npc then
-            local npc_id = ctx.safe(goal.npc_id, ctx.safe(goal.id, nil))
+            local npc_id = objective_match.goal_id(goal) or ctx.safe(goal.npc_id, ctx.safe(goal.id, nil))
             if npc_id then
                 local nearest = npc.find_nearest_npc({ npc_id }, 20, nil, ctx.object_scanner)
                 if nearest then
@@ -303,9 +305,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         -- generic tiger): killing the generic mob does not advance the quest.
         local goal_npc_id = nil
         if type(goal) == "table" then
-            local raw_id = ctx.safe(goal.npc_id, 0)
-            if not raw_id or raw_id <= 0 then raw_id = ctx.safe(goal.target_id, 0) end
-            if raw_id and raw_id > 0 then goal_npc_id = raw_id end
+            goal_npc_id = objective_match.goal_id(goal)
         end
         if npc and goal_npc_id and npc.find_nearest_npc then
             local quest_mob = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
@@ -426,8 +426,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         local goal_npc_id = nil
         local goal_target = nil
         if type(goal) == "table" then
-            local nid = goal.npc_id or goal.target_id
-            if nid and nid > 0 then goal_npc_id = nid end
+            -- The goal's own id, in every spelling the bridge and the addon use: an id is what
+            -- makes "the mob that drops this" knowable (shared/objective_match.lua).
+            local nid = objective_match.goal_id(goal)
+            if nid then goal_npc_id = nid end
             goal_target = goal.target or goal.npc
         end
 
@@ -609,35 +611,14 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         end
 
         if npc and goal_target then
-            local names_to_try = {}
-            for name in goal_target:gmatch("[^,]+") do
-                local trimmed = name:match("^%s*(.-)%s*$")
-                if trimmed and trimmed ~= "" then
-                    names_to_try[#names_to_try + 1] = trimmed
-                end
-            end
-            -- Plural→singular fallback: Zygor often pluralizes the FIRST word
-            -- (e.g. "Bundles of Wood" → "Bundle of Wood"). Also handle simple
-            -- plurals at the end (e.g. "Milly's Harvest Pumpkins").
-            local n = #names_to_try
-            for i = 1, n do
-                local name = names_to_try[i]
-                -- Try 1: strip trailing 's' from first word ("Bundles of Wood")
-                local first_word = name:match("^(%S+)")
-                if first_word and first_word:sub(-1) == "s" then
-                    local singular_first = name:gsub("^" .. first_word, first_word:sub(1, -2), 1)
-                    names_to_try[#names_to_try + 1] = singular_first
-                end
-                -- Try 2: strip trailing 's' from whole string ("Pumpkins")
-                if name:sub(-1) == "s" then
-                    local singular = name:sub(1, -2)
-                    if singular ~= "" then
-                        names_to_try[#names_to_try + 1] = singular
-                    end
-                end
-            end
+            -- Zygor's target string is comma-separated and pluralized ("Bundles of Wood",
+            -- "Milly's Harvest Pumpkins"); one owner translates it (shared/goal_names.lua).
+            local names_to_try = goal_names.expand(goal_target)
             for _, name in ipairs(names_to_try) do
                 local objects = npc.find_interactable_objects(name, ctx.object_scanner)
+                -- Only the goal's own mobs (shared/objective_match.lua): the name lookup matches
+                -- substrings, and "Lesser Rock Elemental" contains "Rock Elemental".
+                objects = objective_match.only(goal, objects)
                 if objects and #objects > 0 then
                     -- A corpse is not a target. find_interactable_objects matches by NAME and
                     -- includes dead units, and a looted corpse still reports is_dead() — so a
@@ -701,17 +682,14 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if NS and NS.start_auto_attack then
                             pcall(function() NS.start_auto_attack(obj) end)
                         end
+
+                        -- Game object: use_object for gathering/interaction
+                        pcall(core.input.use_object, obj)
                         shared._post_interact_timer = ctx.now + 0.3
-                        ctx.debug_log("DO_ACTION: area — targeted enemy '" .. tostring(name) .. "', auto-attacking")
+                        shared._at_quest_object_timer = ctx.now + 5.0
+                        ctx.debug_log("DO_ACTION: area — targeted quest object '" .. tostring(name) .. "'")
                         return true
                     end
-
-                    -- Game object: use_object for gathering/interaction
-                    pcall(core.input.use_object, obj)
-                    shared._post_interact_timer = ctx.now + 0.3
-                    shared._at_quest_object_timer = ctx.now + 5.0
-                    ctx.debug_log("DO_ACTION: area — targeted quest object '" .. tostring(name) .. "'")
-                    return true
                 end
             end
             ctx.debug_log("DO_ACTION: area — no interactable objects named '" .. tostring(goal_target) .. "'")
