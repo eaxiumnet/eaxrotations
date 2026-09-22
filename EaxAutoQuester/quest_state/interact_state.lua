@@ -99,7 +99,10 @@ function M.run(shared, ctx)
         local ok, st = pcall(ctx.zygor.get_current_step_info)
         if ok and st then step_text = st.text end
     end
-    local result = interaction.handle_any_frame(step_text)
+    -- Hand the handler this state's own frame probe: the loop-exit decision below is made with
+    -- ctx.detect_open_frame(), so the give-up inside the handler has to be made with the same
+    -- answer. Two probes that disagree is how a reward frame stayed up for minutes at a time.
+    local result = interaction.handle_any_frame(step_text, ctx.detect_open_frame)
 
     if result then
         -- Throttled: frame still being processed, stay in INTERACT
@@ -107,11 +110,15 @@ function M.run(shared, ctx)
             shared._interact_start_time = ctx.now  -- reset timeout, we're making progress
             return "INTERACT"
         end
-        -- Permanently gave up on this frame — force exit with cooldown
+        -- Permanently gave up on this frame — force exit with a LONG cooldown.
+        -- 10s used to put the bot straight back into the same frame: the frame never closes (that
+        -- is why the handler gave up), so the probe in IDLE still sees it, and the result was a
+        -- give-up cycle every ~10s forever. A minute of quiet lets the player finish the turn-in
+        -- by hand, which is the only thing that can clear it at that point.
         if result == "quest_giveup" then
             shared._interact_start_time = 0
-            shared._interact_cooldown = ctx.now + 10.0
-            ctx.debug_log("INTERACT: gave up on quest frame → IDLE (10s cooldown)")
+            shared._interact_cooldown = ctx.now + 60.0
+            ctx.debug_log("INTERACT: gave up on quest frame → IDLE (60s cooldown)")
             return "IDLE"
         end
 

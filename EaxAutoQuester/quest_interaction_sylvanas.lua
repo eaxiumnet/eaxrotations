@@ -140,6 +140,39 @@ function M.accept_all_available()
 end
 
 -- ============================================================================
+-- Frame probe + throttled debug logging
+-- ============================================================================
+
+--- Is a quest reward/detail frame showing, and what does it publish?
+--- The runtime has no "quest frame is up" predicate — only is_gossip_frame_shown
+--- (.api/core.lua:4791) — so the frame is inferred from the reward data it publishes: a choice
+--- item link, or reward money. That inference can LATCH: live, the link kept answering after the
+--- turn-in calls, which is why every consumer of this probe also bounds its own attempts and why
+--- detect_open_frame's answer alone must never be allowed to decide an unbounded loop.
+--- @return boolean showing, string|nil link, number|nil money
+local function reward_frame_probe()
+    local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
+    local ok_money, money = pcall(function() return _quests.get_reward_money() end)
+    local showing = (ok_link and link and link ~= "") or (ok_money and money and money > 0)
+    return showing, link, money
+end
+
+--- Debug line, at most once per `interval` per key. These handlers run every tick, and the
+--- unconditional "checking frames..." line buried the log the user needed under thousands of
+--- copies of itself — the whole trace was four lines repeating.
+--- @param key string throttle key
+--- @param message string what to log (prefixed for you)
+--- @param interval number|nil seconds between repeats (default 1.0)
+local _last_dlog = {}
+local function dlog(key, message, interval)
+    local now = _core_time()
+    local last = _last_dlog[key]
+    if last and now - last < (interval or 1.0) then return end
+    _last_dlog[key] = now
+    _core_log("[EaxAutoQuester-DEBUG] " .. message)
+end
+
+-- ============================================================================
 -- turn_in_completable: select every complete quest the frame offers
 -- ============================================================================
 
@@ -214,10 +247,20 @@ function M.select_best_reward()
     return nil
 end
 
+-- Does a "is a frame open?" probe currently answer yes? Shared by handle_any_frame's give-up,
+-- and hoisted rather than written as an inner closure: the INTERACT tick is allocation-gated
+-- (tests/test_tick_allocation.lua) and a per-call closure cost 60 B/tick.
+local function probe_says_open(probe)
+    local ok, open = pcall(probe)
+    return ok and open == true
+end
+
 -- Throttle: prevent re-processing the same quest frame
 local _last_quest_time = 0
 local _last_quest_action = nil  -- "accept" or "complete"
-local _quest_retry_count = 0    -- consecutive failed attempts (permanent give-up after 3)
+local _quest_retry_count = 0    -- consecutive attempts on a frame that would not close
+local _last_giveup_step = nil   -- step named by the last give-up warning (one warning per frame)
+local _last_giveup_count = 0    -- how many times that frame has been given up on
 
 -- ============================================================================
 -- auto_equip_best_reward: Equip the selected reward if it's an upgrade
@@ -290,60 +333,96 @@ function M.handle_quest_detail()
     if now - _last_quest_time < 1.0 then return nil end
     _last_quest_time = now
 
+    -- Probe: check if any quest frame is showing via reward link, reward money, or gossip quests
+    local showing, link, reward_money = reward_frame_probe()
+    local ok_avail, available = pcall(function() return _quests.get_gossip_available_quests() end)
+    local ok_active, active = pcall(function() return _quests.get_gossip_active_quests() end)
+    dlog("quest_probe", "handle_quest_detail: link=" .. tostring(link and #link) ..
+        " money=" .. tostring(reward_money) ..
+        " avail=" .. tostring(ok_avail and available and #available) ..
+        " active=" .. tostring(ok_active and active and #active))
+    local has_frame = showing
+                      or (ok_avail and available and #available > 0)
+                      or (ok_active and active and #active > 0)
+
+    -- Absence is checked BEFORE the give-up, so a frame that closes — by our attempt or by the
+    -- player's hand — clears the budget instead of leaving the handler poisoned for the next one.
+    if not has_frame then
+        -- Observed absence: the frame really is gone (or was never there). This — not a probe
+        -- taken in the same tick an action was issued — is what proves a turn-in landed.
+        if _quest_retry_count > 0 then _quest_retry_count = 0 end
+        return nil
+    end
+
     -- After 3 failed attempts, permanently give up on this frame
     if _quest_retry_count >= 3 then
         core.log_warning("[EaxAutoQuester] Quest frame unhandled after 3 attempts - giving up")
         return nil
     end
 
-    -- Probe: check if any quest frame is showing via reward link, reward money, or gossip quests
-    local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
-    local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
-    local ok_avail, available = pcall(function() return _quests.get_gossip_available_quests() end)
-    local ok_active, active = pcall(function() return _quests.get_gossip_active_quests() end)
-    _core_log("[EaxAutoQuester-DEBUG] handle_quest_detail: link=" .. tostring(ok_link and link and #link) .. " money=" .. tostring(ok_money and reward_money) .. " avail=" .. tostring(ok_avail and available and #available) .. " active=" .. tostring(ok_active and active and #active))
-    local has_frame = (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0)
-                      or (ok_avail and available and #available > 0) or (ok_active and active and #active > 0)
-
-    if not has_frame then
-        if _quest_retry_count > 0 then _quest_retry_count = 0 end
-        return nil
-    end
-
     -- Check if this is a reward frame (has reward choices or money)
-    local has_rewards = (ok_link and link and link ~= "")
+    local has_rewards = (link and link ~= "") or (reward_money and reward_money > 0)
 
     if has_rewards then
-        -- Reward frame: select best reward (this also completes the quest per API docs)
+        -- Reward frame: select the best reward, then FINISH the dialog.
+        --
+        -- The documented order is get_quest_reward ("Selects a reward choice and completes the
+        -- quest", scraped_docs_md/dev/api/quests.md) and then complete_quest ("Completes the
+        -- current quest dialog. Use this when turning in a quest that has no reward choices, or
+        -- AFTER selecting a reward with get_quest_reward").
+        --
+        -- This branch used to select the reward and close the frame WITHOUT ever completing it,
+        -- so the reward frame stayed up and the bot re-selected the same reward every second
+        -- forever: "INTERACT: handled (complete_quest+best_reward:1(...))" then "INTERACT: frame
+        -- still open", for as long as the client kept the frame. Nothing stopped it, because the
+        -- reward path returned before the retry counter was ever charged.
         _last_quest_action = "complete"
         local reward_action = M.select_best_reward()
         -- Auto-equip the chosen reward if it's better than current gear
         M.auto_equip_best_reward()
-        pcall(function() _quests.close_quest() end)
+        pcall(function() _quests.complete_quest() end)
         local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
         if ok_g and gossip then
             pcall(function() _quests.close_gossip() end)
+        end
+
+        -- Charge the attempt UNCONDITIONALLY, then let a later tick's absence observation
+        -- (top of this function) clear it.
+        --
+        -- This used to consult reward_frame_probe() right here and clear the counter when the
+        -- choice links went empty. In the live client they empty for an instant and the server
+        -- re-populates them because the turn-in was refused, so the probe read "closed", the
+        -- counter went back to 0, and the caller's own probe saw the same window still on screen
+        -- a millisecond later. Give-up lived behind _quest_retry_count >= 3, which could then
+        -- never be reached: the log filled with one completed-looking attempt per second for as
+        -- long as the frame stayed up.
+        _quest_retry_count = _quest_retry_count + 1
+
+        -- The frame is still right there: it may be an OFFER, and offers publish "choice" links
+        -- too, as a preview of what the quest pays. Claim it in the same pass — otherwise an offer
+        -- is only ever "completed", three attempts are spent, and a quest the bot should have taken
+        -- is given up on. This probe decides the VERB only; it is never the success test, because a
+        -- refused turn-in re-populates its choices and would read as a closed frame.
+        if reward_frame_probe() then
+            dlog("quest_still", "handle_quest_detail: frame outlived complete_quest — claiming it")
+            _last_quest_action = "accept"
+            pcall(function() _quests.accept_quest() end)
+            pcall(function() _quests.confirm_accept_quest() end)
+            pcall(function() _quests.close_quest() end)
+            return "accept_quest"
         end
         if reward_action then
             return "complete_quest+" .. reward_action
         end
         return "complete_quest"
-    end
-
-    -- If we get here, this attempt failed — increment retry counter
-    _quest_retry_count = _quest_retry_count + 1
-
-    -- No rewards visible — try complete_quest (turn-in without reward choices)
-    _last_quest_action = "complete"
-    pcall(function() _quests.complete_quest() end)
-    pcall(function() _quests.close_quest() end)
-    local still_open = false
-    local ok2, link2 = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
-    local ok2b, money2 = pcall(function() return _quests.get_reward_money() end)
-    if (ok2 and link2 and link2 ~= "") or (ok2b and money2 and money2 > 0) then
-        still_open = true
-    end
-    if not still_open then
+    else
+        -- No reward choices — complete the dialog directly (turn-in with nothing to pick).
+        _last_quest_action = "complete"
+        pcall(function() _quests.complete_quest() end)
+        pcall(function() _quests.close_quest() end)
+        _quest_retry_count = _quest_retry_count + 1
+        -- (the accept fall-through below still applies to this shape: gossip offer frames arrive
+        -- without reward choices and are claimed there)
         local ok_g2, gossip2 = pcall(function() return _quests.is_gossip_frame_shown() end)
         if ok_g2 and gossip2 then
             pcall(function() _quests.close_gossip() end)
@@ -361,10 +440,17 @@ function M.handle_quest_detail()
     if ok_g3 and gossip3 then
         pcall(function() _quests.close_gossip() end)
     end
-    -- Aggressive fallback: close ALL possible frames
-    pcall(function() _quests.close_quest() end)
-    pcall(function() _quests.close_gossip() end)
+    if not reward_frame_probe() then
+        _quest_retry_count = 0
+        return "accept_quest"
+    end
+
+    -- Nothing cleared it. Do not churn: the attempt is charged, and once three are in,
+    -- handle_any_frame stops calling this and reports "quest_giveup" so INTERACT backs off and the
+    -- player is told to finish the turn-in by hand.
     pcall(function() _input.close_loot() end)
+    dlog("quest_stuck", "handle_quest_detail: quest frame would not close (attempt " ..
+        tostring(_quest_retry_count) .. "/3)")
     return "accept_quest"
 end
 
@@ -383,7 +469,7 @@ end
 function M.handle_gossip(step_text)
     -- Check if gossip frame is actually shown
     local ok, is_shown = pcall(function() return _quests.is_gossip_frame_shown() end)
-    _core_log("[EaxAutoQuester-DEBUG] handle_gossip: is_gossip_frame_shown ok=" .. tostring(ok) .. " shown=" .. tostring(is_shown))
+    dlog("gossip_probe", "handle_gossip: is_gossip_frame_shown ok=" .. tostring(ok) .. " shown=" .. tostring(is_shown))
     if not ok or not is_shown then return nil end
 
     -- Priority 0: Pre-accept all available quests on turn-in NPCs
@@ -498,9 +584,19 @@ end
 --- Detect any open UI frame and dispatch to the appropriate handler.
 --- Priority order: loot → gossip → quest_detail → trainer → vendor
 --- @param step_text string|nil Current Zygor step text for service gossip detection.
+--- @param frame_open_fn function|nil The caller's own "is a frame still open?" probe. It decides
+---   whether a given-up frame is still up, so the loop can only end the way the caller sees it.
 --- @return string|nil Action description or nil if no frame handled
-function M.handle_any_frame(step_text)
-    _core_log("[EaxAutoQuester-DEBUG] handle_any_frame: checking frames...")
+function M.handle_any_frame(step_text, frame_open_fn)
+    -- No unconditional per-tick line here: the frame handlers below log what they did, and this
+    -- one printed on every tick whether or not anything was open (see dlog).
+
+    -- One truth for "is the frame still there": the caller's probe when it supplies one. The
+    -- give-up below used to consult this module's reward-link probe while the caller consulted
+    -- its own, and a reward frame whose choices are re-sent by the server reads open to one and
+    -- closed to the other — a disagreement that let the frame be "given up on" never.
+    local frame_probe = frame_open_fn or reward_frame_probe
+
     -- Priority 1: Loot frame — emptied by its single owner, which reads the slot count,
     -- loots gold first and walks downward so a compacting window cannot shift a slot that
     -- has not been visited yet.
@@ -517,15 +613,26 @@ function M.handle_any_frame(step_text)
     if gossip_action then return gossip_action end
 
     -- Priority 3: Quest detail frame (accept/complete/reward)
-    -- If we've permanently given up, skip quest detail and signal state machine
-    -- Reset retry counter after 30s to allow one more attempt
-    if _quest_retry_count >= 3 and _core_time() - _last_quest_time > 30.0 then
+    -- If we've permanently given up, skip quest detail and signal state machine.
+    -- The window is long on purpose: the frame is retried once every 2 minutes, so a quest the
+    -- handlers cannot finish costs a handful of warnings rather than a per-second churn.
+    if _quest_retry_count >= 3 and _core_time() - _last_quest_time > 120.0 then
         _quest_retry_count = 0
     end
     if _quest_retry_count >= 3 then
-        local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
-        local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
-        if (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0) then
+        if probe_says_open(frame_probe) then
+            -- Say WHAT could not be finished, once per stuck frame, so the player can turn it in
+            -- by hand instead of watching an unreadable loop.
+            if _last_giveup_step ~= (step_text or "") then
+                _last_giveup_step = step_text or ""
+                _last_giveup_count = 0
+            end
+            _last_giveup_count = (_last_giveup_count or 0) + 1
+            if _last_giveup_count == 1 then
+                core.log_warning("[EaxAutoQuester] Quest frame would not close after 3 attempts" ..
+                    (step_text and (" — step: " .. tostring(step_text)) or "") ..
+                    ". Finish this turn-in by hand; the bot will stop touching the frame.")
+            end
             return "quest_giveup"
         end
     end
@@ -556,7 +663,7 @@ function M.handle_any_frame(step_text)
         return "vendor_handled"
     end
 
-    _core_log("[EaxAutoQuester-DEBUG] handle_any_frame: no frame detected")
+    dlog("no_frame", "handle_any_frame: no frame detected")
     return nil
 end
 
