@@ -271,6 +271,40 @@ do
 end
 
 -- =============================================================================
+-- S11 — a nearby player must never pause the machine.
+-- Live logs: the coordinator armed shared._action_pause_timer for 3s on every tick a
+-- player stood within 30yd, and IDLE returns early while that timer is set, so the quester
+-- stood still for 15 minutes at a time. This drives the real update() with a player parked
+-- in range and asserts the pause is never armed.
+-- =============================================================================
+do
+    mock.reset()
+    local me = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 5 })
+    local stranger = mock.create_object({
+        pos = { x = 10, y = 0, z = 0 }, name = "Stranger",
+        unit = true, player = true, valid = true, guid = "stranger_pause",
+    })
+    mock._objects = { stranger }
+
+    local shared = coordinator._test_shared()
+    -- WAITING isolates the proximity path: its handler never touches the pause timer, so
+    -- any pause seen here can only have come from the anti-detection block.
+    shared._state = "WAITING"
+    shared._action_pause_timer = 0
+
+    local armed = 0
+    for i = 1, 200 do
+        mock.set_time(i * 0.05)
+        coordinator.update()
+        if (shared._action_pause_timer or 0) > 0 then armed = armed + 1 end
+    end
+    assert(armed == 0,
+        "S11 FAIL: a nearby player armed the action pause on " .. tostring(armed) ..
+        " of 200 ticks — that freeze is what the quester shipped with")
+    print("  S11 PASS: 200 ticks beside a player → action pause never armed")
+end
+
+-- =============================================================================
 -- S13 — entering combat while mounted dismounts. A mounted player cannot cast, so
 -- the whole rotation is dead until this happens. Both call sites (combat entry and
 -- the hard stop) used to be `if nav.dismount then nav.dismount() end`, and the

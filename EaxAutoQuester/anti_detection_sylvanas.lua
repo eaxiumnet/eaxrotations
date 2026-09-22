@@ -109,7 +109,14 @@ end
 -- ============================================================================
 
 local _last_player_near_time = 0
-local _player_pause_until = 0
+local _next_proximity_react_at = 0
+
+-- Being watched costs a look-around, never a stall. The old form paused the quest state
+-- machine for 3s on EVERY tick a player stood within range, so the quester froze for as long
+-- as that player stayed nearby (observed live: fifteen minutes of "pausing briefly" with zero
+-- quest progress). Qualification rate is what makes this safe: one reaction per cooldown, and
+-- nothing the caller can mistake for a reason to stop working.
+local PROXIMITY_REACT_COOLDOWN = 20.0
 
 -- Hoisted probes (item 15): this runs on every tick, and the inline `pcall(function() ... end)`
 -- form allocated a closure for the player plus two per visible object, every tick. Passing the
@@ -117,14 +124,37 @@ local _player_pause_until = 0
 -- nothing.
 local function unit_get_position(u) return u:get_position() end
 local function unit_is_player(u) return u:is_player() end
+local function unit_get_guid(u) return u:get_guid() end
 
---- Check for nearby players and pause bot briefly if one is detected.
---- Returns true if bot should pause this tick.
+-- Group members are not "another player" to hide from: pausing for your own party would
+-- stall the bot next to a healer. Rebuilt only when a pause is about to be armed, so it
+-- costs nothing on the common path.
+local _party_guids = {}
+local _party_guids_at = -1e9
+
+local function rebuild_party_guids()
+    for guid in pairs(_party_guids) do _party_guids[guid] = nil end
+    local ok, members = pcall(core.object_manager.get_party_members)
+    if not ok or type(members) ~= "table" then return end
+    for i = 1, #members do
+        local entry = members[i]
+        local obj = nil
+        if type(entry) == "table" then obj = entry.object or entry end
+        if obj then
+            local g_ok, guid = pcall(unit_get_guid, obj)
+            if g_ok and guid then _party_guids[guid] = true end
+        end
+    end
+end
+
+--- React to a nearby player without stopping the bot: a small camera turn, at most once per
+--- PROXIMITY_REACT_COOLDOWN. Callers must never convert this into a pause — see the module
+--- note above for what that cost the quester.
 --- @param range number Detection range in yards (default 30)
---- @return boolean true if pause is active
-function M.check_player_proximity(range)
+--- @return boolean true on the tick it looked
+function M.react_to_nearby_player(range)
     local now = _core_time()
-    if now < _player_pause_until then return true end
+    if now < _next_proximity_react_at then return false end
 
     range = range or 30
     local range_sq = range * range
@@ -148,11 +178,21 @@ function M.check_player_proximity(range)
                     local dx = (other_pos.x or 0) - (my_pos.x or 0)
                     local dy = (other_pos.y or 0) - (my_pos.y or 0)
                     if dx * dx + dy * dy < range_sq then
-                        -- Another player is within range — pause 2-5s
-                        local pause = 2.0 + math.random() * 3.0
-                        _player_pause_until = now + pause
-                        _last_player_near_time = now
-                        return true
+                        if now - _party_guids_at > 30.0 then
+                            _party_guids_at = now
+                            rebuild_party_guids()
+                        end
+                        local ok_guid, guid = pcall(unit_get_guid, obj)
+                        if not (ok_guid and guid and _party_guids[guid]) then
+                            -- Another player is within range — glance at them, then leave it
+                            -- alone for the cooldown so this cannot become a loop.
+                            _next_proximity_react_at = now + PROXIMITY_REACT_COOLDOWN
+                            _last_player_near_time = now
+                            local degrees = (math.random() > 0.5 and 1 or -1)
+                                * (5 + math.random() * 10)
+                            pcall(core.input.turn, math.rad(degrees))
+                            return true
+                        end
                     end
                 end
             end

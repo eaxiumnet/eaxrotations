@@ -39,6 +39,8 @@ M._questie_npcs = {}
 M._frames = {}
 M._graphics_calls = {}
 M._input_calls = {}
+-- Party roster as the client reports it (see object_manager.get_party_members below).
+M._party = {}
 -- Every confirm input answers true by default; set false to model a client whose confirm call
 -- was not reached.
 M._confirm_answered = true
@@ -51,6 +53,7 @@ function M.reset()
     _mock_time = 0
     M._player = nil
     M._objects = {}
+    M._party = {}
     M._loot_items = {}
     M._vendor_items = {}
     M._trainer_services = {}
@@ -226,6 +229,17 @@ end
 M.object_manager = {
     get_local_player = function() return M._player end,
     get_visible_objects = function() return M._objects end,
+    -- Party roster as the client reports it: one entry per member, `.object` present only
+    -- when the member is in object range. Tests fill _party with objects or { object = obj }
+    -- entries to prove group members are never mistaken for strangers.
+    get_party_members = function()
+        local out = {}
+        for i = 1, #M._party do
+            local entry = M._party[i]
+            if type(entry) == "table" and entry.object then out[i] = entry else out[i] = { object = entry } end
+        end
+        return out
+    end,
     get_enemy_list = function()
         local enemies = {}
         for _, obj in ipairs(M._objects) do

@@ -610,13 +610,13 @@ function M.update()
         end
         -- Camera jitter when idle/navigating (not casting)
         ad.maybe_camera_jitter(false, is_casting or is_channeling)
-        -- Player proximity pause — if another player is near, pause briefly
-        if ad.check_player_proximity then
-            local should_pause = ad.check_player_proximity(30)
-            if should_pause then
-                shared._action_pause_timer = ctx.now + 3.0
-                debug_log("Coordinator: player proximity detected — pausing briefly")
-            end
+        -- Player proximity — react, never stall. This armed shared._action_pause_timer for 3s
+        -- on every tick a player stood within 30yd, so the quester stopped for as long as that
+        -- player stayed there (live logs: two separate 15-minute runs of "pausing briefly"
+        -- with zero quest progress, because IDLE returns early while the pause is set). Being
+        -- watched now costs a brief look-around that cannot block any state.
+        if ad.react_to_nearby_player then
+            ad.react_to_nearby_player(30)
         end
     end
 
@@ -717,6 +717,12 @@ end
 -- Test accessor: returns current state and nav destination (for unit tests)
 function M._test_inspect()
     return shared._state, shared._nav_destination
+end
+
+-- Test accessor: the shared state table itself, so a suite can assert on the live fields
+-- (pause timers, stand-off thresholds) instead of a copy of them.
+function M._test_shared()
+    return shared
 end
 
 -- Test accessor: the per-tick context table handed to the handlers. Item 15 asserts it is the

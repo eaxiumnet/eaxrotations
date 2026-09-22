@@ -10,6 +10,7 @@
 
 return {
     names = {
+        "test_anti_detection.lua",
         "test_auto_equip.lua",
         "test_class_faction_filter.lua",
         "test_combat_helper.lua",
