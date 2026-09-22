@@ -153,7 +153,6 @@ local function drive(use_client, opts)
         _nav_retry_timer = 0,
         _nav_wp_fallback = false,
         _nav_mesh_fallback = false,
-        _nav_fallback_pending = false,
     }
 
     local ctx = {

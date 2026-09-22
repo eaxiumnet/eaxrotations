@@ -744,5 +744,43 @@ do
     print("  N18 PASS: unreachable places are remembered by place, not by classification")
 end
 
+-- =============================================================================
+-- N19 — the direct-movement escalation is reachable. The handler's guard asks the
+-- navigation module for `move_direct`, so the branch lives or dies on the module
+-- answering it; when it does, the walk must be handed over instead of given up on.
+-- =============================================================================
+do
+    mock.reset()
+    local watcher = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    local place = { x = 900, y = -200, z = 30 }
+
+    -- Waypoint fallback already spent and the member present: the rescue takes the destination.
+    local nav = make_nav("FAILED")
+    nav.direct = {}
+    nav.move_direct = function(dest)
+        nav.direct[#nav.direct + 1] = { x = dest.x, y = dest.y, z = dest.z }
+    end
+    local s = { _nav_retry_timer = 0, _nav_retries = 3, _nav_destination = place,
+        _nav_wp_fallback = true }
+    assert(nav_state.run(s, nav_ctx({ me = watcher, nav = nav })) == "NAV",
+        "N19a FAIL: the direct-movement escalation must hand the walk over")
+    assert(#nav.direct == 1 and nav.direct[1].x == place.x,
+        "N19a FAIL: the destination must reach move_direct")
+    assert(s._nav_mesh_fallback == true, "N19a FAIL: the escalation is one-shot")
+    assert(s._nav_unreachable == nil,
+        "N19a FAIL: a place being re-walked directly must not be remembered as unreachable")
+
+    -- The member absent — the shape the module had while it exported nothing: same inputs give
+    -- up, so the scenario is about the member existing, not about the retry counters.
+    local bare = make_nav("FAILED")
+    local s2 = { _nav_retry_timer = 0, _nav_retries = 3, _nav_destination = place,
+        _nav_wp_fallback = true }
+    assert(nav_state.run(s2, nav_ctx({ me = watcher, nav = bare })) == "IDLE",
+        "N19b FAIL: without the member the handler must give up as before")
+    assert(s2._nav_unreachable ~= nil,
+        "N19b FAIL: the give-up path is the one that remembers the place")
+    print("  N19 PASS: the direct-movement escalation fires when the module can serve it")
+end
+
 print("PASS test_nav_state")
 os.exit(0)

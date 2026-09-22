@@ -112,11 +112,9 @@ end
 --- @param ctx table Per-tick context with submodules, me, helpers
 --- @return string next_state
 function M.run(shared, ctx)
-    -- Async fallback pending: wait for navmesh probe callback
-    if shared._nav_fallback_pending then
-        ctx.debug_log("NAV: waiting for navmesh probe")
-        return "NAV"
-    end
+    -- (No "waiting for an async probe" branch here: the only asynchronous navigation work is the
+    --  reachability probe, and navigation_sylvanas owns that wait as its own VALIDATING state
+    --  with its own timeout. The field this branch read was never armed by anything.)
 
     -- Combat check: stop navigation and let EaxRotations handle
     if ctx.me then

@@ -538,6 +538,50 @@ function M.navigate_to(destination, callback)
     commit_fallback(gen, destination)
 end
 
+--- Move straight at a destination, without pathfinding — the documented rescue for a target the
+--- client's own pathfinding has refused ("Follows a direct single-waypoint path to the target
+--- without pathfinding", scraped_docs_md/dev/api/sentinel-navigation.md). This is the escalation
+--- nav_state asks for after its waypoint fallback; where no client is available it is
+--- simple_movement, which already walks straight at the target.
+--- The destination is deliberately NOT validated: the reason this is being asked is that
+--- validate_destination / move_to have already answered, and a probe would only refuse it again.
+--- @param destination table|nil vec3 target.
+--- @param callback function|nil function(success, reason)
+function M.move_direct(destination, callback)
+    if not destination then
+        if callback then pcall(callback, false, "no_destination") end
+        return
+    end
+    if _state == "NAVIGATING" or _state == "VALIDATING" then stop_internal() end
+
+    _generation = _generation + 1
+    local gen = _generation
+
+    _destination = destination
+    _arrived_cb = callback
+    _stuck_timer = 0; _last_position = nil; _last_pos_time = 0
+    reset_client_tracking()
+
+    if init_sentinel() then
+        local trusted = client_trusted()
+        if trusted and type(_client.move_direct) == "function" then
+            _is_fallback = false
+            _state = "NAVIGATING"
+            local ok, err = pcall(function()
+                _client:move_direct(destination, function(success, reason)
+                    if gen ~= _generation then return end
+                    if success then return end          -- arrival is handled by state/events
+                    handle_client_failure(reason)
+                end)
+            end)
+            if not ok then fail_navigation(tostring(err)) end
+            return
+        end
+    end
+
+    commit_fallback(gen, destination)
+end
+
 --- Follow multi-waypoint path.
 --- The destination is the final waypoint, so that is what gets validated before committing.
 --- @param waypoints table|nil vec3[]

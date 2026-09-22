@@ -636,5 +636,56 @@ do
     print("C13 PASS: a reason-less failed event reports the legacy label")
 end
 
+-- ============================================================================
+-- C15: the direct-movement rescue — nav_state's last escalation — reaches a mover.
+-- The handler asks the navigation module (`nav.move_direct`); the module has to answer,
+-- or the branch is a no-op whatever the handler does.
+-- ============================================================================
+do
+    mock.reset(); mock.set_time(0)
+    local player = mock.create_player({ pos = vec(0, 0, 0) })
+    mock._player = player
+    local client = make_client({ reachable = true })
+    local nav = fresh_nav(client, make_fallback())
+    assert(type(nav.move_direct) == "function",
+        "C15a FAIL: navigation_sylvanas must export move_direct (nav_state asks for it as " ..
+        "nav.move_direct; without the export the rescue can never fire)")
+    nav.move_direct(DEST)
+    assert(count_call(client, "move_direct") == 1,
+        "C15a FAIL: the destination must reach the client's own move_direct")
+    assert(nav.get_state() == "NAVIGATING", "C15a FAIL: the rescue must start a walk")
+    assert(count_call(client, "validate_destination") == 0,
+        "C15b FAIL: the rescue must not re-validate a destination pathfinding already refused")
+    print("C15a/C15b PASS: the rescue reaches the client's move_direct without re-validating")
+end
+
+do
+    -- No client at all: the rescue is still a walk — simple_movement moves directly too.
+    mock.reset(); mock.set_time(0)
+    mock._player = mock.create_player({ pos = vec(0, 0, 0) })
+    local fallback = make_fallback()
+    local nav = fresh_nav(nil, fallback)
+    nav.move_direct(DEST)
+    assert(#fallback.calls == 1 and fallback.calls[1].name == "move_to_position",
+        "C15c FAIL: without a client the rescue must walk with simple_movement")
+    assert(fallback.calls[1].detail == DEST,
+        "C15c FAIL: the fallback must be handed the destination asked for")
+    print("C15c PASS: the rescue falls back to simple_movement when no client exists")
+end
+
+do
+    -- An older client without the documented method must still walk, not dead-end.
+    mock.reset(); mock.set_time(0)
+    mock._player = mock.create_player({ pos = vec(0, 0, 0) })
+    local client = make_client({ reachable = true })
+    client.move_direct = nil
+    local fallback = make_fallback()
+    local nav = fresh_nav(client, fallback)
+    nav.move_direct(DEST)
+    assert(#fallback.calls == 1,
+        "C15d FAIL: a client without move_direct must fall back instead of dead-ending")
+    print("C15d PASS: a client without move_direct falls back")
+end
+
 print("PASS test_nav_client_contract")
 os.exit(0)
