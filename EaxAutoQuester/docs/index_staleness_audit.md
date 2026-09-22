@@ -54,7 +54,7 @@ few lines between them for the same loop.)
 | `dungeon_detector_sylvanas.lua:60` | `get_quest_log_title`, `get_num_quest_leader_boards`, `get_quest_log_leader_board` | safe | reads only; the loop returns on match |
 | `progress_tracker_sylvanas.lua:42` | same leader-board reads | safe | reads only |
 | `goal_resolver_sylvanas.lua:119` | `pcall(_get…)` alias read | safe | alias for a getter |
-| `mount_manager_sylvanas.lua:56` | `get_mount_info` | safe | reads until the first usable mount, then returns |
+| `mount_manager_sylvanas.lua:56` (`mount_list`) / `:129` (`is_mounted_thorough`) / `:211` (`find_spell_mount`) | `get_mount_info` | safe | reads until the first usable (or active) mount, then returns; the walk never acts. The list is read through `core.spell_book` at call time rather than cached at load, because using a carried mount item learns the mount mid-session |
 | `vendor_manager_sylvanas.lua:56` | `_get_item_info` alias read | safe | read |
 | `vendor_manager_sylvanas.lua:130` | `_get_vendor_item_info` alias read | safe | read; the list is 1-based (`core.lua:1272`) |
 | `loot_manager_sylvanas.lua:107` | `get_num_bag_slots` / `get_items_in_bag` | safe | read; fills the bag-space totals |

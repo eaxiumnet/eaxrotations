@@ -11,6 +11,15 @@ mock.reset()
 
 local nav_state = require("quest_state/nav_state")
 
+-- Mount inputs, installed before the first tick that can reach the mount gate. The handler
+-- requires mount_manager_sylvanas lazily and that module caches its input calls at load
+-- (Pattern 2), so a stub installed inside the mount scenarios below would never be reached —
+-- the very first navigation tick would have already cached the mock's table entries.
+local _mount_casts, _dismount_calls = 0, 0
+core.input.mount = function() _mount_casts = _mount_casts + 1 end
+core.input.dismount = function() _dismount_calls = _dismount_calls + 1 end
+local mount_manager = require("mount_manager_sylvanas")
+
 -- Test run with combat
 local combat_player = mock.create_player({ pos = {x=0, y=0, z=0}, combat = true })
 local mock_nav = { get_state = function() return "NAVIGATING" end, stop = function() end, update = function() end }
@@ -180,6 +189,94 @@ local function make_nav(state)
     n.update = function() end
     return n
 end
+-- =============================================================================
+-- N12 — the mount gate: a mount is a CAST and movement cancels it, so it is cast
+-- BEFORE the walk is issued and the walk is held for it. Attempting it on a tick
+-- where the client is already walking the player could never complete (live: "I
+-- would like it to auto mount" — the bag scan ran, the cast was issued, and the
+-- player still travelled on foot).
+-- =============================================================================
+do
+    mock.reset()
+    mount_manager.reset()
+    core.spell_book.get_mount_count = function() return 1 end
+    core.spell_book.get_mount_info = function(idx)
+        if idx == 1 then return { is_usable = true, mount_name = "Horse" } end
+        return nil
+    end
+
+    local rider = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })  -- on foot
+    local nav = make_nav("IDLE")
+    local c = nav_ctx({ me = rider, nav = nav })
+    c.now = 100.0
+    local s = { _nav_retry_timer = 0, _nav_destination = { x = 0, y = 200, z = 0 } }
+
+    _mount_casts = 0
+    assert(nav_state.run(s, c) == "NAV", "N12: mounting keeps the bot in NAV")
+    assert(_mount_casts == 1,
+        "N12a FAIL: the mount must be cast before the walk (got " .. tostring(_mount_casts) .. ")")
+    assert(#nav.calls == 0,
+        "N12b FAIL: the walk must be held while the cast is in flight (got " ..
+        tostring(#nav.calls) .. " walk(s) issued)")
+
+    -- The cast lands: the hold is released and the walk starts.
+    rider._mounted = true
+    assert(nav_state.run(s, c) == "NAV", "N12: still NAV once mounted")
+    assert(#nav.calls == 1, "N12c FAIL: the walk starts once the player is mounted")
+    assert(_mount_casts == 1, "N12d FAIL: no second cast once mounted")
+    print("  N12 PASS: mount cast precedes the walk, which is held for it")
+end
+
+-- =============================================================================
+-- N15 — the walk-issued-anyway case names its cause in the log. "It didn't mount for a
+-- 300yd run" has no diagnosis on its own, so the gate's refusal reason is published on the
+-- tick that issues the walk, and withheld when the player is riding.
+-- =============================================================================
+do
+    mock.reset()
+    mount_manager.reset()
+    core.spell_book.get_mount_count = function() return 1 end
+    core.spell_book.get_mount_info = function(idx)
+        if idx == 1 then return { is_usable = true, mount_name = "Horse" } end
+        return nil
+    end
+
+    local logged = {}
+    local walker = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    local nav = make_nav("IDLE")
+    local c = nav_ctx({ me = walker, nav = nav,
+        debug_log = function(msg) logged[#logged + 1] = tostring(msg) end })
+    c.now = 200.0
+    -- 20yd: under the mount floor, so the gate says why and the walk goes out on foot.
+    local s = { _nav_retry_timer = 0, _nav_destination = { x = 0, y = 20, z = 0 } }
+
+    nav_state.run(s, c)
+    assert(nav.calls[#nav.calls] ~= nil, "N15a FAIL: a short walk must still be issued")
+    local found = nil
+    for i = 1, #logged do
+        if logged[i]:find("travelling on foot", 1, true) then found = logged[i] end
+    end
+    assert(found ~= nil, "N15b FAIL: the on-foot walk must say why")
+    assert(found:find("too close", 1, true) ~= nil,
+        "N15c FAIL: the reason must be the gate's own, got: " .. tostring(found))
+
+    -- Control: mounted means no "on foot" line at all, so the log cannot cry wolf while riding.
+    mount_manager.reset()
+    local rider2 = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    rider2._mounted = true
+    local nav2 = make_nav("IDLE")
+    local logged2 = {}
+    local c2 = nav_ctx({ me = rider2, nav = nav2,
+        debug_log = function(msg) logged2[#logged2 + 1] = tostring(msg) end })
+    c2.now = 300.0
+    nav_state.run({ _nav_retry_timer = 0, _nav_destination = { x = 0, y = 20, z = 0 } }, c2)
+    for i = 1, #logged2 do
+        assert(not logged2[i]:find("travelling on foot", 1, true),
+            "N15d FAIL: a mounted player must not be reported as walking on foot: " .. logged2[i])
+    end
+    print("  N15 PASS: an on-foot walk names the gate's reason; a mounted one logs none")
+end
+
 -- =============================================================================
 -- N16 — the en-route pre-tag does not START a fight the gate would refuse, and still tags a
 -- quest GIVER. Live: "it still tries to engage mobs on low health/mana" — this scan runs every

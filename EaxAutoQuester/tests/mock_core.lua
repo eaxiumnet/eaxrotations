@@ -115,6 +115,8 @@ function M.create_player(opts)
         _channelling = opts.channelling or false,
         _buffs = opts.buffs or {},
         _equipped = opts.equipped or {},
+        _mounted = opts.mounted or false,
+        _indoors = opts.indoors or false,
     }
 
     function p:get_health() return p._hp end
@@ -130,6 +132,11 @@ function M.create_player(opts)
     function p:get_guid() return p._guid end
     function p:get_rotation() return p._rotation or 0 end
     function p:is_dead() return p._dead end
+    -- Both are real game_object members (.api/game_object.lua — "is_mounted", "is_indoors"), not
+    -- inventions of this mock: mount_manager_sylvanas reads them, and a suite that models a mount
+    -- has to be able to answer them without a client. Defaults are "on foot" and "outdoors".
+    function p:is_mounted() return p._mounted end
+    function p:is_indoors() return p._indoors end
     function p:has_buff(buff_id)
         if type(buff_id) == "table" then
             for _, id in ipairs(buff_id) do
@@ -240,6 +247,14 @@ M.input = {
     end,
     use_object = function(obj)
         M._input_calls[#M._input_calls + 1] = { "use_object", obj }
+    end,
+    -- Mounting inputs: real API (.api/core.lua:2492 `core.input.mount(mount_index)`, :2498
+    -- `core.input.dismount()`), recorded like every other input so a suite can assert on them.
+    mount = function(mount_index)
+        M._input_calls[#M._input_calls + 1] = { "mount", mount_index }
+    end,
+    dismount = function()
+        M._input_calls[#M._input_calls + 1] = { "dismount" }
     end,
     move_to = function(pos)
         M._input_calls[#M._input_calls + 1] = { "move_to", pos }

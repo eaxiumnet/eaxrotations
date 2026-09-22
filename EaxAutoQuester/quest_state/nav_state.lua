@@ -29,6 +29,18 @@ local function hostile_to_me(ctx, obj)
     return ok and can == true
 end
 
+--- Take the player off their mount on the way out of NAV. A mounted player cannot cast, so every
+--- walk that ends with the bot about to fight or interact has to dismount. The coordinator's
+--- equivalent call was `nav.dismount`, a field the navigation module never had — nil, so it did
+--- nothing; this goes through the module that actually owns mounting.
+--- @param ctx table Per-tick context
+--- @param why string reason, for the log line
+local function dismount_for(ctx, why)
+    local ok, mm = pcall(require, "mount_manager_sylvanas")
+    if ok and mm and mm.dismount_now then
+        mm.dismount_now(ctx.me, why)
+    end
+end
 
 --- Squared distance at which the current destination counts as reached.
 --- A destination set for a ranged engagement carries its stand-off distance, so travelling
@@ -78,7 +90,9 @@ function M.run(shared, ctx)
     -- Per-tick update for stuck detection (Pattern 5 from AGENTS.md)
     nav.update()
 
-    -- Mount management: mount when far, dismount when close
+    -- Mount management: step off the mount when the destination is close. Mounting is NOT
+    -- attempted here — a mount is a cast that movement cancels, so it belongs before the walk is
+    -- issued (see the start-navigation block below), not on a tick where the client is walking.
     do
         local mm_ok, mm = pcall(require, "mount_manager_sylvanas")
         if mm_ok and mm and mm.update then
@@ -201,6 +215,7 @@ function M.run(shared, ctx)
                         shared._nav_destination = nil
                         shared._nav_retries = 0
                         nav.stop()
+                        dismount_for(ctx, "arrival flagged far")
                         return "IDLE"
                     end
                     nav.navigate_to(shared._nav_destination, nil)
@@ -214,6 +229,9 @@ function M.run(shared, ctx)
         shared._nav_wp_fallback = false
         shared._nav_mesh_fallback = false
         shared._just_arrived = true
+        -- Arriving is the other end of a mounted walk: whatever IDLE does next (loot, talk to an
+        -- NPC, attack) needs the player off the mount.
+        dismount_for(ctx, "arrived")
         -- Settle pause before IDLE re-evaluates: arriving and immediately
         -- re-deciding can miss an NPC that has not rendered yet.
         -- (Ported: docs/phase1_port_list.md item 5.)
@@ -306,6 +324,27 @@ function M.run(shared, ctx)
 
     -- Start navigation if not already navigating and destination set
     if nav_state_val == "IDLE" and shared._nav_destination then
+        -- Mount BEFORE the walk is issued, and hold the walk for the cast. A mount is a 1.5s cast
+        -- and movement cancels it, so attempting it on a tick where the client is already walking
+        -- the player could never complete — the bag scan ran, the cast was issued, and the player
+        -- still travelled on foot (live: "I would like it to auto mount"). begin_travel returns
+        -- true only while the cast is in flight; it is bounded by its cast timeout and backed off
+        -- by a failure cooldown, so it can neither stall nor loop.
+        do
+            local mm_ok, mm = pcall(require, "mount_manager_sylvanas")
+            if mm_ok and mm and mm.begin_travel then
+                local hold, why = mm.begin_travel(ctx.me, shared._nav_destination, ctx.now)
+                if hold then
+                    ctx.debug_log("NAV: mounting before travel — holding the walk for the cast")
+                    return "NAV"
+                end
+                -- On foot with a long walk ahead: say WHY, once per walk issued. Without this the
+                -- field symptom ("it didn't mount for a 300yd run") has no cause attached to it.
+                if why then
+                    ctx.debug_log("NAV: travelling on foot — " .. tostring(why))
+                end
+            end
+        end
         ctx.debug_log("NAV: starting navigation")
         nav.navigate_to(shared._nav_destination, nil)
     end

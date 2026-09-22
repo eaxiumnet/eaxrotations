@@ -270,5 +270,61 @@ do
     print("  S10 PASS: new target GUID → look_at NEVER called (no auto-face)")
 end
 
+-- =============================================================================
+-- S13 — entering combat while mounted dismounts. A mounted player cannot cast, so
+-- the whole rotation is dead until this happens. Both call sites (combat entry and
+-- the hard stop) used to be `if nav.dismount then nav.dismount() end`, and the
+-- navigation module has no dismount member: the field was always nil, the guard
+-- turned a missing member into a silent no-op, and the player rode into every fight.
+-- =============================================================================
+do
+    local function count_input(name)
+        local n = 0
+        for _, c in ipairs(mock._input_calls) do
+            if c[1] == name then n = n + 1 end
+        end
+        return n
+    end
+
+    -- Mounted, in combat with a target: the override runs and must take the player off.
+    mock.reset()
+    local target = mock.create_object({
+        pos = { x = 10, y = 0, z = 0 }, name = "Defias Thug", npc_id = 100,
+        unit = true, valid = true, guid = "enemy_mounted",
+    })
+    mock._objects = { target }
+    local player = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, combat = true, mounted = true })
+    mock._player = player
+    player._target = target
+
+    coordinator.update()
+    assert(count_input("dismount") == 1,
+        "S13 FAIL: combat entry must dismount a mounted player (got " ..
+        tostring(count_input("dismount")) .. " calls)")
+
+    -- On foot: no dismount call, so the path is not firing blindly every combat tick.
+    mock.reset()
+    local target2 = mock.create_object({
+        pos = { x = 10, y = 0, z = 0 }, name = "Defias Thug", npc_id = 100,
+        unit = true, valid = true, guid = "enemy_onfoot",
+    })
+    mock._objects = { target2 }
+    local player2 = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, combat = true, mounted = false })
+    mock._player = player2
+    player2._target = target2
+
+    coordinator.update()
+    assert(count_input("dismount") == 0,
+        "S13 FAIL: an unmounted player must not be dismounted")
+
+    -- The hard stop (plugin disabled) dismounts too, mounted or not on the client's mind.
+    mock.reset()
+    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, mounted = true })
+    coordinator.stop_navigation()
+    assert(count_input("dismount") == 1,
+        "S13 FAIL: the hard stop must dismount a mounted player")
+    print("  S13 PASS: combat entry and the hard stop both dismount")
+end
+
 print("PASS test_coordinator")
 os.exit(0)

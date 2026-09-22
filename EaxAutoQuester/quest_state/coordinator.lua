@@ -394,6 +394,22 @@ local function answer_own_prompts()
     end
 end
 
+--- Take the player off a mount through the module that owns mounting.
+--- This replaces `if nav.dismount then nav.dismount() end` at both call sites (combat entry and
+--- the hard stop). The navigation module has no dismount member, so that field was always nil,
+--- the guarded call never ran, and the player stayed mounted — and a mounted player cannot cast,
+--- so the rotation was dead until a manual dismount. The nil guard made the missing member look
+--- like a deliberate no-op.
+--- @param reason string what ended the run, for the log line
+local function dismount(reason)
+    local me = _get_local_player and _get_local_player() or nil
+    if not me then return end
+    local ok, mm = pcall(require, "mount_manager_sylvanas")
+    if ok and mm and mm.dismount_now then
+        mm.dismount_now(me, reason)
+    end
+end
+
 --- Called each on_pre_tick — runs current state logic.
 --- Reads debug flag from menu each tick.
 function M.update()
@@ -429,9 +445,11 @@ function M.update()
             local nav = ctx.nav
             if nav and nav.is_navigating and nav.is_navigating() then
                 nav.stop()
-                if nav.dismount then nav.dismount() end
                 debug_log("Coordinator: combat — stopped navigation")
             end
+            -- Dismount even when the client was not walking: a mount that survived combat entry
+            -- blocks every cast the rotation is about to attempt.
+            dismount("combat")
             if ctx.me then
                 -- In combat: stop navigation, then acquire an enemy target
                 -- if none is already set. EaxRotations needs a target to cast
@@ -615,7 +633,7 @@ function M.stop_navigation()
     local nav = ensure_navigation()
     if nav then
         nav.stop()
-        if nav.dismount then nav.dismount() end
+        dismount("navigation cancelled")
         debug_log("Hard stop: navigation cancelled")
     end
     shared._nav_destination = nil
