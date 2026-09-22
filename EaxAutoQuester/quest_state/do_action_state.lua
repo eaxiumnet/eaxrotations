@@ -408,8 +408,20 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         local engage_sq = engage_sq_for(ctx)
                         if dist_sq > engage_sq then
                             shared._nav_destination = enemy_pos
+                            -- A live unit is a moving point: record which unit owns this
+                            -- destination so NAV can follow it instead of walking to where the
+                            -- mob stood when the scan ran. See nav_state.lua.
+                            shared._nav_unit_dest = enemy
+                            shared._nav_unit_dest_key = enemy_pos
+                            if engage_sq > 9 then
+                                shared._nav_engage_dest = enemy_pos
+                                shared._nav_engage_sq = engage_sq
+                            end
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: kill — approaching enemy (" .. tostring(dist_yds) .. "yd)")
+                            -- This return is documentary: M.run ignores execute_goal_action's
+                            -- result. The destination above is the real work — IDLE picks it up
+                            -- (`approaching target → NAV`) and NAV honours the stand-off.
                             return false
                         end
                         -- In range: a ranged class engages from here and leaves the fight to
@@ -473,7 +485,9 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         shared._nav_destination = npos
                         ctx.debug_log("DO_ACTION: talk target [" .. tostring(rung) ..
                             "] out of range → NAV")
-                        return false
+                        -- Setting the destination is the whole mechanism: M.run ignores this
+                        -- return, IDLE picks the destination up and emits NAV for it.
+                        return "NAV"
                     end
                 end
                 pcall(core.input.set_target, target)
@@ -893,6 +907,12 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             local _, enemy_pos = pcall(unit_get_position, best_enemy)
                             if enemy_pos then
                                 shared._nav_destination = enemy_pos
+                                shared._nav_unit_dest = best_enemy
+                                shared._nav_unit_dest_key = enemy_pos
+                                if engage_sq > 9 then
+                                    shared._nav_engage_dest = enemy_pos
+                                    shared._nav_engage_sq = engage_sq
+                                end
                                 ctx.debug_log("DO_ACTION: area — approaching enemy '" .. tostring(goal_target) .. "' (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
@@ -1089,6 +1109,12 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         local engage_sq = engage_sq_for(ctx)
                         if dist_sq > engage_sq then
                             shared._nav_destination = enemy_pos
+                            shared._nav_unit_dest = enemy
+                            shared._nav_unit_dest_key = enemy_pos
+                            if engage_sq > 9 then
+                                shared._nav_engage_dest = enemy_pos
+                                shared._nav_engage_sq = engage_sq
+                            end
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: area — approaching enemy (" .. tostring(dist_yds) .. "yd)")
                             return false

@@ -888,3 +888,203 @@ do
         "R3l FAIL: an expired hold must stop claiming at once")
     print("  R3 PASS: the retreat beats a later writer while armed, and releases when the hold ends")
 end
+
+-- =============================================================================
+-- P12 — every production engage site actually calls the gate (and IDLE honours the hold)
+-- =============================================================================
+-- P1-P11 prove the module's rules; they cannot prove anyone asks it. Three engage sites exist in
+-- the area lane and each one is the difference between a rule and a rule that fires in game. Only
+-- the name path is driven by a fixture today (S18 in test_do_action_state), so the other two are
+-- pinned here by shape: a deleted call site fails this suite instead of silently going quiet.
+
+do
+    local function plugin_root()
+        for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
+            local f = io.open(prefix .. "main.lua", "r")
+            if f then f:close(); return prefix end
+        end
+        return nil
+    end
+    local root = plugin_root()
+    assert(root, "P12a FAIL: plugin root not found — a wiring pin that reads nothing must not pass")
+
+    local function read_source(rel)
+        local f = io.open(root .. rel, "r")
+        if not f then return nil end
+        local data = f:read("*a")
+        f:close()
+        return data
+    end
+
+    -- Every production engage site, counted rather than merely found. Shapes instead of line
+    -- numbers, but COUNTS instead of presence: the lanes grew from 3 gated sites to 9 when the
+    -- live report ("it still tries to engage mobs on low health/mana") turned out to be the doors
+    -- the gate was not standing in — the kill lane's goal-mob path, the area lane's walk to a
+    -- hostile, its quest-unit and Questie-fallback paths, and its nearest-enemy last resort. A pin
+    -- that asks only "is the shape present somewhere" cannot notice a site that stops calling the
+    -- gate, which is exactly how all of those went ungated.
+    local function count_gate_calls(src)
+        local n = 0
+        for _ in src:gmatch("pull_safety%.gate%(") do n = n + 1 end
+        return n
+    end
+
+    local do_action = read_source("quest_state/do_action_state.lua")
+    assert(do_action and #do_action > 1000,
+        "P12b FAIL: could not read quest_state/do_action_state.lua — the pin would be vacuous")
+    assert(count_gate_calls(do_action) == 9,
+        "P12c FAIL: expected 9 gated engage sites in the kill and area lanes, found " ..
+        tostring(count_gate_calls(do_action)) .. " — a gate nothing calls cannot fire")
+
+    -- Non-vacuous: the same check on the same source minus one call must count one fewer.
+    local missing = do_action:gsub("pull_safety%.gate%(", "-- removed by control", 1)
+    assert(count_gate_calls(missing) == 8,
+        "P12d FAIL: the wiring check cannot detect a deleted call site (counted " ..
+        tostring(count_gate_calls(missing)) .. ") — the pin above proves nothing")
+
+    -- Hostile-only guards: three gated sites can be looking at either a hostile or a friendly quest
+    -- NPC (a turn-in), so they ask hostile_to_me first. A friendly NPC refused on low mana would be
+    -- a worse bug than the pull — test_do_action_state S29 and test_nav_state N16 pin the behaviour.
+    local guards = 0
+    for _ in do_action:gmatch("hostile_to_me%(ctx, ") do guards = guards + 1 end
+    assert(guards >= 3,
+        "P12f FAIL: expected the three either-way sites to be hostile-guarded, found " ..
+        tostring(guards))
+
+    -- The en-route pre-tag asks the same question DRY: it must not tag a mob it would refuse, and
+    -- must not turn an in-flight walk around (nav_state N16 pins both halves).
+    local nav = read_source("quest_state/nav_state.lua")
+    assert(nav and nav:find("pull_safety.would_refuse(ctx, nearest)", 1, true) ~= nil,
+        "P12g FAIL: the en-route pre-tag does not ask the gate — tagging a hostile while walking " ..
+        "starts the fight mid-travel")
+    assert(nav:find("hostile_to_me(ctx, nearest)", 1, true) ~= nil,
+        "P12h FAIL: the pre-tag must apply the gate to hostiles only, or it stops tagging givers")
+
+    local idle = read_source("quest_state/idle_state.lua")
+    assert(idle and idle:find("pull_safety.holding(", 1, true) ~= nil,
+        "P12e FAIL: IDLE does not consult pull_safety.holding — it would walk straight back to \r\n" ..
+        "the mob the gate just refused")
+    print("  P12 PASS: all 9 engage sites wired (counted, not merely found) + IDLE honours the hold")
+end
+
+-- =============================================================================
+-- P13 — the wait is honoured: a resource that is coming back keeps the wait alive past the cap
+-- =============================================================================
+-- The cap is the anti-stall guarantee, and at 40 seconds flat it also meant "engage anyway while
+-- still empty": mana regen does not fill a bar in 40s, so the bot broke its own rule and pulled
+-- on an empty bar — the live report. The rule is now that the cap fires on a situation that has
+-- STOPPED CHANGING. This scenario runs a recovering bar past the old cap and asserts nothing was
+-- engaged and nothing was announced, then freezes the bar and asserts the cap still does its job.
+
+do
+    pull_safety.reset()
+    _visible = {}
+    _time = 20000
+    -- Mutable options table: the player closure reads o.mana at call time, so this is real regen.
+    local bar = { pos = { x = 0, y = 0, z = 0 }, hp = 1000, max_hp = 1000, mana = 50, max_mana = 1000 }
+    local me = player(bar)
+    local enemy = mob({ pos = { x = 10, y = 0, z = 0 } })
+    local ctx = ctx_for({ me = me })
+    _warnings = {}
+
+    local first_engage = nil
+    for pass = 1, 60 do
+        ctx.now = _time
+        local refused = pull_safety.gate(ctx, fresh_shared(), enemy)
+        if not refused and not first_engage then first_engage = pass end
+        -- 5 mana a second: 5% of the bar every 10s, so the 30% floor is ~50 passes away — well past
+        -- the 40s cap, and still climbing the whole time.
+        if refused then bar.mana = bar.mana + 5 end
+        _time = _time + 1
+    end
+    assert(bar.mana >= 300, "P13a FAIL: the fixture never reached the floor (" .. tostring(bar.mana) .. ")")
+    assert(first_engage and first_engage >= 49,
+        "P13b FAIL: a wait whose mana is still climbing was cut short at pass " ..
+        tostring(first_engage) .. " — the cap must measure stagnation, not elapsed time. The floor is " ..
+        "only reached around pass 50, and engaging before that is the pull this gate exists to refuse")
+    assert(#_warnings == 0,
+        "P13c FAIL: the over-wait notice belongs to a situation that is going nowhere, and this one " ..
+        "was recovering (got " .. tostring(#_warnings) .. ")")
+    print("  P13 PASS: a recovering bar is waited out (first engagement at pass " ..
+        tostring(first_engage) .. ", past the 40s cap)")
+
+    -- Control: freeze the same bar while still low and the cap must fire, once, as before.
+    pull_safety.reset()
+    bar.mana = 50
+    _time = 25000
+    _warnings = {}
+    local first_frozen = nil
+    local refusals = 0
+    for pass = 1, 60 do
+        ctx.now = _time
+        if pull_safety.gate(ctx, fresh_shared(), enemy) then
+            refusals = refusals + 1
+        elseif not first_frozen then
+            first_frozen = pass
+        end
+        _time = _time + 1
+    end
+    assert(refusals > 0, "P13d FAIL: a frozen empty bar should hold at first")
+    assert(first_frozen and first_frozen <= 45,
+        "P13e FAIL: a situation that is NOT moving must still trip the cap by pass 45, got " ..
+        tostring(first_frozen))
+    assert(#_warnings == 1, "P13f FAIL: the over-wait notice should be said once, got " ..
+        tostring(#_warnings))
+    print("  P13 PASS: control — a frozen bar still trips the cap and says so")
+end
+
+-- =============================================================================
+-- P14 — would_refuse: the same question, asked dry
+-- =============================================================================
+-- The en-route pre-tag needs the ANSWER without the consequences: no hold, no retreat, no notice,
+-- and above all no wait clock burned — a bot that asked dryly in a loop would otherwise spend the
+-- anti-stall cap without ever having refused anything, and then pull.
+
+do
+    pull_safety.reset()
+    _visible = {}
+    _time = 30000
+    local me = player({ pos = { x = 0, y = 0, z = 0 }, hp = 1000, max_hp = 1000,
+                        mana = 0, max_mana = 1000 })
+    local enemy = mob({ pos = { x = 10, y = 0, z = 0 } })
+    local ctx = ctx_for({ me = me })
+    ctx.now = _time
+    _warnings = {}
+    local logs_before = #_logs
+
+    assert(pull_safety.would_refuse(ctx, enemy) == true,
+        "P14a FAIL: an empty bar is a refusal, dry or not")
+    assert(pull_safety.holding(ctx) == false,
+        "P14b FAIL: a dry ask must not arm a hold — the walk it is checking must not be interrupted")
+    assert(pull_safety.destination(ctx) == nil,
+        "P14c FAIL: a dry ask must not publish a retreat")
+    assert(pull_safety.last_reason() == nil, "P14d FAIL: a dry ask must not record a reason")
+    assert(#_logs == logs_before and #_warnings == 0,
+        "P14e FAIL: a dry ask must stay quiet")
+
+    -- And the clock is untouched: a real refusal from this instant gets the whole cap.
+    local first_engage = nil
+    for pass = 1, 60 do
+        ctx.now = _time + pass
+        if not pull_safety.gate(ctx, fresh_shared(), enemy) and not first_engage then
+            first_engage = pass
+        end
+    end
+    assert(first_engage and first_engage >= 40,
+        "P14f FAIL: the dry asks consumed the anti-stall clock (first engagement at pass " ..
+        tostring(first_engage) .. "); a dry question must cost nothing")
+
+    -- A healthy player: dry says no, and the real gate agrees.
+    local healthy = player({ pos = { x = 0, y = 0, z = 0 }, hp = 1000, max_hp = 1000,
+                             mana = 1000, max_mana = 1000 })
+    local hctx = ctx_for({ me = healthy })
+    hctx.now = _time + 100
+    assert(pull_safety.would_refuse(hctx, enemy) == false,
+        "P14g FAIL: a healthy caster must not be refused")
+    assert(pull_safety.gate(hctx, fresh_shared(), enemy) == false,
+        "P14h FAIL: and the real gate must agree with the dry answer")
+    print("  P14 PASS: would_refuse answers without a hold, a retreat, a notice or a wait clock")
+end
+
+print("PASS test_pull_safety")
+os.exit(0)

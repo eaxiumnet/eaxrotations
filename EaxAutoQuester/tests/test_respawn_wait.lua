@@ -214,6 +214,54 @@ assert(dx * dx + dy * dy > 0.01,
 print("  S7 PASS: the wait sweeps the camp's spawn points — a searched point advances the search")
 
 -- ============================================================================
+-- S8 — the pull gate's hold outranks the search: the wait walks the retreat out
+-- ============================================================================
+do
+    mock.reset()
+    mock.set_time(700.0)
+    local pull_safety = require("shared/pull_safety")
+    local nav_destination = require("shared/nav_destination")
+    pull_safety.reset()
+    -- A caster with almost no mana and one hostile nearby: the gate refuses and arms a hold.
+    local caster = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, mana = 50, max_mana = 1000 })
+    local mob_obj = mock.create_object({ name = "Lesser Rock Elemental", pos = { x = 8, y = 0, z = 0 },
+        enemy = true, attackable = true })
+    mock._objects = { mob_obj }
+    local shared_s8 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+        _interact_cooldown = 0, _last_step_num = 47, _respawn_wait_until = 800.0,
+        _respawn_target_name = "Lesser Rock Elementals", _respawn_last_scan = 0 }
+    ctx = make_ctx(700.0, true)
+    ctx.me = caster
+    mock._player = caster
+    ctx.zygor.get_current_step_info = function()
+        return { text = "Kill Lesser Rock Elementals", is_complete = false, step_num = 47,
+                 goals = { { type = "kill", target = "Lesser Rock Elementals", npc_id = 0 } } }
+    end
+    -- The wait's scan would normally resume on the enemy; suppress that so this scenario is only
+    -- about the hold.
+    ctx.npc_manager.get_nearest_enemy = function() return nil end
+    assert(pull_safety.gate(ctx, shared_s8, mob_obj) == true,
+        "S8a FAIL: a caster at 5% mana must refuse this pull")
+    assert(pull_safety.holding(ctx) == true, "S8b FAIL: the gate must arm a hold")
+    local retreat = pull_safety.destination(ctx)
+    assert(retreat ~= nil, "S8c FAIL: the refusal must publish a retreat point")
+
+    result = idle.run(shared_s8, ctx)
+    assert(result == "NAV", "S8d FAIL: while the hold lives the wait must walk out, got " ..
+        tostring(result))
+    assert(shared_s8._nav_destination == retreat,
+        "S8e FAIL: the destination must be the gate's retreat, not a spawn point to search")
+    -- Control: with the hold cleared, the same scene searches again.
+    pull_safety.reset()
+    nav_destination.clear(shared_s8)
+    result = idle.run(shared_s8, ctx)
+    assert(result == "NAV", "S8f FAIL: with the hold gone the search must resume")
+    assert(shared_s8._nav_destination ~= retreat,
+        "S8g FAIL: with the hold gone the destination must be a spawn point, not the retreat")
+    print("  S8 PASS: the gate's hold outranks the search and the wait walks the retreat out")
+end
+
+-- ============================================================================
 -- S9 — a live goal target ends the wait even when the enemy probe sees nothing
 -- The enemy probe only answers for hostiles it can attack, and reads at most the first 50 visible
 -- objects; a freshly spawned mob of the goal's own name is the thing being waited for.

@@ -13,7 +13,9 @@ local corpse_loot = require("shared/corpse_loot")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 local objective_match = require("shared/objective_match")
+local nav_destination = require("shared/nav_destination")
 local spawn_patrol = require("shared/spawn_patrol")
+local pull_safety = require("shared/pull_safety")
 
 -- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
 -- on the tick path, which built a closure per call — the death check alone cost three per tick,
@@ -230,6 +232,30 @@ function M.run(shared, ctx)
     end
     shared._last_target_valid = false
 
+    -- Pull-safety hold: the gate refused a pull and armed a back-off. IDLE must not undo that by
+    -- walking at the mob on the next tick, and when the player is still standing where the refusal
+    -- happened it walks the retreat out. `nav_destination.claim` is what applies the gate's intent —
+    -- the gate writes no navigation field — and settling it HERE is what stops a destination written
+    -- later in the same tick from winning the walk.
+    if ctx.me and pull_safety.holding(ctx) then
+        if not nav_destination.claim(shared, ctx) then
+            -- Holding with nowhere published to back off to: wait the hold out rather than walk on.
+            ctx.debug_log("IDLE: pull safety hold — no retreat published, waiting")
+            return "IDLE"
+        end
+        local point = shared._nav_destination
+        local pos_ok, pos = pcall(unit_get_position, ctx.me)
+        if not (pos_ok and pos and point and ctx.utils) then
+            ctx.debug_log("IDLE: pull safety hold — cannot measure the retreat, waiting")
+            return "IDLE"
+        end
+        if ctx.utils.squared_distance(pos, point) <= 25 then
+            ctx.debug_log("IDLE: pull safety hold — parked at the retreat")
+            return "IDLE"
+        end
+        ctx.debug_log("IDLE: pull safety hold — walking the retreat out")
+        return "NAV"
+    end
 
     -- Check for an active quest goal early — determines autoloot behavior.
     -- When a quest is active, the bot should only loot corpses it passes by
@@ -313,6 +339,11 @@ function M.run(shared, ctx)
         shared._area_fail_count = 0
         shared._area_last_target_guid = nil
         shared._visited_waypoints = {}
+        -- A new step is a new path: a waypoint of the old one that the client could not reach says
+        -- nothing about the new one, and the sweep starts from scratch (cleared through the owner,
+        -- so the retirement stays one field).
+        nav_destination.clear_retired(shared)
+        shared._sweep_lap_at = 0
         shared._respawn_wait_until = 0
         shared._respawn_target_name = nil
         -- Reset progress tracking on step change
@@ -778,15 +809,38 @@ function M.run(shared, ctx)
                         local best_dist_sq = 1e9
                         local best_idx = nil
                         for i = 1, #all_wps do
-                            if not visited[i] then
-                                local d_sq = ctx.utils.squared_distance(pos, all_wps[i])
-                                if d_sq < best_dist_sq then
-                                    best_dist_sq = d_sq
-                                    best_wp = all_wps[i]
-                                    best_idx = i
+                            local candidate = all_wps[i]
+                            -- A waypoint the client could not walk to is skipped and retired FOR THE
+                            -- STEP (shared/nav_destination.lua owns the set) instead of being offered
+                            -- again. Without this the producer re-issued the same coordinates every
+                            -- second — IDLE -> NAV -> "arrived but still 13yd away" -> IDLE — and the
+                            -- step's other waypoints were never covered, so the bot appeared to walk
+                            -- between the one or two points the navmesh actually reaches. The 60s
+                            -- memory behind it expires; the retirement is what keeps the skip alive
+                            -- for this pass, and a new step (or a new pass) clears it.
+                            if not visited[i] and not nav_destination.place_retired(shared, candidate) then
+                                if nav_destination.recently_unreachable(shared, ctx.now, candidate) then
+                                    -- The refusal is recorded against the PLACE and nothing else:
+                                    -- `visited` is keyed by the slot the reader happened to return, and
+                                    -- a refusal does not say anything about whatever waypoint ends up
+                                    -- in that slot later in the pass.
+                                    if nav_destination.retire_place(shared, candidate) then
+                                        ctx.debug_log("IDLE: area goal — wp " .. tostring(i) .. "/" ..
+                                            tostring(#all_wps) .. " is unreachable — retiring it for this step")
+                                    end
+                                else
+                                    local d_sq = ctx.utils.squared_distance(pos, candidate)
+                                    if d_sq < best_dist_sq then
+                                        best_dist_sq = d_sq
+                                        best_wp = candidate
+                                        best_idx = i
+                                    end
                                 end
                             end
                         end
+                        -- Persist the marks: the sweep is read back from shared next tick, and an
+                        -- expired memory must not resurrect a waypoint this pass already refused.
+                        shared._visited_waypoints = visited
                         if best_wp then
                             if best_dist_sq > 100 then
                                 shared._nav_destination = best_wp
@@ -798,9 +852,35 @@ function M.run(shared, ctx)
                                 ctx.debug_log("IDLE: area goal - reached wp " .. tostring(best_idx) .. "/" .. tostring(#all_wps))
                                 return "IDLE"
                             end
+                        elseif (shared._sweep_lap_at or 0) == 0 then
+                            -- The pass is over: nothing left to walk to. Two ways to get here —
+                            -- every reachable waypoint was covered, or every waypoint was refused by
+                            -- the client — and they answer differently, because only the first has
+                            -- something for the guide to do at these coordinates.
+                            shared._sweep_lap_at = ctx.now
+                            if nav_destination.retired_count(shared) >= #all_wps then
+                                ctx.debug_log("IDLE: area goal — none of the " .. tostring(#all_wps) ..
+                                    " step waypoints is reachable — waiting for the retry")
+                                return "WAITING"
+                            end
+                            ctx.debug_log("IDLE: area goal — all " .. tostring(#all_wps) ..
+                                " waypoints covered — handing over to the guide")
+                            return "DO_ACTION"
+                        elseif ctx.now - shared._sweep_lap_at < SWEEP_RELAP_SECONDS then
+                            -- Between passes the state waits instead of marching. This is the other
+                            -- half of "moves between 2 waypoints": a covered pass used to re-issue
+                            -- its whole path on the very next tick, so a step the guide had not
+                            -- finished became an endless march over the same points.
+                            return "WAITING"
                         else
-                            ctx.debug_log("IDLE: area goal — all " .. tostring(#all_wps) .. " waypoints visited")
+                            -- A new pass. The marks go with it, so a waypoint the client refused is
+                            -- retried once per pass — at most once a minute — rather than never: a
+                            -- transient refusal of a real part of the path must not retire it for
+                            -- the whole step.
                             shared._visited_waypoints = {}
+                            nav_destination.clear_retired(shared)
+                            shared._sweep_lap_at = 0
+                            ctx.debug_log("IDLE: area goal — re-patrolling the step's waypoints")
                             return "DO_ACTION"
                         end
                     end

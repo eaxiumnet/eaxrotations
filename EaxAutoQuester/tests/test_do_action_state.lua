@@ -600,6 +600,119 @@ do
     print("  P10b PASS: talk pacing — 0.3s frame wait")
 end
 
+-- ============================================================================
+-- S18-S20 — the kill branch's approach, which is the live "priest walks into melee"
+-- defect: every class used to close to 3yd and then start AUTO_ATTACK_MELEE, so a priest
+-- questing was walked into the mob's face and made to auto-attack it instead of stopping at
+-- casting range and letting EaxRotations fight.
+--
+-- The mechanism asserted here is the DESTINATION plus its stand-off, not the return value:
+-- M.run calls execute_goal_action for its effect and ignores what it returns, then re-enters
+-- IDLE, which sees shared._nav_destination and emits NAV for it. So the tests below drive the
+-- real run() and check the state it leaves behind.
+-- ============================================================================
+do
+    local combat_helper = require("combat_helper_sylvanas")
+    local do_action = require("quest_state/do_action_state")
+
+    local function kill_ctx(enemy, class_id)
+        local step = {
+            num = 90, is_complete = false,
+            waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+            goals = { { type = "kill", npc_id = 0, text = nil, target = "Stonevault Shaman" } },
+        }
+        local ctx = build_ctx(step, nil, { enemy })
+        ctx.combat_helper = combat_helper
+        mock._player._class = class_id
+        return ctx
+    end
+
+    local function fresh_shared()
+        return { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+            _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+            _at_quest_object_timer = 0, _action_pause_timer = 0, _last_step_num = 90,
+            _respawn_wait_until = 0 }
+    end
+
+    _G.EaxRotations = _G.EaxRotations or {}
+    local NS = _G.EaxRotations
+    NS.AUTO_ATTACK_WAND = 5019
+    NS.AUTO_ATTACK_MELEE = 6603
+    local wand_calls = {}
+    local orig_start = NS.start_auto_attack
+    NS.start_auto_attack = function(target, attack_type)
+        wand_calls[#wand_calls + 1] = { target = target, attack_type = attack_type }
+        return attack_type == 5019
+    end    -- S18 — priest, mob 40yd away: approach, carrying the 28yd stand-off.
+    do
+        local mob = mock.create_object({
+            pos = { x = 40, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_shaman_40",
+        })
+        local ctx = kill_ctx(mob, 5)   -- PRIEST
+        local shared = fresh_shared()
+        local result = do_action.run(shared, ctx)
+        assert(shared._nav_destination == mob:get_position(),
+            "S18 FAIL: an out-of-range enemy must become the nav destination")
+        assert(shared._nav_engage_sq == 784 and shared._nav_engage_dest == mob:get_position(),
+            "S18 FAIL: the approach must stop at 28yd, not walk onto the mob")
+        assert(type(result) == "string",
+            "S18 FAIL: run() must always hand the dispatcher a state name (got " ..
+            tostring(result) .. ")")
+        print("  S18 PASS: priest approaches a 40yd mob → destination + 28yd stand-off")
+    end
+
+    -- S19 — priest, mob 20yd away: engage from range with a wand, never melee.
+    do
+        local mob = mock.create_object({
+            pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_shaman_20",
+        })
+        local ctx = kill_ctx(mob, 5)   -- PRIEST
+        local shared = fresh_shared()
+        do_action.run(shared, ctx)
+        assert(#wand_calls == 1 and wand_calls[1].attack_type == 5019,
+            "S19 FAIL: a priest in range must open with the ranged attack (AUTO_ATTACK_WAND)")
+        assert(wand_calls[1].target == mob, "S19 FAIL: the pull must target the mob")
+        assert(mock._player._target == mob,
+            "S19 FAIL: the target must be set so EaxRotations can take over")
+        assert(shared._nav_destination == nil,
+            "S19 FAIL: an enemy already in range must not be navigated to")
+        print("  S19 PASS: priest in range → ranged pull (wand), target set, rotation takes over")
+    end
+
+    -- S20 — warrior, mob 20yd away: melee classes keep closing, no ranged pull.
+    do
+        local mob = mock.create_object({
+            pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_shaman_melee",
+        })
+        local ctx = kill_ctx(mob, 1)   -- WARRIOR
+        local shared = fresh_shared()
+        local calls_before = #wand_calls
+        do_action.run(shared, ctx)
+        assert(#wand_calls == calls_before,
+            "S20 FAIL: melee classes must not attempt a ranged pull")
+        assert(shared._nav_destination == mob:get_position(),
+            "S20 FAIL: a melee class 20yd out must keep closing")
+        assert(shared._nav_engage_sq == nil,
+            "S20 FAIL: melee classes take no stand-off; they walk onto the mob as before")
+        print("  S20 PASS: melee class unchanged → closes to melee")
+    end
+
+    NS.start_auto_attack = orig_start
+end
+
+-- ============================================================================
+-- S21-S23 — the same behaviour on the goal table the client ACTUALLY sends.
+-- Every kill objective in the live logs arrives with a named target and NO `type` field
+-- ("IDLE: goal[34] text=nil npc_id=0 target=Stonevault Shaman,  Stonevault Bonesnapper"), so
+-- IDLE classifies it as "area" and it lands in this branch — while the suites above drive
+-- type="kill", a shape the client does not produce. On that live lane the NAME path matched a
+-- corpse and called start_auto_attack on it once per tick (the freeze the player reported),
+-- and because it fires before the enemy scan, the class-aware range never applied to a real
+-- kill objective either.
+-- ============================================================================
 do
     local combat_helper = require("combat_helper_sylvanas")
     local do_action = require("quest_state/do_action_state")
@@ -721,6 +834,116 @@ do
     end
 
     NS.start_auto_attack = orig_start
+end
+
+-- ============================================================================
+-- S18 — the area lane consults pull safety BEFORE it engages
+-- ============================================================================
+-- The gate is only worth anything if the production engage sites actually call it; a gate nothing
+-- calls is a gate that cannot fire, however well its own unit suite passes. This drives the area
+-- lane exactly the way S16 does (a live quest mob at 2yd) with one difference: the player is a
+-- caster with an empty bar. Nothing may be targeted or attacked, and the destination the state
+-- machine is handed must be AWAY from the mob — that is the "move away so we dont pull" request.
+do
+    pull_safety.reset()
+    mock.reset()
+    local boar = mock.create_object({
+        pos = { x = 2, y = 0, z = 0 },
+        name = "Stonetusk Boar",
+        npc_id = 0,
+        unit = true,
+        valid = true,
+        dead = false,
+        attackable = true,
+        guid = "boar_pulltest",
+    })
+    boar.is_dead = function() return false end
+    boar.can_be_looted = function() return false end
+    mock._objects = { boar }
+    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, combat = false, mana = 0, max_mana = 100 })
+    assert(mock._player._mana == 0, "S18a FAIL: the fixture player should have an empty mana bar")
+
+    local utils = require("utils_sylvanas")
+    local ctx = {
+        zygor = {
+            has_current_step = function() return true end,
+            get_current_step_info = function() return {
+                is_complete = false,
+                goals = { { type = "area", target = "Stonetusk Boars", npc_id = 0 } },
+                step_num = 71,
+            } end,
+            get_current_waypoint_world = function() return { x = 0, y = 0, z = 0 } end,
+        },
+        nav = { is_navigating = function() return false end, stop = function() end },
+        utils = utils,
+        me = mock._player,
+        now = 100.0,
+        debug_log = function() end,
+        log = function() end,
+        safe = function(v, fb) if v == nil then return fb end return v end,
+        detect_open_frame = function() return false end,
+        npc_manager = require("npc_manager_sylvanas"),
+        combat_helper = nil,
+    }
+
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    if NS then NS.start_auto_attack = function() end end
+
+    local do_action = require("quest_state/do_action_state")
+    local function fresh_shared()
+        return { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+            _nav_destination = nil, _area_wait_timer = 0,
+            _post_interact_timer = 0, _at_quest_object_timer = 0,
+            _action_pause_timer = 0, _last_step_num = 71 }
+    end
+    local shared = fresh_shared()
+
+    mock._input_calls = {}
+    do_action.run(shared, ctx)
+
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "set_target",
+            "S18b FAIL: an empty-mana caster targeted a mob — the area lane must consult " ..
+            "pull_safety.gate before engaging")
+    end
+    -- The gate publishes the retreat as an intent and writes no navigation field (test_pull_safety
+    -- R1 proves that); the owner applies it, which is what nav_state and IDLE do before acting.
+    assert(pull_safety.destination(ctx) ~= nil,
+        "S18c FAIL: refusing a pull must hand the state machine somewhere to go")
+    local nav_destination = require("shared/nav_destination")
+    assert(nav_destination.claim(shared, ctx) == true,
+        "S18c2 FAIL: the hold is live, so the nav owner must be able to apply the retreat")
+    assert(shared._nav_destination ~= nil,
+        "S18c3 FAIL: applying the claim must put the retreat in the destination")
+    local dx = (shared._nav_destination.x or 0) - (mock._player._pos.x or 0)
+    local dy = (shared._nav_destination.y or 0) - (mock._player._pos.y or 0)
+    assert((dx * dx + dy * dy) >= 225,
+        "S18d FAIL: the destination must be a real retreat (>=15yd), got dx=" .. tostring(dx))
+    assert(dx < 0,
+        "S18e FAIL: the mob is at +X, so the retreat has to be the other way, got dx=" .. tostring(dx))
+    assert(tostring(pull_safety.last_reason()):find("mana") ~= nil,
+        "S18f FAIL: the reason should name mana, got " .. tostring(pull_safety.last_reason()))
+    print("  S18 PASS: empty-mana caster is not pulled into the boar; it is walked the other way")
+
+    -- S18g — control: same scene, mana restored, and a FRESH shared table. It has to be fresh: the
+    -- run above left its own pacing timers behind, and a control that inherits them is testing the
+    -- pacing, not the gate.
+    pull_safety.reset()
+    mock._player._mana = 100
+    ctx.now = 200.0
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    local targeted = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == boar then targeted = true end
+    end
+    assert(targeted,
+        "S18g FAIL: with mana back the same area lane must engage the boar — otherwise S18 proves " ..
+        "nothing about the gate")
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+    print("  S18g PASS: with mana restored the same lane engages (the refusal was the gate)")
 end
 
 -- S19 — the kill lane must kill the mob the GOAL names, not the nearest one.

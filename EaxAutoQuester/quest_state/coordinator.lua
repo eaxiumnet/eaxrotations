@@ -80,6 +80,12 @@ local _combat_helper = nil
 local shared = {
     _state = "IDLE",                -- current state: IDLE, NAV, INTERACT, DO_ACTION, WAITING
     _nav_destination = nil,         -- vec3 destination for NAV state
+    _nav_unit_dest = nil,           -- live unit owning _nav_destination when it is a moving point
+    _nav_unit_dest_key = nil,       -- the exact position table handed to the unit's destination
+    _nav_issued_x = nil,            -- last coordinates handed to the nav client
+    _nav_issued_y = nil,            --   (a moving destination is re-issued when it drifts)
+    _nav_reissue_at = 0,            -- core_time before which no re-issue may happen
+    _nav_unreachable = nil,         -- the place the client could not reach, with its expiry
     _nav_retries = 0,               -- consecutive nav failure count (max 3)
     _nav_retry_timer = 0,           -- core_time when retry becomes allowed
     _nav_wp_fallback = false,      -- tried waypoint fallback yet?
@@ -637,6 +643,7 @@ function M.stop_navigation()
         debug_log("Hard stop: navigation cancelled")
     end
     shared._nav_destination = nil
+    shared._nav_engage_dest = nil
     shared._nav_retries = 0
     shared._nav_retry_timer = 0
 end

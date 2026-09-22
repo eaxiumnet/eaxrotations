@@ -2,6 +2,25 @@
 -- When: Called by coordinator when shared._state == "NAV"
 -- Why: Centralize navigation: updates, stuck detection, retry with backoff, arrival handling
 -- API: exports run(shared, ctx) → next_state string
+-- Unit destinations: a destination set for a LIVE unit (a mob to engage, a target to close on)
+--   is a moving point. The caller records the owner in shared._nav_unit_dest with the exact
+--   position table it assigned in shared._nav_unit_dest_key, so a later assignment of a
+--   different destination invalidates the record on its own. While it holds, this handler
+--   refreshes the destination from the unit's live position before anything measures against
+--   it, because the client walks to the coordinates it was handed and the stand-off was
+--   measured against those same frozen coordinates: when the mob moved, the bot walked to
+--   where it had been — into melee range, past where the class should have stopped — and the
+--   arrival test could never fire at range. Live: "objective-first … found at 39yd -> NAV",
+--   then the priest ended up 2yd from the mob while SentinelNavClient reported
+--   "Stuck detected" against a point the mob had long left. Corpses and waypoints are not
+--   moving points and are deliberately never recorded here.
+-- Ownership: the destination fields are shared/nav_destination.lua's, resolved through
+--   nav_destination.claim() at the top of every travelling tick. That call is what makes the pull
+--   gate's retreat outrank a destination another writer set in the same tick — the gate publishes
+--   the point it wants and never writes these fields itself, so whoever wrote last is not the
+--   decision; this handler re-asserts the claim at the moment it consumes the destination.
+
+local nav_destination = require("shared/nav_destination")
 local pull_safety = require("shared/pull_safety")
 
 -- ============================================================================
@@ -15,6 +34,8 @@ local M = {}
 -- handed their unit through the pcall keep every return value and the pcall's error protection.
 local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_position(u) return u:get_position() end
+local function unit_is_dead(u) return u:is_dead() end
+local function unit_is_unit(u) return u:is_unit() end
 local function unit_can_attack(u, other) return u:can_attack(other) end
 
 --- Is this unit one we would fight? The en-route pre-tag treats a quest giver and a quest MOB
@@ -40,6 +61,30 @@ local function dismount_for(ctx, why)
     if ok and mm and mm.dismount_now then
         mm.dismount_now(ctx.me, why)
     end
+end
+
+--- How far a followed unit must move from the point the client was last given before the walk is
+--- re-issued, and the shortest gap between two re-issues. The client walks to the coordinates it
+--- was handed, not to the table, so a moving target needs a fresh instruction — but a mob nudging
+--- back and forth must not restart its path every tick.
+local REISSUE_AT_SQ = 9.0      -- 3 yards
+local REISSUE_COOLDOWN = 0.5
+
+-- The unreachable-place memory (which places the client could not walk to, and for how long they
+-- are left alone) is shared/nav_destination.lua's: the producers that must not hand the same
+-- coordinates straight back have to ask the same question, and "the same place" has one answer.
+local function nav_dest_mark_unreachable(shared, ctx, point)
+    nav_destination.mark_unreachable(shared, ctx and ctx.now, point)
+end
+
+--- Drop the destination and every field describing it, including the live-unit link, so a
+--- later destination cannot inherit state from this one. The destination fields themselves belong
+--- to shared/nav_destination.lua; the travel bookkeeping below is this handler's own.
+local function nav_dest_clear(shared)
+    nav_destination.clear(shared)
+    shared._nav_issued_x = nil
+    shared._nav_issued_y = nil
+    shared._nav_reissue_at = nil
 end
 
 --- Squared distance at which the current destination counts as reached.
@@ -86,6 +131,90 @@ function M.run(shared, ctx)
 
     local nav = ctx.nav
     if not nav then return "IDLE" end
+
+    -- Resolve the destination for this tick before anything reads it: the pull gate's retreat
+    -- outranks every other source while its hold is armed (see the header). Claiming here — past
+    -- the paths that stop before navigating — rather than accepting what the fields happen to hold
+    -- is what keeps a retreat from being replaced by a same-tick write, which is the failure this
+    -- handler used to be unable to see.
+    nav_destination.claim(shared, ctx)
+
+    -- The client's state BEFORE nav.update() polls it below. Used only to decide whether the
+    -- client is already walking a destination (the follow block) — the arrival/failure decision
+    -- must use the state nav.update() has just refreshed, or it lags a tick behind the client.
+    local client_walking = nav.get_state() ~= "IDLE"
+
+    -- Follow a live unit's destination (see the header). A non-unit or an already-gone unit
+    -- destination is left exactly as it was: game objects and corpses do not move, and an
+    -- unavailable position must not silently become a destination of its own.
+    do
+        local dest = shared._nav_destination
+        local unit = shared._nav_unit_dest
+        if dest and unit and shared._nav_unit_dest_key == dest then
+            local ok_unit, is_unit = pcall(unit_is_unit, unit)
+            if ok_unit and is_unit then
+                local ok_dead, dead = pcall(unit_is_dead, unit)
+                local ok_pos, upos = pcall(unit_get_position, unit)
+                if (ok_dead and dead) or not (ok_pos and upos) then
+                    -- The target died or despawned: there is nothing left to walk to.
+                shared._nav_destination = nil
+                shared._nav_engage_dest = nil
+                shared._nav_unit_dest = nil
+                shared._nav_unit_dest_key = nil
+                shared._nav_retries = 0
+                nav.stop()
+                ctx.debug_log("NAV: destination unit is gone — stopping")
+                dismount_for(ctx, "target gone")
+                return "IDLE"
+                end
+                -- Same table, so the stand-off recorded with it stays valid.
+                dest.x, dest.y, dest.z = upos.x, upos.y, upos.z
+
+                -- Hand the client the target's new position, or it keeps walking to where the
+                -- unit stood when this destination was set — the walk ends inside the mob.
+                -- Only while the client is actually walking: the start-navigation block below is
+                -- the single place that issues the first walk of a destination.
+                if client_walking and (shared._nav_retry_timer or 0) == 0
+                    and ctx.now >= (shared._nav_reissue_at or 0) then
+                    local moved_sq
+                    if shared._nav_issued_x then
+                        local dx = dest.x - shared._nav_issued_x
+                        local dy = dest.y - shared._nav_issued_y
+                        moved_sq = dx * dx + dy * dy
+                    else
+                        moved_sq = REISSUE_AT_SQ + 1
+                    end
+                    if moved_sq > REISSUE_AT_SQ then
+                        shared._nav_issued_x, shared._nav_issued_y = dest.x, dest.y
+                        shared._nav_reissue_at = ctx.now + REISSUE_COOLDOWN
+                        nav.navigate_to(dest, nil)
+                        ctx.debug_log("NAV: target moved — refreshed path to " ..
+                            tostring(math.floor((dest.x or 0))) .. "," .. tostring(math.floor((dest.y or 0))))
+                    end
+                end
+            end
+        end
+    end
+
+    -- Stand-off arrival: an engagement destination is "reached" at its stand-off distance, so
+    -- stop the client as soon as the player is inside it rather than walking onto the mob.
+    do
+        local engage_sq = stand_off_sq(shared)
+        if engage_sq and shared._nav_destination and ctx.me and ctx.utils then
+            local ok_pos, pos = pcall(unit_get_position, ctx.me)
+            if ok_pos and pos
+                and ctx.utils.squared_distance(pos, shared._nav_destination) <= engage_sq then
+                shared._nav_destination = nil
+                shared._nav_retries = 0
+                nav.stop()
+                ctx.debug_log("NAV: in stand-off range - stopping to engage")
+                -- Casting is impossible while mounted, and this return goes straight into the
+                -- attack that the stand-off exists for.
+                dismount_for(ctx, "engaging")
+                return "IDLE"
+            end
+        end
+    end
 
     -- Per-tick update for stuck detection (Pattern 5 from AGENTS.md)
     nav.update()
@@ -154,6 +283,7 @@ function M.run(shared, ctx)
         pcall(core.input.jump)
     end
 
+    -- Read the state nav.update() just refreshed: this is what the transition decision uses.
     local nav_state_val = nav.get_state()
 
     -- Check if retry timer is active and waiting
@@ -178,6 +308,16 @@ function M.run(shared, ctx)
                         local xy_dist_sq = ((dest.x or 0) - pos.x)^2 + ((dest.y or 0) - pos.y)^2
                         if z_diff > 30 and xy_dist_sq < 100000 then
                             shared._nav_destination = { x = dest.x, y = dest.y, z = pos.z }
+                            -- Replaced table: keep every link that pointed at the old one, or the
+                            -- stand-off stops being honoured (the client walks onto the mob) and
+                            -- the follow in the header silently stops refreshing.
+                            if shared._nav_engage_dest == dest then
+                                shared._nav_engage_dest = shared._nav_destination
+                            end
+                            if shared._nav_unit_dest_key == dest then
+                                shared._nav_unit_dest_key = shared._nav_destination
+                            end
+                            shared._nav_issued_x, shared._nav_issued_y = nil, nil
                             ctx.debug_log("NAV: retrying with adjusted Z (player Z fallback)")
                         end
                     end
@@ -187,6 +327,19 @@ function M.run(shared, ctx)
             nav.navigate_to(shared._nav_destination, nil)
         end
         return "NAV"
+    end
+
+    -- A PLACE the client could not path to after its retries and fallbacks is left alone for the
+    -- memory's window (shared/nav_destination.lua) instead of being retried from the top forever.
+    -- Live: 40 minutes of "nav failed (max_stuck_exceeded) — asking the client to replan" at the
+    -- same coordinates, with the client reporting "Stuck detected" on it in between — and, once
+    -- the producers learned to ask the same question the same way, the same one-second loop with
+    -- the client reporting "arrived" for a destination it never walked to.
+    if nav_state_val == "FAILED" and nav_destination.recently_unreachable(shared, ctx.now) then
+        ctx.debug_log("NAV: destination unreachable recently — skipping")
+        nav_dest_clear(shared)
+        nav.stop()
+        return "IDLE"
     end
 
     -- Check for catastrophic navigation failure — warn and stop
@@ -212,7 +365,15 @@ function M.run(shared, ctx)
                     ctx.debug_log("NAV: arrived callback but still " .. tostring(dist_yds) .. "yd away (retry " .. tostring(shared._nav_retries) .. "/3)")
                     if shared._nav_retries >= 3 then
                         ctx.log("Navigation arrived but still far after 3 retries — giving up")
-                        shared._nav_destination = nil
+                        -- Remember the PLACE, not just this attempt: the producer that chose it is
+                        -- about to run again, and without the memory it offers the same coordinates
+                        -- straight back — a one-second IDLE/NAV loop that never covers the rest of
+                        -- the step (live: "arrived callback but still 13yd away", forever).
+                        nav_dest_mark_unreachable(shared, ctx)
+                        nav_dest_clear(shared)
+                        -- The counter belongs to the destination it counted, not to the handler:
+                        -- without this reset the next destination starts at 3/3 and gives up on its
+                        -- first arrival, however good a destination it was.
                         shared._nav_retries = 0
                         nav.stop()
                         dismount_for(ctx, "arrival flagged far")
@@ -224,7 +385,7 @@ function M.run(shared, ctx)
             end
         end
         ctx.debug_log("NAV: arrived")
-        shared._nav_destination = nil
+        nav_dest_clear(shared)
         shared._nav_retries = 0
         shared._nav_wp_fallback = false
         shared._nav_mesh_fallback = false
@@ -246,6 +407,7 @@ function M.run(shared, ctx)
 
         if shared._nav_retries >= 3 then
             ctx.log("Navigation failed after 3 retries")
+            local failed_point = shared._nav_destination
             if not shared._nav_wp_fallback then
                 shared._nav_wp_fallback = true
                 local zygor = ctx.zygor
@@ -273,7 +435,8 @@ function M.run(shared, ctx)
             if ns and ns.set_warning then
                 ns.set_warning("Navigation failed - check path", 8.0)
             end
-            shared._nav_destination = nil
+            nav_dest_mark_unreachable(shared, ctx, failed_point)
+            nav_dest_clear(shared)
             shared._nav_retries = 0
             shared._nav_wp_fallback = false
             shared._nav_mesh_fallback = false
@@ -295,7 +458,8 @@ function M.run(shared, ctx)
             if ns and ns.set_warning then
                 ns.set_warning("Character stuck - manual input needed", 10.0)
             end
-            shared._nav_destination = nil
+            nav_dest_mark_unreachable(shared, ctx)
+            nav_dest_clear(shared)
             shared._nav_retries = 0
             return "IDLE"
         end
@@ -346,6 +510,8 @@ function M.run(shared, ctx)
             end
         end
         ctx.debug_log("NAV: starting navigation")
+        shared._nav_issued_x = shared._nav_destination.x
+        shared._nav_issued_y = shared._nav_destination.y
         nav.navigate_to(shared._nav_destination, nil)
     end
 
