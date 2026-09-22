@@ -12,6 +12,9 @@ local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
+-- Required after mock.install(): the module caches core.time at load.
+local pull_safety = require("shared/pull_safety")
+
 -- ============================================================================
 -- Helpers — build a do_action_state runnable context
 -- ============================================================================
@@ -690,6 +693,127 @@ do
         "S25c FAIL: the area lane must walk to the goal's own mob at 45yd, got " ..
         tostring(dest.x) .. "," .. tostring(dest.y))
     print("  S25 PASS: the area lane ignores the nearer lookalike and heads for the goal's mob")
+end
+
+-- ============================================================================
+-- S26-S29 — EVERY door into a fight is gated, not just the one the area lane's name path uses.
+-- ============================================================================
+-- Live report that produced these: "the wait before going to next mob still is not honored
+-- correctly, it still tries to engage mobs on low health/mana". The gate's own rules were never the
+-- problem — the problem was the doors it was not standing in. Four of them start a fight on the
+-- bot's main leveling paths with no gate consulted at all:
+--   * the KILL lane's goal-mob path (the goal's own npc_id, i.e. every kill objective) — S26
+--   * the AREA lane's name path, which WALKS to the mob before the in-range gate can fire — S27
+--   * the AREA lane's last resort, "nothing of the goal's is here, kill what is nearest" — S28
+-- and one door that must stay open: a friendly goal NPC (a turn-in) is not a fight, whatever the
+-- player's health — S29. Each scenario carries its own control at full mana, so a refusal can only
+-- be the gate: a lane that engages nothing for some other reason fails the control.
+
+-- Every fixture below goes through this: a low-mana caster, one run of the lane, then the control.
+-- The menu stub matters: build_ctx's `menu.get` answers false to everything, which switches the whole
+-- gate off (M.enabled reads the eaxaq_pull_gate row through it). A scenario that forgot this would
+-- prove nothing at all — it would be testing the switch, not the rule.
+local function gate_on(ctx, rows)
+    rows = rows or {}
+    ctx.menu = {
+        get = function(key, fallback)
+            if rows[key] ~= nil then return rows[key] end
+            if key == "pull_gate" then return true end
+            return fallback
+        end,
+    }
+    return ctx
+end
+local function mana_bar(player_obj, mana, max_mana)
+    player_obj._mana = mana
+    player_obj._max_mana = max_mana or 100
+end
+
+-- S26
+
+do
+    pull_safety.reset()
+    local quest_mob = mock.create_object({ pos = { x = 25, y = 0, z = 0 }, name = "Stonevault Shaman",
+        npc_id = 701, unit = true, valid = true, enemy = true, attackable = true,
+        guid = "shaman_701" })
+    local step = { num = 34, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "kill", npc_id = 701 } } }
+    local ctx = gate_on(build_ctx(step, nil, { quest_mob }))
+    ctx.combat_helper = { is_current_target_valid = function() return false end }
+    ctx.now = 500.0
+    mana_bar(mock._player, 5)
+
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    local attacked = 0
+    if NS then NS.start_auto_attack = function() attacked = attacked + 1 end end
+
+    local do_action = require("quest_state/do_action_state")
+    local function fresh_shared()
+        return { _nav_destination = nil, _respawn_wait_until = 0, _action_pause_timer = 0,
+            _last_step_num = 34, _last_goal_type = "kill", _interact_cooldown = 0,
+            _loot_cooldown = 0, _post_interact_timer = 0, _area_wait_timer = 0 }
+    end
+
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "set_target",
+            "S26a FAIL: the kill lane targeted the goal's own mob on 5% mana — the path every kill " ..
+            "objective takes must consult pull_safety.gate before it tags anything")
+    end
+    assert(attacked == 0, "S26b FAIL: no auto-attack may be opened on an empty bar")
+    assert(tostring(pull_safety.last_reason()):find("mana") ~= nil,
+        "S26c FAIL: the reason should name mana, got " .. tostring(pull_safety.last_reason()))
+
+    pull_safety.reset()
+    mana_bar(mock._player, 100)
+    ctx.now = 600.0
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    local targeted = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == quest_mob then targeted = true end
+    end
+    assert(targeted,
+        "S26d FAIL: with mana back the kill lane must tag its goal mob — otherwise S26 proves " ..
+        "nothing about the gate")
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+    print("  S26 PASS: the kill lane's goal-mob path is gated, and engages again on a full bar")
+end
+
+-- S29 — the door that must stay OPEN: a friendly goal NPC is not a fight
+
+do
+    pull_safety.reset()
+    local giver = mock.create_object({ pos = { x = 3, y = 0, z = 0 }, name = "Marshal Dughan",
+        npc_id = 7000, unit = true, valid = true, attackable = false, guid = "giver_7000" })
+    local step = { num = 38, is_complete = false, waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+        goals = { { type = "area", target = "Marshal Dughan", npc_id = 0 } } }
+    local ctx = gate_on(build_ctx(step, nil, { giver }))
+    ctx.now = 1100.0
+    mana_bar(mock._player, 5)
+    assert(pull_safety.enabled(ctx), "S29a FAIL: the gate should be on for this scenario")
+
+    local do_action = require("quest_state/do_action_state")
+    local shared = { _nav_destination = nil, _area_wait_timer = 0, _action_pause_timer = 0,
+        _last_step_num = 38, _last_goal_type = "area", _interact_cooldown = 0,
+        _loot_cooldown = 0, _post_interact_timer = 0, _at_quest_object_timer = 0 }
+    mock._input_calls = {}
+    do_action.run(shared, ctx)
+
+    local targeted = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == giver then targeted = true end
+    end
+    assert(targeted,
+        "S29b FAIL: a quest giver was refused on 5% mana — the gate is about starting fights, and " ..
+        "blocking a turn-in is a worse bug than the pull it was meant to prevent")
+    assert(pull_safety.last_reason() == nil,
+        "S29c FAIL: nothing about turning a quest in is a pull, got " ..
+        tostring(pull_safety.last_reason()))
+    print("  S29 PASS: a friendly goal NPC is still interacted with on an empty bar")
 end
 
 print("PASS test_do_action_state")

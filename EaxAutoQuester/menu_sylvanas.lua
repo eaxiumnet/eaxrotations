@@ -33,6 +33,9 @@ local IDs = {
     nav_tolerance   = "eaxaq_nav_tolerance",
     min_hp          = "eaxaq_min_hp",
     min_mana        = "eaxaq_min_mana",
+    pull_gate       = "eaxaq_pull_gate",
+    pull_gate_min_hp = "eaxaq_pull_gate_min_hp",
+    pull_gate_min_mana = "eaxaq_pull_gate_min_mana",
     toggle_keybind  = "eaxaq_toggle_keybind",
 }
 
@@ -73,6 +76,15 @@ M.interact_range  = _core_menu.slider_int(5, 50, 20, IDs.interact_range)
 M.nav_tolerance   = _core_menu.slider_int(1, 10, 3, IDs.nav_tolerance)
 M.min_hp          = _core_menu.slider_int(1, 100, 80, IDs.min_hp)
 M.min_mana        = _core_menu.slider_int(1, 100, 80, IDs.min_mana)
+
+-- Pull safety — shared/pull_safety.lua reads these three and nothing else. Deliberately NOT the
+-- two rows above: those are neither rendered nor read by anything, and their 80/80 display
+-- defaults are not "low" (the gate would refuse a full-health caster whose mana is ordinary, i.e.
+-- right after most kills). 0 on either slider turns that one rule off, since no percentage is
+-- below zero.
+M.pull_gate          = _core_menu.checkbox(true, IDs.pull_gate)
+M.pull_gate_min_hp   = _core_menu.slider_int(0, 100, 50, IDs.pull_gate_min_hp)
+M.pull_gate_min_mana = _core_menu.slider_int(0, 100, 30, IDs.pull_gate_min_mana)
 
 -- Keybind — toggle plugin on/off (Ctrl+Shift+T = key 7, shift=true)
 M.toggle_keybind  = _core_menu.keybind(7, true, IDs.toggle_keybind)
@@ -184,6 +196,19 @@ local function render_tree_body()
 
     if M.nav_tolerance then
         M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
+    end
+
+    -- Pull safety — the gate that decides whether to start a fight at all
+    if M.pull_gate then
+        M.pull_gate:render("Careful Pulling", "Don't start a fight you'd regret: too low on health or mana, or a crowd with mobs pathing nearby. Uncheck to pull everything as before")
+    end
+
+    if M.pull_gate_min_hp then
+        M.pull_gate_min_hp:render("Pull Safety: Min Health %", "Do not pull below this health (0 = this rule off)")
+    end
+
+    if M.pull_gate_min_mana then
+        M.pull_gate_min_mana:render("Pull Safety: Min Mana %", "Do not pull below this mana — a caster needs enough for one more kill (0 = this rule off)")
     end
 
     -- Keybind

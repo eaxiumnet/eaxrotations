@@ -11,6 +11,7 @@ local M = {}
 
 local goal_names = require("shared/goal_names")
 local objective_match = require("shared/objective_match")
+local pull_safety = require("shared/pull_safety")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
@@ -26,6 +27,21 @@ local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylv
 --- filtered, and a corpse can never be chosen as an enemy or an interaction target.
 --- @param obj game_object|nil
 --- @return boolean
+-- Before anything walks toward it: is this unit something we would FIGHT? The pull gate is only
+-- about fights, so every site that may be looking at either a hostile or a quest giver / clickable
+-- object asks this first and the gate is applied to the hostile answer only. A build that cannot
+-- answer `can_attack` says "not hostile", so a missing probe can never block a turn-in.
+local function unit_can_attack(u, other) return u:can_attack(other) end
+
+--- @param ctx table Per-tick context
+--- @param obj game_object|nil
+--- @return boolean hostile
+local function hostile_to_me(ctx, obj)
+    if not obj or not ctx or not ctx.me then return false end
+    local ok, can = pcall(unit_can_attack, obj, ctx.me)
+    return ok and can == true
+end
+
 local function unit_is_corpse(obj)
     if not obj then return false end
     local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
@@ -310,6 +326,13 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc and goal_npc_id and npc.find_nearest_npc then
             local quest_mob = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
             if quest_mob then
+                -- The gate goes before the TAG, not only before the swing that follows it. Choosing
+                -- a hostile is what the rotation's combat path keys off, and it is the visible half
+                -- of "the bot walked up to the mob and started something" — on an empty bar or in a
+                -- crowd, none of that may begin. This is the goal's own mob by id, i.e. the path
+                -- every kill objective in the game takes; it used to start the fight with no gate
+                -- consulted at all.
+                if pull_safety.gate(ctx, shared, quest_mob) then return true end
                 shared._respawn_wait_until = 0
                 shared._respawn_target_name = nil
                 pcall(core.input.set_target, quest_mob)
@@ -323,12 +346,16 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc then
             local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
             if enemy then
+                -- Before anything walks toward it: is this fight worth starting? Low health, a
+                -- caster with no mana, or a crowd that includes patrolling mobs means no — the
+                -- module walks the player out (or parks them) and this tick is done.
+                if pull_safety.gate(ctx, shared, enemy) then return true end
                 -- Enemy found — clear any respawn wait and engage
                 shared._respawn_wait_until = 0
                 shared._respawn_target_name = nil
                 if ctx.me then
-                    local _, me_pos = pcall(function() return ctx.me:get_position() end)
-                    local _, enemy_pos = pcall(function() return enemy:get_position() end)
+                    local _, me_pos = pcall(unit_get_position, ctx.me)
+                    local _, enemy_pos = pcall(unit_get_position, enemy)
                     if me_pos and enemy_pos then
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
                         if dist_sq > 9 then
@@ -472,6 +499,14 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             end
             local nearest_quest = npc.find_nearest_quest_unit(80, true)
             if nearest_quest then
+                -- A quest unit is usually a giver, and then the gate has nothing to say. When it
+                -- is a hostile quest mob it is a fight like any other, and it is refused before
+                -- the approach: walking up to the camp while empty is the pull this gate exists to
+                -- stop, whether or not the swing happens afterwards.
+                if hostile_to_me(ctx, nearest_quest)
+                    and pull_safety.gate(ctx, shared, nearest_quest) then
+                    return true
+                end
                 local _, npos = pcall(function() return nearest_quest:get_position() end)
                 local _, nname = pcall(function() return nearest_quest:get_name() end)
                 local _, nguid = pcall(function() return nearest_quest:get_guid() end)
@@ -520,9 +555,8 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     local _, npos = pcall(function() return nearest:get_position() end)
                     local _, nname = pcall(function() return nearest:get_name() end)
                     local _, nguid = pcall(function() return nearest:get_guid() end)
-                    local is_hostile = false
-                    local ok_att, can_att = pcall(function() return nearest:can_attack(ctx.me) end)
-                    if ok_att and can_att then is_hostile = true end
+                    local is_hostile = hostile_to_me(ctx, nearest)
+                    if is_hostile and pull_safety.gate(ctx, shared, nearest) then return true end
                     if npos and ctx.me then
                         local _, me_pos = pcall(function() return ctx.me:get_position() end)
                         if me_pos and ctx.utils then
@@ -756,6 +790,12 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     end
                     ctx.debug_log("DO_ACTION: area — enemy scan found " .. tostring(found_count) .. " matching targets")
                     if best_enemy then
+                        -- Same gate as the other two engage sites, and it has to be HERE: the
+                        -- chain below both walks the player in and opens from range, so a check
+                        -- placed after it would only ever describe a pull that already happened.
+                        if pull_safety.gate(ctx, shared, best_enemy, objects, limit) then
+                            return true
+                        end
                         local dist_yds = math.floor(math.sqrt(best_enemy_sq))
                         ctx.debug_log("DO_ACTION: area — best_enemy_sq=" .. tostring(best_enemy_sq) .. " dist_yds=" .. tostring(dist_yds))
                         if best_enemy_sq > 9 then
@@ -772,34 +812,20 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             -- `if enemy_pos` block, leaving that log to read a name that was
                             -- neither declared nor assigned anywhere — a global nil, so the
                             -- line always printed "nearby=nil".
+                            -- The private crowd count that used to live here is gone: it asked the
+                            -- same question as pull_safety.gate (hostiles around the fight site)
+                            -- with a narrower radius, no mover awareness, and only AFTER the fight
+                            -- had been started — and its answer was to freeze mid-fight, which is
+                            -- not a thing the game lets you decline. The gate above now answers it
+                            -- before the pull, and answers it with "walk away" instead of "stand
+                            -- still". What remains here is the count for the log line, taken from
+                            -- the one shared definition so the two can never disagree.
                             local nearby_count = 0
                             if enemy_pos then
-                                for j = 1, limit do
-                                    local other = objects[j]
-                                    if other and other ~= best_enemy then
-                                        local ok_other, is_other = pcall(function() return other:is_unit() end)
-                                        if ok_other and is_other then
-                                            local ok_attack, can_attack = pcall(function() return other:can_attack(ctx.me) end)
-                                            if ok_attack and can_attack then
-                                                local ok_other_dead, is_other_dead = pcall(function() return other:is_dead() end)
-                                                if not (ok_other_dead and is_other_dead) then
-                                                    local ok_other_pos, other_pos = pcall(function() return other:get_position() end)
-                                                    if ok_other_pos and other_pos then
-                                                        local dx = (other_pos.x or 0) - (enemy_pos.x or 0)
-                                                        local dy = (other_pos.y or 0) - (enemy_pos.y or 0)
-                                                        if dx * dx + dy * dy < 100 then
-                                                            nearby_count = nearby_count + 1
-                                                        end
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                                if nearby_count > 2 then
-                                    ctx.debug_log("DO_ACTION: area — too many nearby enemies (" .. tostring(nearby_count) .. "), skipping")
-                                    return true
-                                end
+                                local _, hostiles = pull_safety.crowd(ctx, enemy_pos, objects, limit)
+                                nearby_count = hostiles
+                                -- shared/facing: throttled, cone-checked aim (see shared/facing.lua).
+                                facing.ensure(ctx.me, best_enemy)
                                 local mh_ok, mh = pcall(require, "common/utility/movement_handler")
                                 if mh_ok and mh and mh.look_at_target then
                                     if mh.pause_movement_light then
@@ -949,9 +975,13 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc then
             local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
             if enemy then
+                -- The area lane's last resort — "nothing of the goal's is here, so kill whatever
+                -- is nearest" — used to approach and attack with no gate consulted at all, which
+                -- made it the widest door for fighting on an empty bar.
+                if pull_safety.gate(ctx, shared, enemy) then return true end
                 if ctx.me then
-                    local _, me_pos = pcall(function() return ctx.me:get_position() end)
-                    local _, enemy_pos = pcall(function() return enemy:get_position() end)
+                    local _, me_pos = pcall(unit_get_position, ctx.me)
+                    local _, enemy_pos = pcall(unit_get_position, enemy)
                     if me_pos and enemy_pos then
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
                         if dist_sq > 9 then

@@ -2,6 +2,7 @@
 -- When: Called by coordinator when shared._state == "NAV"
 -- Why: Centralize navigation: updates, stuck detection, retry with backoff, arrival handling
 -- API: exports run(shared, ctx) → next_state string
+local pull_safety = require("shared/pull_safety")
 
 -- ============================================================================
 -- Module Table
@@ -14,6 +15,20 @@ local M = {}
 -- handed their unit through the pcall keep every return value and the pcall's error protection.
 local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_position(u) return u:get_position() end
+local function unit_can_attack(u, other) return u:can_attack(other) end
+
+--- Is this unit one we would fight? The en-route pre-tag treats a quest giver and a quest MOB
+--- differently: tagging the giver is free, tagging the mob is starting the fight while walking.
+--- A build that cannot answer `can_attack` says "not hostile", i.e. the pre-tag keeps working.
+--- @param ctx table Per-tick context
+--- @param obj game_object|nil
+--- @return boolean
+local function hostile_to_me(ctx, obj)
+    if not obj or not ctx or not ctx.me then return false end
+    local ok, can = pcall(unit_can_attack, obj, ctx.me)
+    return ok and can == true
+end
+
 
 -- ============================================================================
 -- State: NAV — Navigate to destination with retry logic
@@ -80,6 +95,19 @@ function M.run(shared, ctx)
                         if nid and nid > 0 then
                             local nearest = npc.find_nearest_npc({ nid }, 50, nil, ctx.object_scanner)
                             if nearest then
+                                -- Tagging a quest giver while walking is free. Tagging a HOSTILE
+                                -- while walking is starting the fight en route, and at low health
+                                -- or mana that is exactly the pull the gate refuses — the goal's
+                                -- own mob, tagged at 50yd, with the rotation already able to cast
+                                -- on it before the bot has even arrived.
+                                --
+                                -- Asked DRY (would_refuse): a walk already under way must not be
+                                -- turned around because the bot passes a mob it would not have
+                                -- chosen to fight. Refusing here means only "do not tag it".
+                                if hostile_to_me(ctx, nearest)
+                                    and pull_safety.would_refuse(ctx, nearest) then
+                                    break
+                                end
                                 pcall(core.input.set_target, nearest)
                                 pcall(core.input.interact_with_object, nearest)
                                 break

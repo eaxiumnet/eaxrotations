@@ -168,5 +168,78 @@ do
     print("  N5 PASS: arrival settle pause set for IDLE")
 end
 
+-- =============================================================================
+-- N16 — the en-route pre-tag does not START a fight the gate would refuse, and still tags a
+-- quest GIVER. Live: "it still tries to engage mobs on low health/mana" — this scan runs every
+-- 1.5s while walking and tags the goal's mob at 50yd, which is a fight begun mid-walk with the
+-- rotation already able to cast on the target before the bot has arrived.
+-- =============================================================================
+local function pretag_scene(mob_opts, player_opts)
+    mock.reset()
+    local mob = mock.create_object(mob_opts)
+    local player = mock.create_player(player_opts or { pos = { x = 0, y = 0, z = 0 } })
+    local c = nav_ctx({
+        me = player,
+        -- Deterministic throttle: the interval is not what is under test.
+        utils = { squared_distance = utils.squared_distance,
+            throttle = function() return true end },
+        zygor = {
+            has_current_step = function() return true end,
+            get_current_step_info = function()
+                return { goals = { { is_complete = false, npc_id = 222 } } }
+            end,
+        },
+        npc_manager = {
+            find_nearest_npc = function() return mob end,
+        },
+        object_scanner = { get_visible_objects = function() return { mob } end },
+    })
+    c.now = 400.0
+    return c, mob
+end
+
+do
+    -- A HOSTILE goal mob at 20yd, 5% mana: the pre-tag must not touch it.
+    local c, mob = pretag_scene({ pos = { x = 20, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, enemy = true, attackable = true, guid = "pretag_mob" },
+        { pos = { x = 0, y = 0, z = 0 }, mana = 5, max_mana = 100 })
+    local s = { _nav_retry_timer = 0, _nav_destination = { x = 500, y = 0, z = 0 } }
+    nav_state.run(s, c)
+    for _, call in ipairs(mock._input_calls) do
+        assert(not (call[1] == "set_target" and call[2] == mob),
+            "N16a FAIL: the en-route scan tagged a hostile on 5% mana — tagging it IS the pull")
+        assert(not (call[1] == "interact_with_object" and call[2] == mob),
+            "N16b FAIL: the en-route scan interacted with a hostile on 5% mana")
+    end
+
+    -- Control A: same scene, mana restored → tagged. Without this, a scan that never fires for any
+    -- reason would pass.
+    local c2, mob2 = pretag_scene({ pos = { x = 20, y = 0, z = 0 }, name = "Stonevault Shaman",
+        unit = true, valid = true, enemy = true, attackable = true, guid = "pretag_mob2" },
+        { pos = { x = 0, y = 0, z = 0 }, mana = 100, max_mana = 100 })
+    mock._input_calls = {}
+    nav_state.run({ _nav_retry_timer = 0, _nav_destination = { x = 500, y = 0, z = 0 } }, c2)
+    local tagged = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == mob2 then tagged = true end
+    end
+    assert(tagged, "N16c FAIL: with mana back the same pre-tag must tag the mob")
+
+    -- Control B: a quest GIVER (not attackable) on the same empty bar is still tagged — the gate
+    -- only ever refuses fights, and blocking a giver would be the worse bug.
+    local c3, giver = pretag_scene({ pos = { x = 20, y = 0, z = 0 }, name = "Marshal Dughan",
+        unit = true, valid = true, attackable = false, guid = "pretag_giver" },
+        { pos = { x = 0, y = 0, z = 0 }, mana = 5, max_mana = 100 })
+    mock._input_calls = {}
+    nav_state.run({ _nav_retry_timer = 0, _nav_destination = { x = 500, y = 0, z = 0 } }, c3)
+    local tagged_giver = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "set_target" and call[2] == giver then tagged_giver = true end
+    end
+    assert(tagged_giver,
+        "N16d FAIL: a quest giver was skipped on 5% mana — the gate is about starting fights")
+    print("  N16 PASS: en-route pre-tag skips a hostile it would refuse, keeps tagging givers")
+end
+
 print("PASS test_nav_state")
 os.exit(0)
