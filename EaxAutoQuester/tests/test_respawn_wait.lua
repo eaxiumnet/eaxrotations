@@ -40,6 +40,7 @@ local function make_ctx(now_val, has_enemy)
                 return { text = "Kill 10 Test Boars", is_complete = false, step_num = 1, goals = { { type = "kill", target = "Test Boar", text = "Kill 10 Test Boars" } } }
             end,
             get_current_waypoint_world = function() return nil end,
+            get_step_waypoints_world = function() return nil end,
             has_current_step = function() return true end,
         },
         npc_manager = {
@@ -50,6 +51,9 @@ local function make_ctx(now_val, has_enemy)
                 return nil
             end,
             find_nearest_quest_unit = function() return nil end,
+            -- The goal-name probe of the respawn wait (respawn_visible). Default: nothing named
+            -- like the objective is on screen.
+            find_interactable_objects = function() return nil end,
         },
         object_scanner = {
             get_visible_objects = function() return mock._objects end,
@@ -134,6 +138,82 @@ assert(shared_s5._respawn_wait_until == 0, "S5a FAIL: expired timer should be cl
 print("  S5 PASS: expired respawn timer → retry")
 
 -- ============================================================================
+-- S6 — the wait SEARCHES the goal mob's spawn points instead of parking
+-- Live: "IDLE: waiting for respawn (Lesser Rock Elementals)" for twelve minutes, standing still at
+-- one spawn point while the mob's other 17 (spread over ~250yd, measured from the shipped cAoNGOS
+-- index) were outside the wait's only sensor — a 50yd enemy probe fired every 5s.
+-- ============================================================================
+mock.reset()
+mock.set_time(300.0)
+local shared_s6 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+    _interact_cooldown = 0, _last_step_num = 47, _respawn_wait_until = 400.0,
+    _respawn_target_name = "Lesser Rock Elementals", _respawn_last_scan = 0 }
+ctx = make_ctx(300.0, false)
+ctx.zygor.get_current_step_info = function()
+    return { text = "Kill Lesser Rock Elementals", is_complete = false, step_num = 47,
+             goals = { { type = "kill", target = "Lesser Rock Elementals", npc_id = 0 } } }
+end
+result = idle.run(shared_s6, ctx)
+assert(result == "NAV", "S6a FAIL: waiting for a respawn must WALK the spawn points, got " ..
+    tostring(result))
+assert(shared_s6._nav_destination ~= nil,
+    "S6b FAIL: the search leg must be a destination the NAV state can walk to")
+assert(shared_s6._respawn_wait_until == 400.0,
+    "S6c FAIL: searching must not clear the respawn wait")
+local spawns = require("npc_spawns")
+local maps = spawns.find_npc_spawns(2735)
+local on_spawn = false
+for i = 1, #maps do
+    local dx = (shared_s6._nav_destination.x or 0) - maps[i].x
+    local dy = (shared_s6._nav_destination.y or 0) - maps[i].y
+    if dx * dx + dy * dy < 1 then on_spawn = true break end
+end
+assert(on_spawn, "S6d FAIL: the search must walk to one of the mob's OWN spawn points, got " ..
+    tostring(shared_s6._nav_destination.x) .. "," .. tostring(shared_s6._nav_destination.y))
+print("  S6 PASS: respawn wait walks the goal mob's spawn points instead of parking")
+
+-- ============================================================================
+-- S7 — standing on a searched spawn point moves the search on
+-- ============================================================================
+mock.reset()
+mock.set_time(500.0)
+local shared_s7 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+    _interact_cooldown = 0, _last_step_num = 47, _respawn_wait_until = 600.0,
+    _respawn_target_name = "Lesser Rock Elementals", _respawn_last_scan = 0 }
+local mob_spawns = require("npc_spawns").find_npc_spawns(2735)
+assert(mob_spawns and #mob_spawns > 1, "S7 FAIL: fixture error — need several spawn points")
+--- Run one IDLE tick with the player standing at `pos`.
+local function tick_at(t, pos)
+    local c = make_ctx(t, false)
+    c.me = mock.create_player({ pos = { x = pos.x, y = pos.y, z = pos.z or 0 } })
+    mock._player = c.me
+    c.zygor.get_current_step_info = function()
+        return { text = "Kill Lesser Rock Elementals", is_complete = false, step_num = 47,
+                 goals = { { type = "kill", target = "Lesser Rock Elementals", npc_id = 0 } } }
+    end
+    return c
+end
+
+local camp = { x = mob_spawns[1].x, y = mob_spawns[1].y, z = mob_spawns[1].z or 0 }
+result = idle.run(shared_s7, tick_at(500.0, camp))
+local first_dest = shared_s7._nav_destination
+assert(result == "NAV" and first_dest ~= nil, "S7a FAIL: expected a first search leg")
+local dx0 = (first_dest.x or 0) - camp.x
+local dy0 = (first_dest.y or 0) - camp.y
+assert(dx0 * dx0 + dy0 * dy0 > 0.01,
+    "S7b FAIL: the leg must be a spawn point other than the one underfoot")
+
+-- Arrive: the next tick moves the search to a DIFFERENT spawn point, not back to the one searched.
+result = idle.run(shared_s7, tick_at(501.0, first_dest))
+assert(result == "NAV", "S7c FAIL: the search must continue after a point is searched")
+local second_dest = shared_s7._nav_destination
+local dx = (second_dest.x or 0) - (first_dest.x or 0)
+local dy = (second_dest.y or 0) - (first_dest.y or 0)
+assert(dx * dx + dy * dy > 0.01,
+    "S7d FAIL: the next leg must be a different spawn point (not the one just searched)")
+print("  S7 PASS: the wait sweeps the camp's spawn points — a searched point advances the search")
+
+-- ============================================================================
 -- S9 — a live goal target ends the wait even when the enemy probe sees nothing
 -- The enemy probe only answers for hostiles it can attack, and reads at most the first 50 visible
 -- objects; a freshly spawned mob of the goal's own name is the thing being waited for.
@@ -173,6 +253,33 @@ do
         "S9c FAIL: a live goal target must end the respawn wait, got " .. tostring(res9))
     assert(shared_s9._respawn_wait_until == 0, "S9d FAIL: the wait must be cleared")
     print("  S9 PASS: a live goal target ends the wait; a corpse of the same name does not")
+end
+
+-- ============================================================================
+-- S10 — the wait is quiet on the tick path (logs once per scan, not per tick)
+-- ============================================================================
+do
+    mock.reset()
+    mock.set_time(1100.0)
+    local lines = 0
+    local shared_s10 = { _area_wait_timer = 0, _action_pause_timer = 0, _loot_cooldown = 0,
+        _interact_cooldown = 0, _last_step_num = 47, _respawn_wait_until = 1300.0,
+        _respawn_target_name = "Lesser Rock Elementals", _respawn_last_scan = 0 }
+    for i = 1, 20 do
+        local c = make_ctx(1100.0 + i * 0.2, false)
+        c.zygor.get_current_step_info = function()
+            return { text = "Kill Lesser Rock Elementals", is_complete = false, step_num = 47,
+                     goals = { { type = "kill", target = "Lesser Rock Elementals", npc_id = 0 } } }
+        end
+        c.debug_log = function(msg)
+            if tostring(msg):find("waiting for respawn", 1, true) then lines = lines + 1 end
+        end
+        idle.run(shared_s10, c)
+    end
+    assert(lines <= 3,
+        "S10 FAIL: the wait logged " .. tostring(lines) .. " times over 20 ticks (4s) — the live " ..
+        "log had this line four times a second for minutes")
+    print("  S10 PASS: the respawn wait logs once per scan, not once per tick")
 end
 
 -- ============================================================================

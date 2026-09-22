@@ -12,6 +12,7 @@ local M = {}
 local goal_names = require("shared/goal_names")
 local objective_match = require("shared/objective_match")
 local pull_safety = require("shared/pull_safety")
+local spawn_patrol = require("shared/spawn_patrol")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
@@ -437,15 +438,17 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 end
             end
         end
-        -- No enemy found — enter respawn wait mode
+        -- No enemy found — enter respawn wait mode. 60s, not the old 180s: the wait exists to
+        -- stop 100fps re-scans, and three minutes parked is indistinguishable from being stuck
+        -- (IDLE re-checks every 5s and resumes the moment an enemy is within range).
         if (shared._respawn_wait_until or 0) == 0 then
-            shared._respawn_wait_until = ctx.now + 180  -- 3 minute respawn wait
+            shared._respawn_wait_until = ctx.now + 60
             local target_name = nil
             if type(goal) == "table" then
                 target_name = goal.target or goal.npc or goal.name
             end
             shared._respawn_target_name = target_name
-            ctx.debug_log("DO_ACTION: no enemy — entering respawn wait (3 min)" .. (target_name and " for " .. target_name or ""))
+            ctx.debug_log("DO_ACTION: no enemy — entering respawn wait (60s)" .. (target_name and " for " .. target_name or ""))
         end
         return true
     end
@@ -641,39 +644,27 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             end
         end
 
-        -- Lazy-load waypoint_fixer for Z correction on spawn positions
-        local waypoint_fixer = nil
-        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-        if wf_ok and wf then waypoint_fixer = wf end
-
         if goal_npc_id then
-            local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
-            if npc_db_ok and npc_db.find_npc_spawn then
-                local map_id = nil
-                if ctx.me then
-                    local _, mid = pcall(function() return core.get_map_id() end)
-                    if mid then map_id = mid end
-                end
-                local spawn = npc_db.find_npc_spawn(goal_npc_id, map_id)
-                if spawn then
-                    local _, pos = pcall(function() return ctx.me:get_position() end)
-                    if pos and ctx.utils then
-                        local spawn_pos = { x = spawn.x, y = spawn.y, z = spawn.z or 0 }
-                        if waypoint_fixer and waypoint_fixer.fix_z then
-                            spawn_pos = waypoint_fixer.fix_z(spawn_pos) or spawn_pos
-                        end
-                        local dist_sq = ctx.utils.squared_distance(pos, spawn_pos)
-                        if dist_sq > 100 then
-                            shared._nav_destination = spawn_pos
-                            ctx.debug_log("DO_ACTION: area — navigating to NPC spawn (Z fixed)")
-                            return false
-                        end
-                    end
-                end
+            -- Where to go when the mob is not here: SWEEP its spawn points rather than navigate
+            -- to one coordinate. The single-point version (npc_db.find_npc_spawn, first match)
+            -- parked the bot on one spawn forever — with the mob's other spawn points, and any
+            -- respawn at them, hundreds of yards outside the 50yd probe that was the only sensor.
+            -- shared/spawn_patrol.lua owns the sweep, including the Z fix-up and the visited marks.
+            local point = spawn_patrol.next_point(shared, ctx, goal)
+            if point then
+                shared._nav_destination = point
+                ctx.debug_log("DO_ACTION: area — searching spawn points for NPC " ..
+                    tostring(goal_npc_id))
+                return false
             end
             if npc then
                 local nearest = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
                 if nearest then
+                    -- Hostile only: the same id can be a green quest giver on a "speak to" step.
+                    if hostile_to_me(ctx, nearest)
+                        and pull_safety.gate(ctx, shared, nearest) then
+                        return true
+                    end
                     local _, npos = pcall(function() return nearest:get_position() end)
                     if npos and ctx.me then
                         local _, me_pos = pcall(function() return ctx.me:get_position() end)

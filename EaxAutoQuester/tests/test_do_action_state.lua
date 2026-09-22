@@ -177,6 +177,10 @@ end
 
 -- ============================================================================
 -- S4 — Adjacent regression: existing area path with goal.npc_id set still works
+-- (Owner moved: the spawn destination comes from the spawn index sweep
+--  (shared/spawn_patrol.lua over npc_spawns), not from npc_db_sylvanas.find_npc_spawn.
+--  The old single-point mechanism parked the bot on one spawn forever, so this scenario now
+--  pins the sweep's source: the point must be one of NPC 5500's OWN spawn coordinates.)
 -- ============================================================================
 do
     local step = {
@@ -186,9 +190,8 @@ do
         -- Goal HAS a valid npc_id — must use the existing fast path, not Questie
         goals = { { type = "area", npc_id = 5500, text = nil, target = "" } },
     }
-    -- Mock npc_db with a predictable spawn for NPC 5500 so the test
-    -- doesn't depend on real creature_spawn_index.json data.
-    -- do_action_state requires "npc_db_sylvanas" (not the EaxAutoQuester prefix).
+    -- The npc_db stub stays: the area path still consults it for the Questie fallback, and this
+    -- scenario asserts that its single point is NOT what the bot walks to any more.
     local mock_npc_db = {
         find_npc_spawn = function(npc_id, map_id)
             if npc_id == 5500 then
@@ -213,25 +216,34 @@ do
         _nav_destination = nil,
     }
     do_action.run(shared, ctx)
-    -- The existing path uses npc_db_sylvanas spawn lookup. NPC 5500 (Tel'Athir)
-    -- spawns far from (0,0,0), so the path sets _nav_destination to the spawn.
-    -- What matters here: it did NOT use the Questie fallback for NPC 9999.
     local nav_dest = shared._nav_destination
     assert(nav_dest ~= nil,
-        "S4 FAIL: goal.npc_id=5500 path should set nav destination to npc_db spawn")
-    local spawn = ctx.utils and (function()
-        local npc_db = require("npc_db_sylvanas")
-        return npc_db.find_npc_spawn(5500, 0)
-    end)()
-    assert(spawn ~= nil, "S4 FAIL: test setup error — NPC 5500 not in spawn DB")
-    local dx = (nav_dest.x or 0) - (spawn.x or 0)
-    local dy = (nav_dest.y or 0) - (spawn.y or 0)
-    local dz = (nav_dest.z or 0) - (spawn.z or 0)
-    local dist_sq = dx * dx + dy * dy + dz * dz
-    assert(dist_sq < 1,
-        "S4 FAIL: nav destination should match npc_db spawn (NPC 5500), got dist_sq=" .. tostring(dist_sq))
+        "S4 FAIL: goal.npc_id=5500 path should set a nav destination")
+
+    -- The destination must be one of the mob's own spawn points from the tracked spawn index.
+    local spawns = require("npc_spawns")
+    local maps = spawns.find_npc_spawns(5500)
+    assert(maps and #maps > 0, "S4 FAIL: test setup error — NPC 5500 not in the spawn index")
+    local matched = false
+    for i = 1, #maps do
+        local m = maps[i]
+        local dx = (nav_dest.x or 0) - (m.x or 0)
+        local dy = (nav_dest.y or 0) - (m.y or 0)
+        if dx * dx + dy * dy < 1 then matched = true break end
+    end
+    assert(matched,
+        "S4 FAIL: nav destination must be an npc_spawns spawn point for NPC 5500, got " ..
+        tostring(nav_dest.x) .. "," .. tostring(nav_dest.y))
+
+    -- And it must NOT be the npc_db_sylvanas point (500, 600) — that is the mechanism this
+    -- scenario used to pin, and it is the one that parked the bot on a single spawn.
+    local dx_stub = (nav_dest.x or 0) - 500
+    local dy_stub = (nav_dest.y or 0) - 600
+    assert(dx_stub * dx_stub + dy_stub * dy_stub > 1,
+        "S4 FAIL: destination must not be the npc_db single-spawn point")
+
     -- Verify the Questie NPC 9999 was NOT used (would have set nav to origin since no 9999 in scene)
-    print("  S4 PASS: regression — goal.npc_id=5500 path uses npc_db spawn, not Questie fallback")
+    print("  S4 PASS: goal.npc_id=5500 sweeps its own spawn index point, not the npc_db single point")
 end
 
 -- S16 — ENEMY SCAN: must skip dead+lootable corpses, only target ALIVE units.

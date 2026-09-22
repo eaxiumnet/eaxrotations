@@ -13,6 +13,7 @@ local corpse_loot = require("shared/corpse_loot")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 local objective_match = require("shared/objective_match")
+local spawn_patrol = require("shared/spawn_patrol")
 
 -- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
 -- on the tick path, which built a closure per call — the death check alone cost three per tick,
@@ -483,9 +484,13 @@ function M.run(shared, ctx)
     -- Respawn wait: if DO_ACTION set a respawn timer, stay near the spawn
     -- point and periodically scan.  Prevents 100fps spam-scans and stuck loops.
     if shared._respawn_wait_until > ctx.now then
-        -- Scan every 5 seconds for early respawn
+        -- Scan every 5 seconds for early respawn. Everything the wait says, it says here: the live
+        -- log had "waiting for respawn" four times a second for minutes because the line was outside
+        -- the throttle, which is a per-tick concatenation to be discarded.
+        local scanned = false
         if ctx.now - (shared._respawn_last_scan or 0) >= 5.0 then
             shared._respawn_last_scan = ctx.now
+            scanned = true
             local npc = ctx.npc_manager
             if npc and npc.get_nearest_enemy then
                 local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
@@ -517,7 +522,22 @@ function M.run(shared, ctx)
                 end
             end
         end
-        ctx.debug_log("IDLE: waiting for respawn" .. (shared._respawn_target_name and " (" .. shared._respawn_target_name .. ")" or ""))
+        -- The wait is a SEARCH, not a park: it walks the goal mob's own spawn points instead of
+        -- standing at one of them. Live, the wait sat at a single point for twelve minutes while
+        -- the mob's other seventeen spawns (from the shipped cAoNGOS index) were outside its only
+        -- sensor — a 50yd enemy probe fired every 5s. shared/spawn_patrol.lua owns the sweep, and
+        -- returns nil while the pull gate holds, so a refused camp is never searched.
+        local leg = spawn_patrol.next_point(shared, ctx, current_goal)
+        if leg then
+            shared._nav_destination = leg
+            if scanned then
+                ctx.debug_log("IDLE: respawn wait — walking the camp's spawn points")
+            end
+            return "NAV"
+        end
+        if scanned then
+            ctx.debug_log("IDLE: waiting for respawn" .. (shared._respawn_target_name and " (" .. shared._respawn_target_name .. ")" or ""))
+        end
         return "IDLE"
     elseif shared._respawn_wait_until > 0 and shared._respawn_wait_until <= ctx.now then
         -- Timer expired — retry
