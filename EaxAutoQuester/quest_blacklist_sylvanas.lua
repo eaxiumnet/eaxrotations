@@ -1,7 +1,12 @@
--- What: Quest blacklist — tracks quest failures with 60s sliding window; abandons after 5 failures
+-- What: Quest blacklist — tracks quest failures with a 60s sliding window and answers whether a
+--       quest has failed often enough to stop retrying it.
 -- When: Loaded at startup; record_failure() called by quest interaction handlers
 -- Why: Prevent infinite retry loops on broken quests (missing NPC, unsolvable gossip, area fail)
--- Safety: Standalone module; no hard dependencies; clock injection for testing
+-- Safety: Standalone module; no hard dependencies; clock injection for testing. Reports only —
+--         nothing here deletes a quest, and nothing may: the plugin never abandons quests
+--         (tests/test_no_quest_abandon.lua fails if any production file calls abandon_quest).
+--         `should_abandon`/`mark_abandoned` are queries the caller may use to give up on a
+--         target and warn; they have no production caller today.
 -- Decision: In-memory only (no persistence); clock via core.time() with documented,
 --           same-unit fallbacks. No os.* call: the runtime sandbox does not document
 --           os as available (see docs/runtime_sandbox_audit.md).

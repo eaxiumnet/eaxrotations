@@ -916,14 +916,13 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                                         end
                                     end
                                 end
+                                -- Record the failure; do NOT delete the quest. This block used to
+                                -- call quest_blacklist.should_abandon + core.quests.abandon_quest,
+                                -- which threw away quests the player was still working on. Giving up
+                                -- on a target and telling the player is the plugin's job; deleting
+                                -- quests is not. tests/test_no_quest_abandon.lua enforces that.
                                 if quest_blacklist_ok and quest_blacklist and quest_blacklist.record_failure and quest_id then
                                     quest_blacklist.record_failure(quest_id, "area_fail")
-                                    if quest_blacklist.should_abandon(quest_id) then
-                                        local ok_abandon = pcall(function() core.quests.abandon_quest(quest_id) end)
-                                        if ok_abandon then
-                                            ctx.debug_log("DO_ACTION: area - abandoned quest " .. tostring(quest_id) .. " after repeated failures")
-                                        end
-                                    end
                                 end
                                 shared._area_fail_count = 999
                                 shared._area_last_target_guid = nil

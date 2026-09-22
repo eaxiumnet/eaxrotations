@@ -8,7 +8,7 @@ suites cover). Line references are the monolith's, as deleted in the final commi
 The diff ran in both directions. The modular machine is **ahead** on most capabilities
 (death/corpse via `death_tracker` + `dead_state`, `quest_blacklist`, `progress_tracker`,
 respawn waits, `goal_resolver`, `object_scanner`, `static_popup`, `flight_path`,
-`service_gossip`, `mount_manager`, `quest_log_manager`, `corpse_loot`, anti-detection,
+`service_gossip`, `mount_manager`, `corpse_loot`, anti-detection,
 force-vendor, nav waypoint/mesh fallbacks, Z-adjusted retries) — those are **superseded**, not
 ported. What follows is only what the monolith did and the modular machine did not.
 
@@ -32,7 +32,7 @@ ported. What follows is only what the monolith did and the modular machine did n
 | Monolith behaviour | Modular replacement |
 |---|---|
 | Inline death/ghost recovery (corpse run, 45 yd enemy scan, release spirit) | `dead_state.run` + `death_tracker` (records deaths, resets on rez, 15 yd enemy scan, ≤1 enemy to res, forced-res timeout) and the coordinator's death-loop → hearth + blacklist |
-| Brute-force area scan + 5-attempt give-up + permanent block | `do_action_state` area brute force with `object_scanner`, `AREA_FAIL_BLOCK`, plus `quest_blacklist.record_failure` / `abandon_quest` and `progress_tracker` blacklisting |
+| Brute-force area scan + 5-attempt give-up + permanent block | `do_action_state` area brute force with `object_scanner`, `AREA_FAIL_BLOCK`, plus `quest_blacklist.record_failure` and `progress_tracker` blacklisting. The `abandon_quest` half of this row was **removed**: the plugin may give up on a target and warn, never delete a quest |
 | `waypoint_fixer` Z fix (1 call site) | Same module used at three call sites (idle waypoint, idle flight/inn, area spawn) with an extra "destination Z is 0 → player Z" sanity check |
 | `render_debug` overlay + `stop_navigation` | Equivalent implementations in `coordinator.lua` (plus `nav.dismount()` on hard stop) |
 | "Respawn wait" was absent from the monolith entirely | `_respawn_wait_until` / `_respawn_last_scan` in the modular idle + do_action |

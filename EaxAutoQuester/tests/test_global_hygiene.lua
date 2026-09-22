@@ -230,7 +230,7 @@ local MODULES = {
     "loot_manager_sylvanas", "menu_sylvanas", "mount_manager_sylvanas", "navigation_sylvanas",
     "npc_db_sylvanas", "npc_manager_sylvanas", "npc_spawns", "object_scanner",
     "progress_tracker_sylvanas", "quest_blacklist_sylvanas", "quest_frame_events_sylvanas",
-    "quest_interaction_sylvanas", "quest_item_manager_sylvanas", "quest_log_manager_sylvanas",
+    "quest_interaction_sylvanas", "quest_item_manager_sylvanas",
     "questie_reader_sylvanas", "safe_api_wrapper", "service_gossip_sylvanas",
     "static_popup_sylvanas", "utils_sylvanas", "vendor_manager_sylvanas",
     "waypoint_fixer_sylvanas", "zygor_reader_sylvanas", "shared/corpse_loot",

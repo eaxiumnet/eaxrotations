@@ -220,13 +220,6 @@ function M.run(shared, ctx)
     end
     shared._last_target_valid = false
 
-    -- Quest log maintenance: auto-abandon grey quests when log is bloated
-    do
-        local qm_ok, qm = pcall(require, "quest_log_manager_sylvanas")
-        if qm_ok and qm and qm.maintenance_check then
-            pcall(qm.maintenance_check)
-        end
-    end
 
     -- Check for an active quest goal early — determines autoloot behavior.
     -- When a quest is active, the bot should only loot corpses it passes by

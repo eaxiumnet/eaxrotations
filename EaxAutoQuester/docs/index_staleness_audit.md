@@ -36,7 +36,7 @@ few lines between them for the same loop.)
 |---|---|---|---|---|
 | 1 | `loot_manager_sylvanas.lua` `M.try_loot` | `1..count`, then loot recorded indices ascending | **STALE + WRONG BASE — fixed** | 0-based (`core.lua:1025`) and taking a slot compacts the window, so 1-based skips slot 0, reads one past the end, and an ascending walk loses slots that shift down |
 | 2 | `quest_interaction_sylvanas.lua` loot branch (`handle_any_frame`, priority 1) | `1..loot_count` ascending | **STALE + WRONG BASE — fixed** | same two citations; single pass over recorded indices, so an ascending walk silently drops items |
-| 3 | `quest_log_manager_sylvanas.lua` `M.maintenance_check` | snapshot of grey entries, abandon up to 3 by captured `q.index` | **STALE — fixed** | the log is 1-based and index addressed (`game-ui.md:1455`); each abandonment **removes** an entry and renumbers the rest, so indexes captured in one scan point at a different quest by the second abandon |
+| 3 | `quest_log_manager_sylvanas.lua` `M.maintenance_check` (module since deleted) | snapshot of grey entries, abandon up to 3 by captured `q.index` | **STALE — fixed, then removed entirely** | the log is 1-based and index addressed (`game-ui.md:1455`); each abandonment **removes** an entry and renumbers the rest, so indexes captured in one scan point at a different quest by the second abandon. The walk was fixed, but the premise was wrong: the pass deleted quests the player was still going to turn in (live: three grey quests abandoned, a hearthstone and a walk back). The module, its call site and its suite are gone; `tests/test_no_quest_abandon.lua` now fails if any production file can delete a quest. |
 | 4 | `vendor_manager_sylvanas.lua:93` sell loop | `for i = #items, 1, -1` | safe — already descending | the file's own comment: *"Process in reverse order so slot shifts don't affect remaining items"*; identity comes from `item.slot_id`, not the array position |
 | 5 | `vendor_manager_sylvanas.lua:144` buy loop | vendor snapshot, `1..vendor_count` | safe | vendor list is 1-based (`core.lua:1272`) and buying does not change what the vendor offers; the flag argument is `vendor_item_index`, a documented field (`core.lua:1269`) |
 | 6 | `navigation_sylvanas.lua:297` hearthstone | bags, `for bag = 0, 4` + `ipairs` | safe | finds item 6948 and `break`s; acts by `item.slot_id`; no list is renumbered |
@@ -74,10 +74,11 @@ greed (no roll API used), mail (`core.mail.*` unused), party/raid member lists
   The two static index tables (`_gold_indices`, `_item_indices`) are gone with the
   two-pass-recorded-index design they served.
 * **`quest_interaction_sylvanas.lua`** — the loot branch walks `loot_count-1 .. 0`.
-* **`quest_log_manager_sylvanas.lua`** — `maintenance_check` re-scans the live log for
-  each of its (up to 3) abandons and acts on the index that read just returned, instead
-  of walking the one snapshot taken before the first removal. The threshold gate, the
-  3-per-check cap, the 30s throttle and the blacklist are unchanged.
+* **`quest_log_manager_sylvanas.lua`** — *deleted.* Its `maintenance_check` re-scanned the
+  live log for each of its (up to 3) abandons and acted on the index that read just
+  returned, which fixed the stale-index defect but left the real one: it deleted quests.
+  The module, its `idle_state` call site and `test_quest_log_manager.lua` are gone, and
+  `tests/test_no_quest_abandon.lua` scans every production file for a quest-deletion call.
 * **`quest_interaction_sylvanas.lua`** — `handle_trainer` walks a **cursor over a freshly
   read list**, with no field used as identity: each step reads its target through the read
   it just took; after a purchase the count is read once more and the cursor stays put if
@@ -100,7 +101,8 @@ Each guard was shown failing against the wrong code before passing against the f
 | Loot branch walked 1-based | pre-fix `test_interact_state`: `loot branch must address slots 0 and 1` | `test_interact_state.lua` |
 | Loot walk ascending over a compacting window | mutant → `both items must actually be looted from a compacting window, got: First` (second item lost) | `test_interact_state.lua` (name assertion) |
 | Single ascending sweep in `try_loot` | mutant → `S2e FAIL: the gold slot (1) must be looted first, got 0` | `test_loot_manager.lua` S2e/S3 |
-| Quest-log snapshot walk | pre-fix `test_quest_log_manager`: `S6b FAIL: only the grey quests may be removed, removed: 902,1006,1011` — one grey quest, then **two non-grey quests** | `test_quest_log_manager.lua` S6b |
+| Quest-log snapshot walk | pre-fix `test_quest_log_manager`: `S6b FAIL: only the grey quests may be removed, removed: 902,1006,1011` — one grey quest, then **two non-grey quests** | `test_quest_log_manager.lua` S6b (both suite and module since deleted — see below) |
+| A quest the plugin decided to delete | the module above and `do_action_state`'s failure path both called `core.quests.abandon_quest`, so a quest the player was still working on could vanish | `test_no_quest_abandon.lua` S2 (positive control S1: a real call is caught, prose about one is not) |
 | Trainer keyed on `spell_name` (the superseded design) | pre-fix `test_interact_state`: `S-T4a FAIL: both ranks must be bought, bought: Frostbolt` — two ranks of one spell buy **once** (a regression: `2spells` → `1spells`), and `S-T6a` for nameless offers under compaction, where the `service#i` fallback collides | `test_interact_state.lua` S-T4a / S-T5a / S-T6a |
 | Compaction never noticed by the cursor walk | mutant → `S-T2a` at `test_interact_state.lua:127` — the list shifts and an offer is skipped | `test_interact_state.lua` S-T2a |
 | Cursor never advances on a stable list | mutant → `S-T1a` at `test_interact_state.lua:112` — re-buys the same offer until the step budget runs out | `test_interact_state.lua` S-T1a |
