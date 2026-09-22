@@ -305,6 +305,33 @@ do
 end
 
 -- =============================================================================
+-- S12 — the dispatcher contract: a handler must never be able to park the machine. A falsy
+-- return means "stay this tick", and an unusable current state is repaired instead of being
+-- carried into the next tick. Reload the coordinator over a handler that returns false.
+-- =============================================================================
+do
+    package.loaded["quest_state/waiting_state"] = { run = function() return false end }
+    package.loaded["quest_state/coordinator"] = nil
+    local coord2 = require("quest_state/coordinator")
+
+    local shared = coord2._test_shared()
+    shared._state = "WAITING"
+    coord2.update()
+    local state = coord2._test_inspect()
+    assert(state == "WAITING",
+        "S12 FAIL: a false return must leave the state alone (got " .. tostring(state) .. ")")
+
+    -- And an already-broken state is repaired at the top of the tick instead of being
+    -- carried through it (the transition log itself assumes a state name).
+    shared._state = false
+    coord2.update()
+    state = coord2._test_inspect()
+    assert(type(state) == "string",
+        "S12 FAIL: an unusable state must be repaired, not preserved (got " .. tostring(state) .. ")")
+    print("  S12 PASS: falsy handler return stays; unusable state recovers to IDLE")
+end
+
+-- =============================================================================
 -- S13 — entering combat while mounted dismounts. A mounted player cannot cast, so
 -- the whole rotation is dead until this happens. Both call sites (combat entry and
 -- the hard stop) used to be `if nav.dismount then nav.dismount() end`, and the

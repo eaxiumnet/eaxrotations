@@ -131,6 +131,20 @@ local shared = {
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
 
+-- Every state the dispatcher knows. A handler that returns anything else means "stay put"
+-- for this tick; assigning such a value to shared._state would leave the machine needing a
+-- branch that does not exist. No shipping handler does that today — this is the contract
+-- guard that keeps one from ever doing it, and S12 in test_coordinator.lua exercises it
+-- against a handler that returns false.
+local VALID_STATES = {
+    IDLE = true,
+    NAV = true,
+    INTERACT = true,
+    DO_ACTION = true,
+    WAITING = true,
+    DEAD = true,
+}
+
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
 -- ============================================================================
@@ -418,6 +432,13 @@ end
 --- Called each on_pre_tick — runs current state logic.
 --- Reads debug flag from menu each tick.
 function M.update()
+    -- Self-heal a state no branch can dispatch. Every line below (the transition log
+    -- included) assumes a state name, so an unusable value must be repaired here rather
+    -- than carried into the tick.
+    if type(shared._state) ~= "string" or not VALID_STATES[shared._state] then
+        shared._state = "IDLE"
+    end
+
     -- Ensure utils loaded (needed by most state functions)
     ensure_utils()
 
@@ -579,6 +600,13 @@ function M.update()
         next_state = waiting_state.run(shared, ctx)
     elseif shared._state == "DEAD" then
         next_state = dead_state.run(shared, ctx)
+    end
+
+    if type(next_state) ~= "string" or not VALID_STATES[next_state] then
+        -- "Nothing to do this tick" must mean stay, never a state no branch matches. If the
+        -- state we would stay in is itself unusable (hot reload, an older build's deadlock),
+        -- recover to IDLE rather than preserving the dead state.
+        next_state = VALID_STATES[shared._state] and shared._state or "IDLE"
     end
 
     -- Force vendor check: if bags are full and we're idle, navigate to nearest vendor
