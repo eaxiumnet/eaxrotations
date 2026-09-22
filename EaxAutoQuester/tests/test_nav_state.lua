@@ -168,6 +168,18 @@ do
     print("  N5 PASS: arrival settle pause set for IDLE")
 end
 
+-- The handler calls every nav method with a dot (nav.get_state()), so these are closures over the
+-- table rather than `function n:method()` — a colon definition would receive a nil self.
+local function make_nav(state)
+    local n = { calls = {}, stops = 0, state = state }
+    n.get_state = function() return n.state end
+    n.navigate_to = function(dest)
+        n.calls[#n.calls + 1] = { x = dest.x, y = dest.y, z = dest.z }
+    end
+    n.stop = function() n.stops = n.stops + 1 end
+    n.update = function() end
+    return n
+end
 -- =============================================================================
 -- N16 — the en-route pre-tag does not START a fight the gate would refuse, and still tags a
 -- quest GIVER. Live: "it still tries to engage mobs on low health/mana" — this scan runs every

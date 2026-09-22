@@ -588,6 +588,129 @@ do
     print("  P10b PASS: talk pacing — 0.3s frame wait")
 end
 
+do
+    local combat_helper = require("combat_helper_sylvanas")
+    local do_action = require("quest_state/do_action_state")
+
+    -- NOTE: no `type` — this is the live shape.
+    local function live_ctx(enemy, class_id)
+        local step = {
+            num = 91, is_complete = false,
+            waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+            goals = { { npc_id = 0, text = nil, target = "Stonevault Shaman" } },
+        }
+        local ctx = build_ctx(step, nil, { enemy })
+        ctx.combat_helper = combat_helper
+        mock._player._class = class_id
+        return ctx
+    end
+
+    local function fresh_shared()
+        return { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+            _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+            _at_quest_object_timer = 0, _action_pause_timer = 0, _last_step_num = 91,
+            _respawn_wait_until = 0 }
+    end
+
+    _G.EaxRotations = _G.EaxRotations or {}
+    local NS = _G.EaxRotations
+    NS.AUTO_ATTACK_WAND = 5019
+    NS.AUTO_ATTACK_MELEE = 6603
+    local wand_calls = {}
+    local orig_start = NS.start_auto_attack
+    NS.start_auto_attack = function(target, attack_type)
+        wand_calls[#wand_calls + 1] = { target = target, attack_type = attack_type }
+        return attack_type == 5019
+    end
+
+    -- S21 — only a corpse matches the goal's name: nothing may be attacked or targeted.
+    do
+        local corpse = mock.create_object({
+            pos = { x = 2, y = 0, z = 0 }, name = "Stonevault Shaman",
+            unit = true, valid = true, dead = true, lootable = false,
+            attackable = true, enemy = true, guid = "da_corpse_2",
+        })
+        local ctx = live_ctx(corpse, 5)   -- PRIEST
+        local logs = {}
+        ctx.debug_log = function(msg) logs[#logs + 1] = msg end
+        local shared = fresh_shared()
+        local calls_before = #wand_calls
+        do_action.run(shared, ctx)
+        assert(#wand_calls == calls_before,
+            "S21 FAIL: an already-looted corpse must never be auto-attacked")
+        assert(mock._player._target ~= corpse,
+            "S21 FAIL: the corpse must not be set as the target")
+        for _, msg in ipairs(logs) do
+            assert(not msg:find("targeted enemy", 1, true),
+                "S21 FAIL: reported targeting a corpse as an enemy: " .. tostring(msg))
+        end
+        local skipped = false
+        for _, msg in ipairs(logs) do
+            if msg:find("matched only corpses", 1, true) then skipped = true end
+        end
+        assert(skipped, "S21 FAIL: a corpse-only name match must be reported as skipped")
+        print("  S21 PASS: live goal shape + corpse-only match → no pull, corpse not targeted")
+    end
+
+    -- S22 — priest, live mob 20yd: inside cast range, open with the wand, do not close.
+    do
+        local mob = mock.create_object({
+            pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_live_20",
+        })
+        local ctx = live_ctx(mob, 5)   -- PRIEST
+        local shared = fresh_shared()
+        local calls_before = #wand_calls
+        do_action.run(shared, ctx)
+        assert(#wand_calls == calls_before + 1 and wand_calls[#wand_calls].attack_type == 5019,
+            "S22 FAIL: a priest in range must open with AUTO_ATTACK_WAND on the live goal lane")
+        assert(wand_calls[#wand_calls].target == mob, "S22 FAIL: the pull must target the mob")
+        assert(shared._nav_destination == nil,
+            "S22 FAIL: an enemy already in cast range must not be walked to")
+        print("  S22 PASS: live goal shape + priest in range → wand pull, no walk-in")
+    end
+
+    -- S23 — priest, live mob 40yd: approach, carrying the 28yd stand-off.
+    do
+        local mob = mock.create_object({
+            pos = { x = 40, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_live_40",
+        })
+        local ctx = live_ctx(mob, 5)   -- PRIEST
+        local shared = fresh_shared()
+        local calls_before = #wand_calls
+        do_action.run(shared, ctx)
+        assert(shared._nav_destination == mob:get_position(),
+            "S23 FAIL: an out-of-range enemy must become the nav destination")
+        assert(shared._nav_engage_sq == 784 and shared._nav_engage_dest == mob:get_position(),
+            "S23 FAIL: the approach must stop at 28yd, not walk onto the mob")
+        assert(#wand_calls == calls_before,
+            "S23 FAIL: out of range there is nothing to pull yet")
+        print("  S23 PASS: live goal shape + priest out of range → NAV with a 28yd stand-off")
+    end
+
+    -- S24 — warrior on the live lane: melee classes still close, no ranged pull.
+    do
+        local mob = mock.create_object({
+            pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+            unit = true, valid = true, attackable = true, enemy = true, guid = "da_live_melee",
+        })
+        local ctx = live_ctx(mob, 1)   -- WARRIOR
+        local shared = fresh_shared()
+        local calls_before = #wand_calls
+        do_action.run(shared, ctx)
+        assert(#wand_calls == calls_before,
+            "S24 FAIL: melee classes must not attempt a ranged pull")
+        assert(shared._nav_destination == mob:get_position(),
+            "S24 FAIL: a melee class 20yd out must keep closing")
+        assert(shared._nav_engage_sq == nil,
+            "S24 FAIL: melee classes take no stand-off")
+        print("  S24 PASS: live goal shape + melee class → closes to melee, no pull")
+    end
+
+    NS.start_auto_attack = orig_start
+end
+
 -- S19 — the kill lane must kill the mob the GOAL names, not the nearest one.
 -- Live: on the guide's `kill Rock Elemental##92+` / `collect 3 Large Stone Slab##4627 |q 711/1`
 -- the bot killed LESSER Rock Elementals. Two defects met: the goal's id was dropped (the bridge
@@ -781,6 +904,110 @@ do
 
     if NS and orig_start then NS.start_auto_attack = orig_start end
     print("  S26 PASS: the kill lane's goal-mob path is gated, and engages again on a full bar")
+end
+
+-- S27 — the area lane's name path: the WALK is gated, not only the swing
+
+do
+    pull_safety.reset()
+    local rock = mock.create_object({ pos = { x = 45, y = 0, z = 0 }, name = "Rock Elemental",
+        npc_id = 92, unit = true, valid = true, enemy = true, attackable = true, guid = "rock_92" })
+    local step = { num = 51, is_complete = false, waypoint = { map_id = 0, x = 0.30, y = 0.50 },
+        goals = { { type = "area", target = "Rock Elementals", npc_id = 0 } } }
+    local ctx = gate_on(build_ctx(step, nil, { rock }))
+    ctx.now = 700.0
+    mana_bar(mock._player, 5)
+
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    if NS then NS.start_auto_attack = function() end end
+
+    local do_action = require("quest_state/do_action_state")
+    local function fresh_shared()
+        return { _nav_destination = nil, _area_wait_timer = 0, _action_pause_timer = 0,
+            _last_step_num = 51, _last_goal_type = "area", _interact_cooldown = 0,
+            _loot_cooldown = 0, _post_interact_timer = 0, _at_quest_object_timer = 0 }
+    end
+
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "set_target", "S27a FAIL: a 45yd hostile must not be tagged on 5% mana")
+    end
+    local dest = ctx and nil
+    local sh = fresh_shared()
+    do_action.run(sh, ctx)
+    dest = sh._nav_destination
+    if dest then
+        local dx, dy = (dest.x or 0) - 45, (dest.y or 0) - 0
+        assert(dx * dx + dy * dy > 25,
+            "S27b FAIL: the area lane walked toward the mob it would refuse to fight — the walk is " ..
+            "half the pull, and on an empty bar the bot must hold where it is")
+    end
+    assert(pull_safety.destination(ctx) ~= nil,
+        "S27c FAIL: refusing the pull must leave the state machine somewhere to stand")
+
+    pull_safety.reset()
+    mana_bar(mock._player, 100)
+    ctx.now = 800.0
+    local sh2 = fresh_shared()
+    do_action.run(sh2, ctx)
+    local dest2 = sh2._nav_destination
+    assert(dest2 ~= nil and math.abs((dest2.x or 0) - 45) < 1,
+        "S27d FAIL: with mana back the same lane must walk to the mob (got " ..
+        tostring(dest2 and dest2.x) .. ")")
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+    print("  S27 PASS: the area lane's walk to a hostile is gated, and resumes on a full bar")
+end
+
+-- S28 — the area lane's nearest-enemy fallback
+
+do
+    pull_safety.reset()
+    local boar = mock.create_object({ pos = { x = 2, y = 0, z = 0 }, name = "Stonetusk Boar",
+        npc_id = 0, unit = true, valid = true, enemy = true, attackable = true, guid = "boar_fb" })
+    local step = { num = 71, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+        goals = { { type = "area", target = "", npc_id = 0 } } }
+    local ctx = gate_on(build_ctx(step, nil, { boar }))
+    ctx.now = 900.0
+    mana_bar(mock._player, 5)
+
+    local NS = _G.EaxRotations
+    local orig_start = NS and NS.start_auto_attack
+    local attacked = 0
+    local attacked_obj = nil
+    if NS then
+        NS.start_auto_attack = function(obj) attacked = attacked + 1; attacked_obj = obj end
+    end
+
+    local do_action = require("quest_state/do_action_state")
+    local function fresh_shared()
+        return { _nav_destination = nil, _area_wait_timer = 0, _action_pause_timer = 0,
+            _last_step_num = 71, _last_goal_type = "area", _interact_cooldown = 0,
+            _loot_cooldown = 0, _post_interact_timer = 0, _at_quest_object_timer = 0 }
+    end
+
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "set_target",
+            "S28a FAIL: the area lane's nearest-enemy fallback targeted a mob on 5% mana — this is " ..
+            "the widest door into a fight and it must be gated")
+    end
+    assert(attacked == 0, "S28b FAIL: no attack may be opened on an empty bar")
+
+    pull_safety.reset()
+    mana_bar(mock._player, 100)
+    ctx.now = 1000.0
+    mock._input_calls = {}
+    do_action.run(fresh_shared(), ctx)
+    assert(attacked == 1 and attacked_obj == boar,
+        "S28c FAIL: with mana back the fallback must open the fight (attacked=" ..
+        tostring(attacked) .. ") — otherwise S28 proves nothing about the gate")
+
+    if NS and orig_start then NS.start_auto_attack = orig_start end
+    print("  S28 PASS: the area lane's nearest-enemy fallback is gated")
 end
 
 -- S29 — the door that must stay OPEN: a friendly goal NPC is not a fight

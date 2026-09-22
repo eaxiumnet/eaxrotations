@@ -15,6 +15,52 @@ local pull_safety = require("shared/pull_safety")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
 
+local function unit_get_position(u) return u:get_position() end
+
+-- ============================================================================
+-- Engagement range — where the bot stops walking and lets the rotation fight
+-- ============================================================================
+
+--- Squared distance at which to stop approaching an enemy for this player's class.
+--- Ranged classes stop outside melee reach (28yd); everyone else keeps closing (3yd).
+--- @param ctx table Per-tick context
+--- @return number engage_sq
+local function engage_sq_for(ctx)
+    local ch = ctx.combat_helper
+    if ch and ch.engage_distance_sq then
+        local ok, sq = pcall(ch.engage_distance_sq, ctx.me)
+        if ok and type(sq) == "number" and sq > 0 then return sq end
+    end
+    return 9
+end
+
+--- Open the fight from range for a class that fights from range.
+--- There is no rotation API to "start the rotation", and EaxRotations only rotates with a
+--- target (it owns the out-of-combat buff path), so the pull is a ranged auto-attack — the
+--- same call the priest/spec rotations make for their own wand fallback. Returns true when
+--- combat was opened; false means the caller should keep closing to melee, which is exactly
+--- what every class did before this existed.
+--- @param ctx table Per-tick context
+--- @param enemy game_object Enemy to pull
+--- @param engage_sq number The class's squared engagement distance
+--- @return boolean pulled
+local function pull_at_range(ctx, enemy, engage_sq)
+    if engage_sq <= 9 then return false end
+    local ch = ctx.combat_helper
+    if not (ch and ch.is_ranged_class) then return false end
+    local ok_ranged, ranged = pcall(ch.is_ranged_class, ctx.me)
+    if not ok_ranged or not ranged then return false end
+    local NS = _G.EaxRotations
+    if not (NS and NS.start_auto_attack and NS.AUTO_ATTACK_WAND) then return false end
+    local ok, started = pcall(NS.start_auto_attack, enemy, NS.AUTO_ATTACK_WAND)
+    if not (ok and started) then return false end
+    pcall(core.input.set_target, enemy)
+    local _, epos = pcall(unit_get_position, enemy)
+    if epos then pcall(core.input.look_at_3d, epos) end
+    ctx.debug_log("DO_ACTION: engaged from range (wand pull)")
+    return true
+end
+
 -- ============================================================================
 -- Corpse filter — shared by every target scan in this file
 -- ============================================================================
@@ -358,18 +404,24 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     local _, enemy_pos = pcall(unit_get_position, enemy)
                     if me_pos and enemy_pos then
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
-                        if dist_sq > 9 then
+                        local engage_sq = engage_sq_for(ctx)
+                        if dist_sq > engage_sq then
                             shared._nav_destination = enemy_pos
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: kill — approaching enemy (" .. tostring(dist_yds) .. "yd)")
                             return false
                         end
-                        local mh_ok, mh = pcall(require, "common/utility/movement_handler")
-                        if mh_ok and mh and mh.look_at_target then
-                            if mh.pause_movement_light then
-                                pcall(function() mh:pause_movement_light(0.5) end)
-                            end
-                            pcall(function() mh:look_at_target(0.5, 0, enemy) end)
+                        -- In range: a ranged class engages from here and leaves the fight to
+                        -- the rotation. Without a ranged attack it keeps closing, exactly as
+                        -- every class did before.
+                        if pull_at_range(ctx, enemy, engage_sq) then return true end
+                        if dist_sq > 9 then
+                            shared._nav_destination = enemy_pos
+                            shared._nav_unit_dest = enemy
+                            shared._nav_unit_dest_key = enemy_pos
+                            local dist_yds = math.floor(math.sqrt(dist_sq))
+                            ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
+                            return false
                         end
                         local NS = _G.EaxRotations
                         if NS and NS.start_auto_attack then
@@ -674,14 +726,43 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             end
                         end
                     end
-                    if not obj then obj = objects[1] end
-                    if ctx.me then
+                    -- Stop at the class's engagement range, not on top of the mob: a ranged
+                    -- class fights from cast range. The same policy drives the enemy scan below
+                    -- (engage_sq_for is the single owner); melee classes keep closing to 3yd.
+                    local is_enemy = false
+                    if obj and ctx.me then
+                        local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+                        if ok_unit and is_unit then
+                            local ok_att, can_att = pcall(function() return obj:can_attack(ctx.me) end)
+                            if ok_att and can_att then is_enemy = true end
+                        end
+                    end
+                    local in_range_sq = is_enemy and engage_sq_for(ctx) or 25
+
+                    -- The gate before the WALK, not only before the swing: the destination set
+                    -- below is the bot committing to the fight, and on an empty bar the right move
+                    -- is to stand where it is (the hold), not to walk into the mob and refuse
+                    -- there. Quest objects and friendly NPCs are untouched — the gate only ever
+                    -- refuses hostiles.
+                    if is_enemy and pull_safety.gate(ctx, shared, obj) then return true end
+
+                    if obj and ctx.me then
                         local _, me_pos = pcall(function() return ctx.me:get_position() end)
                         local _, obj_pos = pcall(function() return obj:get_position() end)
                         if me_pos and obj_pos and ctx.utils then
                             local dist_sq = ctx.utils.squared_distance(me_pos, obj_pos)
-                            if dist_sq > 25 then
+                            if dist_sq > in_range_sq then
                                 shared._nav_destination = obj_pos
+                                if is_enemy then
+                                    -- Only a hostile unit is a moving point; a quest object
+                                    -- or NPC stays where it is (see nav_state.lua).
+                                    shared._nav_unit_dest = obj
+                                    shared._nav_unit_dest_key = obj_pos
+                                end
+                                if in_range_sq > 25 then
+                                    shared._nav_engage_dest = obj_pos
+                                    shared._nav_engage_sq = in_range_sq
+                                end
                                 ctx.debug_log("DO_ACTION: area — approaching '" .. tostring(name) .. "' (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd)")
                                 return false
                             end
@@ -708,13 +789,31 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if not is_enemy then
                             pcall(core.input.set_target, obj)
                         end
-                    end
 
-                    if is_enemy then
-                        -- Unit: start auto-attack via EaxRotations if available
-                        local NS = _G.EaxRotations
-                        if NS and NS.start_auto_attack then
-                            pcall(function() NS.start_auto_attack(obj) end)
+                        if is_enemy then
+                            if pull_safety.gate(ctx, shared, obj) then return true end
+                            pcall(core.input.set_target, obj)
+                            -- Live hostile in range: open the fight from range when the class
+                            -- fights from range, otherwise let the rotation swing.
+                            local ns = _G.EaxRotations
+                            if in_range_sq > 9 then
+                                local dist_sq = 0
+                                local _, me_pos = pcall(unit_get_position, ctx.me)
+                                local _, obj_pos = pcall(unit_get_position, obj)
+                                if me_pos and obj_pos and ctx.utils then
+                                    dist_sq = ctx.utils.squared_distance(me_pos, obj_pos)
+                                end
+                                if dist_sq > 9 and pull_at_range(ctx, obj, in_range_sq) then
+                                    shared._post_interact_timer = ctx.now + 0.3
+                                    return true
+                                end
+                            end
+                            if ns and ns.start_auto_attack then
+                                pcall(function() ns.start_auto_attack(obj) end)
+                            end
+                            shared._post_interact_timer = ctx.now + 0.3
+                            ctx.debug_log("DO_ACTION: area — targeted enemy '" .. tostring(name) .. "', auto-attacking")
+                            return true
                         end
 
                         -- Game object: use_object for gathering/interaction
@@ -798,11 +897,23 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         end
                         local dist_yds = math.floor(math.sqrt(best_enemy_sq))
                         ctx.debug_log("DO_ACTION: area — best_enemy_sq=" .. tostring(best_enemy_sq) .. " dist_yds=" .. tostring(dist_yds))
-                        if best_enemy_sq > 9 then
-                            local _, enemy_pos = pcall(function() return best_enemy:get_position() end)
+                        local engage_sq = engage_sq_for(ctx)
+                        if best_enemy_sq > engage_sq then
+                            local _, enemy_pos = pcall(unit_get_position, best_enemy)
                             if enemy_pos then
                                 shared._nav_destination = enemy_pos
                                 ctx.debug_log("DO_ACTION: area — approaching enemy '" .. tostring(goal_target) .. "' (" .. tostring(dist_yds) .. "yd)")
+                                return false
+                            end
+                        elseif best_enemy_sq > 9 and pull_at_range(ctx, best_enemy, engage_sq) then
+                            return true
+                        elseif best_enemy_sq > 9 then
+                            local _, enemy_pos = pcall(unit_get_position, best_enemy)
+                            if enemy_pos then
+                                shared._nav_destination = enemy_pos
+                                shared._nav_unit_dest = best_enemy
+                                shared._nav_unit_dest_key = enemy_pos
+                                ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
                         else
@@ -984,18 +1095,21 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     local _, enemy_pos = pcall(unit_get_position, enemy)
                     if me_pos and enemy_pos then
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
-                        if dist_sq > 9 then
+                        local engage_sq = engage_sq_for(ctx)
+                        if dist_sq > engage_sq then
                             shared._nav_destination = enemy_pos
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: area — approaching enemy (" .. tostring(dist_yds) .. "yd)")
                             return false
                         end
-                        local mh_ok, mh = pcall(require, "common/utility/movement_handler")
-                        if mh_ok and mh and mh.look_at_target then
-                            if mh.pause_movement_light then
-                                pcall(function() mh:pause_movement_light(0.5) end)
-                            end
-                            pcall(function() mh:look_at_target(0.5, 0, enemy) end)
+                        if pull_at_range(ctx, enemy, engage_sq) then return true end
+                        if dist_sq > 9 then
+                            shared._nav_destination = enemy_pos
+                            shared._nav_unit_dest = enemy
+                            shared._nav_unit_dest_key = enemy_pos
+                            local dist_yds = math.floor(math.sqrt(dist_sq))
+                            ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
+                            return false
                         end
                         local NS = _G.EaxRotations
                         if NS and NS.start_auto_attack then

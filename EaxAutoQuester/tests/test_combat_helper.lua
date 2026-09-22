@@ -37,5 +37,39 @@ mock._objects = {}  -- clear all enemies
 local not_tagged = combat_helper.target_and_tag_nearest(50)
 assert(not_tagged == false, "target_and_tag_nearest should fail with no valid enemies")
 
+-- =============================================================================
+-- Engagement stand-off — each ranged class stops at its OWN maximum attack range,
+-- not at one number for everyone. Live: the priest walked into the mob's face.
+-- =============================================================================
+do
+    local hunter = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 3 })
+    local priest = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 5 })
+    local warrior = mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 1 })
+
+    assert(combat_helper.ranged_engage_yds(hunter) == 35,
+        "stand-off FAIL: a hunter fights from its 35yd ranged weapon (got " ..
+        tostring(combat_helper.ranged_engage_yds(hunter)) .. ")")
+    assert(combat_helper.ranged_engage_yds(priest) == combat_helper.ENGAGE_RANGED_YDS,
+        "stand-off FAIL: a caster's stand-off must be the caster value")
+    assert(combat_helper.ranged_engage_yds(warrior) == nil,
+        "stand-off FAIL: a melee class has no ranged stand-off")
+    assert(combat_helper.is_ranged_class(priest) == true, "stand-off FAIL: priest is ranged")
+    assert(combat_helper.is_ranged_class(warrior) == false, "stand-off FAIL: warrior is melee")
+    assert(combat_helper.engage_distance_sq(priest) == combat_helper.ENGAGE_RANGED_YDS ^ 2,
+        "stand-off FAIL: the caster stop distance must be the caster range squared")
+    assert(combat_helper.engage_distance_sq(hunter) == 1225,
+        "stand-off FAIL: the hunter stop distance must be 35yd squared (got " ..
+        tostring(combat_helper.engage_distance_sq(hunter)) .. ")")
+    assert(combat_helper.engage_distance_sq(warrior) == 9,
+        "stand-off FAIL: melee still closes to 3yd")
+    -- The ceiling that makes 28 the caster value: standing further out than the class's own 30yd
+    -- casts would mean never being able to cast at all.
+    assert(combat_helper.ENGAGE_RANGED_YDS < 30,
+        "stand-off FAIL: a caster value at or beyond 30yd leaves the class unable to cast")
+    assert(combat_helper.ENGAGE_RANGED_YDS > 5,
+        "stand-off FAIL: a caster value inside melee reach is not a stand-off")
+    print("  STAND-OFF PASS: hunter 35yd, casters 28yd, melee 3yd")
+end
+
 print("PASS test_combat_helper")
 os.exit(0)

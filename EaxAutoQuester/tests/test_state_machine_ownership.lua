@@ -155,6 +155,37 @@ assert(#owners == 1,
 assert(owners[1] == "coordinator",
     "the coordinator must own the shared state table, not " .. tostring(owners[1]))
 
+-- One declaration per field. The table is the single place a field's default is stated, so a
+-- field declared twice means the file no longer says what the default is — that is what
+-- `_nav_engage_sq` did (nil in one batch, 0 in a later one, so table order decided it).
+-- Inert today because the read is gated on the destination's identity, which is exactly why a
+-- duplicate could sit there unnoticed.
+do
+    local src = read_source("quest_state/coordinator.lua")
+    local seen, dupes, count = {}, {}, 0
+    local inside = false
+    for line in lines_of(src) do
+        if not inside then
+            inside = line:match("^local shared%s*=%s*{") ~= nil
+        elseif line:match("^}") then
+            inside = false
+        else
+            local field = line:match("^%s+(_[%w_]+)%s*=")
+            if field then
+                count = count + 1
+                if seen[field] then dupes[#dupes + 1] = field else seen[field] = true end
+            end
+        end
+    end
+    assert(count >= 30,
+        "the coordinator's state table must still declare the shared state (found " ..
+        tostring(count) .. " declarations)")
+    assert(#dupes == 0,
+        "no shared-state field may be declared twice — the default would come from table " ..
+        "order: " .. table.concat(dupes, ", "))
+    print("  state table: " .. tostring(count) .. " declarations, one per field")
+end
+
 for _, name in ipairs(HANDLERS) do
     local src = read_source("quest_state/" .. name .. ".lua")
     assert(src:find("function M.run(shared, ctx)", 1, true),

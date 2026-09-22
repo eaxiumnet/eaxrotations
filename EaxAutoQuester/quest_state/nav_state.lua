@@ -30,6 +30,20 @@ local function hostile_to_me(ctx, obj)
 end
 
 
+--- Squared distance at which the current destination counts as reached.
+--- A destination set for a ranged engagement carries its stand-off distance, so travelling
+--- toward a mob stops at casting range instead of walking on top of it. The threshold is only
+--- honoured while it still belongs to the destination it was set with, which makes any other
+--- assignment of _nav_destination invalidate it implicitly.
+--- @param shared table Shared state variables
+--- @return number|nil stand_off_sq nil when the destination has no stand-off
+local function stand_off_sq(shared)
+    if shared._nav_engage_dest and shared._nav_engage_dest == shared._nav_destination then
+        return shared._nav_engage_sq
+    end
+    return nil
+end
+
 -- ============================================================================
 -- State: NAV — Navigate to destination with retry logic
 -- ============================================================================
@@ -178,7 +192,7 @@ function M.run(shared, ctx)
             local _, pos = pcall(unit_get_position, ctx.me)
             if pos and ctx.utils then
                 local dist_sq = ctx.utils.squared_distance(pos, shared._nav_destination)
-                if dist_sq > 9 then
+                if dist_sq > (stand_off_sq(shared) or 9) then
                     local dist_yds = math.floor(math.sqrt(dist_sq))
                     shared._nav_retries = shared._nav_retries + 1
                     ctx.debug_log("NAV: arrived callback but still " .. tostring(dist_yds) .. "yd away (retry " .. tostring(shared._nav_retries) .. "/3)")

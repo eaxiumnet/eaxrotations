@@ -668,13 +668,28 @@ function M.run(shared, ctx)
                         if (opos.z or 0) == 0 and pos and pos.z then
                             opos = { x = opos.x, y = opos.y, z = pos.z }
                         end
-                        if best_dist_sq <= 25 then
+                        -- Stop where this class fights from, not at melee range: combat_helper owns
+                        -- the band (28yd for a caster, 3yd for everyone else). The band rides along
+                        -- as the destination's stand-off so nav_state stops the walk there.
+                        local in_range_sq = 25
+                        local ch = ctx.combat_helper
+                        if ch and ch.engage_distance_sq then
+                            local ok_band, band = pcall(ch.engage_distance_sq, ctx.me)
+                            if ok_band and type(band) == "number" and band > 0 then
+                                in_range_sq = band
+                            end
+                        end
+                        if best_dist_sq <= in_range_sq then
                             objective_in_range = true
                             ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..
                                 "' in range (" .. tostring(math.floor(math.sqrt(best_dist_sq))) ..
                                 "yd) - skip NAV")
                         else
                             shared._nav_destination = opos
+                            if in_range_sq > 9 then
+                                shared._nav_engage_sq = in_range_sq
+                                shared._nav_engage_dest = opos
+                            end
                             ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..
                                 "' found at " .. tostring(math.floor(math.sqrt(best_dist_sq))) .. "yd -> NAV")
                             return "NAV"

@@ -22,6 +22,7 @@ local function unit_is_player(u) return u:is_player() end
 local function unit_is_enemy_with(u, other) return u:is_enemy_with(other) end
 local function unit_get_position(u) return u:get_position() end
 local function unit_is_in_combat(u) return u:is_in_combat() end
+local function unit_get_class(u) return u:get_class() end
 
 -- ============================================================================
 -- Squared Distance — local copy avoids cross-module dep (Pattern 3)
@@ -224,6 +225,65 @@ local function auto_face_enemy()
 end
 
 -- ============================================================================
+-- Engagement Distance — where the bot stops walking and lets the rotation fight
+-- ============================================================================
+
+-- The quester does not know a class's spells, so it decides the stand-off distance from
+-- the class: classes whose damage comes from range stop OUTSIDE melee reach and initiate
+-- at that distance, everything else keeps closing as before.
+--
+-- Why this exists: the approach code walked every class to melee (3yd) and then called
+-- NS.start_auto_attack(target) with no attack type, which selects AUTO_ATTACK_MELEE — so a
+-- priest questing was walked into the mob's face and made to auto-attack it, instead of
+-- stopping at casting range and letting the priest rotation (which wants the target at
+-- range, and wands as its own fallback) fight.
+local ENGAGE_RANGED_YDS = 28   -- casters: inside a 30yd cast reach, outside mob melee reach (~5yd)
+local ENGAGE_HUNTER_YDS = 35   -- hunter ranged attacks reach 35yd; its dead zone is 5-8yd, not 30
+local ENGAGE_MELEE_YDS = 3
+
+-- Stand-off per ranged class, in yards. Hunter is the only class whose weapon reaches past 30yd,
+-- so it is the only one that may stand outside a caster's reach — the point is to fight at the
+-- class's OWN maximum range, not at one number for everyone. Priest/mage/warlock stop short of
+-- their 30yd casts: standing further out would mean never being able to cast at all (a 36yd
+-- stand-off leaves a caster with nothing in range), which is why the caster value is 28 and not
+-- the 36 a hunter-style range would suggest.
+-- Hybrids (shaman, druid) stay melee: their melee forms and auto-attacks need contact, and the
+-- quester cannot see which spec the rotation is running.
+local RANGED_CLASS_YDS = {
+    [3] = ENGAGE_HUNTER_YDS,  -- HUNTER
+    [5] = ENGAGE_RANGED_YDS,  -- PRIEST
+    [8] = ENGAGE_RANGED_YDS,  -- MAGE
+    [9] = ENGAGE_RANGED_YDS,  -- WARLOCK
+}
+
+--- Stand-off distance for this player's class, or nil when the class fights in melee.
+--- @param me game_object|nil
+--- @return number|nil yards
+local function ranged_engage_yds(me)
+    if not me then return nil end
+    local ok, class_id = pcall(unit_get_class, me)
+    if not ok or not class_id then return nil end
+    return RANGED_CLASS_YDS[class_id]
+end
+
+--- Is this player's class one that fights from range?
+--- @param me game_object|nil
+--- @return boolean ranged
+local function is_ranged_class(me)
+    return ranged_engage_yds(me) ~= nil
+end
+
+--- Squared distance at which the bot should stop approaching an enemy.
+--- Ranged classes stop at their own attack range; everyone else keeps walking to melee.
+--- @param me game_object|nil
+--- @return number squared_yards
+local function engage_distance_sq(me)
+    local yds = ranged_engage_yds(me)
+    if yds then return yds * yds end
+    return ENGAGE_MELEE_YDS * ENGAGE_MELEE_YDS
+end
+
+-- ============================================================================
 -- Module Table
 -- ============================================================================
 
@@ -232,6 +292,11 @@ local M = {
     is_current_target_valid = is_current_target_valid,
     use_quest_item_on_target = use_quest_item_on_target,
     auto_face_enemy = auto_face_enemy,
+    is_ranged_class = is_ranged_class,
+    ranged_engage_yds = ranged_engage_yds,
+    engage_distance_sq = engage_distance_sq,
+    ENGAGE_RANGED_YDS = ENGAGE_RANGED_YDS,
+    ENGAGE_HUNTER_YDS = ENGAGE_HUNTER_YDS,
 }
 
 -- Expose globally for cross-module access without re-require

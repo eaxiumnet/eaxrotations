@@ -842,6 +842,64 @@ do
         "P4b FAIL: a live mob in range must be acted on (got " .. tostring(next_state) .. ")")
     print("  P4b PASS: live objective on top of the player → DO_ACTION (scan still finds it)")
 
+    -- P5 — priest, live mob at 20yd: inside cast range → act, do not walk closer.
+    local mob = mock.create_object({
+        pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+        unit = true, valid = true, attackable = true, enemy = true, guid = "shaman_20",
+    })
+    ctx = build_goal_ctx({ type = "kill", npc_id = 0, target = "Stonevault Shaman" }, { mob },
+        { waypoint = { x = 500, y = 0, z = 5 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST
+    shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0 }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "DO_ACTION",
+        "P5 FAIL: a mob 20yd away is in a priest's 28yd range and must be engaged, not approached (got "
+        .. tostring(next_state) .. ")")
+    print("  P5 PASS: priest in cast range at 20yd → DO_ACTION")
+
+    -- P6 — priest, live mob at 40yd: approach, but stop at the stand-off.
+    local far_mob = mock.create_object({
+        pos = { x = 40, y = 0, z = 5 }, name = "Stonevault Shaman",
+        unit = true, valid = true, attackable = true, enemy = true, guid = "shaman_40",
+    })
+    ctx = build_goal_ctx({ type = "kill", npc_id = 0, target = "Stonevault Shaman" }, { far_mob },
+        { waypoint = { x = 500, y = 0, z = 5 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST
+    shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0 }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "NAV",
+        "P6 FAIL: a mob 40yd away is out of range and must be approached (got " .. tostring(next_state) .. ")")
+    assert(shared._nav_destination == far_mob:get_position(),
+        "P6 FAIL: NAV should head for the mob")
+    assert(shared._nav_engage_sq == 784 and shared._nav_engage_dest == far_mob:get_position(),
+        "P6 FAIL: the approach must carry a 28yd stand-off so it stops at cast range")
+    print("  P6 PASS: priest out of range at 40yd → NAV with a 28yd stand-off")
+
+    -- P7 — warrior, live mob at 20yd: melee class keeps closing to 3yd.
+    local melee_mob = mock.create_object({
+        pos = { x = 20, y = 0, z = 5 }, name = "Stonevault Shaman",
+        unit = true, valid = true, attackable = true, enemy = true, guid = "shaman_melee",
+    })
+    ctx = build_goal_ctx({ type = "kill", npc_id = 0, target = "Stonevault Shaman" }, { melee_mob },
+        { waypoint = { x = 500, y = 0, z = 5 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 1   -- WARRIOR
+    shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0, _respawn_wait_until = 0 }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "NAV",
+        "P7 FAIL: a melee class must still close on a mob 20yd away (got " .. tostring(next_state) .. ")")
+    assert(shared._nav_engage_sq == nil,
+        "P7 FAIL: melee classes take no stand-off; the destination is the mob itself")
+    print("  P7 PASS: melee class unchanged → closes to melee")
+
     -- P8 — the live Stonevault Shaman shape, and the goal table here is the one the client
     -- really sends: a named target and NO `type` field, so IDLE classifies it as "area" (the
     -- goal[34] the player's log showed). The player has killed (and looted) those mobs, Zygor's

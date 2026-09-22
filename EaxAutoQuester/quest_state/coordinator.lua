@@ -114,6 +114,15 @@ local shared = {
     _respawn_wait_until = 0,        -- core_time when respawn wait expires (3 min)
     _respawn_last_scan = 0,         -- core_time of last respawn scan during wait
     _respawn_target_name = nil,     -- name of NPC/object we're waiting to respawn
+    -- Stand-off engagement: the squared distance to stop at, valid only for the exact
+    -- destination table it was set with. Comparing the table identity means every other
+    -- code path that overwrites _nav_destination silently invalidates it, so no call site
+    -- has to remember to clear it.
+    -- nil, not 0: the read is `stand_off_sq(shared) or <default>`, and a 0 here would be truthy —
+    -- a destination that ever got paired with it would read as "still far" at every arrival,
+    -- whatever the real distance.
+    _nav_engage_dest = nil,         -- the destination table the stand-off belongs to
+    _nav_engage_sq = nil,           -- squared stand-off distance for that destination
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
 
