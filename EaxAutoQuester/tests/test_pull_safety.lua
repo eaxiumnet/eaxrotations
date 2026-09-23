@@ -890,82 +890,14 @@ do
 end
 
 -- =============================================================================
--- P12 — every production engage site actually calls the gate (and IDLE honours the hold)
+-- P12 — every production engage site asks the checkpoint
 -- =============================================================================
--- P1-P11 prove the module's rules; they cannot prove anyone asks it. Three engage sites exist in
--- the area lane and each one is the difference between a rule and a rule that fires in game. Only
--- the name path is driven by a fixture today (S18 in test_do_action_state), so the other two are
--- pinned here by shape: a deleted call site fails this suite instead of silently going quiet.
-
-do
-    local function plugin_root()
-        for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
-            local f = io.open(prefix .. "main.lua", "r")
-            if f then f:close(); return prefix end
-        end
-        return nil
-    end
-    local root = plugin_root()
-    assert(root, "P12a FAIL: plugin root not found — a wiring pin that reads nothing must not pass")
-
-    local function read_source(rel)
-        local f = io.open(root .. rel, "r")
-        if not f then return nil end
-        local data = f:read("*a")
-        f:close()
-        return data
-    end
-
-    -- Every production engage site, counted rather than merely found. Shapes instead of line
-    -- numbers, but COUNTS instead of presence: the lanes grew from 3 gated sites to 9 when the
-    -- live report ("it still tries to engage mobs on low health/mana") turned out to be the doors
-    -- the gate was not standing in — the kill lane's goal-mob path, the area lane's walk to a
-    -- hostile, its quest-unit and Questie-fallback paths, and its nearest-enemy last resort. A pin
-    -- that asks only "is the shape present somewhere" cannot notice a site that stops calling the
-    -- gate, which is exactly how all of those went ungated.
-    local function count_gate_calls(src)
-        local n = 0
-        for _ in src:gmatch("pull_safety%.gate%(") do n = n + 1 end
-        return n
-    end
-
-    local do_action = read_source("quest_state/do_action_state.lua")
-    assert(do_action and #do_action > 1000,
-        "P12b FAIL: could not read quest_state/do_action_state.lua — the pin would be vacuous")
-    assert(count_gate_calls(do_action) == 9,
-        "P12c FAIL: expected 9 gated engage sites in the kill and area lanes, found " ..
-        tostring(count_gate_calls(do_action)) .. " — a gate nothing calls cannot fire")
-
-    -- Non-vacuous: the same check on the same source minus one call must count one fewer.
-    local missing = do_action:gsub("pull_safety%.gate%(", "-- removed by control", 1)
-    assert(count_gate_calls(missing) == 8,
-        "P12d FAIL: the wiring check cannot detect a deleted call site (counted " ..
-        tostring(count_gate_calls(missing)) .. ") — the pin above proves nothing")
-
-    -- Hostile-only guards: three gated sites can be looking at either a hostile or a friendly quest
-    -- NPC (a turn-in), so they ask hostile_to_me first. A friendly NPC refused on low mana would be
-    -- a worse bug than the pull — test_do_action_state S29 and test_nav_state N16 pin the behaviour.
-    local guards = 0
-    for _ in do_action:gmatch("hostile_to_me%(ctx, ") do guards = guards + 1 end
-    assert(guards >= 3,
-        "P12f FAIL: expected the three either-way sites to be hostile-guarded, found " ..
-        tostring(guards))
-
-    -- The en-route pre-tag asks the same question DRY: it must not tag a mob it would refuse, and
-    -- must not turn an in-flight walk around (nav_state N16 pins both halves).
-    local nav = read_source("quest_state/nav_state.lua")
-    assert(nav and nav:find("pull_safety.would_refuse(ctx, nearest)", 1, true) ~= nil,
-        "P12g FAIL: the en-route pre-tag does not ask the gate — tagging a hostile while walking " ..
-        "starts the fight mid-travel")
-    assert(nav:find("hostile_to_me(ctx, nearest)", 1, true) ~= nil,
-        "P12h FAIL: the pre-tag must apply the gate to hostiles only, or it stops tagging givers")
-
-    local idle = read_source("quest_state/idle_state.lua")
-    assert(idle and idle:find("pull_safety.holding(", 1, true) ~= nil,
-        "P12e FAIL: IDLE does not consult pull_safety.holding — it would walk straight back to \r\n" ..
-        "the mob the gate just refused")
-    print("  P12 PASS: all 9 engage sites wired (counted, not merely found) + IDLE honours the hold")
-end
+-- The wiring pin that used to sit here counted pull_safety.gate call sites. The gate is now
+-- owner-internal (only the checkpoint inside shared/pull_safety.lua calls it), so the wiring
+-- contract moved to its own suite — tests/test_pull_checkpoint.lua: a comment-stripping scan
+-- with positive and negative controls asserting that no production file calls the gate, that
+-- every fight-opener in the kill/area lanes answers to a fresh checkpoint ask, and that the
+-- checkpoint's own contract holds (a refusal drives nothing, a pass carries its approach walk).
 
 -- =============================================================================
 -- P13 — the wait is honoured: a resource that is coming back keeps the wait alive past the cap

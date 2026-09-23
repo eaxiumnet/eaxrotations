@@ -47,6 +47,7 @@ return {
         "test_object_scanner.lua",
         "test_pre_accept_all.lua",
         "test_progress_tracker.lua",
+        "test_pull_checkpoint.lua",
         "test_pull_safety.lua",
         "test_quest_blacklist.lua",
         "test_quest_turnin.lua",

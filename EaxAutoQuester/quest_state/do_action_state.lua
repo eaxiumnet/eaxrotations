@@ -375,13 +375,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc and goal_npc_id and npc.find_nearest_npc then
             local quest_mob = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
             if quest_mob then
-                -- The gate goes before the TAG, not only before the swing that follows it. Choosing
-                -- a hostile is what the rotation's combat path keys off, and it is the visible half
-                -- of "the bot walked up to the mob and started something" — on an empty bar or in a
-                -- crowd, none of that may begin. This is the goal's own mob by id, i.e. the path
-                -- every kill objective in the game takes; it used to start the fight with no gate
-                -- consulted at all.
-                if pull_safety.gate(ctx, shared, quest_mob) then return true end
+                -- One checkpoint, one question: the gate decides and, on a pass, the approach
+                -- walk (if one is needed) is already issued. Nil here = refused — the gate has
+                -- parked the bot, armed the hold and said why; the recovery pause lives in it.
+                if not pull_safety.engage(ctx, shared, quest_mob) then return true end
                 shared._respawn_wait_until = 0
                 shared._respawn_target_name = nil
                 pcall(core.input.set_target, quest_mob)
@@ -395,60 +392,55 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc then
             local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
             if enemy then
-                -- Before anything walks toward it: is this fight worth starting? Low health, a
-                -- caster with no mana, or a crowd that includes patrolling mobs means no — the
-                -- module walks the player out (or parks them) and this tick is done.
-                if pull_safety.gate(ctx, shared, enemy) then return true end
+                -- The one checkpoint: gate first, and on a pass the approach walk — the walk to
+                -- the fight IS part of the engage — issued inside it, through the nav owner.
+                local engage_sq = engage_sq_for(ctx)
+                local eng = pull_safety.engage(ctx, shared, enemy, {
+                    approach_sq = engage_sq,
+                    stand_off_sq = engage_sq > 9 and engage_sq or nil,
+                })
+                if not eng then return true end
                 -- Enemy found — clear any respawn wait and engage
                 shared._respawn_wait_until = 0
                 shared._respawn_target_name = nil
-                if ctx.me then
-                    local _, me_pos = pcall(unit_get_position, ctx.me)
-                    local _, enemy_pos = pcall(unit_get_position, enemy)
-                    if me_pos and enemy_pos then
-                        local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
-                        local engage_sq = engage_sq_for(ctx)
-                        if dist_sq > engage_sq then
-                            -- A live unit is a moving point: the destination records which unit
-                            -- owns it so NAV can follow it instead of walking to where the mob
-                            -- stood when the scan ran. See nav_state.lua. The stand-off rides on
-                            -- the destination (nav_destination.engage) so the walk stops where
-                            -- this class fights from.
-                            nav_destination.engage(shared, enemy, enemy_pos,
-                                engage_sq > 9 and engage_sq or nil)
-                            local dist_yds = math.floor(math.sqrt(dist_sq))
-                            ctx.debug_log("DO_ACTION: kill — approaching enemy (" .. tostring(dist_yds) .. "yd)")
-                            -- This return is documentary: M.run ignores execute_goal_action's
-                            -- result. The destination above is the real work — IDLE picks it up
-                            -- (`approaching target → NAV`) and NAV honours the stand-off.
-                            return false
-                        end
-                        -- In range: a ranged class engages from here and leaves the fight to
-                        -- the rotation. Without a ranged attack it keeps closing, exactly as
-                        -- every class did before.
-                        if pull_at_range(ctx, enemy, engage_sq) then return true end
-                        if dist_sq > 9 then
-                            nav_destination.engage(shared, enemy, enemy_pos, nil)
-                            local dist_yds = math.floor(math.sqrt(dist_sq))
-                            ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
-                            return false
-                        end
-                        -- shared/facing: one look-at lock per interval, never at a corpse or while already
-                        -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
-                        -- character at a moving mob (the "spinning in circles" report).
-                        facing.ensure(ctx.me, enemy)
-                        local NS = _G.EaxRotations
-                        if NS and NS.start_auto_attack then
-                            local ok = pcall(function() NS.start_auto_attack(enemy) end)
-                            if ok then
-                                ctx.debug_log("DO_ACTION: kill — auto-attacking")
-                            end
-                        end
-                        pcall(core.input.set_target, enemy)
-                        ctx.debug_log("DO_ACTION: kill — tagged enemy in melee range")
-                        return true
+                -- Positions unanswerable: the old shape skipped the whole fight block and fell
+                -- through to the 60s respawn wait below — parking the bot with a mob in front of
+                -- it. The only divergence from that shape is that this no longer sleeps: nothing
+                -- was walked and nothing was attacked, and the next tick re-asks.
+                if not (eng.me_pos and eng.enemy_pos) then return true end
+                if eng.walked then
+                    -- The checkpoint walked us toward the fight (out of range, gate passed):
+                    -- NAV follows the destination and honours its stand-off.
+                    ctx.debug_log("DO_ACTION: kill — approaching enemy (" ..
+                        tostring(math.floor(math.sqrt(eng.dist_sq))) .. "yd)")
+                    -- This return is documentary: M.run ignores execute_goal_action's result.
+                    return false
+                end
+                local dist_sq = eng.dist_sq
+                -- In range: a ranged class engages from here and leaves the fight to
+                -- the rotation. Without a ranged attack it keeps closing, exactly as
+                -- every class did before.
+                if pull_at_range(ctx, enemy, engage_sq) then return true end
+                if dist_sq > 9 then
+                    nav_destination.engage(shared, enemy, eng.enemy_pos, nil)
+                    ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" ..
+                        tostring(math.floor(math.sqrt(dist_sq))) .. "yd)")
+                    return false
+                end
+                -- shared/facing: one look-at lock per interval, never at a corpse or while already
+                -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
+                -- character at a moving mob (the "spinning in circles" report).
+                facing.ensure(ctx.me, enemy)
+                local NS = _G.EaxRotations
+                if NS and NS.start_auto_attack then
+                    local ok = pcall(function() NS.start_auto_attack(enemy) end)
+                    if ok then
+                        ctx.debug_log("DO_ACTION: kill — auto-attacking")
                     end
                 end
+                pcall(core.input.set_target, enemy)
+                ctx.debug_log("DO_ACTION: kill — tagged enemy in melee range")
+                return true
             end
         end
         -- No enemy found — enter respawn wait mode. 60s, not the old 180s: the wait exists to
@@ -572,9 +564,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 -- A quest unit is usually a giver, and then the gate has nothing to say. When it
                 -- is a hostile quest mob it is a fight like any other, and it is refused before
                 -- the approach: walking up to the camp while empty is the pull this gate exists to
-                -- stop, whether or not the swing happens afterwards.
+                -- stop. The decision asks through the checkpoint; the walk below stays a plain
+                -- point walk because this unit may be a giver, not a fight.
                 if hostile_to_me(ctx, nearest_quest)
-                    and pull_safety.gate(ctx, shared, nearest_quest) then
+                    and not pull_safety.engage(ctx, shared, nearest_quest) then
                     return true
                 end
                 local _, npos = pcall(function() return nearest_quest:get_position() end)
@@ -626,7 +619,8 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     local _, nname = pcall(function() return nearest:get_name() end)
                     local _, nguid = pcall(function() return nearest:get_guid() end)
                     local is_hostile = hostile_to_me(ctx, nearest)
-                    if is_hostile and pull_safety.gate(ctx, shared, nearest) then return true end
+                    -- Giver or fight: the checkpoint answers, the walk below stays a point walk.
+                    if is_hostile and not pull_safety.engage(ctx, shared, nearest) then return true end
                     if npos and ctx.me then
                         local _, me_pos = pcall(function() return ctx.me:get_position() end)
                         if me_pos and ctx.utils then
@@ -676,8 +670,9 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 local nearest = npc.find_nearest_npc({ goal_npc_id }, 50, nil, ctx.object_scanner)
                 if nearest then
                     -- Hostile only: the same id can be a green quest giver on a "speak to" step.
+                    -- The checkpoint's word covers both readings; the walk below stays a point walk.
                     if hostile_to_me(ctx, nearest)
-                        and pull_safety.gate(ctx, shared, nearest) then
+                        and not pull_safety.engage(ctx, shared, nearest) then
                         return true
                     end
                     local _, npos = pcall(function() return nearest:get_position() end)
@@ -745,12 +740,11 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     end
                     local in_range_sq = is_enemy and engage_sq_for(ctx) or 25
 
-                    -- The gate before the WALK, not only before the swing: the destination set
-                    -- below is the bot committing to the fight, and on an empty bar the right move
-                    -- is to stand where it is (the hold), not to walk into the mob and refuse
-                    -- there. Quest objects and friendly NPCs are untouched — the gate only ever
-                    -- refuses hostiles.
-                    if is_enemy and pull_safety.gate(ctx, shared, obj) then return true end
+                    -- The gate before the WALK, not only before the swing: on an empty bar the
+                    -- right move is to stand where it is (the hold), not to walk into the mob and
+                    -- refuse there. Asked through the checkpoint; hostiles only — quest objects
+                    -- and friendly NPCs are untouched.
+                    if is_enemy and not pull_safety.engage(ctx, shared, obj) then return true end
 
                     if obj and ctx.me then
                         local _, me_pos = pcall(function() return ctx.me:get_position() end)
@@ -791,22 +785,23 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         end
 
                         if is_enemy then
-                            if pull_safety.gate(ctx, shared, obj) then return true end
+                            -- The one checkpoint, asked again at the swing: the approach walk was
+                            -- issued by it above (F), so this ask carries no walk — only the gate's
+                            -- word, which may still refuse with the mob already in range.
+                            local eng = pull_safety.engage(ctx, shared, obj)
+                            if not eng then return true end
                             pcall(core.input.set_target, obj)
                             -- Live hostile in range: open the fight from range when the class
                             -- fights from range, otherwise let the rotation swing.
                             local ns = _G.EaxRotations
-                            if in_range_sq > 9 then
-                                local dist_sq = 0
-                                local _, me_pos = pcall(unit_get_position, ctx.me)
-                                local _, obj_pos = pcall(unit_get_position, obj)
-                                if me_pos and obj_pos and ctx.utils then
-                                    dist_sq = ctx.utils.squared_distance(me_pos, obj_pos)
-                                end
-                                if dist_sq > 9 and pull_at_range(ctx, obj, in_range_sq) then
-                                    shared._post_interact_timer = ctx.now + 0.3
-                                    return true
-                                end
+                            -- The old shape measured this gap only when ctx.utils was there, and
+                            -- read a missing measurement as "not in range" (0). Keep that reading
+                            -- rather than the checkpoint's far-away fallback, which would open a
+                            -- ranged pull where the old shape swung in melee.
+                            local gap_sq = (ctx.utils and eng.dist_sq) or 0
+                            if gap_sq > 9 and pull_at_range(ctx, obj, in_range_sq) then
+                                shared._post_interact_timer = ctx.now + 0.3
+                                return true
                             end
                             if ns and ns.start_auto_attack then
                                 pcall(function() ns.start_auto_attack(obj) end)
@@ -889,50 +884,53 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     end
                     ctx.debug_log("DO_ACTION: area — enemy scan found " .. tostring(found_count) .. " matching targets")
                     if best_enemy then
-                        -- Same gate as the other two engage sites, and it has to be HERE: the
-                        -- chain below both walks the player in and opens from range, so a check
-                        -- placed after it would only ever describe a pull that already happened.
-                        if pull_safety.gate(ctx, shared, best_enemy, objects, limit) then
-                            return true
-                        end
+                        -- The one checkpoint, and it has to be HERE: the chain below both walks
+                        -- the player in and opens from range, so a check placed after it would
+                        -- only ever describe a pull that already happened. The checkpoint also
+                        -- issues the approach walk, so the site's own destination write is gone.
+                        local engage_sq = engage_sq_for(ctx)
+                        local eng = pull_safety.engage(ctx, shared, best_enemy, {
+                            objects = objects,
+                            limit = limit,
+                            dist_sq = best_enemy_sq,          -- the scan's own fresh measurement
+                            approach_sq = engage_sq,
+                            stand_off_sq = engage_sq > 9 and engage_sq or nil,
+                        })
+                        if not eng then return true end
                         local dist_yds = math.floor(math.sqrt(best_enemy_sq))
                         ctx.debug_log("DO_ACTION: area — best_enemy_sq=" .. tostring(best_enemy_sq) .. " dist_yds=" .. tostring(dist_yds))
-                        local engage_sq = engage_sq_for(ctx)
-                        if best_enemy_sq > engage_sq then
-                            local _, enemy_pos = pcall(unit_get_position, best_enemy)
-                            if enemy_pos then
-                                nav_destination.engage(shared, best_enemy, enemy_pos,
-                                    engage_sq > 9 and engage_sq or nil)
+                        if eng.out_of_range then
+                            if eng.walked then
                                 ctx.debug_log("DO_ACTION: area — approaching enemy '" .. tostring(goal_target) .. "' (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
+                            -- Out of range but unwalkable (position unreadable): the fight chain
+                            -- below never ran in the old shape either.
                         elseif best_enemy_sq > 9 and pull_at_range(ctx, best_enemy, engage_sq) then
                             return true
                         elseif best_enemy_sq > 9 then
-                            local _, enemy_pos = pcall(unit_get_position, best_enemy)
-                            if enemy_pos then
-                                nav_destination.engage(shared, best_enemy, enemy_pos, nil)
+                            if eng.enemy_pos then
+                                nav_destination.engage(shared, best_enemy, eng.enemy_pos, nil)
                                 ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
                         else
-                            local _, enemy_pos = pcall(function() return best_enemy:get_position() end)
                             -- Declared before the melee block so the attack log below can report
                             -- the count this block measures. It used to be declared inside the
                             -- `if enemy_pos` block, leaving that log to read a name that was
                             -- neither declared nor assigned anywhere — a global nil, so the
                             -- line always printed "nearby=nil".
                             -- The private crowd count that used to live here is gone: it asked the
-                            -- same question as pull_safety.gate (hostiles around the fight site)
+                            -- same question as the gate (hostiles around the fight site)
                             -- with a narrower radius, no mover awareness, and only AFTER the fight
                             -- had been started — and its answer was to freeze mid-fight, which is
-                            -- not a thing the game lets you decline. The gate above now answers it
-                            -- before the pull, and answers it with "walk away" instead of "stand
-                            -- still". What remains here is the count for the log line, taken from
-                            -- the one shared definition so the two can never disagree.
+                            -- not a thing the game lets you decline. The checkpoint above now
+                            -- answers it before the pull, and answers it with "walk away" instead
+                            -- of "stand still". What remains here is the count for the log line,
+                            -- taken from the one shared definition so the two can never disagree.
                             local nearby_count = 0
-                            if enemy_pos then
-                                local _, hostiles = pull_safety.crowd(ctx, enemy_pos, objects, limit)
+                            if eng.enemy_pos then
+                                local _, hostiles = pull_safety.crowd(ctx, eng.enemy_pos, objects, limit)
                                 nearby_count = hostiles
                                 -- shared/facing: throttled, cone-checked aim (see shared/facing.lua).
                                 facing.ensure(ctx.me, best_enemy)
@@ -1080,41 +1078,41 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             if enemy then
                 -- The area lane's last resort — "nothing of the goal's is here, so kill whatever
                 -- is nearest" — used to approach and attack with no gate consulted at all, which
-                -- made it the widest door for fighting on an empty bar.
-                if pull_safety.gate(ctx, shared, enemy) then return true end
-                if ctx.me then
-                    local _, me_pos = pcall(unit_get_position, ctx.me)
-                    local _, enemy_pos = pcall(unit_get_position, enemy)
-                    if me_pos and enemy_pos then
-                        local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
-                        local engage_sq = engage_sq_for(ctx)
-                        if dist_sq > engage_sq then
-                            nav_destination.engage(shared, enemy, enemy_pos,
-                                engage_sq > 9 and engage_sq or nil)
-                            local dist_yds = math.floor(math.sqrt(dist_sq))
-                            ctx.debug_log("DO_ACTION: area — approaching enemy (" .. tostring(dist_yds) .. "yd)")
-                            return false
-                        end
-                        if pull_at_range(ctx, enemy, engage_sq) then return true end
-                        if dist_sq > 9 then
-                            nav_destination.engage(shared, enemy, enemy_pos, nil)
-                            local dist_yds = math.floor(math.sqrt(dist_sq))
-                            ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
-                            return false
-                        end
-                        -- shared/facing: one look-at lock per interval, never at a corpse or while already
-                        -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
-                        -- character at a moving mob (the "spinning in circles" report).
-                        facing.ensure(ctx.me, enemy)
-                        local NS = _G.EaxRotations
-                        if NS and NS.start_auto_attack then
-                            pcall(function() NS.start_auto_attack(enemy) end)
-                        end
-                        pcall(core.input.set_target, enemy)
-                        ctx.debug_log("DO_ACTION: area — attacking enemy in range")
-                        return true
-                    end
+                -- made it the widest door for fighting on an empty bar. Now the one checkpoint:
+                -- the gate decides, the approach walk (if needed) is the engage.
+                local engage_sq = engage_sq_for(ctx)
+                local eng = pull_safety.engage(ctx, shared, enemy, {
+                    approach_sq = engage_sq,
+                    stand_off_sq = engage_sq > 9 and engage_sq or nil,
+                })
+                if not eng then return true end
+                -- Positions unanswerable: the old shape fell through to the 5s area wait below.
+                -- Deliberately no longer sleeping here — nothing was walked, nothing attacked,
+                -- and the next tick re-asks (same divergence as the kill lane's site above).
+                if not (eng.me_pos and eng.enemy_pos) then return true end
+                if eng.walked then
+                    ctx.debug_log("DO_ACTION: area — approaching enemy (" ..
+                        tostring(math.floor(math.sqrt(eng.dist_sq))) .. "yd)")
+                    return false
                 end
+                if pull_at_range(ctx, enemy, engage_sq) then return true end
+                if eng.dist_sq > 9 then
+                    nav_destination.engage(shared, enemy, eng.enemy_pos, nil)
+                    ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" ..
+                        tostring(math.floor(math.sqrt(eng.dist_sq))) .. "yd)")
+                    return false
+                end
+                -- shared/facing: one look-at lock per interval, never at a corpse or while already
+                -- facing it. Re-issuing a 0.5s facing lock every tick servo-drives the
+                -- character at a moving mob (the "spinning in circles" report).
+                facing.ensure(ctx.me, enemy)
+                local NS = _G.EaxRotations
+                if NS and NS.start_auto_attack then
+                    pcall(function() NS.start_auto_attack(enemy) end)
+                end
+                pcall(core.input.set_target, enemy)
+                ctx.debug_log("DO_ACTION: area — attacking enemy in range")
+                return true
             end
         end
 

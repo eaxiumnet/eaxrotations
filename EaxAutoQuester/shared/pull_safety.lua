@@ -1,10 +1,16 @@
 -- shared/pull_safety.lua — should the bot start this fight at all?
--- WHAT:  pull_safety.gate(ctx, shared, enemy, objects, limit) decides before the bot walks in or
---        opens from range. Unsafe → it does not engage: it reports the reason once, remembers a
---        retreat point and publishes it as an INTENT (M.destination) for nav_state to apply through
---        shared/nav_destination.lua — it never writes the navigation fields itself.
--- WHEN:  every place do_action_state is about to approach, pull or attack a hostile, and the
---        in-melee crowd check that used to be a private count of its own.
+-- WHAT:  pull_safety.engage(ctx, shared, enemy, opts) is the ONE checkpoint between "there is a
+--        hostile" and "the bot commits to it": it asks the gate and, on a pass, issues the
+--        approach walk itself — so a call site cannot reach its swing without having asked.
+--        pull_safety.gate(ctx, shared, enemy, objects, limit) is the decision underneath it
+--        (owner-internal; production asks through M.engage). Unsafe → the site does not engage:
+--        the gate reports the reason once, remembers a retreat point and publishes it as an INTENT
+--        (M.destination) for nav_state to apply through shared/nav_destination.lua — neither the
+--        gate nor the checkpoint ever writes the navigation fields directly.
+-- WHEN:  every place do_action_state is about to approach, pull or attack a hostile goes through
+--        M.engage; the two ask-without-consequences readers are M.would_refuse (the en-route
+--        pre-tag: a walk already under way must not turn around) and M.holding (idle_state, and
+--        the recovery pause and spawn search that live inside the hold).
 -- WHY:   Live report: "more careful pulling more mobs on casters with low mana and scan nearby
 --        mobs pathing so we dont pull and kill ourselves due to no mana or low health but instead
 --        move away so we dont pull." Three ways the old code committed anyway:
@@ -529,6 +535,85 @@ function M.gate(ctx, shared, enemy, objects, limit)
     end
 
     return true
+end
+
+-- ============================================================================
+-- The one checkpoint
+-- ============================================================================
+
+-- Lazy, like waypoint_fixer above: nav_destination reaches back for this module (lazily) when
+-- nav_state applies the retreat, and the gate must load before it regardless of require order.
+local _nav_destination = nil
+local function nav_destination()
+    if not _nav_destination then
+        local ok, nd = pcall(require, "shared/nav_destination")
+        if ok and nd then _nav_destination = nd end
+    end
+    return _nav_destination
+end
+
+--- May this fight start — and if so, open it.
+---
+--- The one door between "there is a hostile" and "the bot commits to it": the gate has the first
+--- and only word, and on a pass the approach walk is issued HERE, through the nav owner, so a
+--- call site cannot reach its swing without having asked. A refusal has already parked the bot,
+--- armed the hold and said why — the recovery pause the hold allows runs during it — and nil is
+--- the caller's signal that this tick must not begin a fight. The caller's remaining job is the
+--- fight itself (the ranged cast, the melee swing), which no other module can own.
+---
+--- opts (all optional):
+---   objects, limit   passed through to the gate's crowd scan, when the caller already holds them
+---   dist_sq          the caller's own distance measurement, when it is fresher than a re-read
+---   approach_sq      squared distance beyond which this fight is approached, not opened
+---   stand_off_sq     what the approach walk carries as its stand-off (nil = walk all the way in)
+---
+--- @param ctx table Per-tick context
+--- @param shared table Shared state variables
+--- @param enemy game_object|nil the hostile the caller is about to engage
+--- @param opts table|nil
+--- @return table|nil nil = the fight may not start this tick; else its geometry:
+---   { me_pos, enemy_pos, dist_sq, out_of_range, walked }
+function M.engage(ctx, shared, enemy, opts)
+    if not enemy or not shared then return nil end
+    opts = opts or {}
+
+    -- The gate's word is final: a refusal has already done everything a refusal does.
+    if M.gate(ctx, shared, enemy, opts.objects, opts.limit) then return nil end
+
+    local me = ctx and ctx.me
+    local ok_me, me_pos = false, nil
+    if me then
+        ok_me, me_pos = pcall(unit_get_position, me)
+    end
+    local ok_pos, enemy_pos = pcall(unit_get_position, enemy)
+
+    -- The caller's measurement wins (it may be the scan's own); otherwise read it fresh. A
+    -- distance of 1e9 when utils are missing mirrors what every engage site already assumed.
+    local dist_sq = opts.dist_sq
+    if dist_sq == nil and ok_me and me_pos and ok_pos and enemy_pos then
+        dist_sq = (ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos)) or 1e9
+    end
+
+    -- The approach is part of the engage: farther than the threshold, the walk to the fight is
+    -- issued here and now — through the nav owner, the stand-off riding on it — so "asked the
+    -- gate" and "walked into range" are one action no site can take separately.
+    local out_of_range = (opts.approach_sq ~= nil and dist_sq ~= nil and dist_sq > opts.approach_sq)
+    local walked = false
+    if out_of_range and ok_pos and enemy_pos then
+        local nd = nav_destination()
+        if nd then
+            nd.engage(shared, enemy, enemy_pos, opts.stand_off_sq)
+            walked = true
+        end
+    end
+
+    return {
+        me_pos = (ok_me and me_pos) or nil,
+        enemy_pos = (ok_pos and enemy_pos) or nil,
+        dist_sq = dist_sq,
+        out_of_range = out_of_range,
+        walked = walked,
+    }
 end
 
 return M
