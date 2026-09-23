@@ -196,6 +196,18 @@ local function setting(ctx, key, fallback)
 end
 
 -- ============================================================================
+-- Gate floors — the one place "low" starts, for any module that has to ask
+-- ============================================================================
+--- The gate's own refusal floors as the menu currently reads them (0 disables that rule).
+--- A floor kept anywhere else is a floor this gate does not enforce.
+--- @param ctx table Per-tick context
+--- @return number min_hp, number min_mana
+function M.floors(ctx)
+    return setting(ctx, "pull_gate_min_hp", GATE_MIN_HP_FALLBACK),
+        setting(ctx, "pull_gate_min_mana", GATE_MIN_MANA_FALLBACK)
+end
+
+-- ============================================================================
 -- Crowd scan
 -- ============================================================================
 

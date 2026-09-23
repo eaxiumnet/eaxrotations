@@ -1,36 +1,25 @@
 -- shared/recovery.lua -- out-of-combat recovery: eat and drink while the pull gate holds.
 -- WHAT:  recovery.tick(ctx, shared) is called from the parked path (idle_state, while
---        pull_safety is holding and the bot is standing at its retreat). When a bar is below
---        a genuinely LOW floor it uses a matching food/drink item already in the bags; the
---        pause ends when the bar is above the floor, or the per-pause cap expires.
--- WHEN:  only while the pull gate's hold is armed and the player is out of combat and not
---        walking. It has no entry point anywhere else: it never decides anything on its own.
--- WHY:   the pull gate refuses a pull on low mana/health, walks the retreat out, parks — and
---        then waits for natural regen. A parked caster with an empty bar has food for exactly
---        this; the recovery half of the feature was missing. The old idle_state regen wait was
---        disabled on purpose (`if false and ctx.me`): at high HP it would wait for regen
---        instead of fighting, re-introducing "wait until high % before every pull". This
---        module is the lesson learned, not the revert:
---          * the floors are LOW (HP 35, mana 20) — below them a caster can barely finish one
---            more fight; above them it fights. Ordinary leveling never triggers this.
---          * it only runs while the PULL GATE is already holding — a bot the gate has parked
---            is a bot with nothing else to do; the gate's own anti-stall cap (40s) still
---            bounds the whole pause from the outside.
---          * a pause that does go the distance is capped on its own (MAX_PAUSE_SECONDS):
---            whatever it achieves in that window is what it achieves — never a wedge.
--- SAFETY: every probe pcall-guarded, degrading to "no recovery" — a bot that cannot answer
---        "am I low" must fight, not stand. In combat → always false. Quest items are
---        recognised by their module and NEVER used here: quest item handling is
---        quest_item_manager_sylvanas's, and using a quest objective as lunch is how a step
---        breaks. Channel pause: food and drink channel for their duration; re-using an active
---        item cancels the channel and re-queues the GCD, so an item is used at most once per
---        CHANNEL_SECONDS. No navigation field is ever touched (direct shared._nav_* writes
---        are banned by tests/test_nav_destination_ownership.lua): the caller owns the park.
--- DECISION: shared module — the classification (which item refills which bar, and what level
---        it requires) lives next to the generated table it reads, and the only caller keeps
---        one call in one branch. Item ids are data (recovery_items_sylvanas.lua, generated);
---        the client's own verdict (inventory_helper's consumables list) is preferred when the
---        build provides it, and a raw bag walk judged by the table is the backstop.
+--        pull_safety is holding and the bot is standing still). While a bar is below the PULL
+--        GATE's own refusal floor it uses a matching food/drink item from the bags; the pause
+--        ends when the bar clears that floor, or at the per-pause cap.
+-- WHEN:  only while the pull gate's hold is armed, and only when the client says the player is
+--        provably out of combat and not walking. It has no entry point anywhere else: it never
+--        decides anything on its own.
+-- WHY:   the gate refuses a pull on low health/mana and parks the bot, which then waits for
+--        natural regen; recovery is the other half of that same decision. Because it runs only
+--        where the gate has already parked, a floor equal to the gate's cannot become a
+--        "wait before every pull": above the floor the bot fights, and the gate's own
+--        anti-stall cap (40s) bounds the pause from the outside.
+-- SAFETY: every probe fails closed — a bot that cannot answer "am I low" or "am I in combat"
+--        fights, it does not stand. Quest items are recognised by their module and NEVER used
+--        here. Food and drink channel, so an item is used at most once per CHANNEL_SECONDS.
+--        No navigation field is ever written (tests/test_nav_destination_ownership.lua bans
+--        it): the caller owns the park.
+-- DECISION: shared module — the classification (which item refills which bar, and the level it
+--        requires) lives next to the generated table it reads, and the only caller keeps one
+--        call in one branch. The client's own consumables list is preferred when the build
+--        provides it; a raw bag walk judged by the table is the backstop.
 
 local M = {}
 
@@ -40,16 +29,12 @@ local _core_time = core.time
 -- Floors and caps
 -- ============================================================================
 
--- FLOORS, not preferences — the same doctrine as pull_safety's gate floors, only lower,
--- because this runs when the gate has ALREADY refused a pull and the bot is parked:
---   HP  35% — below it the next fight that goes wrong ends the run; eating clears the edge
---         without ever aiming at "full".
---   mana 20% — the drink is for a caster who cannot pay for one more pull; the gate's own
---         refusal floor (30) stops pulls long before this fires, so reaching 20 means the
---         bot was already parked with nothing to spend on.
+-- The floors are the PULL GATE's own refusal floors, asked live via pull_safety.floors: the
+-- gate parks a bot by exactly those numbers, so a parked bot refills in exactly the band it was
+-- parked for. Nothing restates them, so the two cannot drift, and a rule the user disabled (0)
+-- is disabled here too — no healthy percentage is below zero. No answer -> no need (fail
+-- closed, like the bar probes).
 -- Above the floor = fight. There is no "eat until full": that is the disabled wait's failure.
-local HP_FLOOR = 35.0
-local MANA_FLOOR = 20.0
 
 -- One use channels for the item's duration (up to 30s); using again mid-channel cancels it
 -- and re-queues the GCD. One pause may therefore consist of several uses, but never a second
@@ -122,9 +107,11 @@ local function quest_item_ids()
     return _quest_items
 end
 
---- Drop the scan caches (tests; and any future caller that knows the bags changed).
+--- Drop the caches that snapshot the environment — the quest-item scan and the client's helper
+--- reference (tests swap both between ticks; nothing in production calls this).
 function M.reset()
     _quest_items = nil
+    _inventory_helper = nil
 end
 
 -- ============================================================================
@@ -149,13 +136,17 @@ local function mana_pct(me)
 end
 
 --- Which bars are below their floor. Both nil-safe: a probe that cannot be answered is not a
---- need, and a class without mana is never "low on mana".
+--- need, and a class without mana is never "low on mana". A nil floor means the gate could not
+--- be asked — that is not a need either.
 --- @param me game_object
+--- @param min_hp number|nil the gate's health floor
+--- @param min_mana number|nil the gate's mana floor
 --- @return boolean need_food, boolean need_drink
-local function bar_needs(me)
+local function bar_needs(me, min_hp, min_mana)
     local hp = health_pct(me)
     local mp = mana_pct(me)
-    return (hp ~= nil and hp < HP_FLOOR), (mp ~= nil and mp < MANA_FLOOR)
+    return (hp ~= nil and min_hp ~= nil and hp < min_hp),
+        (mp ~= nil and min_mana ~= nil and mp < min_mana)
 end
 
 -- ============================================================================
@@ -267,20 +258,27 @@ end
 function M.tick(ctx, shared)
     if not ctx or not shared or not ctx.me then return false end
 
-    -- Never in combat. Not even to check the bars: combat recovery is the rotation's business
-    -- (potions, bandages, heals), not a park-and-eat.
+    -- Never in combat, and never on a probe that cannot answer: combat recovery is the
+    -- rotation's business (potions, bandages, heals), not a park-and-eat. Only a definitive
+    -- "not in combat" lets the pause start — the same fail-closed doctrine as the bar probes.
     local ok_combat, in_combat = pcall(function() return ctx.me:is_in_combat() end)
-    if ok_combat and in_combat then
+    if not ok_combat or in_combat ~= false then
         shared._recov_since = 0
         return false
     end
 
     -- The pull gate is this module's only licence: no hold, no pause. Asking the gate itself
-    -- keeps the two modules' ideas of "holding" identical by construction.
+    -- keeps the two modules' ideas of "holding" — and of where "low" starts — identical by
+    -- construction, so a bot the gate parked drinks in exactly the band it was parked for.
     local ok_ps, pull_safety = pcall(require, "shared/pull_safety")
     if not (ok_ps and pull_safety and pull_safety.holding(ctx)) then
         shared._recov_since = 0
         return false
+    end
+    local min_hp, min_mana = nil, nil
+    if type(pull_safety.floors) == "function" then
+        local ok_f, f_hp, f_mana = pcall(pull_safety.floors, ctx)
+        if ok_f then min_hp, min_mana = f_hp, f_mana end
     end
 
     -- Remain seated means remain seated: a channel is cancelled by movement, so a bot that is
@@ -300,7 +298,7 @@ function M.tick(ctx, shared)
         return false
     end
 
-    local need_food, need_drink = bar_needs(ctx.me)
+    local need_food, need_drink = bar_needs(ctx.me, min_hp, min_mana)
     if not (need_food or need_drink) then
         shared._recov_since = 0
         return false
@@ -338,8 +336,6 @@ end
 -- Constants, for callers and tests
 -- ============================================================================
 
-M.HP_FLOOR = HP_FLOOR
-M.MANA_FLOOR = MANA_FLOOR
 M.CHANNEL_SECONDS = CHANNEL_SECONDS
 M.MAX_PAUSE_SECONDS = MAX_PAUSE_SECONDS
 

@@ -3,8 +3,10 @@
 -- Why: The pull gate refuses a pull, walks the retreat, parks — then waits for natural regen.
 --      This suite pins the recovery half of that feature AND the constraints that keep it the
 --      lesson learned rather than the disabled regen wait's return:
---        * it fires only BELOW a genuinely low floor, only while the gate holds, never in
---          combat, and ends on schedule (R1–R7);
+--        * it fires only below the PULL GATE's own refusal floor (asked from the gate, never
+--          restated here), only while the gate holds, never in combat, and ends on schedule
+--          (R1–R7, R13);
+--        * a probe that cannot answer fails closed, the combat probe included (R14);
 --        * quest items are never lunch (R8);
 --        * the pause owns no navigation state and drives no movement (R9).
 -- Safety: pure module + unit stubs; no client, no network, no writes.
@@ -97,6 +99,7 @@ local function ctx_for(o)
     return {
         me = o.me,
         now = o.now or _time,
+        menu = o.menu,
         debug_log = function(msg) _logs[#_logs + 1] = tostring(msg) end,
     }
 end
@@ -113,14 +116,32 @@ local function reset_used()
     _used = {}                  -- per-scenario counting (the closure re-reads this upvalue)
 end
 
+--- Menu stub: answers the gate's own rows, and answers the legacy eaxaq_min_hp / _min_mana pair
+--- with something deliberately loud (90) whenever a scenario does not override it — a recovery
+--- that still read those rows would eat for no reason.
+local function menu_with(o)
+    o = o or {}
+    return { get = function(key, fallback)
+        if key == "pull_gate_min_hp" then
+            if o.min_hp ~= nil then return o.min_hp end
+        elseif key == "pull_gate_min_mana" then
+            if o.min_mana ~= nil then return o.min_mana end
+        elseif key == "min_hp" or key == "min_mana" then
+            return 90
+        end
+        return fallback
+    end }
+end
+
 --- Arm the gate's hold the way production does: a refused pull on a low bar.
-local function arm_gate(me)
+--- @param opts table|nil { menu = <stub> } — the gate's own rows, when a scenario owns them
+local function arm_gate(me, opts)
     pull_safety.reset()
     reset_used()
     _time = 1000
     local enemy = mob({ pos = { x = 10, y = 0, z = 0 } })
     local shared = fresh_shared()
-    local ctx = ctx_for({ me = me })
+    local ctx = ctx_for({ me = me, menu = opts and opts.menu })
     pull_safety.gate(ctx, shared, enemy)
     return shared, ctx
 end
@@ -145,17 +166,33 @@ do
 end
 
 -- =============================================================================
--- R2 — above both floors: no pause, no use
+-- R2 — the gate's own floor is the boundary: only the bar below it is refilled
 -- =============================================================================
+-- The gate parks on ONE bar, so each half of the band is pinned with the pause genuinely live:
+-- the low bar's item is used, and a bar sitting exactly on its floor is left alone. (That an
+-- ordinary post-fight bar is never parked in the first place is the gate's own contract — see
+-- test_pull_safety's N1/P6 — and is deliberately not restated here.)
 
 do
-    local me = player({ hp = 600, max_hp = 1000, mana = 500, max_mana = 1000 })  -- 60/50
-    _bags = { [0] = { item(2136), item(8950) } }
+    -- R2a — health below the gate's floor (40 < 50), mana exactly on it (30 is not 30 < 30).
+    local me = player({ hp = 400, max_hp = 1000, mana = 300, max_mana = 1000 })
+    _bags = { [0] = { item(2136), item(8950) } }                  -- drink + food
     local shared, ctx = arm_gate(me)
 
-    assert(recovery.tick(ctx, shared) == false, "R2 FAIL: an ordinary post-fight bar must not pause")
-    assert(used_count() == 0, "R2 FAIL: nothing may be used above the floors")
-    print("  R2 PASS: above both floors, no pause and no use")
+    assert(recovery.tick(ctx, shared) == true, "R2a FAIL: health under the floor must pause")
+    assert(used_count() == 1 and _used[1] == 8950,
+        "R2a FAIL: the food must be used and the drink left alone for mana on its floor (got "
+        .. tostring(_used[1]) .. ")")
+    print("  R2a PASS: below the health floor the food is used; mana on its floor is not drunk for")
+
+    -- R2b — mana below the gate's floor (29 < 30), health comfortably above it (60).
+    me = player({ hp = 600, max_hp = 1000, mana = 290, max_mana = 1000 })
+    shared, ctx = arm_gate(me)
+
+    assert(recovery.tick(ctx, shared) == true, "R2b FAIL: mana under the floor must pause")
+    assert(used_count() == 1 and _used[1] == 2136,
+        "R2b FAIL: the drink must be used and the food left alone (got " .. tostring(_used[1]) .. ")")
+    print("  R2b PASS: below the mana floor the drink is used; a healthy bar is not eaten for")
 end
 
 -- =============================================================================
@@ -362,6 +399,67 @@ do
     assert(not table_[728] and not table_[3097], "R12 FAIL: recipes and conjure tomes must stay out")
     assert(table_[5349], "R12 FAIL: conjured food stays in")
     print("  R12 PASS: table shape and the generator's exclusions")
+end
+
+-- =============================================================================
+-- R13 — the floor is the gate's own number, not one restated here
+-- =============================================================================
+-- The gate's rows are the user's: raise them and recovery follows; lower them and recovery
+-- stops refilling at levels the gate now calls healthy. A floor kept privately (the 35/20 this
+-- module shipped with) fails R13a, and a restated 50 fails R13b.
+
+do
+    -- R13a — the gate's floor at 70: a bot at 60% health is parked by that row and must eat.
+    local me = player({ hp = 600, max_hp = 1000, mana = 1000, max_mana = 1000 })
+    _bags = { [0] = { item(8950) } }
+    local shared, ctx = arm_gate(me, { menu = menu_with({ min_hp = 70, min_mana = 70 }) })
+
+    assert(pull_safety.holding(ctx) == true, "R13a FAIL: the gate's 70 floor must park a 60% bot")
+    assert(recovery.tick(ctx, shared) == true,
+        "R13a FAIL: with the gate's floor at 70, 60% health is below it and must eat")
+    assert(used_count() == 1 and _used[1] == 8950, "R13a FAIL: the food must be used")
+    print("  R13a PASS: the floor the gate refuses at is the floor recovery refills at")
+
+    -- R13b — the gate's health row at 20: 40% health is above it, so health must not be eaten
+    -- for even while a 5%-mana park is live and food is the ONLY thing in the bags. The legacy
+    -- rows say 90 (see the stub): a floor read from them would eat here.
+    me = player({ hp = 400, max_hp = 1000, mana = 50, max_mana = 1000 })
+    _bags = { [0] = { item(8950) } }                              -- food only, no drink
+    shared, ctx = arm_gate(me, { menu = menu_with({ min_hp = 20 }) })
+
+    assert(recovery.tick(ctx, shared) == false,
+        "R13b FAIL: the low bar has nothing usable — stand, don't wedge")
+    assert(used_count() == 0,
+        "R13b FAIL: health above the gate's 20 floor must not be eaten for, even as the only "
+        .. "item in the bags (got " .. tostring(_used[1]) .. ")")
+    print("  R13b PASS: a lowered health floor is followed, and the legacy rows drive nothing")
+end
+
+-- =============================================================================
+-- R14 — an unreadable combat probe fails closed: no answer, no lunch
+-- =============================================================================
+-- The module's doctrine is that a bot which cannot answer must fight, not stand. Both shapes of
+-- "no answer" are pinned: the probe that raises, and the probe that returns nothing.
+
+do
+    local me = player({ mana = 50, max_mana = 1000 })
+    me.is_in_combat = function() error("client cannot say") end
+    _bags = { [0] = { item(2136) } }
+    local shared, ctx = arm_gate(me)
+
+    assert(recovery.tick(ctx, shared) == false,
+        "R14a FAIL: a combat probe that raises must fail closed")
+    assert(used_count() == 0, "R14a FAIL: no item may be used on an unreadable probe")
+    assert(shared._recov_since == 0, "R14a FAIL: a failed probe must leave no pause clock")
+
+    me = player({ mana = 50, max_mana = 1000 })
+    me.is_in_combat = function() return nil end
+    shared, ctx = arm_gate(me)
+
+    assert(recovery.tick(ctx, shared) == false,
+        "R14b FAIL: a combat probe that says nothing must fail closed")
+    assert(used_count() == 0, "R14b FAIL: no item may be used when the probe says nothing")
+    print("  R14 PASS: an unreadable combat probe is never read as \"not in combat\"")
 end
 
 print("PASS test_recovery")
