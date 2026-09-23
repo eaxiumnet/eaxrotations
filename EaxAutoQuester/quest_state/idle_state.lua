@@ -10,6 +10,7 @@
 local M = {}
 
 local corpse_loot = require("shared/corpse_loot")
+local recovery = require("shared/recovery")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
 local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 -- Shared owners IDLE asks rather than reimplements:
@@ -244,6 +245,11 @@ function M.run(shared, ctx)
     if ctx.me and pull_safety.holding(ctx) then
         if not nav_destination.claim(shared, ctx) then
             -- Holding with nowhere published to back off to: wait the hold out rather than walk on.
+            -- Standing still is standing still: the same recovery licence as the parked path below.
+            if recovery.tick(ctx, shared) then
+                ctx.debug_log("IDLE: pull safety hold — no retreat, recovering")
+                return "IDLE"
+            end
             ctx.debug_log("IDLE: pull safety hold — no retreat published, waiting")
             return "IDLE"
         end
@@ -254,6 +260,14 @@ function M.run(shared, ctx)
             return "IDLE"
         end
         if ctx.utils.squared_distance(pos, point) <= 25 then
+            -- Parked: the recovery half of the gate's promise. While the hold runs and the bot
+            -- stands at its retreat, a bar below its LOW floor is an eat/drink pause (see
+            -- shared/recovery.lua for the floors and the cap) — not a stare at the regen bar,
+            -- and never the "wait until high %" that killed the old regen wait.
+            if recovery.tick(ctx, shared) then
+                ctx.debug_log("IDLE: pull safety hold — parked, recovering")
+                return "IDLE"
+            end
             ctx.debug_log("IDLE: pull safety hold — parked at the retreat")
             return "IDLE"
         end

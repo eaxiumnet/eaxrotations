@@ -51,6 +51,7 @@ return {
         "test_quest_blacklist.lua",
         "test_quest_turnin.lua",
         "test_quest_frame_events.lua",
+        "test_recovery.lua",
         "test_respawn_wait.lua",
         "test_runner_discovery.lua",
         "test_runner_lib.lua",

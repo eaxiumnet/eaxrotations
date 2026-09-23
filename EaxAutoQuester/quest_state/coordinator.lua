@@ -128,6 +128,10 @@ local shared = {
     -- whatever the real distance.
     _nav_engage_dest = nil,         -- the destination table the stand-off belongs to
     _nav_engage_sq = nil,           -- squared stand-off distance for that destination
+    -- Recovery pause (shared/recovery.lua): the clock of the eat/drink pause the pull gate's
+    -- hold allows, and the last time an item was used in it (the channel guard).
+    _recov_since = 0,               -- core_time the current pause started (0 = not pausing)
+    _recov_used_at = 0,             -- core_time of the last consumable use within the pause
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
 
