@@ -75,6 +75,11 @@ local _combat_helper = nil
 
 -- ============================================================================
 -- Shared State — all mutable state variables (nil-guarded defaults)
+--
+-- This table is the whole shared state surface: every field any production file writes as
+-- `shared._*` is declared here, whatever module owns its meaning, so the state surface can be
+-- read in one place instead of accumulating silently across the states and shared modules.
+-- tests/test_shared_state_declaration.lua fails on a write of a field that is not declared here.
 -- ============================================================================
 
 local shared = {
@@ -132,6 +137,39 @@ local shared = {
     -- hold allows, and the last time an item was used in it (the channel guard).
     _recov_since = 0,               -- core_time the current pause started (0 = not pausing)
     _recov_used_at = 0,             -- core_time of the last consumable use within the pause
+    -- The pull gate's once-per-reason notices (owned by shared/pull_safety.lua): the reason each
+    -- notice was last logged for, so an unchanged refusal is announced once and not every tick.
+    -- Two keys, not one, because a refusal and the over-wait are two different events.
+    _pull_warned_at = nil,          -- last reason the "not pulling" notice was logged for
+    _pull_overwait_at = nil,        -- last reason the anti-stall over-wait notice was logged for
+    -- The step's retired places (owned by shared/nav_destination.lua): a place the client refused
+    -- to walk to is not offered again for the rest of the step. The shared read-only empty set
+    -- while nothing is retired, never a table a caller may append to.
+    _step_wp_retired = nil,
+    -- Where the step's waypoint sweep has got to (owned by quest_state/idle_state.lua): core_time
+    -- the last pass over the step's waypoints ended; the next pass waits SWEEP_RELAP_SECONDS.
+    _sweep_lap_at = nil,            -- nil = no pass has finished yet
+    -- The spawn search for the current goal (owned by shared/spawn_patrol.lua): which NPC it
+    -- belongs to, the candidate points, which of them have been searched, and the leg in flight.
+    -- Cleared together by spawn_patrol.clear() when the goal changes or the step ends.
+    _patrol_name = nil,             -- the goal target the search was built for (nil = no search)
+    _patrol_npc = nil,              -- its npc id — name + id together identify the search
+    _patrol_points = nil,           -- candidates; `false` latches "looked, nothing to search"
+    _patrol_seen = nil,             -- index set of the candidates already searched this pass
+    _patrol_target_i = nil,         -- index of the candidate being walked to, if any
+    _patrol_issued_at = nil,        -- core_time that walk was last handed to the client
+    _patrol_anchor_x = nil,         -- where the player stood when progress was last observed
+    _patrol_anchor_y = nil,
+    _patrol_anchor_at = nil,        -- core_time of that anchor: a leg stuck past STUCK_SECONDS
+                                    -- is abandoned rather than walked forever
+    _patrol_rebuilt_at = nil,       -- core_time the candidate list was last rebuilt
+    _patrol_sweeps = nil,           -- laps walked since the search began
+    -- The dialog hand-off (set by quest_state/do_action_state.lua): a goal action just opened a
+    -- dialog, so its next dispatch enters INTERACT instead of waiting out the action pause.
+    _should_enter_interact = nil,
+    -- Coordinator's own: the anti-detection combat override logs the first time it fires, not
+    -- on every tick it keeps firing.
+    _combat_override_logged = nil,
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
 

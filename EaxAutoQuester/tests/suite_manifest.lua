@@ -58,6 +58,7 @@ return {
         "test_runner_lib.lua",
         "test_safe_api_wrapper.lua",
         "test_service_gossip.lua",
+        "test_shared_state_declaration.lua",
         "test_spawn_patrol.lua",
         "test_objective_match.lua",
         "test_state_machine_ownership.lua",
