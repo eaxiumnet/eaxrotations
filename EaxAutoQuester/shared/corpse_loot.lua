@@ -33,6 +33,10 @@
 
 local M = {}
 
+-- The destination fields belong to shared/nav_destination.lua; a corpse walk is one of its
+-- plain point destinations.
+local nav_destination = require("shared/nav_destination")
+
 -- ============================================================================
 -- Constants
 -- ============================================================================
@@ -158,7 +162,7 @@ function M.try_loot_nearest_corpse(shared, ctx, max_nav_dist_sq, debug_tag)
     if max_nav_dist_sq == nil or best_loot_sq <= max_nav_dist_sq then
         local _, lpos = pcall(unit_get_position, best_loot)
         if lpos then
-            shared._nav_destination = lpos
+            nav_destination.point(shared, lpos)
         end
         local log_msg = "IDLE: approaching lootable corpse (" .. tostring(dist_yds) .. "yd)"
         if debug_tag then log_msg = log_msg .. " " .. debug_tag end

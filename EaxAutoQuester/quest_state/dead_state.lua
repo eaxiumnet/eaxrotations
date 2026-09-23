@@ -1,5 +1,9 @@
 local M = {}
 
+-- The destination fields belong to shared/nav_destination.lua; releasing them on revive goes
+-- through the owner, like every other producer.
+local nav_destination = require("shared/nav_destination")
+
 local _last_check_time = 1
 local _check_interval = 1.0
 local _corpse_pos = nil
@@ -72,7 +76,7 @@ function M.run(shared, ctx)
             _nav_started = false
             _enemy_wait_start = nil
             _death_recorded = false
-            shared._nav_destination = nil
+            nav_destination.clear(shared)
             shared._nav_retries = 0
             shared._nav_retry_timer = 0
             return "IDLE"

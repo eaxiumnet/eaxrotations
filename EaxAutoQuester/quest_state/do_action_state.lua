@@ -11,6 +11,7 @@ local M = {}
 
 local facing = require("shared/facing")
 local goal_names = require("shared/goal_names")
+local nav_destination = require("shared/nav_destination")
 local objective_match = require("shared/objective_match")
 local pull_safety = require("shared/pull_safety")
 local spawn_patrol = require("shared/spawn_patrol")
@@ -408,16 +409,13 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
                         local engage_sq = engage_sq_for(ctx)
                         if dist_sq > engage_sq then
-                            shared._nav_destination = enemy_pos
-                            -- A live unit is a moving point: record which unit owns this
-                            -- destination so NAV can follow it instead of walking to where the
-                            -- mob stood when the scan ran. See nav_state.lua.
-                            shared._nav_unit_dest = enemy
-                            shared._nav_unit_dest_key = enemy_pos
-                            if engage_sq > 9 then
-                                shared._nav_engage_dest = enemy_pos
-                                shared._nav_engage_sq = engage_sq
-                            end
+                            -- A live unit is a moving point: the destination records which unit
+                            -- owns it so NAV can follow it instead of walking to where the mob
+                            -- stood when the scan ran. See nav_state.lua. The stand-off rides on
+                            -- the destination (nav_destination.engage) so the walk stops where
+                            -- this class fights from.
+                            nav_destination.engage(shared, enemy, enemy_pos,
+                                engage_sq > 9 and engage_sq or nil)
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: kill — approaching enemy (" .. tostring(dist_yds) .. "yd)")
                             -- This return is documentary: M.run ignores execute_goal_action's
@@ -430,9 +428,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         -- every class did before.
                         if pull_at_range(ctx, enemy, engage_sq) then return true end
                         if dist_sq > 9 then
-                            shared._nav_destination = enemy_pos
-                            shared._nav_unit_dest = enemy
-                            shared._nav_unit_dest_key = enemy_pos
+                            nav_destination.engage(shared, enemy, enemy_pos, nil)
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                             return false
@@ -487,7 +483,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     -- exist anywhere in this plugin, so that branch never moved.
                     local _, npos = pcall(function() return target:get_position() end)
                     if npos then
-                        shared._nav_destination = npos
+                        nav_destination.point(shared, npos)
                         ctx.debug_log("DO_ACTION: talk target [" .. tostring(rung) ..
                             "] out of range → NAV")
                         -- Setting the destination is the whole mechanism: M.run ignores this
@@ -554,7 +550,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 if me_pos and ctx.utils then
                     local dist_sq = ctx.utils.squared_distance(me_pos, resolved.position)
                     if dist_sq > 100 then
-                        shared._nav_destination = resolved.position
+                        nav_destination.point(shared, resolved.position)
                         ctx.debug_log("DO_ACTION: area - navigating to resolved position")
                         return false
                     end
@@ -589,7 +585,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                     if me_pos and ctx.utils then
                         local dist_sq = ctx.utils.squared_distance(me_pos, npos)
                         if dist_sq > 25 then
-                            shared._nav_destination = npos
+                            nav_destination.point(shared, npos)
                             shared._questie_fallback_time = ctx.now
                             shared._questie_last_guid = nguid
                             ctx.debug_log("DO_ACTION: area — navigating to quest unit '" .. tostring(nname or "unknown") .. "' (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd) [is_quest_unit]")
@@ -636,7 +632,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if me_pos and ctx.utils then
                             local dist_sq = ctx.utils.squared_distance(me_pos, npos)
                             if dist_sq > 25 then
-                                shared._nav_destination = npos
+                                nav_destination.point(shared, npos)
                                 shared._questie_fallback_time = ctx.now
                                 shared._questie_last_guid = nguid
                                 ctx.debug_log("DO_ACTION: area — navigating to quest NPC '" .. tostring(nname or "unknown") .. "' (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd) [Questie fallback]")
@@ -671,7 +667,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             -- shared/spawn_patrol.lua owns the sweep, including the Z fix-up and the visited marks.
             local point = spawn_patrol.next_point(shared, ctx, goal)
             if point then
-                shared._nav_destination = point
+                nav_destination.point(shared, point)
                 ctx.debug_log("DO_ACTION: area — searching spawn points for NPC " ..
                     tostring(goal_npc_id))
                 return false
@@ -690,7 +686,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if me_pos and ctx.utils then
                             local dist_sq = ctx.utils.squared_distance(me_pos, npos)
                             if dist_sq > 25 then
-                                shared._nav_destination = npos
+                                nav_destination.point(shared, npos)
                                 ctx.debug_log("DO_ACTION: area — approaching NPC " .. tostring(goal_npc_id) .. " (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd)")
                                 return false
                             end
@@ -762,17 +758,11 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if me_pos and obj_pos and ctx.utils then
                             local dist_sq = ctx.utils.squared_distance(me_pos, obj_pos)
                             if dist_sq > in_range_sq then
-                                shared._nav_destination = obj_pos
-                                if is_enemy then
-                                    -- Only a hostile unit is a moving point; a quest object
-                                    -- or NPC stays where it is (see nav_state.lua).
-                                    shared._nav_unit_dest = obj
-                                    shared._nav_unit_dest_key = obj_pos
-                                end
-                                if in_range_sq > 25 then
-                                    shared._nav_engage_dest = obj_pos
-                                    shared._nav_engage_sq = in_range_sq
-                                end
+                                -- Only a hostile unit is a moving point; a quest object
+                                -- or NPC stays where it is (see nav_state.lua). The stand-off
+                                -- (stop at interact/fight range) rides on the destination.
+                                nav_destination.engage(shared, is_enemy and obj or nil, obj_pos,
+                                    in_range_sq > 25 and in_range_sq or nil)
                                 ctx.debug_log("DO_ACTION: area — approaching '" .. tostring(name) .. "' (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd)")
                                 return false
                             end
@@ -911,13 +901,8 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         if best_enemy_sq > engage_sq then
                             local _, enemy_pos = pcall(unit_get_position, best_enemy)
                             if enemy_pos then
-                                shared._nav_destination = enemy_pos
-                                shared._nav_unit_dest = best_enemy
-                                shared._nav_unit_dest_key = enemy_pos
-                                if engage_sq > 9 then
-                                    shared._nav_engage_dest = enemy_pos
-                                    shared._nav_engage_sq = engage_sq
-                                end
+                                nav_destination.engage(shared, best_enemy, enemy_pos,
+                                    engage_sq > 9 and engage_sq or nil)
                                 ctx.debug_log("DO_ACTION: area — approaching enemy '" .. tostring(goal_target) .. "' (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
@@ -926,9 +911,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         elseif best_enemy_sq > 9 then
                             local _, enemy_pos = pcall(unit_get_position, best_enemy)
                             if enemy_pos then
-                                shared._nav_destination = enemy_pos
-                                shared._nav_unit_dest = best_enemy
-                                shared._nav_unit_dest_key = enemy_pos
+                                nav_destination.engage(shared, best_enemy, enemy_pos, nil)
                                 ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
@@ -1106,22 +1089,15 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                         local dist_sq = ctx.utils and ctx.utils.squared_distance(me_pos, enemy_pos) or 1e9
                         local engage_sq = engage_sq_for(ctx)
                         if dist_sq > engage_sq then
-                            shared._nav_destination = enemy_pos
-                            shared._nav_unit_dest = enemy
-                            shared._nav_unit_dest_key = enemy_pos
-                            if engage_sq > 9 then
-                                shared._nav_engage_dest = enemy_pos
-                                shared._nav_engage_sq = engage_sq
-                            end
+                            nav_destination.engage(shared, enemy, enemy_pos,
+                                engage_sq > 9 and engage_sq or nil)
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: area — approaching enemy (" .. tostring(dist_yds) .. "yd)")
                             return false
                         end
                         if pull_at_range(ctx, enemy, engage_sq) then return true end
                         if dist_sq > 9 then
-                            shared._nav_destination = enemy_pos
-                            shared._nav_unit_dest = enemy
-                            shared._nav_unit_dest_key = enemy_pos
+                            nav_destination.engage(shared, enemy, enemy_pos, nil)
                             local dist_yds = math.floor(math.sqrt(dist_sq))
                             ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                             return false

@@ -220,7 +220,7 @@ function M.run(shared, ctx)
                     if me_pos and t_pos and ctx.utils then
                         local d_sq = ctx.utils.squared_distance(me_pos, t_pos)
                         if d_sq > 100 then  -- 10 yards squared
-                            shared._nav_destination = t_pos
+                            nav_destination.point(shared, t_pos)
                             ctx.debug_log("IDLE: combat — closing distance to enemy (" .. tostring(math.floor(math.sqrt(d_sq))) .. "yd)")
                             return "NAV"
                         end
@@ -484,7 +484,7 @@ function M.run(shared, ctx)
                         -- further down this function, so this used to write and read a global
                         -- `wp` (a leak that also collided with any sibling plugin using the name).
                         ctx.debug_log("IDLE: flight step to " .. dest .. " → NAV to flight master " .. tostring(fm.name or "?"))
-                        shared._nav_destination = fm
+                        nav_destination.point(shared, fm)
                         return "NAV"
                     end
                 end
@@ -509,7 +509,7 @@ function M.run(shared, ctx)
                         inn = wf.fix_z(inn) or inn
                     end
                     ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
-                    shared._nav_destination = inn
+                    nav_destination.point(shared, inn)
                     return "NAV"
                 end
             end
@@ -564,7 +564,7 @@ function M.run(shared, ctx)
         -- returns nil while the pull gate holds, so a refused camp is never searched.
         local leg = spawn_patrol.next_point(shared, ctx, current_goal)
         if leg then
-            shared._nav_destination = leg
+            nav_destination.point(shared, leg)
             if scanned then
                 ctx.debug_log("IDLE: respawn wait — walking the camp's spawn points")
             end
@@ -634,7 +634,7 @@ function M.run(shared, ctx)
                     return "NAV"
                 end
             end
-            shared._nav_destination = nil
+            nav_destination.point(shared, nil)
         end
 
         -- Objective-first scan (ported from the monolith's live IDLE path; see
@@ -740,11 +740,8 @@ function M.run(shared, ctx)
                                 "' in range (" .. tostring(math.floor(math.sqrt(best_dist_sq))) ..
                                 "yd) - skip NAV")
                         else
-                            shared._nav_destination = opos
-                            if in_range_sq > 9 then
-                                shared._nav_engage_sq = in_range_sq
-                                shared._nav_engage_dest = opos
-                            end
+                            nav_destination.engage(shared, nil, opos,
+                                in_range_sq > 9 and in_range_sq or nil)
                             ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..
                                 "' found at " .. tostring(math.floor(math.sqrt(best_dist_sq))) .. "yd -> NAV")
                             return "NAV"
@@ -762,7 +759,7 @@ function M.run(shared, ctx)
             if pos_ok and pos and ctx.utils then
                 local dist_sq = ctx.utils.squared_distance(pos, wp)
                 if dist_sq > 1600 then
-                    shared._nav_destination = wp
+                    nav_destination.point(shared, wp)
                     ctx.debug_log("IDLE: goal type=" .. action_type .. ", far from wp → NAV")
                     return "NAV"
                 end
@@ -847,7 +844,7 @@ function M.run(shared, ctx)
                         shared._visited_waypoints = visited
                         if best_wp then
                             if best_dist_sq > 100 then
-                                shared._nav_destination = best_wp
+                                nav_destination.point(shared, best_wp)
                                 ctx.debug_log("IDLE: area goal — navigating to wp " .. tostring(best_idx) .. "/" .. tostring(#all_wps) .. " (" .. tostring(math.floor(math.sqrt(best_dist_sq))) .. "yd)")
                                 return "NAV"
                             else
@@ -893,7 +890,7 @@ function M.run(shared, ctx)
                     if pos_ok and pos and ctx.utils then
                         local dist_sq = ctx.utils.squared_distance(pos, wp)
                         if dist_sq > 1600 then
-                            shared._nav_destination = wp
+                            nav_destination.point(shared, wp)
                             ctx.debug_log("IDLE: area goal with no target, far from wp → NAV")
                             return "NAV"
                         end
@@ -937,7 +934,7 @@ function M.run(shared, ctx)
 
     -- No uncompleted goal found — navigate to waypoint if available
     if wp then
-        shared._nav_destination = wp
+        nav_destination.point(shared, wp)
         -- Attempt to mount before long-distance travel
         do
             local mm_ok, mm = pcall(require, "mount_manager_sylvanas")

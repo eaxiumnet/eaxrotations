@@ -38,6 +38,7 @@ return {
         "test_mount_manager.lua",
         "test_nav_client_contract.lua",
         "test_nav_client_parity.lua",
+        "test_nav_destination_ownership.lua",
         "test_nav_state.lua",
         "test_no_quest_abandon.lua",
         "test_no_turn_keys.lua",

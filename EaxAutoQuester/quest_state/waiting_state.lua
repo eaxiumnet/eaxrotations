@@ -9,6 +9,10 @@
 
 local M = {}
 
+-- The destination fields belong to shared/nav_destination.lua; WAITING is one of its producers
+-- (the pre-set waypoint that gives IDLE a head start), never a direct writer of them.
+local nav_destination = require("shared/nav_destination")
+
 -- ============================================================================
 -- State: WAITING — Poll for Zygor step to appear
 -- ============================================================================
@@ -33,7 +37,7 @@ function M.run(shared, ctx)
         -- B.build: Pre-set nav destination from next waypoint lookahead
         local next_wp = zygor.get_next_waypoint_world and zygor.get_next_waypoint_world()
         if next_wp then
-            shared._nav_destination = next_wp
+            nav_destination.point(shared, next_wp)
         end
 
         shared._last_step_num = 0 -- force fresh evaluation

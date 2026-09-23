@@ -252,6 +252,7 @@ end
 -- State Handler Modules — loaded once at require time
 -- ============================================================================
 
+local nav_destination = require("shared/nav_destination")
 local idle_state = require("quest_state/idle_state")
 local nav_state = require("quest_state/nav_state")
 local interact_state_mod = require("quest_state/interact_state")
@@ -617,7 +618,7 @@ function M.update()
             if npc_db_ok and npc_db and npc_db.find_transport_npc then
                 local vendor_pos = npc_db.find_transport_npc("vendor")
                 if vendor_pos then
-                    shared._nav_destination = vendor_pos
+                    nav_destination.point(shared, vendor_pos)
                     next_state = "NAV"
                     debug_log("Coordinator: force vendor — bags > 80% full")
                 end
@@ -669,8 +670,7 @@ function M.stop_navigation()
         dismount("navigation cancelled")
         debug_log("Hard stop: navigation cancelled")
     end
-    shared._nav_destination = nil
-    shared._nav_engage_dest = nil
+    nav_destination.clear(shared)
     shared._nav_retries = 0
     shared._nav_retry_timer = 0
 end

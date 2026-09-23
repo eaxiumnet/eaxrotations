@@ -77,9 +77,9 @@ local function nav_dest_mark_unreachable(shared, ctx, point)
     nav_destination.mark_unreachable(shared, ctx and ctx.now, point)
 end
 
---- Drop the destination and every field describing it, including the live-unit link, so a
---- later destination cannot inherit state from this one. The destination fields themselves belong
---- to shared/nav_destination.lua; the travel bookkeeping below is this handler's own.
+--- Drop the destination and every field describing it, including the live-unit link, through
+--- the fields' owner (shared/nav_destination.lua). The travel bookkeeping below is this
+--- handler's own and is cleared alongside.
 local function nav_dest_clear(shared)
     nav_destination.clear(shared)
     shared._nav_issued_x = nil
@@ -154,11 +154,9 @@ function M.run(shared, ctx)
                 local ok_dead, dead = pcall(unit_is_dead, unit)
                 local ok_pos, upos = pcall(unit_get_position, unit)
                 if (ok_dead and dead) or not (ok_pos and upos) then
-                    -- The target died or despawned: there is nothing left to walk to.
-                shared._nav_destination = nil
-                shared._nav_engage_dest = nil
-                shared._nav_unit_dest = nil
-                shared._nav_unit_dest_key = nil
+                    -- The target died or despawned: there is nothing left to walk to. The owner
+                    -- drops the destination and the descriptors together.
+                nav_destination.clear(shared)
                 shared._nav_retries = 0
                 nav.stop()
                 ctx.debug_log("NAV: destination unit is gone — stopping")
@@ -202,7 +200,9 @@ function M.run(shared, ctx)
             local ok_pos, pos = pcall(unit_get_position, ctx.me)
             if ok_pos and pos
                 and ctx.utils.squared_distance(pos, shared._nav_destination) <= engage_sq then
-                shared._nav_destination = nil
+                -- Reached: the destination AND its stand-off go together (the owner), so neither
+                -- survives to describe the next one.
+                nav_destination.clear(shared)
                 shared._nav_retries = 0
                 nav.stop()
                 ctx.debug_log("NAV: in stand-off range - stopping to engage")
@@ -305,16 +305,10 @@ function M.run(shared, ctx)
                         local z_diff = math.abs((dest.z or 0) - pos.z)
                         local xy_dist_sq = ((dest.x or 0) - pos.x)^2 + ((dest.y or 0) - pos.y)^2
                         if z_diff > 30 and xy_dist_sq < 100000 then
-                            shared._nav_destination = { x = dest.x, y = dest.y, z = pos.z }
-                            -- Replaced table: keep every link that pointed at the old one, or the
-                            -- stand-off stops being honoured (the client walks onto the mob) and
-                            -- the follow in the header silently stops refreshing.
-                            if shared._nav_engage_dest == dest then
-                                shared._nav_engage_dest = shared._nav_destination
-                            end
-                            if shared._nav_unit_dest_key == dest then
-                                shared._nav_unit_dest_key = shared._nav_destination
-                            end
+                            -- Replaced table: the owner keeps every link that pointed at the old
+                            -- one, or the stand-off stops being honoured (the client walks onto
+                            -- the mob) and the follow in the header silently stops refreshing.
+                            nav_destination.repoint(shared, dest, { x = dest.x, y = dest.y, z = pos.z })
                             shared._nav_issued_x, shared._nav_issued_y = nil, nil
                             ctx.debug_log("NAV: retrying with adjusted Z (player Z fallback)")
                         end
@@ -412,7 +406,7 @@ function M.run(shared, ctx)
                 if zygor then
                     local wp = zygor.get_current_waypoint_world()
                     if wp then
-                        shared._nav_destination = wp
+                        nav_destination.point(shared, wp)
                         shared._nav_retries = 0
                         ctx.debug_log("NAV: falling back to waypoint")
                         return "NAV"

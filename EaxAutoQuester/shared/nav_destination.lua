@@ -28,9 +28,11 @@
 -- DECISION: shared module rather than a state, so nav_state and idle_state can resolve the same
 --        answer without a state -> state require. The gate keeps its own bookkeeping keys
 --        (_pull_warned_at / _pull_overwait_at) — they are not navigation state.
--- NOTE:   The remaining writers (idle_state, do_action_state) still write the two main fields
---        directly. They are last-writer-wins sources like any other point, and the claim above
---        beats them at read time; migrating them onto this module is its own pass.
+-- NOTE:   Production code sets a destination only through this module's API: point() for a
+--        place, engage() for a fight (the stand-off is by construction, not an opt-in pairing
+--        each call site must remember), repoint() for nav_state's Z-fallback rewrite, clear() /
+--        clear_engagement() for dropping. tests/test_nav_destination_ownership.lua fails if any
+--        production file writes these fields directly anywhere else.
 
 local M = {}
 
@@ -69,14 +71,10 @@ function M.claim(shared, ctx)
     local point = M.retreat(ctx)
     if not point then return false end
 
-    shared._nav_destination = point
-    -- No live unit to follow and no stand-off to stop at: this is a place to stand, not something
-    -- to approach. Leaving a stale link here is what would make nav_state re-issue walks toward
-    -- the mob the retreat is leaving.
-    shared._nav_unit_dest = nil
-    shared._nav_unit_dest_key = nil
-    shared._nav_engage_dest = nil
-    shared._nav_engage_sq = nil
+    -- A retreat is a place to stand, not something to approach: no live unit to follow and no
+    -- stand-off to stop at. point() drops the descriptors with the destination, so a stale link
+    -- cannot make nav_state re-issue walks toward the mob the retreat is leaving.
+    M.point(shared, point)
     return true
 end
 
@@ -88,8 +86,87 @@ function M.clear(shared)
     if not shared then return end
     shared._nav_destination = nil
     shared._nav_engage_dest = nil
+    shared._nav_engage_sq = nil
     shared._nav_unit_dest = nil
     shared._nav_unit_dest_key = nil
+end
+
+-- ============================================================================
+-- Producer API — the only way production code sets or drops a destination
+-- ============================================================================
+--
+-- A destination is more than coordinates: whether it is a place or a live unit, and whether the
+-- walk should stop short of it at a stand-off, are read back by nav_state from the three
+-- descriptor fields. Writing `_nav_destination` alone leaves those fields holding whatever the
+-- LAST destination said — how a stand-off leaked across destinations (a plain waypoint inheriting
+-- the previous fight's stop range and never being walked to, an engagement inheriting nothing and
+-- walking onto the mob). The two producers pair the destination with its descriptors in one call,
+-- so a producer that intends to fight at a point cannot write the destination without saying how
+-- it should be approached.
+
+--- Set a plain destination: a place to walk to (waypoint, corpse, quest object, NPC spawn,
+--- flight master, retreat point). Places do not move and are not stopped short of, so the
+--- descriptor fields are cleared — a previous destination's live-unit link or stand-off must not
+--- ride along. `nil` drops the destination entirely.
+--- @param shared table Shared state variables
+--- @param point table|nil vec3
+function M.point(shared, point)
+    if not shared then return end
+    shared._nav_destination = point
+    shared._nav_unit_dest = nil
+    shared._nav_unit_dest_key = nil
+    shared._nav_engage_dest = nil
+    shared._nav_engage_sq = nil
+end
+
+--- Set an engagement destination: a unit (or approachable object) to close on, with the stand-off
+--- at which the walk should stop. The stand-off rides on the destination by construction — a
+--- fight destination and its "stop at range" are one decision, so they are one call.
+--- `unit` records the live link nav_state follows (position refresh, gone-stop); a static
+--- approachable (a quest object, a spawn point) passes nil and keeps the stand-off without a
+--- follow link. `stand_off_sq` nil means walk all the way in (melee-style closing).
+--- @param shared table Shared state variables
+--- @param unit table|nil game_object the destination follows, nil for a static point
+--- @param point table vec3 to walk toward
+--- @param stand_off_sq number|nil squared yards to stop short at, nil = walk in
+function M.engage(shared, unit, point, stand_off_sq)
+    if not shared or not point then return end
+    shared._nav_destination = point
+    shared._nav_unit_dest = unit
+    shared._nav_unit_dest_key = (unit and point) or nil
+    shared._nav_engage_dest = (stand_off_sq and point) or nil
+    shared._nav_engage_sq = stand_off_sq
+end
+
+--- Drop ONLY the engagement descriptors, keeping the destination itself. For the nav_state sites
+--- that end an engagement without replacing the destination (stand-off arrival, unit gone): the
+--- fields must not survive to describe a destination that has no fight attached.
+--- @param shared table|nil Shared state variables
+function M.clear_engagement(shared)
+    if not shared then return end
+    shared._nav_unit_dest = nil
+    shared._nav_unit_dest_key = nil
+    shared._nav_engage_dest = nil
+    shared._nav_engage_sq = nil
+end
+
+--- Replace the destination's table while keeping every link that pointed at the old one. nav_state's
+--- Z-fallback rewrites the destination in place (the same place, corrected Z); the stand-off and
+--- the live-unit key are matched on table identity, so a plain reassignment would silently drop
+--- them — the client walks onto the mob and the follow stops refreshing. Only descriptors pointing
+--- AT the old table are re-pointed; one belonging to something else is left alone.
+--- @param shared table Shared state variables
+--- @param old_point table|nil vec3 the table being replaced
+--- @param new_point table vec3 replacement
+function M.repoint(shared, old_point, new_point)
+    if not shared or not new_point then return end
+    shared._nav_destination = new_point
+    if shared._nav_engage_dest == old_point then
+        shared._nav_engage_dest = new_point
+    end
+    if shared._nav_unit_dest_key == old_point then
+        shared._nav_unit_dest_key = new_point
+    end
 end
 
 -- ============================================================================
