@@ -564,6 +564,20 @@ local function nav_destination()
     return _nav_destination
 end
 
+-- The approach rule: a fight range at or below melee reach is not a stand-off — the class swings
+-- on contact, so its walk goes all the way in; above it the class fights from range and stops at
+-- that range. One rule, here, so no lane restates the threshold.
+local MELEE_REACH_SQ = 9
+
+--- The stand-off an approach walk carries: the fight range itself for a class that fights from
+--- range, nothing (walk all the way in) for one that swings in melee.
+--- @param approach_sq number|nil squared distance the fight is approached for
+--- @return number|nil stand_off_sq
+local function stand_off_for(approach_sq)
+    if not approach_sq then return nil end
+    return approach_sq > MELEE_REACH_SQ and approach_sq or nil
+end
+
 --- May this fight start — and if so, open it.
 ---
 --- The one door between "there is a hostile" and "the bot commits to it": the gate has the first
@@ -576,8 +590,10 @@ end
 --- opts (all optional):
 ---   objects, limit   passed through to the gate's crowd scan, when the caller already holds them
 ---   dist_sq          the caller's own distance measurement, when it is fresher than a re-read
----   approach_sq      squared distance beyond which this fight is approached, not opened
----   stand_off_sq     what the approach walk carries as its stand-off (nil = walk all the way in)
+---   approach_sq      squared distance beyond which this fight is approached, not opened; the
+---                    walk's stand-off is derived from it (the range the fight is held at)
+---   stand_off_sq     explicit stand-off override; nil derives it from approach_sq, and a melee
+---                    range closes all the way in
 ---
 --- @param ctx table Per-tick context
 --- @param shared table Shared state variables
@@ -614,7 +630,12 @@ function M.engage(ctx, shared, enemy, opts)
     if out_of_range and ok_pos and enemy_pos then
         local nd = nav_destination()
         if nd then
-            nd.engage(shared, enemy, enemy_pos, opts.stand_off_sq)
+            -- The stand-off is derived, not restated: the walk stops at the range the fight is
+            -- approached for, and a melee range closes all the way in. An explicit stand_off_sq
+            -- still wins, so a genuinely different approach stays expressible.
+            local stand_off_sq = opts.stand_off_sq
+            if stand_off_sq == nil then stand_off_sq = stand_off_for(opts.approach_sq) end
+            nd.engage(shared, enemy, enemy_pos, stand_off_sq)
             walked = true
         end
     end
@@ -626,6 +647,22 @@ function M.engage(ctx, shared, enemy, opts)
         out_of_range = out_of_range,
         walked = walked,
     }
+end
+
+--- Close to melee and swing: the walk-in half of the approach rule, named here so a lane that
+--- means "no stand-off" says so through this module instead of passing a bare nil at the nav
+--- owner. The nav owner's nil convention is what this expresses (test_nav_destination_ownership
+--- S3 pins it); the band half is derived by M.engage.
+--- @param shared table Shared state variables
+--- @param enemy game_object|nil the live unit being closed on
+--- @param point table|nil vec3 where it stands, as the caller measured it
+--- @return boolean closed true when the walk was issued
+function M.close_in(shared, enemy, point)
+    if not (shared and point) then return false end
+    local nd = nav_destination()
+    if not nd then return false end
+    nd.engage(shared, enemy, point, nil)
+    return true
 end
 
 return M

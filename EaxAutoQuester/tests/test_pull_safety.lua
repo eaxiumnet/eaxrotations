@@ -1018,5 +1018,141 @@ do
     print("  P14 PASS: would_refuse answers without a hold, a retreat, a notice or a wait clock")
 end
 
+-- =============================================================================
+-- P15 — the approach rule: one owner derives the stand-off; a lane only says the range
+-- =============================================================================
+-- The stand-off used to be restated at every fight site as `engage_sq > 9 and engage_sq or nil`,
+-- and one of those restatements drifted. It is derived now, once, from the range the fight is
+-- approached for: a range beyond melee reach IS the stand-off, a melee range walks all the way
+-- in. The walk-in intent has a name of its own (close_in), so no lane passes a bare nil at the
+-- nav owner for a fight either.
+
+do
+    --- The per-tick context with real geometry (the shared ctx_for carries no utils).
+    local function with_utils(ctx)
+        ctx.utils = { squared_distance = function(a, b)
+            local dx, dy = (a.x or 0) - (b.x or 0), (a.y or 0) - (b.y or 0)
+            return dx * dx + dy * dy
+        end }
+        return ctx
+    end
+
+    pull_safety.reset()
+    _visible = {}
+    _time = 40000
+    local me = player({ pos = { x = 0, y = 0, z = 0 }, hp = 1000, max_hp = 1000,
+                        mana = 900, max_mana = 1000 })
+    local enemy = mob({ pos = { x = 30, y = 0, z = 0 } })          -- 30yd away
+    _visible = { enemy }
+
+    -- A caster band (28yd == 784): the walk stops at the range it was approached for.
+    local shared = fresh_shared()
+    local eng = pull_safety.engage(with_utils(ctx_for({ me = me })), shared, enemy,
+        { approach_sq = 784 })
+    assert(eng ~= nil and eng.walked == true and eng.out_of_range == true,
+        "P15a FAIL: 30yd is outside a 28yd band — the approach walk must be issued")
+    assert(shared._nav_destination ~= nil and shared._nav_unit_dest == enemy,
+        "P15a FAIL: the walk must go through the nav owner, linked to the unit")
+    assert(shared._nav_engage_sq == 784,
+        "P15a FAIL: the stand-off must be the approach range (got "
+        .. tostring(shared._nav_engage_sq) .. ")")
+
+    -- A melee band (3yd == 9): the same ask walks all the way in, no stand-off.
+    pull_safety.reset()
+    _time = 40100
+    shared = fresh_shared()
+    eng = pull_safety.engage(with_utils(ctx_for({ me = me })), shared, enemy,
+        { approach_sq = 9 })
+    assert(eng ~= nil and eng.walked == true and eng.out_of_range == true,
+        "P15b FAIL: a melee band still approaches the fight")
+    assert(shared._nav_destination ~= nil and shared._nav_unit_dest == enemy,
+        "P15b FAIL: the walk must still be linked to the unit it closes on")
+    assert(shared._nav_engage_sq == nil,
+        "P15b FAIL: a melee range must close all the way in (got "
+        .. tostring(shared._nav_engage_sq) .. ")")
+
+    -- An explicit stand-off still wins, so a genuinely different approach stays expressible.
+    pull_safety.reset()
+    _time = 40200
+    shared = fresh_shared()
+    pull_safety.engage(with_utils(ctx_for({ me = me })), shared, enemy,
+        { approach_sq = 784, stand_off_sq = 100 })
+    assert(shared._nav_engage_sq == 100,
+        "P15c FAIL: an explicit stand-off must override the derived one (got "
+        .. tostring(shared._nav_engage_sq) .. ")")
+
+    -- close_in(): the walk-in intent, named.
+    pull_safety.reset()
+    _time = 40300
+    shared = fresh_shared()
+    assert(pull_safety.close_in(shared, enemy, enemy:get_position()) == true,
+        "P15d FAIL: close_in must report whether the walk was issued")
+    assert(shared._nav_destination ~= nil and shared._nav_unit_dest == enemy,
+        "P15d FAIL: closing in walks to the unit it is linked to")
+    assert(shared._nav_engage_sq == nil,
+        "P15d FAIL: closing in carries no stand-off — it walks all the way in")
+
+    -- P15e: and no lane can restate the rule again. A `stand_off_sq = ...` argument outside the
+    -- owner is exactly the drift this pass removed; the detector is proven on samples first, so a
+    -- broken matcher cannot pass by finding nothing. Read-only source scan.
+    local function restatements(src)
+        src = src:gsub("%-%-%[%[.-%]%]", "")          -- block comments
+        src = src:gsub("%-%-[^\n]*", "")              -- line comments
+        local hits = {}
+        for line in src:gmatch("[^\n]+") do
+            if not line:find("local stand_off_sq", 1, true)
+                and line:find("stand_off_sq%s*=%s*[^=]") then
+                hits[#hits + 1] = line
+            end
+        end
+        return hits
+    end
+    assert(#restatements("e(ctx, shared, e, { approach_sq = 784, stand_off_sq = 784 })") == 1,
+        "P15e FAIL: the detector must catch a restated stand-off argument")
+    assert(#restatements("local stand_off_sq = opts.stand_off_sq\n"
+        .. "nd.engage(shared, enemy, p, stand_off_sq)") == 0,
+        "P15e FAIL: the owner's own local must not read as a restatement")
+
+    local ok_lfs, lfs = pcall(require, "lfs")
+    assert(ok_lfs and lfs and lfs.dir,
+        "P15e FAIL: lfs is required — a partial scan of production must not be able to pass")
+    local ROOT = nil
+    for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
+        local f = io.open(prefix .. "main.lua", "r")
+        if f then f:close(); ROOT = prefix; break end
+    end
+    assert(ROOT, "P15e FAIL: EaxAutoQuester root not found (expected main.lua)")
+    local scanned, offenders = 0, {}
+    local function walk(dir)
+        for entry in lfs.dir(dir) do
+            if entry ~= "." and entry ~= ".." then
+                local path = dir .. "/" .. entry
+                local mode = lfs.attributes(path, "mode")
+                if mode == "directory" then
+                    if entry ~= "tests" and entry ~= "docs" then walk(path) end
+                elseif entry:match("%.lua$") and not entry:match("^_") then
+                    local rel = path:sub(#ROOT + 1)
+                    if rel ~= "shared/pull_safety.lua" then
+                        local f = io.open(path, "r")
+                        if f then
+                            local hits = restatements(f:read("*a") or "")
+                            f:close()
+                            scanned = scanned + 1
+                            if #hits > 0 then offenders[#offenders + 1] = rel .. ": " .. hits[1] end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    walk(ROOT:sub(1, #ROOT - 1))
+    assert(scanned >= 40,
+        "P15e FAIL: the scan must cover production (scanned " .. scanned .. " files)")
+    assert(#offenders == 0,
+        "P15e FAIL: only the owner may state a stand-off — got " .. tostring(offenders[1] or ""))
+    print("  P15 PASS: the stand-off is derived from the approach range; walk-in has a name; "
+        .. "no lane restates it (" .. scanned .. " production files scanned)")
+end
+
 print("PASS test_pull_safety")
 os.exit(0)

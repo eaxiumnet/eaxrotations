@@ -255,13 +255,6 @@ do
         and shared._nav_engage_dest == nil and shared._nav_engage_sq == nil,
         "S3 FAIL: engage(stand_off_sq=nil) must mean walk-in, not a stale stand-off")
 
-    -- clear_engagement(): drops the descriptors, keeps the destination.
-    nav_destination.clear_engagement(shared)
-    assert(shared._nav_destination == p, "S3 FAIL: clear_engagement() must keep the destination")
-    assert(shared._nav_unit_dest == nil and shared._nav_unit_dest_key == nil
-        and shared._nav_engage_dest == nil and shared._nav_engage_sq == nil,
-        "S3 FAIL: clear_engagement() must drop every descriptor")
-
     -- repoint(): the Z-fallback rewrite keeps every link that pointed AT the old table, and
     -- only those — a descriptor belonging to something else must not be stolen.
     shared = {}

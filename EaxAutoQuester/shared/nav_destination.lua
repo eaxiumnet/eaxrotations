@@ -30,8 +30,8 @@
 --        (_pull_warned_at / _pull_overwait_at) — they are not navigation state.
 -- NOTE:   Production code sets a destination only through this module's API: point() for a
 --        place, engage() for a fight (the stand-off is by construction, not an opt-in pairing
---        each call site must remember), repoint() for nav_state's Z-fallback rewrite, clear() /
---        clear_engagement() for dropping. tests/test_nav_destination_ownership.lua fails if any
+--        each call site must remember), repoint() for nav_state's Z-fallback rewrite, and clear()
+--        for dropping. tests/test_nav_destination_ownership.lua fails if any
 --        production file writes these fields directly anywhere else.
 
 local M = {}
@@ -136,18 +136,6 @@ function M.engage(shared, unit, point, stand_off_sq)
     shared._nav_unit_dest_key = (unit and point) or nil
     shared._nav_engage_dest = (stand_off_sq and point) or nil
     shared._nav_engage_sq = stand_off_sq
-end
-
---- Drop ONLY the engagement descriptors, keeping the destination itself. For the nav_state sites
---- that end an engagement without replacing the destination (stand-off arrival, unit gone): the
---- fields must not survive to describe a destination that has no fight attached.
---- @param shared table|nil Shared state variables
-function M.clear_engagement(shared)
-    if not shared then return end
-    shared._nav_unit_dest = nil
-    shared._nav_unit_dest_key = nil
-    shared._nav_engage_dest = nil
-    shared._nav_engage_sq = nil
 end
 
 --- Replace the destination's table while keeping every link that pointed at the old one. nav_state's

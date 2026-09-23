@@ -395,10 +395,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 -- The one checkpoint: gate first, and on a pass the approach walk — the walk to
                 -- the fight IS part of the engage — issued inside it, through the nav owner.
                 local engage_sq = engage_sq_for(ctx)
-                local eng = pull_safety.engage(ctx, shared, enemy, {
-                    approach_sq = engage_sq,
-                    stand_off_sq = engage_sq > 9 and engage_sq or nil,
-                })
+                local eng = pull_safety.engage(ctx, shared, enemy, { approach_sq = engage_sq })
                 if not eng then return true end
                 -- Enemy found — clear any respawn wait and engage
                 shared._respawn_wait_until = 0
@@ -422,7 +419,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 -- every class did before.
                 if pull_at_range(ctx, enemy, engage_sq) then return true end
                 if dist_sq > 9 then
-                    nav_destination.engage(shared, enemy, eng.enemy_pos, nil)
+                    pull_safety.close_in(shared, enemy, eng.enemy_pos)
                     ctx.debug_log("DO_ACTION: kill — closing to melee, no ranged attack (" ..
                         tostring(math.floor(math.sqrt(dist_sq))) .. "yd)")
                     return false
@@ -894,7 +891,6 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             limit = limit,
                             dist_sq = best_enemy_sq,          -- the scan's own fresh measurement
                             approach_sq = engage_sq,
-                            stand_off_sq = engage_sq > 9 and engage_sq or nil,
                         })
                         if not eng then return true end
                         local dist_yds = math.floor(math.sqrt(best_enemy_sq))
@@ -910,7 +906,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             return true
                         elseif best_enemy_sq > 9 then
                             if eng.enemy_pos then
-                                nav_destination.engage(shared, best_enemy, eng.enemy_pos, nil)
+                                pull_safety.close_in(shared, best_enemy, eng.enemy_pos)
                                 ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" .. tostring(dist_yds) .. "yd)")
                                 return false
                             end
@@ -1081,10 +1077,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 -- made it the widest door for fighting on an empty bar. Now the one checkpoint:
                 -- the gate decides, the approach walk (if needed) is the engage.
                 local engage_sq = engage_sq_for(ctx)
-                local eng = pull_safety.engage(ctx, shared, enemy, {
-                    approach_sq = engage_sq,
-                    stand_off_sq = engage_sq > 9 and engage_sq or nil,
-                })
+                local eng = pull_safety.engage(ctx, shared, enemy, { approach_sq = engage_sq })
                 if not eng then return true end
                 -- Positions unanswerable: the old shape fell through to the 5s area wait below.
                 -- Deliberately no longer sleeping here — nothing was walked, nothing attacked,
@@ -1097,7 +1090,7 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 end
                 if pull_at_range(ctx, enemy, engage_sq) then return true end
                 if eng.dist_sq > 9 then
-                    nav_destination.engage(shared, enemy, eng.enemy_pos, nil)
+                    pull_safety.close_in(shared, enemy, eng.enemy_pos)
                     ctx.debug_log("DO_ACTION: area — closing to melee, no ranged attack (" ..
                         tostring(math.floor(math.sqrt(eng.dist_sq))) .. "yd)")
                     return false
