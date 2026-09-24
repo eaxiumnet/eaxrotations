@@ -8,7 +8,11 @@
 --        silently fails on a clean checkout -- the exact gap class that
 --        broke the 5 rotation suites (see
 --        docs/rotation_suite_env_gap_triage_2026-08-08.md). This probe
---        turns that class into a hard CI failure.
+--        turns that class into a hard CI failure. require() spells a module
+--        name WITHOUT its .lua suffix, so an extension-less module literal
+--        resolved to no file and was silently skipped; the .lua sibling is
+--        now tried as well, so an untracked module a test requires is caught
+--        exactly like an untracked file read.
 -- WHEN:  invoked via lua EaxRotations/tests/run_clean_checkout_probe.lua
 --        (standalone) or as a component of run_verify_all.lua.
 -- EXIT:  0 = all read targets tracked or self-provisioning (prints [PASS]);
@@ -78,16 +82,38 @@ local function strip_trailing_sep(p)
     return (p:gsub("[/\\]+$", ""))
 end
 
+-- ---------------------------------------------------------------------------
+-- Module-name resolution (a require() carries no .lua suffix)
+-- ---------------------------------------------------------------------------
+-- A literal only reaches the report as a clean-checkout risk when it resolves
+-- to a real file, so "shared/bar" or "classes/x/y/z" resolved to nothing and
+-- was skipped: a test requiring an untracked module passed locally and failed
+-- on a clean checkout, which is this probe's entire reason to exist. Try the
+-- .lua sibling too, and let is_tracked use the SAME spelling list, so the
+-- "exists but untracked" decision is made about one and the same file. Uniform
+-- across every namespace: when the priest helper was untracked this probe and
+-- run_module_enrollment_probe.lua each named it, and that is two independent
+-- invariants rather than double-reporting noise.
+local function module_spellings(path)
+    if path:match("%.lua$") then return { path } end
+    return { path, path .. ".lua" }
+end
+
 -- A path is trackable only if it is actually listed by git ls-files.
 -- canonical(path) rewrites EaxRotations-cwd spellings ("shared/x.lua" ->
 -- "EaxRotations/shared/x.lua") for tests that read relative to EaxRotations/;
 -- but repo-root spellings ("tools/evidence/apl/fire_wotlk.apl.json") must
 -- match the tracked set as-is, so check BOTH forms. (The repo historically
 -- tracked only EaxRotations/ + README.md; tools/evidence/ is now tracked too,
--- which is exactly why the raw form must not be canonicalized away.)
+-- which is exactly why the raw form must not be canonicalized away.) The
+-- .lua sibling is consulted after the literal's own spellings, so a
+-- fully-suffixed path resolves exactly as before.
 local function is_tracked(path)
     local raw = path:gsub("\\", "/"):gsub("^%./", "")
-    return TRACKED[canonical(path)] or TRACKED[raw] or false
+    for _, spelling in ipairs(module_spellings(raw)) do
+        if TRACKED[canonical(spelling)] or TRACKED[spelling] then return true end
+    end
+    return false
 end
 
 -- ---------------------------------------------------------------------------
@@ -143,6 +169,16 @@ local function exists_on_disk(path)
     if path:sub(1, 3) == "../" then
         candidates[#candidates + 1] = path:sub(4)
     end
+    -- Extension-less module names get their .lua sibling added here, so an
+    -- untracked module a test requires reports the same way an untracked file
+    -- read does (see module_spellings + the single-signal guard above).
+    local expanded = {}
+    for _, cand in ipairs(candidates) do
+        for _, spelling in ipairs(module_spellings(cand)) do
+            expanded[#expanded + 1] = spelling
+        end
+    end
+    candidates = expanded
     for _, cand in ipairs(candidates) do
         -- Only a regular FILE is a clean-checkout risk.  Directory fragments
         -- (e.g. "classes/" / "EaxRotations/" from `root .. "/" .. file`
@@ -215,7 +251,26 @@ local function run_self_tests()
     expect(is_tracked("EaxRotations/classes/") == false, "directory fragment must not be tracked")
     expect(is_self_provisioning(".omo/evidence/x.json") == true, ".omo evidence must be self-provisioning")
 
-    print("[PASS] run_clean_checkout_probe self-tests: dir-vs-file (POSIX regression guard), real-file detection, missing-path handling, tracked-set + self-provisioning classification")
+    -- 6. Module-name resolution: an extension-less require() must resolve to a
+    --    real file, and agree with is_tracked on the SAME spelling, so the
+    --    tracked set stays silent instead of false-flagging every module.
+    local own_module = "EaxRotations/tests/run_clean_checkout_probe"
+    expect(exists_on_disk(own_module) == true,
+        "extension-less module name must resolve to its .lua sibling")
+    expect(is_tracked(own_module) == true,
+        "a tracked module resolved by its .lua sibling must stay silent")
+    -- 7. The path this probe exists for: a real module that is NOT tracked must
+    --    be flagged. Simulated in the tracked set (no writes) so the pin cannot
+    --    go stale when the helper/whatever it names is eventually committed.
+    local saved_entry = TRACKED[own_module .. ".lua"]
+    TRACKED[own_module .. ".lua"] = nil
+    local would_flag = exists_on_disk(own_module) and not is_tracked(own_module)
+        and not is_self_provisioning(own_module)
+    TRACKED[own_module .. ".lua"] = saved_entry
+    expect(would_flag == true,
+        "an untracked module required by a test must be flagged (forgotten git add)")
+
+    print("[PASS] run_clean_checkout_probe self-tests: dir-vs-file (POSIX regression guard), real-file detection, missing-path handling, tracked-set + self-provisioning classification, and extension-less module resolution (resolves, stays silent when tracked, flags when untracked)")
     return 0
 end
 

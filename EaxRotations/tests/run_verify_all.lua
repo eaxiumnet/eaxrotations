@@ -27,7 +27,10 @@
 --        (run_clean_checkout_probe.lua -- flags any test file-read target
 --        that resolves to a gitignored file instead of a tracked or
 --        self-provisioning path, so the 5-suite env-gap class can never
---        silently return); parses each runner's own totals instead of
+--        silently return), and the shipped-module enrollment probe (every .lua
+--        under shared/ and below classes/<class>/<subdir>/ must be
+--        git-tracked, the nested ones required, so a forgotten `git add`
+--        cannot reach CI green); parses each runner's own totals instead of
 --        trusting exit codes (the rotation runner exits 0 even when suites
 --        fail).
 -- WHEN:  invoked via lua EaxRotations/tests/run_verify_all.lua (or CI).
@@ -718,6 +721,30 @@ local components = {
         cmd = "lua " .. R .. "/run_clean_checkout_probe.lua --self-test",
         check = function(c)
             return { { "self-test [PASS] marker present (POSIX dir-vs-file guard)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    -- Shipped-module enrollment probe: every .lua under shared/ and every .lua
+    -- nested under classes/<class>/<subdir>/ (the depth behavioral_audit's
+    -- one-level era scan cannot see) must be in the git INDEX, and the nested
+    -- ones must additionally be required by a tracked file. The artifact is
+    -- `git archive HEAD` filtered to tracked lua/md, so a forgotten `git add`
+    -- drops the module from what users download while every local suite stays
+    -- green; and no era manifest sees either scope, since they enumerate
+    -- *_<era>.lua one level below classes/ only.
+    {
+        label = "module enrollment probe",
+        cmd = "lua " .. R .. "/run_module_enrollment_probe.lua",
+        check = function(c)
+            return { { "no untracked/unenrolled shipped modules ([PASS] marker present)",
+                       c:find("[PASS]", 1, true) ~= nil } }
+        end,
+    },
+    {
+        label = "module enrollment probe self-test",
+        cmd = "lua " .. R .. "/run_module_enrollment_probe.lua --self-test",
+        check = function(c)
+            return { { "self-test [PASS] marker present (UNTRACKED / UNENROLLED fire)",
                        c:find("[PASS]", 1, true) ~= nil } }
         end,
     },

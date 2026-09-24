@@ -27,6 +27,9 @@
 #      wotlk --self-test modes — pinned-rank enforcement, CI parity)
 #  13. Clean-checkout dependency probe + self-test (untracked test-read
 #      targets; the env-gap class that failed only in CI)
+#  13b. Shipped-module enrollment probe + self-test (every .lua under shared/
+#      and below classes/<class>/<subdir>/ must be git-tracked, the nested ones
+#      required -- the release-zip packaging gap; no era manifest sees either)
 #  14. Version-consistency audit (header.lua plugin version == CHANGELOG top
 #      release) + self-test, plus the release-staleness guard's OFFLINE
 #      self-test (tools/release_staleness_check.lua — the guard's live remote
@@ -360,6 +363,21 @@ fi
 
 if ! "$LUA" EaxRotations/tests/run_clean_checkout_probe.lua --self-test 2>&1; then
     echo "[pre-commit] Clean-checkout probe self-test FAILED. Commit aborted."
+    exit 1
+fi
+
+# 13b. Shipped-module enrollment probe + self-test. Sibling concern to step 13:
+#      that probe proves every file a test READS ships; this one proves every
+#      shipped runtime module is tracked (and the nested ones wired).
+if ! "$LUA" EaxRotations/tests/run_module_enrollment_probe.lua 2>&1; then
+    echo "[pre-commit] Module enrollment probe FAILED. Commit aborted."
+    echo "[pre-commit] `git add` the flagged module, or require it from a tracked file."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+if ! "$LUA" EaxRotations/tests/run_module_enrollment_probe.lua --self-test 2>&1; then
+    echo "[pre-commit] Module enrollment probe self-test FAILED. Commit aborted."
     exit 1
 fi
 
