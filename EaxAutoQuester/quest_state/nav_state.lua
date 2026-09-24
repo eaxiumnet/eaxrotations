@@ -229,7 +229,9 @@ function M.run(shared, ctx)
 
     -- Continuous side scan: pre-tag the current goal's quest NPC while walking
     -- (every 1.5s). Starts the fight on arrival instead of after a target scan,
-    -- and the interact half covers NPCs that are reachable without combat.
+    -- and the friendly interact half is limited to the same fixed 5yd gate as
+    -- DO_ACTION. The wider 50yd scan remains a targeting/search radius, not an
+    -- interaction permission.
     -- (Ported: docs/phase1_port_list.md item 6. The monolith re-checked combat
     -- here; by this point the handler has already returned IDLE for combat, so
     -- the check is structurally impossible and is omitted.)
@@ -259,12 +261,28 @@ function M.run(shared, ctx)
                                 -- Asked DRY (would_refuse): a walk already under way must not be
                                 -- turned around because the bot passes a mob it would not have
                                 -- chosen to fight. Refusing here means only "do not tag it".
-                                if hostile_to_me(ctx, nearest)
+                                local hostile = hostile_to_me(ctx, nearest)
+                                if hostile
                                     and pull_safety.would_refuse(ctx, nearest) then
                                     break
                                 end
                                 pcall(core.input.set_target, nearest)
-                                pcall(core.input.interact_with_object, nearest)
+                                if hostile then
+                                    -- Hostile pre-tag behavior is unchanged: this interaction is
+                                    -- the existing combat opener, bounded by the combat scan.
+                                    pcall(core.input.interact_with_object, nearest)
+                                else
+                                    -- A friendly NPC may be selected by the 50yd search, but
+                                    -- interaction is still an in-range action. Do not dispatch
+                                    -- it remotely while the walk is still in progress.
+                                    local me_pos_ok, me_pos = pcall(unit_get_position, ctx.me)
+                                    local npc_pos_ok, npc_pos = pcall(unit_get_position, nearest)
+                                    if me_pos_ok and npc_pos_ok and me_pos and npc_pos
+                                        and ctx.utils and ctx.utils.squared_distance
+                                        and ctx.utils.squared_distance(me_pos, npc_pos) <= 25 then
+                                        pcall(core.input.interact_with_object, nearest)
+                                    end
+                                end
                                 break
                             end
                         end

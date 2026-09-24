@@ -12,7 +12,7 @@
 | 6 | **AQ-P1-4** | Specify and wire the retained-failure policy without quest abandonment. | Blacklist/progress integration tests. |
 | 7 | **AQ-P2-1** | Correct transport locality and remove cross-map service fallback. | NPC database and transport path tests. |
 | 8 | **AQ-P2-2** | Pin the selected inventory object's client ID and distinguish issued use from successful use. | Real DO_ACTION quest-item identity/result tests. |
-| 9 | **AQ-P2-3** | Make interact range authoritative or remove the control. | Menu/NPC-manager distance tests. |
+| 9 | **AQ-P2-3** | Keep the removed control gone and align every friendly interaction dispatch site to the fixed 5yd gate; preserve hostile combat and search policies. | Real DO_ACTION, NAV, and IDLE boundary tests plus menu-removal tests. |
 | 10 | **AQ-P2-4** | Preserve and use step text in dungeon filtering. | Dungeon detector/goal-filter matrix. |
 | 11 | **AQ-P2-5** | Wire or remove the unused anti-detection members. | Production-call and allocation tests. |
 | 12 | **AQ-P2-6** | Make equipment classification deterministic and slot-aware. | Equipment-comparison and reward tests. |
@@ -27,7 +27,7 @@
 - [x] AQ-P1-4 — failure policy
 - [x] AQ-P2-1 — transport locality
 - [x] AQ-P2-2 — quest-item identity and result tracking
-- [ ] AQ-P2-3 — interact range
+- [x] AQ-P2-3 — interact range
 - [ ] AQ-P2-4 — dungeon step evidence
 - [ ] AQ-P2-5 — anti-detection scope
 - [ ] AQ-P2-6 — equipment comparison
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P2-3 — interact range — is next. It must make the rendered interaction-range setting authoritative, or remove the control, and prove the setting-to-distance behavior through the existing menu/NPC-manager surface.
+AQ-P2-4 — dungeon step evidence — is next. It must preserve and use step text in dungeon filtering, then prove both goal-text and step-text decisions through the production caller with a goal-filter test matrix.

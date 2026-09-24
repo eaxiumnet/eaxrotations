@@ -37,6 +37,7 @@ local function unit_is_channelling(u) return u:is_channelling_spell() end
 local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_target(u) return u:get_target() end
 local function unit_can_attack(u, other) return u:can_attack(other) end
+local function unit_is_unit(u) return u:is_unit() end
 local function unit_get_position(u) return u:get_position() end
 
 -- Resolve transport against the live player context. Keeping the map and position at
@@ -746,15 +747,24 @@ function M.run(shared, ctx)
                         if (opos.z or 0) == 0 and pos and pos.z then
                             opos = { x = opos.x, y = opos.y, z = pos.z }
                         end
-                        -- Stop where this class fights from, not at melee range: combat_helper owns
-                        -- the band (28yd for a caster, 3yd for everyone else). The band rides along
-                        -- as the destination's stand-off so nav_state stops the walk there.
+                        -- Hostile objectives keep combat_helper's class band (28yd for a
+                        -- caster, 3yd for melee). Friendly units and game objects keep
+                        -- the fixed 5yd interaction gate instead: a caster's combat band
+                        -- must not make a friendly quest object look ready for DO_ACTION.
+                        local is_hostile = false
+                        local ok_unit, is_unit = pcall(unit_is_unit, best_obj)
+                        if ok_unit and is_unit then
+                            local ok_attack, can_attack = pcall(unit_can_attack, best_obj, ctx.me)
+                            is_hostile = ok_attack and can_attack == true
+                        end
                         local in_range_sq = 25
-                        local ch = ctx.combat_helper
-                        if ch and ch.engage_distance_sq then
-                            local ok_band, band = pcall(ch.engage_distance_sq, ctx.me)
-                            if ok_band and type(band) == "number" and band > 0 then
-                                in_range_sq = band
+                        if is_hostile then
+                            local ch = ctx.combat_helper
+                            if ch and ch.engage_distance_sq then
+                                local ok_band, band = pcall(ch.engage_distance_sq, ctx.me)
+                                if ok_band and type(band) == "number" and band > 0 then
+                                    in_range_sq = band
+                                end
                             end
                         end
                         if best_dist_sq <= in_range_sq then
@@ -763,6 +773,9 @@ function M.run(shared, ctx)
                                 "' in range (" .. tostring(math.floor(math.sqrt(best_dist_sq))) ..
                                 "yd) - skip NAV")
                         else
+                            -- Preserve the existing NAV stand-off mechanism. For a friendly
+                            -- objective in_range_sq is now the fixed 25 squared (5yd), not
+                            -- the caster's combat band; hostiles keep their combat stand-off.
                             nav_destination.engage(shared, nil, opos,
                                 in_range_sq > 9 and in_range_sq or nil)
                             ctx.debug_log("IDLE: objective-first '" .. tostring(goal_target) ..

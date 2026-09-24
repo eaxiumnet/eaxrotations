@@ -101,7 +101,17 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `quest_item_manager_sylvanas.lua` and `tests/test_do_action_state.lua` AQ-P2-2 S1-S3; the existing S12a direct fallback regression remains green.
 
 ### AQ-P2-3 — Interact range
-Make the rendered interaction range setting authoritative, or remove it; acceptance is a setting-to-distance test.
+**Status: complete (2026-09-24).** AQ-P1-1 had already removed the decorative `interact_range` row, and remeasurement confirmed that no current menu or production setting reader remained. The final policy is one honest friendly-dispatch gate: **within 5yd (25 squared)**. The named/Questie/NPC-id area paths already used 25. The remaining friendly gaps were the talk/gossip path (36 squared), the visible-object area fallback (a 25yd search radius with no second interaction gate), NAV's 50yd en-route pre-tag (which interacted regardless of distance), and IDLE's objective-first scan (which could apply a caster's 28yd combat band to a friendly objective). Each gap now gates only friendly interaction; hostile combat engagement, pull safety, scan radii, and combat routing remain separate policies.
+
+**Acceptance criteria met:**
+- `interact_range` remains absent from the created and rendered menu; no replacement setting, control, or production reader was added.
+- The real DO_ACTION talk path interacts at 4yd and routes a named quest NPC at 5.1yd to NAV without a remote interaction.
+- The real DO_ACTION visible-object fallback still searches 25yd, but now routes a friendly NPC at 20yd with the fixed 5yd stand-off and still interacts at 4yd.
+- The real NAV pre-tag still targets a friendly NPC during its 50yd search, but only calls `interact_with_object` at 4/4.1yd; 5.1yd is refused. Hostile pre-tag behavior at its existing combat scan remains covered.
+- The real IDLE objective-first path uses the fixed 5yd gate for friendly units and game objects, while priest hostile P5/P6 behavior and their 28yd combat stand-off remain unchanged.
+- Wider 25/50/80/100yd values remain search or combat policies; they are not interaction permissions. No behavior inside the fixed 5yd friendly gate was removed.
+
+**Proving surface:** `quest_state/do_action_state.lua` and `tests/test_do_action_state.lua` P9a-P9c and S30; `quest_state/nav_state.lua` and `tests/test_nav_state.lua` N6/N6a-N6c/N16; `quest_state/idle_state.lua` and `tests/test_idle_state.lua` P1c-P1d plus the existing hostile P4-P7 contract; alongside the AQ-P1-1 menu-removal contract in `tests/test_menu_pull_gate.lua`.
 
 ### AQ-P2-4 — Dungeon step evidence
 Pass step text into dungeon filtering and prove both goal- and step-text decisions; acceptance is a goal-filter test matrix.

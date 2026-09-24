@@ -764,6 +764,45 @@ do
     print("  P1b PASS: objective-first — in-range objective → DO_ACTION (no waypoint NAV)")
 end
 
+-- P1c/P1d — a priest's combat band must not make a friendly quest object look
+-- ready for DO_ACTION. The real combat helper is used so the 28yd band is the
+-- one that previously overrode the fixed 5yd interaction gate.
+do
+    local combat_helper = require("combat_helper_sylvanas")
+    local far_node = mock.create_object({ pos = { x = 20, y = 0, z = 0 }, name = "Milly's Harvest",
+        unit = false, valid = true, guid = "priest_friendly_far" })
+    local ctx = build_goal_ctx({ type = "area", npc_id = 0, target = "Milly's Harvest" },
+        { far_node })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0 }
+    local next_state = idle_state.run(shared, ctx)
+    assert(next_state == "NAV",
+        "P1c FAIL: a friendly objective at 20yd must NAV for a priest (got " .. tostring(next_state) .. ")")
+    assert(shared._nav_destination ~= nil and math.abs(shared._nav_destination.x - 20) < 0.01,
+        "P1c FAIL: friendly objective NAV destination must be the object position")
+    assert(shared._nav_engage_sq == 25,
+        "P1c FAIL: a friendly objective must keep the fixed 5yd NAV stand-off")
+    print("  P1c PASS: priest + friendly objective at 20yd → NAV with a 5yd stand-off")
+
+    local near_node = mock.create_object({ pos = { x = 4, y = 0, z = 0 }, name = "Milly's Harvest",
+        unit = false, valid = true, guid = "priest_friendly_near" })
+    ctx = build_goal_ctx({ type = "area", npc_id = 0, target = "Milly's Harvest" },
+        { near_node }, { waypoint = { x = 100, y = 0, z = 0 } })
+    ctx.combat_helper = combat_helper
+    mock._player._class = 5   -- PRIEST
+    shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0 }
+    next_state = idle_state.run(shared, ctx)
+    assert(next_state == "DO_ACTION",
+        "P1d FAIL: a friendly objective within 5yd must hand to DO_ACTION (got " ..
+        tostring(next_state) .. ")")
+    print("  P1d PASS: priest + friendly objective within 5yd → DO_ACTION")
+end
+
 -- P2 — kill goal with a valid current target → stay IDLE (let the rotation fight)
 do
     local ctx = build_goal_ctx({ type = "kill", npc_id = 999, text = "Kill Something" }, {},

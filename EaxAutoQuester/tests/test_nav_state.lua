@@ -97,11 +97,12 @@ do
     print("  N7 PASS: navigating out of combat → random jump issued")
 end
 
--- N6 — en-route pre-tag: while walking, tag + interact the goal's quest NPC
+-- N6 — en-route pre-tag: while walking, a hostile goal NPC keeps its existing
+-- combat scan behavior (tag + interact at the 50yd scan radius).
 do
     mock.reset()
     local npc_obj = mock.create_object({ pos = { x = 20, y = 0, z = 0 }, name = "Elder Tiger",
-        unit = true, valid = true, guid = "npc_pretag" })
+        unit = true, valid = true, attackable = true, enemy = true, guid = "npc_pretag" })
     local seen_ids = nil
     local c = nav_ctx({
         -- Deterministic throttle: the intervals themselves are not under test here.
@@ -136,7 +137,55 @@ do
     end
     assert(tagged, "N6 FAIL: en-route pre-tag should set_target on the quest NPC")
     assert(interacted, "N6 FAIL: en-route pre-tag should interact_with_object on the quest NPC")
-    print("  N6 PASS: en-route pre-tag — goal NPC tagged at 50yd (target_id fallback)")
+    print("  N6 PASS: hostile en-route pre-tag — tagged/interacted at the 50yd scan (target_id fallback)")
+end
+
+-- N6a/N6b — a friendly NPC is selected by the same 50yd search, but the real
+-- interact call is only dispatched inside the fixed 5yd gate. These are NAV
+-- ticks, not helper-level distance tests.
+do
+    local function friendly_pretag_at(distance)
+        mock.reset()
+        local npc_obj = mock.create_object({
+            pos = { x = distance, y = 0, z = 0 }, name = "Marshal Dughan",
+            unit = true, valid = true, attackable = false, guid = "friendly_pretag_" .. tostring(distance),
+        })
+        local c = nav_ctx({
+            utils = { squared_distance = utils.squared_distance,
+                throttle = function() return true end },
+            zygor = {
+                has_current_step = function() return true end,
+                get_current_step_info = function()
+                    return { goals = { { is_complete = false, npc_id = 222 } } }
+                end,
+            },
+            npc_manager = {
+                find_nearest_npc = function() return npc_obj end,
+            },
+            object_scanner = { get_visible_objects = function() return { npc_obj } end },
+        })
+        local s = { _nav_retry_timer = 0, _nav_destination = { x = 500, y = 0, z = 0 } }
+        local next_state = nav_state.run(s, c)
+        local tagged, interacted = false, false
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "set_target" and call[2] == npc_obj then tagged = true end
+            if call[1] == "interact_with_object" and call[2] == npc_obj then interacted = true end
+        end
+        return next_state, tagged, interacted
+    end
+
+    local near_state, near_tagged, near_interacted = friendly_pretag_at(4)
+    assert(near_state == "NAV" and near_tagged and near_interacted,
+        "N6a FAIL: a friendly NPC inside 5yd must keep the real en-route interaction")
+
+    local inside_state, inside_tagged, inside_interacted = friendly_pretag_at(4.1)
+    assert(inside_state == "NAV" and inside_tagged and inside_interacted,
+        "N6b FAIL: a friendly NPC at 4.1yd is still inside the 5yd interaction gate")
+
+    local outside_state, outside_tagged, outside_interacted = friendly_pretag_at(5.1)
+    assert(outside_state == "NAV" and outside_tagged and not outside_interacted,
+        "N6c FAIL: a friendly NPC at 5.1yd must not receive a remote interaction")
+    print("  N6a-N6c PASS: friendly en-route interaction is limited to 5yd; targeting remains")
 end
 
 -- N4a/N4b — STUCK escalation: first retry jumps, second also taps a random turn
@@ -659,9 +708,13 @@ do
     for _, call in ipairs(mock._input_calls) do
         if call[1] == "set_target" and call[2] == giver then tagged_giver = true end
     end
-    assert(tagged_giver,
-        "N16d FAIL: a quest giver was skipped on 5% mana — the gate is about starting fights")
-    print("  N16 PASS: en-route pre-tag skips a hostile it would refuse, keeps tagging givers")
+    local interacted_giver = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "interact_with_object" and call[2] == giver then interacted_giver = true end
+    end
+    assert(tagged_giver and not interacted_giver,
+        "N16d FAIL: a friendly giver should be tagged but not interacted with at 20yd")
+    print("  N16 PASS: en-route pre-tag skips a hostile it would refuse, keeps givers un-interacted at range")
 end
 
 -- =============================================================================

@@ -533,7 +533,7 @@ end
 
 -- P9b — talk ladder rung 6: proximity fallback for a goal naming nobody
 do
-    -- 4yd: inside the 6yd interaction range, so this exercises the interact path
+    -- 4yd: inside the fixed 5yd interaction range, so this exercises the interact path
     -- of the proximity rung rather than its "navigate closer" hand-off.
     local stranger = mock.create_object({ pos = { x = 4, y = 0, z = 0 },
         name = "Generic Questgiver", npc_id = 1234, unit = true, valid = true, guid = "stranger" })
@@ -549,9 +549,9 @@ do
     print("  P9b PASS: talk ladder — proximity rung catches an unidentified questgiver")
 end
 
--- P9c — a talk target out of interaction range hands the walk to IDLE/NAV
+-- P9c — a talk target just outside the fixed 5yd interaction range hands the walk to IDLE/NAV
 do
-    local far = mock.create_object({ pos = { x = 30, y = 0, z = 0 },
+    local far = mock.create_object({ pos = { x = 5.1, y = 0, z = 0 },
         name = "Marshal Dughan", npc_id = 7000, unit = true, valid = true, guid = "far_dugan" })
     local step = { num = 1, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
         goals = { { type = "talk", npc_id = 0, target = "Marshal Dughan" } } }
@@ -559,10 +559,10 @@ do
     local shared = new_shared("talk")
     do_action.run(shared, ctx)
     assert(count_calls("interact_with_object", nil) == 0,
-        "P9c FAIL: an NPC 30yd away must not be interacted with")
-    assert(shared._nav_destination ~= nil and math.abs(shared._nav_destination.x - 30) < 1,
+        "P9c FAIL: an NPC 5.1yd away must not be interacted with")
+    assert(shared._nav_destination ~= nil and math.abs(shared._nav_destination.x - 5.1) < 0.01,
         "P9c FAIL: out-of-range talk target should set the nav destination to the NPC")
-    print("  P9c PASS: talk target out of range → NAV to the NPC (no remote interact)")
+    print("  P9c PASS: talk target at 5.1yd → NAV, matching the fixed 5yd interaction gate")
 end
 
 -- P10a — repeating the same action type doubles the pause (0.5s → 1s)
@@ -1276,6 +1276,50 @@ do
         "S29c FAIL: nothing about turning a quest in is a pull, got " ..
         tostring(pull_safety.last_reason()))
     print("  S29 PASS: a friendly goal NPC is still interacted with on an empty bar")
+end
+
+-- S30 — the area fallback's 25yd search is not interaction permission. These
+-- scenarios drive the real do_action.run → visible-object fallback path and
+-- pin the fixed 5yd boundary on the actual interaction input.
+do
+    local do_action = require("quest_state/do_action_state")
+
+    local function run_friendly_fallback(distance)
+        local giver = mock.create_object({
+            pos = { x = distance, y = 0, z = 0 }, name = "Marshal Dughan",
+            unit = true, valid = true, attackable = false, guid = "fallback_giver_" .. tostring(distance),
+        })
+        local step = {
+            num = 80, is_complete = false, waypoint = { map_id = 0, x = 0, y = 0 },
+            goals = { { type = "area", npc_id = 0, text = nil, target = "" } },
+        }
+        local ctx = build_ctx(step, nil, { giver })
+        ctx.object_scanner = { get_visible_objects = function() return { giver } end }
+        local shared = {
+            _area_wait_timer = 0, _action_pause_timer = 0, _area_fail_count = 0,
+            _area_last_target_guid = nil, _last_step_num = 80, _last_goal_type = "area",
+            _nav_destination = nil, _interact_cooldown = 0, _loot_cooldown = 0,
+            _post_interact_timer = 0, _at_quest_object_timer = 0,
+        }
+        do_action.run(shared, ctx)
+        local interacted, targeted = false, false
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "interact_with_object" and call[2] == giver then interacted = true end
+            if call[1] == "set_target" and call[2] == giver then targeted = true end
+        end
+        return shared, targeted, interacted
+    end
+
+    local far_shared, far_targeted, far_interacted = run_friendly_fallback(20)
+    assert(not far_interacted and not far_targeted,
+        "S30a FAIL: the area fallback must not target/interact a friendly NPC at 20yd")
+    assert(far_shared._nav_destination ~= nil and far_shared._nav_engage_sq == 25,
+        "S30a FAIL: the area fallback must route a far friendly NPC with the fixed 5yd stand-off")
+
+    local near_shared, near_targeted, near_interacted = run_friendly_fallback(4)
+    assert(near_targeted and near_interacted and near_shared._nav_destination == nil,
+        "S30b FAIL: the area fallback must still interact with a friendly NPC inside 5yd")
+    print("  S30 PASS: area fallback search is separate from the fixed 5yd interaction gate")
 end
 
 -- AQ-P2-2 — Quest-item identity and boolean use-result contract through DO_ACTION.

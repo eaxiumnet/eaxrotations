@@ -512,7 +512,8 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             end
             local target, dist_sq, rung = discover_talk_target(ctx, goal, goal_name, npc_ids)
             if target then
-                if dist_sq and dist_sq > 36 then
+                if dist_sq and dist_sq > 25 then
+                    -- The same fixed 5yd gate as friendly area NPC/object interaction.
                     -- Too far to interact — hand the walk back to IDLE, which NAVs
                     -- any pending _nav_destination. The monolith logged
                     -- "navigating closer" and called utils.move_to, which does not
@@ -1056,6 +1057,28 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                             end
                         end
                         if best then
+                            -- The 25yd scan is a search radius, not permission to
+                            -- interact. This fallback had no second distance gate and
+                            -- could right-click a friendly NPC from 24yd away; use
+                            -- the same fixed 5yd interaction gate as the named paths.
+                            local best_pos_ok, best_pos = pcall(unit_get_position, best)
+                            if best_pos_ok and best_pos then
+                                local interact_sq = best_sq
+                                if ctx.utils and ctx.utils.squared_distance then
+                                    local ok_measure, measured = pcall(ctx.utils.squared_distance,
+                                        pos, best_pos)
+                                    if ok_measure and type(measured) == "number" then
+                                        interact_sq = measured
+                                    end
+                                end
+                                if interact_sq > 25 then
+                                    nav_destination.engage(shared, nil, best_pos, 25)
+                                    ctx.debug_log("DO_ACTION: area — friendly NPC at " ..
+                                        tostring(math.floor(math.sqrt(interact_sq))) ..
+                                        "yd is outside interaction range -> NAV")
+                                    return false
+                                end
+                            end
                             if best_guid and best_guid == shared._area_last_target_guid then
                                 shared._area_fail_count = shared._area_fail_count + 1
                             else
