@@ -318,5 +318,63 @@ do
     print("  S6 PASS: no frame means no calls, and attempts stay throttled")
 end
 
+-- =============================================================================
+-- S9 — a turn-in that shows MONEY is not an offer: never accept it.
+-- Live: "handle_quest_detail: link=0 money=5500 avail=0 active=0" then
+-- "frame outlived complete_quest — claiming it" and "INTERACT: handled
+-- (accept_quest)" three times, then the give-up and a 60s block on INTERACT.
+-- The server had refused the turn-in and left the dialog up; accept_quest was
+-- the wrong verb, and the only thing it achieved was spending the retry budget.
+-- The offer-shaped frame (choice links, no money) must still be claimed.
+-- =============================================================================
+
+--- A refused turn-in: no choice links, money on the frame, and the dialog never
+--- clears. Exactly the shape the live log reported.
+local function open_stubborn_money_frame()
+    mock._quest_rewards = {}
+    mock._quest_money = 5500
+    core.quests.complete_quest = function()
+        mock._input_calls[#mock._input_calls + 1] = { "complete_quest" }
+        -- Refused: the dialog stays up, money and all.
+    end
+    core.quests.close_quest = function()
+        mock._input_calls[#mock._input_calls + 1] = { "close_quest" }
+    end
+end
+
+do
+    reset_at()
+    open_stubborn_money_frame()
+
+    local result = interaction.handle_quest_detail()
+    assert(type(result) == "string" and result:find("complete_quest", 1, true),
+        "S9a FAIL: a refused money turn-in must report the verb it really performed, got " ..
+        tostring(result))
+    assert(calls_named("complete_quest") == 1,
+        "S9b FAIL: the turn-in must still be completed once (got " ..
+        tostring(calls_named("complete_quest")) .. ")")
+    assert(calls_named("accept_quest") == 0 and calls_named("confirm_accept_quest") == 0,
+        "S9c FAIL: a frame paying money is a turn-in, not an offer — accepting it can take a " ..
+        "different quest off the same giver (accept=" .. tostring(calls_named("accept_quest")) ..
+        ", confirm=" .. tostring(calls_named("confirm_accept_quest")) .. ")")
+    assert(calls_named("close_quest") >= 1,
+        "S9d FAIL: the dialog that outlived the turn-in must still be closed")
+    print("  S9 PASS: a money turn-in that outlives complete_quest is closed, never accepted")
+end
+
+do
+    reset_at()
+    open_stubborn_reward_frame()     -- choice links, no money: the offer shape
+
+    local result = interaction.handle_quest_detail()
+    assert(result == "accept_quest",
+        "S9e FAIL: an offer-shaped frame must still be claimed as an accept, got " ..
+        tostring(result))
+    assert(calls_named("accept_quest") == 1,
+        "S9f FAIL: the offer path must keep calling accept_quest once (got " ..
+        tostring(calls_named("accept_quest")) .. ")")
+    print("  S9g PASS: an offer-shaped frame is still claimed as an accept")
+end
+
 print("PASS test_quest_turnin")
 os.exit(0)

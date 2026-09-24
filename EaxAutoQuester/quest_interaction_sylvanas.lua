@@ -593,13 +593,26 @@ function M.handle_quest_detail()
         -- is only ever "completed", three attempts are spent, and a quest the bot should have taken
         -- is given up on. This probe decides the VERB only; it is never the success test, because a
         -- refused turn-in re-populates its choices and would read as a closed frame.
+        --
+        -- MONEY is the one thing that settles it: a frame paying money pays for a quest already
+        -- handed in, so it is this turn-in still on screen (the server refused it), not an offer.
+        -- Claiming that one with accept_quest was the wrong verb twice over — live, a refused
+        -- turn-in (link=0 money=5500) was accepted three times a second until the retry budget was
+        -- gone and INTERACT was blocked for 60s, and it could take a different quest off the same
+        -- giver. Close it and report the verb that was actually performed.
         if reward_frame_probe() then
-            dlog("quest_still", "handle_quest_detail: frame outlived complete_quest — claiming it")
-            _last_quest_action = "accept"
-            pcall(function() _quests.accept_quest() end)
-            pcall(function() _quests.confirm_accept_quest() end)
-            pcall(function() _quests.close_quest() end)
-            return "accept_quest"
+            if reward_money and reward_money > 0 then
+                dlog("quest_still", "handle_quest_detail: turn-in outlived complete_quest — " ..
+                    "closing it rather than accepting")
+                pcall(function() _quests.close_quest() end)
+            else
+                dlog("quest_still", "handle_quest_detail: frame outlived complete_quest — claiming it")
+                _last_quest_action = "accept"
+                pcall(function() _quests.accept_quest() end)
+                pcall(function() _quests.confirm_accept_quest() end)
+                pcall(function() _quests.close_quest() end)
+                return "accept_quest"
+            end
         end
         if reward_action then
             return "complete_quest+" .. reward_action
