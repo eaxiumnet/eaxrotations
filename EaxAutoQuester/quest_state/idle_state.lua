@@ -421,11 +421,22 @@ function M.run(shared, ctx)
     -- Debug: log current goal details. Guarded by the debug flag (perf pass): the concatenation
     -- builds a string on every tick and `debug_log` then discards it when debug is off, which is
     -- the normal case (0.34 B/tick measured even for a short message). Same output when on.
+    -- Logged on a CHANGE, not on every tick: the pause DO_ACTION arms holds this line for seconds
+    -- at a time, and ~40 identical lines a second buried the decisions that were being debugged
+    -- (live: the "Ogre Remains" step, where the id could not be read and the flood hid it).
     if shared._debug and current_goal and type(current_goal) == "table" then
-        local g_text = tostring(current_goal.text or current_goal.name or "nil")
-        local g_npc = tostring(current_goal.npc_id or current_goal.target_id or "nil")
-        local g_target = tostring(current_goal.target or current_goal.npc or "nil")
-        ctx.debug_log("IDLE: goal[" .. tostring(step_num) .. "] text=" .. g_text .. " npc_id=" .. g_npc .. " target=" .. g_target)
+        if shared._debug_goal_step ~= step_num or shared._debug_goal ~= current_goal then
+            shared._debug_goal_step = step_num
+            shared._debug_goal = current_goal
+            local g_text = tostring(current_goal.text or current_goal.name or "nil")
+            -- objective_match.goal_id reads every spelling the goal carries its id in (npc_id,
+            -- target_id, targetid, id, the {name,id} pairs). `current_goal.npc_id or
+            -- current_goal.target_id` printed 0 for a goal whose id lives in `targetid`, because 0
+            -- is truthy in Lua — the log said the step had no identity when it had one.
+            local g_npc = tostring(objective_match.goal_id(current_goal) or "nil")
+            local g_target = tostring(current_goal.target or current_goal.npc or "nil")
+            ctx.debug_log("IDLE: goal[" .. tostring(step_num) .. "] text=" .. g_text .. " npc_id=" .. g_npc .. " target=" .. g_target)
+        end
     end
 
     -- Low HP / Mana pause: DISABLED. The user reported the HP check was

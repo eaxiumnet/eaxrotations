@@ -1442,5 +1442,59 @@ do
     print("  P16 PASS: retirement follows the place — a shifting waypoint list cannot retire a walkable waypoint")
 end
 
+-- =============================================================================
+-- P17 — the goal line tells the truth: the id, and once per change.
+-- Live: "IDLE: goal[7] text=nil npc_id=0 target=Ogre Remains", repeated about forty times a
+-- second for as long as the step was open. The id WAS there (233818, carried under `targetid`),
+-- but `npc_id or target_id` printed the 0 — 0 is truthy in Lua — so the step read as id-less, and
+-- the per-tick flood buried the lines that say what the bot is doing.
+-- =============================================================================
+do
+    local goal = { type = "area", npc_id = 0, target = "Ogre Remains", targetid = 233818 }
+    local ctx = build_goal_ctx(goal, {})
+    local logs = {}
+    ctx.debug_log = function(m) logs[#logs + 1] = tostring(m) end
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _debug = true, _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _action_pause_timer = 0 }
+
+    local function goal_lines()
+        local n, text = 0, ""
+        for _, message in ipairs(logs) do
+            if message:find("IDLE: goal[", 1, true) then n, text = n + 1, message end
+        end
+        return n, text
+    end
+
+    idle_state.run(shared, ctx)
+    local n, line = goal_lines()
+    assert(n == 1, "P17a FAIL: the goal line must be logged once, got " .. tostring(n))
+    assert(line:find("npc_id=233818", 1, true),
+        "P17b FAIL: the goal's id must be logged wherever the goal carries it, got: " .. line)
+    assert(line:find("target=Ogre Remains", 1, true),
+        "P17c FAIL: the goal's target must be logged, got: " .. line)
+
+    -- More ticks on the same goal: IDLE holds here while DO_ACTION's pause runs, and the line used
+    -- to repeat for every one of them.
+    for i = 1, 3 do
+        ctx.now = 100.0 + i
+        idle_state.run(shared, ctx)
+    end
+    n = goal_lines()
+    assert(n == 1, "P17d FAIL: an unchanged goal must not re-log, got " .. tostring(n) .. " lines")
+
+    -- A new step is a new goal, and the line must follow it.
+    ctx.zygor.get_current_step_info = function()
+        return { is_complete = false,
+                 goals = { { type = "area", npc_id = 0, target = "Bonfire Ash" } }, step_num = 8 }
+    end
+    idle_state.run(shared, ctx)
+    n, line = goal_lines()
+    assert(n == 2, "P17e FAIL: a new step must log its goal, got " .. tostring(n) .. " lines")
+    assert(line:find("goal[8]", 1, true) and line:find("target=Bonfire Ash", 1, true),
+        "P17f FAIL: the new step's goal must be the logged one, got: " .. line)
+    print("  P17 PASS: the goal line carries the goal's real id and is logged on change, not per tick")
+end
+
 print("PASS test_idle_state")
 os.exit(0)
