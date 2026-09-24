@@ -1,14 +1,11 @@
 -- What: Plugin configuration UI for EaxAutoQuester
 -- When: Rendered in-game via core.register_on_render_menu_callback (main.lua)
--- Why: Centralizes all user-facing settings — checkboxes, combobox, sliders, keybind
+-- Why: Centralizes the settings the quest loop actually honors; legacy controls are not rendered
 -- Safety: All menu widgets nil-guarded via get(key, fallback); widgets created once at load
 -- Decision: Standalone menu (not EaxRotations schema), uses core.menu.* widget API
 
 -- Hot-path API caching at module load (Pattern 2 from AGENTS.md)
 local _core_menu = core.menu
-
--- Static table for combobox option labels (Pattern 4 from AGENTS.md)
-local _combo_labels = { n = 0 }
 
 -- ============================================================================
 -- Menu IDs — prefix: "eaxaq_<feature>_<subfeature>"
@@ -21,29 +18,13 @@ local IDs = {
     btn_stop        = "eaxaq_btn_stop",
     btn_pause       = "eaxaq_btn_pause",
     btn_resume      = "eaxaq_btn_resume",
-    auto_loot       = "eaxaq_auto_loot",
-    auto_repair     = "eaxaq_auto_repair",
-    auto_vendor     = "eaxaq_auto_vendor",
-    auto_train      = "eaxaq_auto_train",
     debug           = "eaxaq_debug",
-    auto_accept     = "eaxaq_auto_accept",
-    auto_turnin     = "eaxaq_auto_turnin",
-    vendor_threshold = "eaxaq_vendor_threshold",
-    interact_range  = "eaxaq_interact_range",
     nav_tolerance   = "eaxaq_nav_tolerance",
-    min_hp          = "eaxaq_min_hp",
-    min_mana        = "eaxaq_min_mana",
     pull_gate       = "eaxaq_pull_gate",
     pull_gate_min_hp = "eaxaq_pull_gate_min_hp",
     pull_gate_min_mana = "eaxaq_pull_gate_min_mana",
     toggle_keybind  = "eaxaq_toggle_keybind",
 }
-
--- ============================================================================
--- Combo Option Labels — pre-built once, reused on every render
--- ============================================================================
-
-local VENDOR_OPTIONS = { "Grey", "White", "Green", "Blue" }
 
 -- ============================================================================
 -- Menu Widgets — created once at module load, cached for lifetime
@@ -60,28 +41,13 @@ M.btn_start       = _core_menu.button(IDs.btn_start)
 M.btn_stop        = _core_menu.button(IDs.btn_stop)
 M.btn_pause       = _core_menu.button(IDs.btn_pause)
 M.btn_resume      = _core_menu.button(IDs.btn_resume)
-M.auto_loot       = _core_menu.checkbox(true, IDs.auto_loot)
-M.auto_repair     = _core_menu.checkbox(true, IDs.auto_repair)
-M.auto_vendor     = _core_menu.checkbox(true, IDs.auto_vendor)
-M.auto_train      = _core_menu.checkbox(true, IDs.auto_train)
 M.debug           = _core_menu.checkbox(false, IDs.debug)
-M.auto_accept     = _core_menu.checkbox(true, IDs.auto_accept)
-M.auto_turnin     = _core_menu.checkbox(true, IDs.auto_turnin)
 
--- Combobox — vendor sell threshold (1-indexed: 1=Grey, 2=White, 3=Green, 4=Blue)
-M.vendor_threshold = _core_menu.combobox(1, IDs.vendor_threshold)
-
--- Sliders
-M.interact_range  = _core_menu.slider_int(5, 50, 20, IDs.interact_range)
+-- Navigation
 M.nav_tolerance   = _core_menu.slider_int(1, 10, 3, IDs.nav_tolerance)
-M.min_hp          = _core_menu.slider_int(1, 100, 80, IDs.min_hp)
-M.min_mana        = _core_menu.slider_int(1, 100, 80, IDs.min_mana)
 
--- Pull safety — shared/pull_safety.lua reads these three and nothing else. Deliberately NOT the
--- two rows above: those are neither rendered nor read by anything, and their 80/80 display
--- defaults are not "low" (the gate would refuse a full-health caster whose mana is ordinary, i.e.
--- right after most kills). 0 on either slider turns that one rule off, since no percentage is
--- below zero.
+-- Pull safety — shared/pull_safety.lua reads these three and nothing else. 0 on either slider
+-- turns that one rule off, since no percentage is below zero.
 M.pull_gate          = _core_menu.checkbox(true, IDs.pull_gate)
 M.pull_gate_min_hp   = _core_menu.slider_int(0, 100, 50, IDs.pull_gate_min_hp)
 M.pull_gate_min_mana = _core_menu.slider_int(0, 100, 30, IDs.pull_gate_min_mana)
@@ -132,8 +98,8 @@ end
 
 --- The tree body. A module-level function rather than a closure built in `M.render`: the body
 --- was handed to `M.tree:render` as a fresh closure on every menu frame (measured 32 B/frame),
---- and it only ever reads the widgets that were created once at load — `_combo_labels` is the
---- same static table it has always been, so the body itself allocates nothing.
+--- and it only ever reads the widgets that were created once at load, so the body itself
+--- allocates nothing.
 local function render_tree_body()
     -- Checkboxes — core features
     if M.enable then
@@ -146,54 +112,11 @@ local function render_tree_body()
     if M.btn_pause then M.btn_pause:render("Pause", "Pause navigation (keep enabled)") end
     if M.btn_resume then M.btn_resume:render("Resume", "Resume after pause") end
 
-    if M.auto_accept then
-        M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
-    end
-
-    if M.auto_turnin then
-        M.auto_turnin:render("Auto-turnin Quests", "Automatically turn in completed quests when interacting with quest NPCs")
-    end
-
-    if M.auto_loot then
-        M.auto_loot:render("Auto-loot", "Automatically loot quest-relevant items from corpses and objects")
-    end
-
-    if M.auto_repair then
-        M.auto_repair:render("Auto-repair", "Automatically repair equipment at vendors when durability is low")
-    end
-
-    if M.auto_vendor then
-        M.auto_vendor:render("Auto-vendor", "Automatically sell grey and low-quality items at vendors")
-    end
-
-    if M.auto_train then
-        M.auto_train:render("Auto-train", "Automatically train new spells and skills from class trainers")
-    end
-
     if M.debug then
         M.debug:render("Debug Logging", "Enable verbose debug output to the Sylvanas log console")
     end
 
-    -- Combobox — vendor threshold
-    if M.vendor_threshold then
-        -- Build labels list from pre-defined options on every render
-        _combo_labels.n = 0
-        for i = 1, #VENDOR_OPTIONS do
-            _combo_labels.n = _combo_labels.n + 1
-            _combo_labels[_combo_labels.n] = VENDOR_OPTIONS[i]
-        end
-        M.vendor_threshold:render(
-            "Vendor Sell Threshold",
-            _combo_labels,
-            "Minimum quality to auto-vendor. Grey = junk only, Blue = up to rare quality"
-        )
-    end
-
-    -- Sliders
-    if M.interact_range then
-        M.interact_range:render("Interaction Range", "Maximum distance (yards) to consider quest objects/NPCs as interactable")
-    end
-
+    -- Navigation
     if M.nav_tolerance then
         M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
     end

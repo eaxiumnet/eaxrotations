@@ -21,7 +21,7 @@
 
 - [x] AQ-P0-1 — reward auto-equip and bind-on-equip path
 - [x] AQ-P0-2 — three invalid item-use call sites
-- [ ] AQ-P1-1 — menu contract
+- [x] AQ-P1-1 — menu contract
 - [ ] AQ-P1-2 — live autoloot/vendor pressure
 - [ ] AQ-P1-3 — bank/repair service gossip
 - [ ] AQ-P1-4 — failure policy
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P1-1 — menu contract — is next. Its first decision is whether each rendered legacy row is a supported production control to wire or a control to hide/remove; the mission does not authorize adding new capabilities.
+AQ-P1-2 — live autoloot/vendor pressure — is next. It must connect the existing corpse-loot path to the already documented force-vendor flag without adding a new menu capability.

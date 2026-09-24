@@ -190,7 +190,32 @@ do
 end
 
 -- =============================================================================
--- M4 — the real menu drives the real gate, both directions
+-- M4 — decorative legacy controls are absent while live controls remain
+-- =============================================================================
+
+do
+    local function row_drawn(id)
+        for i = 1, #calls.rendered do
+            if calls.rendered[i][3] == id then return calls.rendered[i][1] end
+        end
+        return nil
+    end
+    local hidden = {
+        "eaxaq_auto_loot", "eaxaq_auto_repair", "eaxaq_auto_vendor", "eaxaq_auto_train",
+        "eaxaq_auto_accept", "eaxaq_auto_turnin", "eaxaq_vendor_threshold",
+        "eaxaq_interact_range", "eaxaq_min_hp", "eaxaq_min_mana",
+    }
+    for _, id in ipairs(hidden) do
+        assert(find(id) == nil, "M4a FAIL: decorative control was created: " .. id)
+        assert(row_drawn(id) == nil, "M4b FAIL: decorative control was rendered: " .. id)
+    end
+    assert(row_drawn("eaxaq_nav_tolerance") ~= nil,
+        "M4c FAIL: nav_tolerance must remain available")
+    print("  M4 PASS: unsupported controls are absent; nav_tolerance remains rendered")
+end
+
+-- =============================================================================
+-- M5 — the real menu drives the real gate, both directions
 -- =============================================================================
 
 do
@@ -215,8 +240,8 @@ do
 
     pull_safety.reset()
     assert(pull_safety.gate(ctx, {}, enemy) == false,
-        "M4a FAIL: 90%+ health at 60% mana against one idle mob must pull with the shipped defaults")
-    assert(pull_safety.holding(ctx) == false, "M4b FAIL: and no hold may be armed")
+        "M5a FAIL: 90%+ health at 60% mana against one idle mob must pull with the shipped defaults")
+    assert(pull_safety.holding(ctx) == false, "M5b FAIL: and no hold may be armed")
 
     menu.pull_gate:set(false)                   -- the user unticks the switch
     pull_safety.reset()
@@ -232,16 +257,16 @@ do
         }
     end
     local ctx_off = { me = dying, now = 5100, menu = menu, debug_log = function() end }
-    assert(pull_safety.enabled(ctx_off) == false, "M4c FAIL: the unticked switch must read as off")
+    assert(pull_safety.enabled(ctx_off) == false, "M5c FAIL: the unticked switch must read as off")
     assert(pull_safety.gate(ctx_off, {}, camp[1]) == false,
-        "M4d FAIL: unticked, nothing may be refused — not health, not mana, not the patrolling camp")
+        "M5d FAIL: unticked, nothing may be refused — not health, not mana, not the patrolling camp")
     assert(pull_safety.holding(ctx_off) == false,
-        "M4e FAIL: unticked, IDLE must not be held")
+        "M5e FAIL: unticked, IDLE must not be held")
 
     menu.pull_gate:set(true)                    -- and back on
     assert(pull_safety.gate(ctx_off, {}, camp[1]) == true,
-        "M4f FAIL: ticked again, the same scene must be refused")
-    print("  M4 PASS: the real menu row drives the real gate — 60% mana pulls, unticked refuses nothing")
+        "M5f FAIL: ticked again, the same scene must be refused")
+    print("  M5 PASS: the real menu row drives the real gate — 60% mana pulls, unticked refuses nothing")
 end
 
 package.loaded["menu_sylvanas"] = nil

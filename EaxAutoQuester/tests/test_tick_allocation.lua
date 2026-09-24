@@ -745,7 +745,7 @@ local menu16 = require("menu_sylvanas")
 local tree_renders = 0
 menu16.tree.render = function(_, name, body) tree_renders = tree_renders + 1; if body then body() end end
 local widget_renders = 0
-for _, key in ipairs({ "enable", "btn_start", "auto_loot", "debug", "vendor_threshold", "nav_tolerance", "toggle_keybind" }) do
+for _, key in ipairs({ "enable", "btn_start", "debug", "nav_tolerance", "toggle_keybind" }) do
     local widget = menu16[key]
     if widget and widget.render then
         local real_render = widget.render
@@ -753,7 +753,7 @@ for _, key in ipairs({ "enable", "btn_start", "auto_loot", "debug", "vendor_thre
     end
 end
 local menu_bytes = per_call_bytes(300, cb16.menu_render)
-assert(tree_renders >= 300 and widget_renders >= 300 * 7, string.format(
+assert(tree_renders >= 300 and widget_renders >= 300 * 5, string.format(
     "T16a FAIL: the tree body ran %d times and rendered %d widgets over 305 frames -- the fixture measured a stub, not the menu",
     tree_renders, widget_renders))
 assert(menu_bytes <= WARN_BOUND, string.format(

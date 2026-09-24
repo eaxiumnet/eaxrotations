@@ -30,7 +30,15 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 ## P1 — remove advertised-but-unreachable behavior
 
 ### AQ-P1-1 — Menu contract
-Either wire every rendered option to its documented behavior or hide/remove it; acceptance is a menu setting-to-production-reader test matrix.
+**Status: complete (2026-09-24).** Re-measurement found that the ten audited controls did not have a live setting contract: several behaviors existed as always-on or separately hardcoded paths, while none of these controls had a production reader. To preserve behavior outside the menu surface, all ten unsupported controls were removed from the rendered menu rather than inventing new toggles or changing quest-loop behavior.
+
+**Acceptance criteria met:**
+- `auto_loot`, `auto_repair`, `auto_vendor`, `auto_train`, `auto_accept`, `auto_turnin`, `vendor_threshold`, `interact_range`, `min_hp`, and `min_mana` are not created or rendered.
+- The existing always-on corpse-loot, quest interaction, vendor, trainer, and pull-safety behavior is unchanged.
+- `nav_tolerance` and the three live pull-gate controls remain created and rendered.
+- The real menu module and its render body prove both the removals and the retained controls.
+
+**Proving surface:** `menu_sylvanas.lua` and `tests/test_menu_pull_gate.lua` M4/M5.
 
 ### AQ-P1-2 — Live autoloot/vendor pressure
 Make normal corpse looting set the documented force-vendor state; acceptance is a real idle/corpse-loot path test for the flag and navigation response.
