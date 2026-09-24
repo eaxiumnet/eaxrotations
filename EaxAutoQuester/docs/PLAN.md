@@ -14,7 +14,7 @@
 | 8 | **AQ-P2-2** | Pin the selected inventory object's client ID and distinguish issued use from successful use. | Real DO_ACTION quest-item identity/result tests. |
 | 9 | **AQ-P2-3** | Keep the removed control gone and align every friendly interaction dispatch site to the fixed 5yd gate; preserve hostile combat and search policies. | Real DO_ACTION, NAV, and IDLE boundary tests plus menu-removal tests. |
 | 10 | **AQ-P2-4** | Re-measure the Zygor contract; use documented `target`/`npc` goal evidence without inventing an unsupported `step.text` field. | Real reader/IDLE goal-filter matrix, including the documented in-instance override. |
-| 11 | **AQ-P2-5** | Wire or remove the unused anti-detection members. | Production-call and allocation tests. |
+| 11 | **AQ-P2-5** | Retire the dead anti-detection members and coordinator hook; retain the separately owned, supported NAV jump and existing action pacing. | Real coordinator/NAV call matrix plus the existing allocation battery. |
 | 12 | **AQ-P2-6** | Make equipment classification deterministic and slot-aware. | Equipment-comparison and reward tests. |
 
 ## Current execution state
@@ -29,7 +29,7 @@
 - [x] AQ-P2-2 — quest-item identity and result tracking
 - [x] AQ-P2-3 — interact range
 - [x] AQ-P2-4 — dungeon step evidence (documented step shape; `target`/`npc` goal labels; unsupported `step.text` not invented)
-- [ ] AQ-P2-5 — anti-detection scope
+- [x] AQ-P2-5 — anti-detection scope (dead module surface retired; supported NAV jump/pacing retained)
 - [ ] AQ-P2-6 — equipment comparison
 
 ## Verification protocol for each execution step
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P2-5 — anti-detection scope — is next. AQ-P2-4 is closed with the measured Zygor contract: the production step has no documented `text` field, so no mock-only forwarding was added; the existing dungeon detector now reads the documented goal `target`/`npc` labels and the real reader/IDLE matrix proves the decision boundaries.
+AQ-P2-6 — equipment comparison — is next. AQ-P2-5 retired the dead anti-detection compatibility surface and its invalid coordinator camera hook; the supported NAV jump and existing action pacing remain separately owned and covered.

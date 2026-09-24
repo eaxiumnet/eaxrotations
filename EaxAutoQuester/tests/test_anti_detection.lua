@@ -1,14 +1,9 @@
--- What: Unit tests for EaxAutoQuester/anti_detection_sylvanas.lua proximity handling.
--- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
--- Why:  A player standing next to the bot used to freeze it forever. The old
---       check_player_proximity() re-armed a 2-5s pause on EVERY tick it was called
---       (and the coordinator turned each one into shared._action_pause_timer = now + 3.0),
---       so IDLE returned early for as long as that player stayed within 30yd. Live logs
---       show two separate runs of 15 minutes with the same three lines repeating and no
---       quest progress. This suite pins the replacement: a rate-limited look-around that
---       cannot block anything.
--- Safety: assertions are on call counts and on the absence of the stall API, both of which
---       fail if the pause comes back in any form.
+-- What: AQ-P2-5 contract for the retired EaxAutoQuester anti-detection surface.
+-- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`.
+-- Why: The former module exported dead randomization/timing members and called an undocumented
+--       `core.input.turn`; the production loop must not retain a camera action that never worked.
+-- Safety: This suite drives the real coordinator tick and only supplies a turn counter; it adds
+--       no movement, evasion, randomization, or timing fixture.
 
 -- Path setup for standalone run
 package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
@@ -19,85 +14,43 @@ mock.reset()
 
 local ad = require("anti_detection_sylvanas")
 
--- S1 — the stall API is gone. check_player_proximity() was the thing every caller had to
--- remember not to turn into a pause, and the coordinator did turn it into one. Its absence is
--- the regression pin: reintroducing any "should I stop working?" signal here fails this line.
-assert(ad.check_player_proximity == nil,
-    "S1 FAIL: anti_detection must not expose a proximity pause signal again")
-assert(type(ad.react_to_nearby_player) == "function",
-    "S1 FAIL: react_to_nearby_player is the supported proximity entry point")
-print("  S1 PASS: no proximity pause API; proximity reaction replaces it")
-
--- S2 — a nearby player produces a bounded number of reactions, never a sustained stall.
-do
-    mock.reset()
-    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 5 })
-    local stranger = mock.create_object({
-        pos = { x = 10, y = 0, z = 0 }, name = "Stranger",
-        unit = true, player = true, valid = true, guid = "stranger_1",
-    })
-    mock._objects = { stranger }
-
-    mock.set_time(0)
-    local first = ad.react_to_nearby_player(30)
-    assert(first == true, "S2 FAIL: a player 10yd away should produce one reaction")
-
-    -- 300 simulated seconds at the plugin's tick rate with the player never leaving range.
-    local reactions = 1
-    for t = 0, 300, 0.05 do
-        mock.set_time(t)
-        if ad.react_to_nearby_player(30) then reactions = reactions + 1 end
-    end
-    assert(reactions >= 2, "S2 FAIL: reactions stopped entirely (got " .. reactions .. ")")
-    assert(reactions <= 16,
-        "S2 FAIL: reactions must be rate limited to one per cooldown; 300s produced " ..
-        tostring(reactions) .. " (the old code paused on every tick)")
-    print("  S2 PASS: 300s beside a player → " .. tostring(reactions) .. " reactions, not a stall")
+-- S1 — the retired members stay retired. Keeping a dead member here would make the module
+-- look active again and would preserve the allocation/caller ambiguity this pass closes.
+local retired_members = {
+    "random_delay",
+    "maybe_camera_jitter",
+    "jitter_destination",
+    "action_delay",
+    "react_to_nearby_player",
+    "varied_tick_interval",
+    "check_player_proximity",
+}
+for i = 1, #retired_members do
+    local member = retired_members[i]
+    assert(ad[member] == nil,
+        "S1 FAIL: retired anti-detection member is still exported: " .. member)
 end
+assert(next(ad) == nil, "S1 FAIL: anti-detection compatibility shim retained live members")
+print("  S1 PASS: dead anti-detection members are removed")
 
--- S3 — a party member is not a stranger to hide from.
-do
-    mock.reset()
-    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 5 })
-    local mate = mock.create_object({
-        pos = { x = 5, y = 0, z = 0 }, name = "Party Mate",
-        unit = true, player = true, valid = true, guid = "mate_1",
-    })
-    mock._objects = { mate }
-    mock._party = { mate }
-
-    local reactions = 0
-    for t = 1000, 1060, 0.05 do
-        mock.set_time(t)
-        if ad.react_to_nearby_player(30) then reactions = reactions + 1 end
-    end
-    assert(reactions == 0,
-        "S3 FAIL: a party member must not trigger a reaction (got " .. reactions .. ")")
-
-    -- Same object, no longer grouped: the roster refresh must pick that up.
-    mock._party = {}
-    local after_leave = false
-    for t = 1200, 1260, 0.05 do
-        mock.set_time(t)
-        if ad.react_to_nearby_player(30) then after_leave = true end
-    end
-    assert(after_leave, "S3 FAIL: a stranger was ignored after the party roster shrank")
-    print("  S3 PASS: party member ignored; the same player becomes a stranger when ungrouped")
+-- S2 — the real coordinator tick no longer loads or invokes the retired camera surface.
+-- `core.input.turn` is deliberately counted even though it is not a supported Sylvanas API:
+-- a regression to the old block would be observable here without adding a new API fixture.
+local coordinator = require("quest_state/coordinator")
+local turn_calls = 0
+core.input.turn = function() turn_calls = turn_calls + 1 end
+mock.reset()
+mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+mock.set_time(1.0)
+for i = 1, 5 do
+    mock.set_time(1.0 + i * 0.05)
+    coordinator.update()
 end
-
--- S4 — nobody nearby: nothing happens at all.
-do
-    mock.reset()
-    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, class = 5 })
-    mock._objects = {}
-    local reactions = 0
-    for t = 2000, 2100, 0.05 do
-        mock.set_time(t)
-        if ad.react_to_nearby_player(30) then reactions = reactions + 1 end
-    end
-    assert(reactions == 0, "S4 FAIL: empty world must not react (got " .. reactions .. ")")
-    print("  S4 PASS: no players in range → no reactions")
-end
+assert(turn_calls == 0,
+    "S2 FAIL: real coordinator tick called the retired turn path " .. tostring(turn_calls) .. " time(s)")
+assert(coordinator._test_context().anti_detection == nil,
+    "S2 FAIL: retired anti-detection module is still carried on the production tick context")
+print("  S2 PASS: real coordinator tick has no retired camera/anti-detection action")
 
 print("PASS test_anti_detection")
 os.exit(0)

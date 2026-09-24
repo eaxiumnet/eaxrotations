@@ -164,8 +164,8 @@ local shared = {
     -- The dialog hand-off (set by quest_state/do_action_state.lua): a goal action just opened a
     -- dialog, so its next dispatch enters INTERACT instead of waiting out the action pause.
     _should_enter_interact = nil,
-    -- Coordinator's own: the anti-detection combat override logs the first time it fires, not
-    -- on every tick it keeps firing.
+    -- Coordinator's own: the combat override logs the first time it fires, not on every tick
+    -- it keeps firing.
     _combat_override_logged = nil,
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
@@ -198,15 +198,6 @@ end
 -- ============================================================================
 -- Lazy-Load Helpers — all submodules loaded on first use via pcall
 -- ============================================================================
-
-local _anti_detection = nil
-local function ensure_anti_detection()
-    if not _anti_detection then
-        local ok, a = pcall(require, "anti_detection_sylvanas")
-        if ok then _anti_detection = a end
-    end
-    return _anti_detection
-end
 
 local function ensure_utils()
     if not _utils then
@@ -348,8 +339,6 @@ local function unit_get_target(u) return u:get_target() end
 local function unit_get_position(u) return u:get_position() end
 local function unit_is_dead(u) return u:is_dead() end
 local function unit_get_health(u) return u:get_health() end
-local function unit_is_casting_spell(u) return u:is_casting_spell() end
-local function unit_is_channelling_spell(u) return u:is_channelling_spell() end
 
 -- Wrath-client ghost form (buff 8326): is_dead() is false and HP is above zero, so the aura is
 -- the only tell. The method list and the id are hoisted for the same reason. The caller still
@@ -431,7 +420,6 @@ local function build_context()
     _ctx.safe_api = ensure_safe_api()
     _ctx.probed = ensure_probed_apis()
     _ctx.death_tracker = ensure_death_tracker()
-    _ctx.anti_detection = ensure_anti_detection()
     return _ctx
 end
 
@@ -661,29 +649,6 @@ function M.update()
                     debug_log("Coordinator: force vendor — bags > 80% full")
                 end
             end
-        end
-    end
-
-    -- Anti-detection: human-like behavior when idle or navigating (not in combat)
-    local ad = ctx.anti_detection
-    if ad and not in_combat then
-        local is_casting = false
-        local is_channeling = false
-        if ctx.me then
-            local cast_ok, casting = pcall(unit_is_casting_spell, ctx.me)
-            if cast_ok and casting then is_casting = true end
-            local chan_ok, channeling = pcall(unit_is_channelling_spell, ctx.me)
-            if chan_ok and channeling then is_channeling = true end
-        end
-        -- Camera jitter when idle/navigating (not casting)
-        ad.maybe_camera_jitter(false, is_casting or is_channeling)
-        -- Player proximity — react, never stall. This armed shared._action_pause_timer for 3s
-        -- on every tick a player stood within 30yd, so the quester stopped for as long as that
-        -- player stayed there (live logs: two separate 15-minute runs of "pausing briefly"
-        -- with zero quest progress, because IDLE returns early while the pause is set). Being
-        -- watched now costs a brief look-around that cannot block any state.
-        if ad.react_to_nearby_player then
-            ad.react_to_nearby_player(30)
         end
     end
 

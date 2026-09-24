@@ -287,8 +287,8 @@ do
     mock._objects = { stranger }
 
     local shared = coordinator._test_shared()
-    -- WAITING isolates the proximity path: its handler never touches the pause timer, so
-    -- any pause seen here can only have come from the anti-detection block.
+    -- WAITING isolates the tick: its handler never touches the pause timer, so any pause
+    -- seen here would be a regression to a retired proximity/stall path.
     shared._state = "WAITING"
     shared._action_pause_timer = 0
 

@@ -292,9 +292,10 @@ function M.run(shared, ctx)
         end
     end
 
-    -- Anti-cheat: random jump every 10-25s while navigating. anti_detection
-    -- covers delays, jitter and proximity but has no movement action, so this is
-    -- the only idle-motion humanizer. (Ported: docs/phase1_port_list.md item 7.)
+    -- Anti-cheat: random jump every 10-25s while navigating. This live movement
+    -- action is owned here; the former anti_detection module is retired and has
+    -- no second source of delays, jitter, or proximity behavior. (Ported:
+    -- docs/phase1_port_list.md item 7.)
     if utils and utils.throttle and utils.throttle("random_jump_nav", math.random(10, 25)) then
         pcall(core.input.jump)
     end

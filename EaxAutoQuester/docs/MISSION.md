@@ -126,7 +126,28 @@ The production change is limited to the existing dungeon-keyword set: the detect
 **Proving surface:** `dungeon_detector_sylvanas.lua`, the real reader/IDLE call chain, and `tests/test_dungeon_detector.lua` S1-S7.
 
 ### AQ-P2-5 — Anti-detection scope
-Wire or deliberately remove destination jitter, action delay, and varied ticks; acceptance is a production-call matrix and an allocation check for retained members.
+**Status: complete (2026-09-24).** Re-measurement separated the module's dead compatibility surface from the two live timing/movement policies owned elsewhere.
+
+| Member or related behavior | Measured production caller | Result |
+|---|---|---|
+| `random_delay` | None | Removed; it only fed the dead `action_delay` helper. |
+| `action_delay` | None | Removed; its per-call delay table was dead allocation. |
+| `jitter_destination` | None | Removed; no destination producer called it. |
+| `varied_tick_interval` | None; `main.lua` uses the engine's fixed pre-tick callback | Removed; no tick cadence was changed. |
+| `maybe_camera_jitter` | `coordinator.update` only | Removed its call and implementation: it attempted undocumented `core.input.turn`, which is absent from the supported API and therefore produced no camera action. |
+| `react_to_nearby_player` | `coordinator.update` only | Removed its call and implementation: the surrounding scan/return had no consumer, and its only action was the same unavailable `core.input.turn`. |
+| `anti_detection_sylvanas` module | No live caller after the above removals | Kept as an empty requireable compatibility shim with no state, randomization, timing, or per-tick work. |
+| NAV random jump | `quest_state/nav_state.run` | Retained: it is a real supported `core.input.jump` path, already covered by the real NAV N7 test. It is not a second anti-detection module. |
+| Progressive action pacing | `quest_state/do_action_state.run` | Retained: it is the existing anti-loop pause policy, not `action_delay`; its existing P10 coverage remains unchanged. |
+
+The separate random recovery actions in `navigation_sylvanas.lua` were measured but intentionally left untouched because this objective explicitly excludes navigation changes. No new evasion, randomization, timing, combat, routing, navigation, or pull-safety behavior was added.
+
+**Acceptance criteria met:**
+- The real coordinator tick no longer loads the retired anti-detection module, carries an anti-detection context member, or calls the unsupported turn path.
+- The retired exports are absent, so the old per-call delay-table and destination-table allocations cannot return through the module.
+- The genuinely wired NAV jump remains covered through the real NAV handler; the existing real-coordinator allocation battery remains green.
+
+**Proving surface:** `anti_detection_sylvanas.lua`, `quest_state/coordinator.lua`, `tests/test_anti_detection.lua` S1-S2, the existing `tests/test_nav_state.lua` N7, and `tests/test_tick_allocation.lua`.
 
 ### AQ-P2-6 — Equipment comparison
 Replace unordered name-only classification/quality-only comparison with deterministic, slot-aware comparison; acceptance is classifier and upgrade-path tests.
