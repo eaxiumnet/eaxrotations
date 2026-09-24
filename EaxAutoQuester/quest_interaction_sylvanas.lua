@@ -20,7 +20,12 @@ local _quests = core.quests
 local _game_ui = core.game_ui
 local _inventory = core.inventory
 local _input = core.input
-local _use_container_item = core.input.use_container_item
+-- The purpose-built equip: use_container_item takes no destination, so the client decides,
+-- and it never fills the second ring (12), second trinket (14) or off hand (17)
+-- (.api/core.lua, equip_container_item).
+local _equip_container_item = core.input.equip_container_item
+local _clear_cursor = core.input.clear_cursor
+local _has_cursor_item = core.game_ui.has_cursor_item
 local _equip_pending_item = core.input.equip_pending_item
 
 -- Reward selection completes the quest before the client has necessarily placed the item in
@@ -51,6 +56,29 @@ local function clear_auto_equip()
     _auto_equip.link = nil
     _auto_equip.armed_until = 0
     _auto_equip.equip_attempted = false
+end
+
+--- Give back a mouse cursor this module loaded. A refused placement leaves the item on the
+--- cursor (.api/core.lua, equip_container_item), and clearing the cursor while the engine
+--- holds a bind-on-equip cancels that equip — so this runs only once the confirmation
+--- window has expired, and only for an equip this module issued.
+local function release_own_cursor_item()
+    if not _auto_equip.equip_attempted then return end
+    if type(_has_cursor_item) ~= "function" then return end
+    local ok_held, held = pcall(_has_cursor_item)
+    if ok_held and held == true and type(_clear_cursor) == "function" then
+        pcall(_clear_cursor)
+    end
+end
+
+--- Drop any bind prompt recorded BEFORE this module issues its equip. A player-answered prompt
+--- is latched the same way ours is, and consuming that one would report the reward equipped
+--- while it is still sitting in the bags. Nothing recorded before the attempt can belong to it.
+local function discard_stale_equip_confirms()
+    local ok, bridge = pcall(require, "quest_frame_events_sylvanas")
+    if not ok or type(bridge) ~= "table" or type(bridge.take_confirm) ~= "function" then return end
+    bridge.take_confirm("AUTOEQUIP_BIND_CONFIRM")
+    bridge.take_confirm("EQUIP_BIND_CONFIRM")
 end
 
 --- Record the reward the quest handler actually selected. The item may not be in bags yet.
@@ -402,10 +430,26 @@ function M.auto_equip_best_reward()
                 local should = eq.should_equip(
                     info.name, info.quality or 0, equipped_list, info.equip_loc)
                 if not should then clear_auto_equip() return false end
+                -- Name the slot the comparison resolved against. Equipping without a
+                -- destination lets the client pick, and it never picks the second ring
+                -- (12), second trinket (14) or off hand (17).
+                local destination = eq.equip_slot_for(info.name, info.equip_loc, equipped_list)
+                if not destination then clear_auto_equip() return false end
                 _auto_equip.equip_attempted = true
                 _auto_equip.armed_until = _core_time() + _AUTO_EQUIP_WINDOW
-                pcall(_use_container_item, slot_data.bag_id, slot_data.bag_slot)
-                -- A synchronous event is possible in the mock and in some clients.
+                discard_stale_equip_confirms()
+                local ok_equip, equipped = pcall(_equip_container_item,
+                    slot_data.bag_id, slot_data.bag_slot, destination)
+                if ok_equip and equipped == true then
+                    -- The cursor ended empty: the item left for the slot, so nothing is
+                    -- outstanding and no bind prompt can still be answered.
+                    clear_auto_equip()
+                    return true
+                end
+                -- false is three documented things at once (refused pick-up, refused
+                -- placement, or a bind-on-equip the engine is holding). Only the last is
+                -- answered by the confirmation event, so wait for it inside the window;
+                -- a synchronous event is possible in the mock and in some clients.
                 M.process_auto_equip()
                 return true
             end
@@ -420,6 +464,7 @@ function M.process_auto_equip()
     if not _auto_equip.item_id then return false end
     local now = _core_time()
     if _auto_equip.armed_until > 0 and now > _auto_equip.armed_until then
+        release_own_cursor_item()
         clear_auto_equip()
         return false
     end

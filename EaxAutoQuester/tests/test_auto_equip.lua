@@ -4,7 +4,9 @@
 -- Why: Verify slot classification and equipment upgrade heuristic
 -- Scenarios: S1 empty, S2 upgrade, S3 downgrade, S4 type mismatch, S5 keyword bonus, S6 classifier names,
 --            S6a authoritative client slots and deterministic classifier order, S6b stable paired-slot tie,
---            S10 auto_equip_best_reward's item-info source, S13 real slot override, S14 real deferred tie
+--            S10 auto_equip_best_reward's item-info source, S11 the destination-naming equip call,
+--            S13 real slot override, S14 real deferred tie, S15 the resolved destination (12/14/17/11),
+--            S16 a refused placement releases the cursor it loaded, S17 an unowned cursor is left alone
 -- S10 fails if that source is an undeclared global again: the equipped quality then reads 0
 -- and the quality-1 downgrade wins.
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
@@ -241,7 +243,9 @@ do
     print("S10 PASS: auto_equip reads equipped quality from core.quests.get_item_info")
 end
 
--- S11: the selected reward reaches bags and is equipped with the helper-owned bag pair.
+-- S11: the selected reward reaches bags and is equipped through the helper-owned bag pair
+-- AND the resolved destination. The chest worn in client slot 5 is quality 3, the reward is
+-- 4, so the destination must be 5 — and the call must be the destination-naming one.
 do
     mock.install_inventory_helper()
     local reward = mock.create_object({ name = "Superior Tunic", item_id = 2003 })
@@ -249,16 +253,19 @@ do
     mock._input_calls = {}
 
     local qi = require("quest_interaction_sylvanas")
-    qi.process_auto_equip()
+    assert(qi.process_auto_equip() == true, "S11 FAIL: the selected reward must be equipped")
 
     local equip
     for _, call in ipairs(mock._input_calls) do
-        if call[1] == "use_container_item" then equip = call end
+        if call[1] == "equip_container_item" then equip = call end
+        assert(call[1] ~= "use_container_item",
+            "S11 FAIL: the equip must name its destination, not leave the client to pick")
     end
-    assert(equip and equip[2] == 0 and equip[3] == 8,
-        "S11 FAIL: reward equip must use inventory_helper's (bag_id, bag_slot), got " ..
-        tostring(equip and equip[2]) .. "/" .. tostring(equip and equip[3]))
-    print("S11 PASS: selected reward is equipped through the helper bag/slot pair")
+    assert(equip and equip[2] == 0 and equip[3] == 8 and equip[4] == 5,
+        "S11 FAIL: expected equip_container_item(0, 8, 5) — helper pair plus the resolved " ..
+        "slot — got " .. tostring(equip and equip[2]) .. "/" .. tostring(equip and equip[3]) ..
+        "/" .. tostring(equip and equip[4]))
+    print("S11 PASS: selected reward is equipped into the slot the comparison resolved")
 end
 
 -- S12a: the quest-item fallback names the item ID, never a raw inventory slot pair.
@@ -288,7 +295,26 @@ end
 do
     local bridge = require("quest_frame_events_sylvanas")
     local qi = require("quest_interaction_sylvanas")
+
+    -- Arm the pending equip here: the client holds it (false, item on the cursor), so the
+    -- confirmation event below is the only thing that can finish it.
+    mock.reset()
+    mock.install_inventory_helper()
+    local worn = mock.create_object({ name = "Cured Leather Tunic", item_id = 2001 })
+    mock.create_player({ equipped = { { object = worn, slot_id = 5 } } })
+    mock._item_info[2001] = { name = "Cured Leather Tunic", quality = 1, equip_loc = "CHEST" }
+    local reward = mock.create_object({ name = "Superior Tunic", item_id = 2003 })
+    mock._quest_rewards[1] = { link = "item:2003" }
+    mock._item_info["item:2003"] = {
+        item_id = 2003, name = "Superior Tunic", quality = 4, equip_loc = "CHEST", sell_price = 5,
+    }
+    mock._bag_items[0] = { { object = reward, slot_id = 300 } }
+    mock._equip_pending = true
+    mock._pending_equip_slot = 4
     mock._input_calls = {}
+
+    assert(qi.select_best_reward() == "best_reward:1(5c)", "S12 FAIL: the reward selector changed")
+    assert(qi.process_auto_equip() == true, "S12 FAIL: the pending reward equip must be issued")
     bridge.on_game_event("AUTOEQUIP_BIND_CONFIRM", { 4 })
     assert(qi.process_auto_equip() == true,
         "S12 FAIL: the pending reward equip must release its own bind prompt")
@@ -296,7 +322,8 @@ do
     for _, call in ipairs(mock._input_calls) do
         if call[1] == "equip_pending_item" then confirmed = call[2] end
     end
-    assert(confirmed == 4, "S12 FAIL: expected equip_pending_item(4), got " .. tostring(confirmed))    print("  S12 PASS: bind-on-equip confirmation is owned and released once")
+    assert(confirmed == 4, "S12 FAIL: expected equip_pending_item(4), got " .. tostring(confirmed))
+    print("S12 PASS: bind-on-equip confirmation is owned and released once")
 end
 
 -- S12b: a prompt raised by the player while no reward equip is pending is left alone.
@@ -399,6 +426,132 @@ do
         end
     end
     print("S14 PASS: real deferred auto-equip breaks paired-slot ties deterministically")
+end
+
+-- S15: the reward is equipped into the slot the comparison resolved, named on the call —
+-- including the second of a paired slot (12 / 14) and the off hand (17), the three the
+-- client's destination-less use never picks — and the category's first slot when nothing
+-- of that category is worn. "Worn Sword" is a main-hand name for every case, so only the
+-- client's own slot/equip_loc data can produce the expected destination.
+do
+    local qi = require("quest_interaction_sylvanas")
+    local cases = {
+        { worn_slot = 12, loc = "FINGER", expected = 12 },
+        { worn_slot = 14, loc = "TRINKET", expected = 14 },
+        { worn_slot = 17, loc = "WEAPON_OFF", expected = 17 },
+        { worn_slot = nil, loc = "FINGER", expected = 11 },
+    }
+    for index, case in ipairs(cases) do
+        mock.reset()
+        mock.install_inventory_helper()
+
+        local equipped_rows = {}
+        if case.worn_slot then
+            local worn = mock.create_object({ name = "Worn Sword", item_id = 4200 + index })
+            mock._item_info[4200 + index] = { name = "Worn Sword", quality = 2, equip_loc = case.loc }
+            equipped_rows = { { object = worn, slot_id = case.worn_slot } }
+        end
+        mock.create_player({ equipped = equipped_rows })
+
+        local link = "item:" .. tostring(4300 + index)
+        local reward = mock.create_object({ name = "Worn Sword", item_id = 4300 + index })
+        mock._quest_rewards[1] = { link = link }
+        mock._item_info[link] = {
+            item_id = 4300 + index, name = "Worn Sword", quality = 3,
+            equip_loc = case.loc, sell_price = 5,
+        }
+        mock._bag_items[0] = { { object = reward, slot_id = 300 + index } }
+        mock._input_calls = {}
+
+        assert(qi.select_best_reward() == "best_reward:1(5c)", "S15 FAIL: the reward selector changed")
+        assert(qi.process_auto_equip() == true,
+            "S15 FAIL: the quality-3 reward must replace the quality-2 item in client slot " ..
+            tostring(case.worn_slot))
+
+        local destination
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "equip_container_item" then
+                destination = call[4]
+                -- The reward is the first entry of bag 0, so the helper-owned pair is (0, 8):
+                -- the fixture's raw slot_id is deliberately not that number.
+                assert(call[2] == 0 and call[3] == 8,
+                    "S15 FAIL: the equip must carry inventory_helper's (bag_id, bag_slot)")
+            end
+            assert(call[1] ~= "use_container_item",
+                "S15 FAIL: a destination-less use must not place the reward")
+        end
+        assert(destination == case.expected,
+            "S15 FAIL: expected destination " .. tostring(case.expected) .. " for " .. case.loc ..
+            ", got " .. tostring(destination))
+    end
+    print("S15 PASS: rewards land in the resolved slot (11 / 12 / 14 / 17), never client-chosen")
+end
+
+-- S16: a refused placement leaves the item on the cursor, so the module must give back a
+-- cursor IT loaded — but only once the confirmation window has expired, because clearing it
+-- while the engine holds a bind-on-equip would cancel that equip.
+do
+    mock.reset()
+    mock.install_inventory_helper()
+
+    local worn = mock.create_object({ name = "Cured Leather Tunic", item_id = 5001 })
+    mock.create_player({ equipped = { { object = worn, slot_id = 5 } } })
+    mock._item_info[5001] = { name = "Cured Leather Tunic", quality = 1, equip_loc = "CHEST" }
+    local link = "item:5002"
+    local reward = mock.create_object({ name = "Superior Tunic", item_id = 5002 })
+    mock._quest_rewards[1] = { link = link }
+    mock._item_info[link] = {
+        item_id = 5002, name = "Superior Tunic", quality = 4, equip_loc = "CHEST", sell_price = 5,
+    }
+    mock._bag_items[0] = { { object = reward, slot_id = 305 } }
+    mock._equip_refused = true
+    mock._input_calls = {}
+
+    -- A bind prompt recorded BEFORE this attempt (the S12b one is still latched) is not ours
+    -- to answer: consuming it would report the reward equipped while it is still in the bags.
+    local bridge = require("quest_frame_events_sylvanas")
+    bridge.on_game_event("AUTOEQUIP_BIND_CONFIRM", { 9 })
+
+    local qi = require("quest_interaction_sylvanas")
+    assert(qi.select_best_reward() == "best_reward:1(5c)", "S16 FAIL: the reward selector changed")
+    assert(qi.process_auto_equip() == true, "S16 FAIL: the deferred equip must be issued")
+    assert(mock._cursor_item == true, "S16 FAIL: the fixture must model a refused placement")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "clear_cursor",
+            "S16 FAIL: the cursor was released while the confirmation window was still open")
+        assert(call[1] ~= "equip_pending_item",
+            "S16 FAIL: a prompt recorded before this attempt was answered as its own")
+    end
+
+    mock.set_time(mock.get_time() + 6)
+    assert(qi.process_auto_equip() == false, "S16 FAIL: an expired equip request must be dropped")
+    local cleared = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "clear_cursor" then cleared = true end
+    end
+    assert(cleared, "S16 FAIL: an abandoned refused placement must give the cursor back")
+
+    mock._input_calls = {}
+    assert(qi.process_auto_equip() == false, "S16 FAIL: nothing may be pending after the give-up")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "clear_cursor", "S16 FAIL: the released cursor was released twice")
+    end
+    print("S16 PASS: a refused placement releases its own cursor, once, after the window")
+end
+
+-- S17: a cursor item this module never loaded is left alone, matching the bind-prompt
+-- ownership rule in S12b.
+do
+    mock.reset()
+    mock._cursor_item = true
+    mock._input_calls = {}
+
+    local qi = require("quest_interaction_sylvanas")
+    assert(qi.process_auto_equip() == false, "S17 FAIL: no reward equip is pending after the reset")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "clear_cursor", "S17 FAIL: a player-owned cursor item was cleared")
+    end
+    print("S17 PASS: a cursor item this module did not load is left alone")
 end
 
 print("PASS test_auto_equip")

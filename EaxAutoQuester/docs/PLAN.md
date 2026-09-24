@@ -42,4 +42,4 @@
 
 ## Execution complete
 
-All twelve objectives, AQ-P0-1 through AQ-P2-6, are complete. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.
+All twelve objectives, AQ-P0-1 through AQ-P2-6, are complete. AQ-P2-6 follow-up (2026-09-24): the comparison's resolved slot is now the equip's destination (`core.input.equip_container_item`), so the reward lands where the decision was made instead of wherever the client's destination-less use put it; the call's result is consumed and an abandoned equip hands its cursor back. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.

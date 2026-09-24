@@ -158,7 +158,9 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 - Paired client slots use the lowest `slot_id` consistently, so an equal-quality comparison cannot change with the order in which the client returns equipped rows. This is ordering only; the existing quality comparison and priority-keyword bonus remain unchanged.
 - Both the direct reward scan and the deferred bag recheck use the same slot-aware equipped-row builder. Reward selection remains the existing sell-value choice, including its first-choice behavior on equal prices; no stats, weights, scoring model, or preference policy was added.
 
-**Proving surface:** `equipment_compare_sylvanas.lua`, `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S6-S6b, S10, S13, and S14.
+- **Destination (2026-09-24 follow-up):** the equip names the slot the comparison resolved, through `core.input.equip_container_item(bag, slot, INVSLOT_*)`, instead of the destination-less `use_container_item` — the client's own documentation says the latter never fills the second ring (12), second trinket (14) or off hand (17). The call's documented result is consumed: `true` ends the request, and an equip that never lands is dropped when the confirmation window expires with the cursor this module loaded handed back. A bind prompt recorded *before* the attempt is no longer answered as its own.
+
+**Proving surface:** `equipment_compare_sylvanas.lua` (`equip_slot_for`), `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S6-S6b, S10, S11, S13-S14, and S15-S17 (resolved destinations 11/12/14/17, a refused placement that releases its own cursor once, and an unowned cursor left alone).
 
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.

@@ -45,6 +45,13 @@ M._party = {}
 -- was not reached.
 M._confirm_answered = true
 M._pending_equip_slot = nil
+-- Cursor state as the client reports it. A refused placement leaves our item ON the cursor
+-- (.api/core.lua, equip_container_item), so a suite can prove the plugin gives it back.
+M._cursor_item = nil
+-- When true, equip_container_item models a refused placement: false, item left on the cursor.
+M._equip_refused = false
+-- When true, it models a bind-on-equip the engine is holding: false, item left on the cursor.
+M._equip_pending = false
 
 -- ============================================================================
 -- Reset
@@ -93,6 +100,9 @@ function M.reset()
     M._game_event_raises = false
     M._confirm_answered = true
     M._pending_equip_slot = nil
+    M._cursor_item = nil
+    M._equip_refused = false
+    M._equip_pending = false
     M._helper_capacity = nil
     M._helper_used = nil
 end
@@ -310,6 +320,22 @@ M.input = {
     use_container_item = function(bag, slot)
         M._input_calls[#M._input_calls + 1] = { "use_container_item", bag, slot }
     end,
+    -- The destination-naming equip (.api/core.lua:2167). Returns the documented `equipped`
+    -- boolean: true only when the item left the cursor for the slot.
+    equip_container_item = function(bag, slot, inventory_slot)
+        M._input_calls[#M._input_calls + 1] = { "equip_container_item", bag, slot, inventory_slot }
+        if M._equip_refused or M._equip_pending then
+            M._cursor_item = true
+            return false
+        end
+        M._cursor_item = nil
+        return true
+    end,
+    clear_cursor = function()
+        M._input_calls[#M._input_calls + 1] = { "clear_cursor" }
+        M._cursor_item = nil
+        return M._cursor_item == nil
+    end,
     use_item_target = function(item_id, target)
         M._input_calls[#M._input_calls + 1] = { "use_item_target", item_id, target }
     end,
@@ -319,6 +345,8 @@ M.input = {
     equip_pending_item = function(inventory_slot)
         M._input_calls[#M._input_calls + 1] = { "equip_pending_item", inventory_slot }
         M._pending_equip_slot = nil
+        -- Answering the prompt completes the equip, so the item leaves the cursor.
+        if M._confirm_answered then M._cursor_item = nil end
         return M._confirm_answered
     end,
     use_item_position = function(item_id, position)
@@ -358,6 +386,7 @@ M.game_ui = {
     end,
     get_battlefield_status = function(index) return M._battlefield_status[index] or "none" end,
     get_pending_equip_slot = function() return M._pending_equip_slot end,
+    has_cursor_item = function() return M._cursor_item ~= nil end,
 
 }
 

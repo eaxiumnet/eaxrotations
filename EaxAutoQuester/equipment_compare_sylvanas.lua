@@ -2,7 +2,8 @@
 -- When: Called by quest reward / loot handlers to decide whether to equip an item
 -- Why: TBC has no item level; use quality + the client's slot data + the existing keyword heuristic
 -- Safety: All functions nil-guarded (Pattern 14); no math.sqrt(); no io.popen
--- Decision: Pure logic module — no core.* dependency; standalone testable
+-- Decision: Pure logic module — no core.* dependency; standalone testable.
+--           Owns slot classification AND the INVSLOT destination a decision names.
 
 -- ============================================================================
 -- Slot Classification Table (Pattern 2: cached at load)
@@ -54,6 +55,22 @@ local INVENTORY_SLOTS = {
     [18] = "RANGED",
     [19] = "TABARD",
 }
+
+-- Reverse of INVENTORY_SLOTS, derived from it so the two cannot drift: a category's
+-- client INVSLOT_* ids in ascending order. The first entry is the slot a comparator
+-- decision falls back to when nothing of that category is worn.
+local SLOT_INVENTORY_IDS = {}
+for _slot_id = 1, 19 do
+    local _category = INVENTORY_SLOTS[_slot_id]
+    if _category then
+        local ids = SLOT_INVENTORY_IDS[_category]
+        if not ids then
+            ids = {}
+            SLOT_INVENTORY_IDS[_category] = ids
+        end
+        ids[#ids + 1] = _slot_id
+    end
+end
 
 -- quest_item_info exposes equip_loc as a string. These aliases normalize the
 -- documented location names (and common INVEQUIPLOC spellings) to the same
@@ -193,6 +210,34 @@ local function equipped_row_slot(item)
     return classify_slot(item.name, item.equip_loc)
 end
 
+--- The client INVSLOT_* id an item belongs in, given the same equipped rows passed to
+--- should_equip. Mirrors that decision — the lowest client slot carrying the category —
+--- and uses the category's lowest slot when nothing of it is worn. Naming the destination
+--- is what the client's own equip call needs: on its own it never fills the second ring
+--- (12), the second trinket (14) or the off hand (17) (.api/core.lua, equip_container_item).
+--- @param item_name string|nil Item display name
+--- @param equip_loc string|number|nil Client item-info equipment location
+--- @param equipped_items_list table|nil The rows should_equip compared against
+--- @return number|nil INVSLOT_* id, or nil when the slot cannot be determined
+local function equip_slot_for(item_name, equip_loc, equipped_items_list)
+    local category = classify_slot(item_name, equip_loc)
+    if not category then return nil end
+    local ids = SLOT_INVENTORY_IDS[category]
+    if not ids then return nil end
+
+    local lowest
+    if type(equipped_items_list) == "table" then
+        for _, item in ipairs(equipped_items_list) do
+            if equipped_row_slot(item) == category then
+                local slot_id = item.slot_id and tonumber(item.slot_id) or nil
+                if slot_id and (not lowest or slot_id < lowest) then lowest = slot_id end
+            end
+        end
+    end
+
+    return lowest or ids[1]
+end
+
 -- ============================================================================
 -- has_priority_keyword
 -- ============================================================================
@@ -295,6 +340,7 @@ end
 local M = {
     classify_slot = classify_slot,
     should_equip = should_equip,
+    equip_slot_for = equip_slot_for,
 }
 
 -- Expose globally for cross-module access without re-require
