@@ -82,6 +82,7 @@ package.loaded["npc_spawns"] = {
 
 local spawn_patrol = require("shared/spawn_patrol")
 local pull_safety = require("shared/pull_safety")
+local nav_destination = require("shared/nav_destination")
 
 -- =============================================================================
 -- Fixtures
@@ -792,6 +793,102 @@ do
         "expected " .. tostring(expected_idx) .. ", got " .. tostring(#shared._patrol_points))
     print("  P15 PASS: without step waypoints the search is index-only, as before")
 end
+
+-- =============================================================================
+-- P16 — a waypoint under the player is searched, not published as a 0yd leg
+-- The guide's step waypoints come out of the map conversion with z=0, and the
+-- bot's terrain is not at 0. A 3D arrive test therefore read the waypoint the
+-- player was standing on as hundreds of yards away and published it as a leg.
+-- Live: "SPAWN PATROL: searching spawn point 5/5 (0yd)", then 15s later "spawn
+-- point 2 unreachable" — the sweep spending its life on places already covered.
+-- =============================================================================
+do
+    _time = 1900
+    _waypoints = { { x = 0, y = 0, z = 0 } }
+    local me = player({ pos = { x = 0, y = 0, z = 250 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 233818 }
+    local ctx = ctx_for({ me = me, now = _time })
+    local log_start = #_logs
+
+    local point = spawn_patrol.next_point(shared, ctx, goal)
+    assert(point == nil,
+        "P16a FAIL: the only candidate is under the player, so there is nothing to walk to, got x=" ..
+        tostring(point and point.x))
+    assert(shared._patrol_seen[1] == true,
+        "P16b FAIL: a candidate the player is standing on must be marked searched at choice time")
+    for i = log_start + 1, #_logs do
+        assert(not _logs[i]:find("searching spawn point", 1, true),
+            "P16c FAIL: no leg may be published for a place already covered, got: " .. _logs[i])
+    end
+    print("  P16 PASS: a step waypoint under the player is searched, not walked (0yd leg is gone)")
+end
+
+-- =============================================================================
+-- P17 — a place the client refused is not offered again
+-- nav_destination owns the verdict "the client could not walk to this place".
+-- Offering it back spends every pass on the same point and the rest of the
+-- step's path is never covered — the failure this module exists to end.
+-- =============================================================================
+do
+    _time = 1950
+    _waypoints = { { x = 0, y = 0, z = 0 }, { x = 50, y = 0, z = 0 } }
+    local me = player({ pos = { x = 0, y = 0, z = 250 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 233818 }
+    local ctx = ctx_for({ me = me, now = _time })
+    local log_start = #_logs
+
+    local first = spawn_patrol.next_point(shared, ctx, goal)
+    assert(first and math.abs(first.x - 50) < 0.01,
+        "P17a FAIL: expected the one walkable candidate, got " .. tostring(first and first.x))
+    nav_destination.mark_unreachable(shared, _time + 1, first)
+
+    -- 17s with no movement: the leg ends, the sweep rebuilds, and the refused
+    -- place must not come back from the index or the waypoint list.
+    ctx = ctx_for({ me = me, now = _time + 17 })
+    local next_point = spawn_patrol.next_point(shared, ctx, goal)
+    assert(next_point == nil,
+        "P17b FAIL: a refused place must not be re-offered after the rebuild, got x=" ..
+        tostring(next_point and next_point.x))
+    local logged_unreachable = false
+    for i = log_start + 1, #_logs do
+        if _logs[i]:find("unreachable", 1, true) then logged_unreachable = true end
+    end
+    assert(logged_unreachable,
+        "P17c FAIL: the leg the client refused must be reported as unreachable")
+    print("  P17 PASS: a refused place is retired from the search and reported as unreachable")
+end
+
+-- =============================================================================
+-- P18 — a leg that merely ended is not called unreachable
+-- The same 17s timeout, with no refusal on record: the walk ended short, which
+-- is not a fault the search should go looking for.
+-- =============================================================================
+do
+    _time = 2000
+    _waypoints = { { x = 0, y = 0, z = 0 }, { x = 50, y = 0, z = 0 } }
+    local me = player({ pos = { x = 0, y = 0, z = 250 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 233818 }
+    local ctx = ctx_for({ me = me, now = _time })
+    local log_start = #_logs
+
+    assert(spawn_patrol.next_point(shared, ctx, goal),
+        "P18a FAIL: expected a first leg")
+    ctx = ctx_for({ me = me, now = _time + 17 })
+    spawn_patrol.next_point(shared, ctx, goal)
+
+    local logged = ""
+    for i = log_start + 1, #_logs do
+        if _logs[i]:find("trying another", 1, true) then logged = _logs[i] end
+    end
+    assert(logged:find("walk ended short", 1, true),
+        "P18b FAIL: a leg with no refusal on record must not be reported unreachable, got: " .. logged)
+    print("  P18 PASS: a leg that ended short is reported as such, not as a nav failure")
+end
+
+_waypoints = nil
 
 print("PASS test_spawn_patrol")
 os.exit(0)

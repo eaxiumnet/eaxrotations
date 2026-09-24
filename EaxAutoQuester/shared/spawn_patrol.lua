@@ -23,9 +23,12 @@
 --        already in flight re-published at most every REISSUE_SECONDS (the client owns the walk).
 -- SAFETY: never walks while the pull gate holds a retreat (the retreat outranks a search leg: the
 --        gate exists to not enter a camp, and this is exactly a walk toward one). A leg with no
---        movement for STUCK_SECONDS is retired so an unreachable spawn point cannot wedge the
---        search. Every probe pcall-guarded; the tick path allocates nothing (the candidate list
---        and the visited marks are built once per goal, not per tick).
+--        movement for STUCK_SECONDS is retired so a spawn point the bot cannot reach cannot wedge
+--        the search. Arrival is measured on the ground plane, because a candidate's height is not
+--        always the terrain's (a guide waypoint arrives with z=0) and a wrong height turned "the
+--        bot is standing here" into a 0yd leg. A place the client has already refused is not
+--        offered again. Every probe pcall-guarded; the tick path allocates nothing (the candidate
+--        list and the visited marks are built once per goal, not per tick).
 -- DECISION: a shared module rather than logic inside idle_state, because do_action_state needs the
 --        same walk and a second copy would drift. The point is RETURNED, not written: the states
 --        that own navigation apply it (see shared/nav_destination.lua for who owns the fields).
@@ -37,6 +40,7 @@
 local M = {}
 
 local goal_names = require("shared/goal_names")
+local nav_destination = require("shared/nav_destination")
 local objective_match = require("shared/objective_match")
 
 -- Hoisted probes: the tick path must not build closures (see tests/test_tick_allocation.lua).
@@ -87,6 +91,17 @@ local ARRIVE_SQ = 100.0
 --- not reach must cost one leg, not the whole search.
 local PROGRESS_SQ = 25.0
 local STUCK_SECONDS = 15.0
+
+--- Distance on the ground plane. "Is the player standing on this place?" must not depend on a
+--- height: the guide's step waypoints come out of the map conversion with z=0
+--- (zygor_reader_sylvanas.lua get_step_waypoints_world), so a 3D compare read the waypoint the bot
+--- was standing on as hundreds of yards away, published it as a 0-1yd leg, and retired it 15s later
+--- as unreachable (live: "spawning spawn point 5/5 (0yd)" -> "spawn point 2 unreachable").
+local function ground_sq(a, b)
+    local dx = (a.x or 0) - (b.x or 0)
+    local dy = (a.y or 0) - (b.y or 0)
+    return dx * dx + dy * dy
+end
 
 --- How often a leg that is still being walked is re-published. The states hand the walk to the
 --- client and the client owns it; re-publishing every tick would restart a path each frame, and
@@ -293,17 +308,20 @@ end
 --- applies, evaluated here at choice time so the first leg of a wait is not a walk to where the bot
 --- already is. Marking them here is what makes a single-spawn objective (the bot parked on the
 --- only spawn point) answer "nothing to walk to", which is the truth: the 5s scan watches that spot.
+--- A place the client already refused is not offered: the sweep would spend every pass on it and
+--- never cover the rest of the path, which is the module's own failure mode.
 --- @param points table[] Candidate points
 --- @param seen table Visited marks, mutated: proximity-searched points are marked
 --- @param me_pos table Player position
---- @param utils table ctx.utils
 --- @return number|nil index, number|nil squared distance
-local function choose(points, seen, me_pos, utils)
+local function choose(shared, ctx, points, seen, me_pos)
     local best, best_sq = nil, nil
     for i = 1, #points do
-        if not seen[i] then
-            local d_sq = utils.squared_distance(me_pos, points[i])
-            if d_sq <= ARRIVE_SQ then
+        local point = points[i]
+        if point and not seen[i]
+            and not nav_destination.recently_unreachable(shared, ctx.now, point) then
+            local d_sq = ctx.utils.squared_distance(me_pos, point)
+            if ground_sq(me_pos, point) <= ARRIVE_SQ then
                 seen[i] = true
             elseif best_sq == nil or d_sq < best_sq then
                 best = i
@@ -322,7 +340,7 @@ local function select_next(shared, ctx, goal, me_pos)
     local points = shared._patrol_points
     local seen = shared._patrol_seen
 
-    local best = choose(points, seen, me_pos, ctx.utils)
+    local best = choose(shared, ctx, points, seen, me_pos)
     if best then return best end
 
     -- Nothing walkable: the sweep is complete. A rebuild walks the spawn index, so it is throttled
@@ -345,7 +363,7 @@ local function select_next(shared, ctx, goal, me_pos)
     ctx.debug_log("SPAWN PATROL: sweep " .. tostring(shared._patrol_sweeps) ..
         " complete — re-scanning " .. tostring(#points) .. " spawn point(s)")
 
-    return choose(points, seen, me_pos, ctx.utils)
+    return choose(shared, ctx, points, seen, me_pos)
 end
 
 -- ============================================================================
@@ -384,7 +402,7 @@ function M.next_point(shared, ctx, goal)
     if idx then
         local point = points[idx]
         local d_sq = ctx.utils.squared_distance(me_pos, point)
-        if d_sq <= ARRIVE_SQ then
+        if ground_sq(me_pos, point) <= ARRIVE_SQ then
             -- Searched: the bot is standing on it, and the 5s scan has had its chance here.
             shared._patrol_seen[idx] = true
             shared._patrol_target_i = nil
@@ -404,8 +422,14 @@ function M.next_point(shared, ctx, goal)
                 elseif ctx.now - (shared._patrol_anchor_at or 0) > STUCK_SECONDS then
                     shared._patrol_seen[idx] = true
                     shared._patrol_target_i = nil
+                    -- The client's word, not a guess: shared/nav_destination.lua owns "the client
+                    -- could not walk to this place". A leg that simply stopped without that record
+                    -- was reached as far as the client is concerned, and calling it unreachable sent
+                    -- the sweep hunting a fault that was not there — live, an 18s walk the client
+                    -- reported as arrived was retired as unreachable and offered again.
+                    local refused = nav_destination.recently_unreachable(shared, ctx.now, point)
                     ctx.debug_log("SPAWN PATROL: spawn point " .. tostring(idx) ..
-                        " unreachable — trying another")
+                        (refused and " unreachable" or " walk ended short") .. " — trying another")
                 end
             end
 
