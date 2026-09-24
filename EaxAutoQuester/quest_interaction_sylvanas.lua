@@ -84,6 +84,36 @@ local function get_loot_manager()
     return nil
 end
 
+--- Build the comparison rows from the client's equipped-item contract. The
+--- row's slot_id is authoritative; item info's equip_loc and the name are
+--- retained only as fallbacks for older/mock rows without that field.
+local function build_equipped_comparison_list(me, equipment_compare)
+    local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
+    if not ok_eq_items or type(eq_items) ~= "table" then return nil end
+
+    local equipped_list = {}
+    for _, entry in ipairs(eq_items) do
+        if entry and entry.object then
+            local ok_name, name = pcall(function() return entry.object:get_name() end)
+            local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
+            if ok_name and ok_id and item_id then
+                local ok_quality, item_info = pcall(function() return _quests.get_item_info(item_id) end)
+                local equip_loc = type(item_info) == "table" and item_info.equip_loc or nil
+                local slot = equipment_compare.classify_slot(name, equip_loc, entry.slot_id)
+                if slot then
+                    equipped_list[#equipped_list + 1] = {
+                        slot = slot,
+                        slot_id = entry.slot_id,
+                        name = name,
+                        quality = (ok_quality and item_info and item_info.quality) or 0,
+                    }
+                end
+            end
+        end
+    end
+    return equipped_list
+end
+
 -- ============================================================================
 -- Module Table
 -- ============================================================================
@@ -334,31 +364,15 @@ function M.auto_equip_best_reward()
         if not ok_info or not selected then return false end
         info = selected
     else
-        local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
-        if not ok_eq_items or not eq_items then return false end
-        local equipped_list = {}
-        for _, entry in ipairs(eq_items) do
-            if entry and entry.object then
-                local ok_name, name = pcall(function() return entry.object:get_name() end)
-                local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
-                if ok_name and ok_id and item_id then
-                    local ok_quality, item_info = pcall(function() return _quests.get_item_info(item_id) end)
-                    local slot = eq.classify_slot(name)
-                    if slot then
-                        equipped_list[#equipped_list + 1] = {
-                            slot = slot, name = name,
-                            quality = (ok_quality and item_info and item_info.quality) or 0,
-                        }
-                    end
-                end
-            end
-        end
+        local equipped_list = build_equipped_comparison_list(me, eq)
+        if not equipped_list then return false end
         for i = 1, 6 do
             local ok_link, candidate_link = pcall(function() return _quests.get_quest_item_link("choice", i) end)
             if not ok_link or not candidate_link or candidate_link == "" then break end
             local ok_candidate, candidate = pcall(function() return _quests.get_item_info(candidate_link) end)
             if ok_candidate and candidate then
-                local should = eq.should_equip(candidate.name, candidate.quality or 0, equipped_list)
+                local should = eq.should_equip(
+                    candidate.name, candidate.quality or 0, equipped_list, candidate.equip_loc)
                 if should then
                     local selected = pcall(function() _quests.get_quest_reward(i) end)
                     if selected then
@@ -383,23 +397,10 @@ function M.auto_equip_best_reward()
         if item and item.get_item_id then
             local ok_id, item_id = pcall(item.get_item_id, item)
             if ok_id and item_id == _auto_equip.item_id then
-                local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
-                if not ok_eq_items or not eq_items then return false end
-                local equipped_list = {}
-                for _, entry in ipairs(eq_items) do
-                    if entry and entry.object then
-                        local ok_name, name = pcall(function() return entry.object:get_name() end)
-                        local ok_eid, eid = pcall(function() return entry.object:get_item_id() end)
-                        if ok_name and ok_eid and eid and eq.classify_slot(name) then
-                            local ok_quality, item_info = pcall(function() return _quests.get_item_info(eid) end)
-                            equipped_list[#equipped_list + 1] = {
-                                slot = eq.classify_slot(name), name = name,
-                                quality = (ok_quality and item_info and item_info.quality) or 0,
-                            }
-                        end
-                    end
-                end
-                local should = eq.should_equip(info.name, info.quality or 0, equipped_list)
+                local equipped_list = build_equipped_comparison_list(me, eq)
+                if not equipped_list then return false end
+                local should = eq.should_equip(
+                    info.name, info.quality or 0, equipped_list, info.equip_loc)
                 if not should then clear_auto_equip() return false end
                 _auto_equip.equip_attempted = true
                 _auto_equip.armed_until = _core_time() + _AUTO_EQUIP_WINDOW

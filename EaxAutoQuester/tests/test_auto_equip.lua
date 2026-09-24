@@ -3,7 +3,8 @@
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
 -- Why: Verify slot classification and equipment upgrade heuristic
 -- Scenarios: S1 empty, S2 upgrade, S3 downgrade, S4 type mismatch, S5 keyword bonus, S6 classifier names,
---            S10 auto_equip_best_reward's item-info source
+--            S6a authoritative client slots and deterministic classifier order, S6b stable paired-slot tie,
+--            S10 auto_equip_best_reward's item-info source, S13 real slot override, S14 real deferred tie
 -- S10 fails if that source is an undeclared global again: the equipped quality then reads 0
 -- and the quality-1 downgrade wins.
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
@@ -45,6 +46,35 @@ assert(eq.classify_slot("Old Blunderbuss") == "RANGED",
     "classify_slot 'Old Blunderbuss' → RANGED")
 assert(eq.classify_slot("Wooden Shield") == "WEAPON_OFF",
     "classify_slot 'Wooden Shield' → WEAPON_OFF")
+
+-- The name fallback has an explicit first-match order, even when a name
+-- contains more than one existing keyword.
+assert(eq.classify_slot("Shadowcraft Cap of the Axe") == "HEAD",
+    "S6a: overlapping name keywords use the declared slot order")
+
+-- Client-provided data wins over display-name inference.
+assert(eq.classify_slot("Mystery Relic", "INVEQUIPLOC_FINGER") == "FINGER",
+    "S6a: quest item equip_loc must classify an otherwise-unknown name")
+assert(eq.classify_slot("Worn Sword", nil, 3) == "SHOULDERS",
+    "S6a: equipped row slot_id must classify a misleading name")
+assert(eq.classify_slot("Worn Sword", "CHEST", 24) == nil,
+    "S6a: non-equipment inventory positions must not enter comparison")
+
+-- Paired client slots use the lowest INVSLOT_* consistently, not list order.
+local paired_rows_s6b = {
+    { slot_id = 12, name = "Worn Sword", quality = 1 },
+    { slot_id = 11, name = "Worn Sword", quality = 2 },
+}
+local s6_equip, s6_slot = eq.should_equip("Worn Sword", 2, paired_rows_s6b, "FINGER")
+assert(s6_equip == false,
+    "S6b: equal quality against stable slot 11 must not replace it")
+paired_rows_s6b = {
+    { slot_id = 11, name = "Worn Sword", quality = 2 },
+    { slot_id = 12, name = "Worn Sword", quality = 1 },
+}
+s6_equip, s6_slot = eq.should_equip("Worn Sword", 2, paired_rows_s6b, "FINGER")
+assert(s6_equip == false,
+    "S6b: reversing the client list must not change the paired-slot decision")
 
 -- ============================================================================
 -- S1: Empty equipped list — should equip, no slot to replace
@@ -179,14 +209,20 @@ do
     })
     mock.create_player({
         pos = { x = 0, y = 0, z = 0 },
-        equipped = { { object = equipped_obj, slot_id = 4 } },
+        equipped = { { object = equipped_obj, slot_id = 5 } },
     })
 
-    mock._item_info[1001] = { name = "Cured Leather Tunic", quality = 3 }
+    mock._item_info[1001] = {
+        name = "Cured Leather Tunic", quality = 3, equip_loc = "CHEST",
+    }
     mock._quest_rewards[1] = { link = "item:2002" }
-    mock._item_info["item:2002"] = { name = "Cheap Cloth Tunic", quality = 1 }
+    mock._item_info["item:2002"] = {
+        name = "Cheap Cloth Tunic", quality = 1, equip_loc = "CHEST",
+    }
     mock._quest_rewards[2] = { link = "item:2003" }
-    mock._item_info["item:2003"] = { name = "Superior Tunic", quality = 4 }
+    mock._item_info["item:2003"] = {
+        name = "Superior Tunic", quality = 4, equip_loc = "CHEST",
+    }
 
     local qi = require("quest_interaction_sylvanas")
     assert(type(qi.auto_equip_best_reward) == "function",
@@ -276,6 +312,93 @@ do
             "S12b FAIL: player-originated equip prompt was answered")
     end
     print("S12b PASS: player-originated bind prompt is left alone")
+end
+
+-- S13: the real selected-reward path trusts client slot data over both names.
+do
+    mock.reset()
+    mock.install_inventory_helper()
+
+    local equipped = mock.create_object({
+        name = "Hood of the Whelpling", item_id = 3101,
+    })
+    mock.create_player({
+        equipped = { { object = equipped, slot_id = 1 } },
+    })
+    mock._item_info[3101] = {
+        name = "Hood of the Whelpling", quality = 4, equip_loc = "HEAD",
+    }
+
+    local reward = mock.create_object({ name = "Worn Sword", item_id = 3102 })
+    mock._quest_rewards[1] = { link = "item:3102" }
+    mock._item_info["item:3102"] = {
+        item_id = 3102, name = "Worn Sword", quality = 3,
+        equip_loc = "HEAD", sell_price = 5,
+    }
+    mock._bag_items[0] = { { object = reward, slot_id = 301 } }
+    mock._input_calls = {}
+
+    local qi = require("quest_interaction_sylvanas")
+    assert(qi.select_best_reward() == "best_reward:1(5c)",
+        "S13 FAIL: the real reward selector must still select the offered reward")
+    assert(qi.process_auto_equip() == false,
+        "S13 FAIL: a lower-quality HEAD reward must be rejected using slot_id/equip_loc")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "use_container_item",
+            "S13 FAIL: slot-mismatched reward was equipped through the real deferred path")
+    end
+    print("S13 PASS: real auto-equip uses client slot data over misleading names")
+end
+
+-- S14: equal-quality comparison is stable when the client returns paired slots
+-- in either order. The candidate is not a keyword-bonus upgrade.
+do
+    local qi = require("quest_interaction_sylvanas")
+    for _, first_slot in ipairs({ 12, 11 }) do
+        mock.reset()
+        mock.install_inventory_helper()
+
+        local slot11 = mock.create_object({ name = "Worn Sword", item_id = 3201 })
+        local slot12 = mock.create_object({ name = "Worn Sword", item_id = 3202 })
+        mock._item_info[3201] = {
+            name = "Worn Sword", quality = 2, equip_loc = "FINGER",
+        }
+        mock._item_info[3202] = {
+            name = "Worn Sword", quality = 1, equip_loc = "FINGER",
+        }
+        local equipped
+        if first_slot == 12 then
+            equipped = {
+                { object = slot12, slot_id = 12 },
+                { object = slot11, slot_id = 11 },
+            }
+        else
+            equipped = {
+                { object = slot11, slot_id = 11 },
+                { object = slot12, slot_id = 12 },
+            }
+        end
+        mock.create_player({ equipped = equipped })
+
+        local reward = mock.create_object({ name = "Worn Sword", item_id = 3203 })
+        mock._quest_rewards[1] = { link = "item:3203" }
+        mock._item_info["item:3203"] = {
+            item_id = 3203, name = "Worn Sword", quality = 2,
+            equip_loc = "FINGER", sell_price = 5,
+        }
+        mock._bag_items[0] = { { object = reward, slot_id = 302 } }
+        mock._input_calls = {}
+
+        assert(qi.select_best_reward() == "best_reward:1(5c)",
+            "S14 FAIL: the real reward selector changed during equipment comparison")
+        assert(qi.process_auto_equip() == false,
+            "S14 FAIL: an equal-quality reward replaced stable slot 11")
+        for _, call in ipairs(mock._input_calls) do
+            assert(call[1] ~= "use_container_item",
+                "S14 FAIL: an incidental equipped-row order changed the real equip decision")
+        end
+    end
+    print("S14 PASS: real deferred auto-equip breaks paired-slot ties deterministically")
 end
 
 print("PASS test_auto_equip")

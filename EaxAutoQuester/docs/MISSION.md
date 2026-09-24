@@ -150,7 +150,15 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 **Proving surface:** `anti_detection_sylvanas.lua`, `quest_state/coordinator.lua`, `tests/test_anti_detection.lua` S1-S2, the existing `tests/test_nav_state.lua` N7, and `tests/test_tick_allocation.lua`.
 
 ### AQ-P2-6 — Equipment comparison
-Replace unordered name-only classification/quality-only comparison with deterministic, slot-aware comparison; acceptance is classifier and upgrade-path tests.
+**Status: complete (2026-09-24).** The comparison now consumes the client's equipment location data without changing the reward-selection or quality/keyword policy.
+
+**Acceptance criteria met:**
+- Name fallback classification visits the existing categories in an explicit order; it no longer depends on `pairs()` hash order.
+- Equipped rows use the documented 1-based `slot_id` (worn slots 1–19), and reward/item data uses `quest_item_info.equip_loc`; display names are only fallbacks when authoritative slot data is absent. Non-equipment inventory positions are excluded.
+- Paired client slots use the lowest `slot_id` consistently, so an equal-quality comparison cannot change with the order in which the client returns equipped rows. This is ordering only; the existing quality comparison and priority-keyword bonus remain unchanged.
+- Both the direct reward scan and the deferred bag recheck use the same slot-aware equipped-row builder. Reward selection remains the existing sell-value choice, including its first-choice behavior on equal prices; no stats, weights, scoring model, or preference policy was added.
+
+**Proving surface:** `equipment_compare_sylvanas.lua`, `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S6-S6b, S10, S13, and S14.
 
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.

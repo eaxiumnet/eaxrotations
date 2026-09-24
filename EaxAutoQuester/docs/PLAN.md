@@ -15,7 +15,7 @@
 | 9 | **AQ-P2-3** | Keep the removed control gone and align every friendly interaction dispatch site to the fixed 5yd gate; preserve hostile combat and search policies. | Real DO_ACTION, NAV, and IDLE boundary tests plus menu-removal tests. |
 | 10 | **AQ-P2-4** | Re-measure the Zygor contract; use documented `target`/`npc` goal evidence without inventing an unsupported `step.text` field. | Real reader/IDLE goal-filter matrix, including the documented in-instance override. |
 | 11 | **AQ-P2-5** | Retire the dead anti-detection members and coordinator hook; retain the separately owned, supported NAV jump and existing action pacing. | Real coordinator/NAV call matrix plus the existing allocation battery. |
-| 12 | **AQ-P2-6** | Make equipment classification deterministic and slot-aware. | Equipment-comparison and reward tests. |
+| 12 | **AQ-P2-6** | Make equipment classification deterministic and slot-aware from client `equip_loc`/`slot_id`, preserving the quality/keyword policy. | Equipment-comparison and real deferred reward tests, including an equal-quality slot-order tie. |
 
 ## Current execution state
 
@@ -30,7 +30,7 @@
 - [x] AQ-P2-3 — interact range
 - [x] AQ-P2-4 — dungeon step evidence (documented step shape; `target`/`npc` goal labels; unsupported `step.text` not invented)
 - [x] AQ-P2-5 — anti-detection scope (dead module surface retired; supported NAV jump/pacing retained)
-- [ ] AQ-P2-6 — equipment comparison
+- [x] AQ-P2-6 — deterministic equipment classification, client-slot-aware comparison, and stable paired-slot tie handling
 
 ## Verification protocol for each execution step
 
@@ -40,6 +40,6 @@
 4. Run `lua EaxAutoQuester/tests/run_quester_tests.lua` for the full 61-suite battery.
 5. Before task completion, run the repository-mandated rotation and leveling batteries as well.
 
-## Next objective
+## Execution complete
 
-AQ-P2-6 — equipment comparison — is next. AQ-P2-5 retired the dead anti-detection compatibility surface and its invalid coordinator camera hook; the supported NAV jump and existing action pacing remain separately owned and covered.
+All twelve objectives, AQ-P0-1 through AQ-P2-6, are complete. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.
