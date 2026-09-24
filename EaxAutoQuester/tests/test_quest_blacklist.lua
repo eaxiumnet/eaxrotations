@@ -127,6 +127,37 @@ do
 end
 
 -- =============================================================================
+-- S5b: one recorded failure is a session-persistent skip, while the legacy
+--       five-in-window abandonment query remains a separate decision.
+-- =============================================================================
+do
+    quest_blacklist.reset()
+    local mock_t = 0
+    quest_blacklist.set_clock(function() return mock_t end)
+
+    quest_blacklist.record_failure(700, "area_fail")
+    assert(quest_blacklist.is_persistent_failure(700) == true,
+        "S5b FAIL: a recorded failure must be persistent")
+    assert(quest_blacklist.is_blacklisted(700) == true,
+        "S5b FAIL: the existing blacklist surface must expose the persistent skip")
+    assert(quest_blacklist.should_abandon(700) == false,
+        "S5b FAIL: persistent skip must not wire or trigger should_abandon")
+
+    -- The mark is session-scoped, not tied to the sliding failure window.
+    mock_t = 1000
+    assert(quest_blacklist.is_persistent_failure(700) == true,
+        "S5b FAIL: a persistent failure must survive the 60s observation window")
+    assert(quest_blacklist.is_persistent_failure(701) == false,
+        "S5b FAIL: an unrelated quest must remain eligible")
+
+    quest_blacklist.reset(700)
+    assert(quest_blacklist.is_persistent_failure(700) == false,
+        "S5b FAIL: reset must clear the persistent mark")
+    quest_blacklist.reset()
+    print("  S5b PASS: recorded failure becomes a quiet session-persistent skip")
+end
+
+-- =============================================================================
 -- S6-S9: the three clock fallbacks (production prefers core.time(); os.* is not
 -- assumed to exist because .api/core.lua documents os.date()/os.time() as
 -- unavailable in the sandboxed Lua — see docs/runtime_sandbox_audit.md).

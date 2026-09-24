@@ -16,7 +16,54 @@ local objective_match = require("shared/objective_match")
 local pull_safety = require("shared/pull_safety")
 local spawn_patrol = require("shared/spawn_patrol")
 local goal_resolver_ok, goal_resolver = pcall(require, "goal_resolver_sylvanas")
+local goal_filter_ok, goal_filter = pcall(require, "goal_filter_sylvanas")
 local quest_blacklist_ok, quest_blacklist = pcall(require, "quest_blacklist_sylvanas")
+
+-- The current step may have entered DO_ACTION before a failure was recorded. Ask the
+-- same policy owner as goal selection before executing it, so the mark acts immediately
+-- instead of waiting for a later selection pass. The fallback keeps the action path safe
+-- if its optional filter dependency is unavailable; neither branch consults should_abandon.
+local function step_quest_id(goal, step)
+    if type(goal) == "table" and goal.quest_id then return goal.quest_id end
+    if goal_filter_ok and goal_filter and goal_filter.quest_id_for_goal then
+        local ok, result = pcall(goal_filter.quest_id_for_goal, goal, step)
+        if ok and result then return result end
+    end
+    if type(step) == "table" and type(step.goals) == "table" then
+        for i = 1, #step.goals do
+            local candidate = step.goals[i]
+            if type(candidate) == "table" and candidate.quest_id then
+                return candidate.quest_id
+            end
+        end
+    end
+    return nil
+end
+
+local function current_goal_is_persistent_failure(goal, step)
+    if type(goal) ~= "table" then return false end
+
+    if goal_filter_ok and goal_filter and goal_filter.is_persistent_goal then
+        local ok, result = pcall(goal_filter.is_persistent_goal, goal, step)
+        if ok and result == true then return true end
+    end
+
+    local quest_id = step_quest_id(goal, step)
+    if not quest_id then return false end
+
+    if quest_blacklist_ok and quest_blacklist then
+        if quest_blacklist.is_persistent_failure then
+            local ok, result = pcall(quest_blacklist.is_persistent_failure, quest_id)
+            if ok and result == true then return true end
+        end
+        if quest_blacklist.is_blacklisted then
+            local ok, result = pcall(quest_blacklist.is_blacklisted, quest_id)
+            if ok and result == true then return true end
+        end
+    end
+
+    return false
+end
 
 local function unit_get_position(u) return u:get_position() end
 
@@ -1173,6 +1220,14 @@ function M.run(shared, ctx)
     -- No uncompleted goal — back to IDLE to re-evaluate
     if not current_goal then
         ctx.debug_log("DO_ACTION: no uncompleted goal → IDLE")
+        return "IDLE"
+    end
+
+    -- A failure recorded while this step was already selected must skip the action now.
+    -- This is intentionally silent: the existing area warning remains the only user-facing
+    -- notice, and no quest-log mutation is performed here.
+    if current_goal_is_persistent_failure(current_goal, step) then
+        shared._respawn_wait_until = 0
         return "IDLE"
     end
 

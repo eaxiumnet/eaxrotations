@@ -305,6 +305,135 @@ do
 end
 
 -- =============================================================================
+-- S11b/S11c — recorded failures are consumed by the real coordinator tick.
+-- The failed goal is first in the guide list. Goal resolution must skip it and choose the
+-- healthy goal; the following DO_ACTION tick must skip the already-selected failed goal.
+-- A step transition repeats the choice, proving the session mark survives step cleanup.
+-- =============================================================================
+do
+    local nav_destination = require("shared/nav_destination")
+    local progress = require("progress_tracker_sylvanas")
+    local blacklist = require("quest_blacklist_sylvanas")
+    progress.clear_all()
+    blacklist.reset()
+
+    mock.reset()
+    mock.create_player({ pos = { x = 0, y = 0, z = 0 }, hp = 100, max_hp = 100,
+        mana = 100, max_mana = 100 })
+    local failed_target = mock.create_object({
+        pos = { x = 2, y = 0, z = 0 }, name = "Broken Target",
+        unit = true, valid = true, guid = "persistent_failure_target",
+    })
+    local healthy_target = mock.create_object({
+        pos = { x = 2, y = 0, z = 0 }, name = "Healthy NPC",
+        unit = true, valid = true, guid = "persistent_failure_healthy",
+    })
+    mock._objects = { failed_target, healthy_target }
+    mock._addon_loaded.zygor = true
+    mock._zygor_step = {
+        num = 41,
+        is_complete = false,
+        goals = {
+            -- The failing guide goal has no quest_id; the recorder's existing step-level
+            -- fallback finds the completed sibling's ID, which is the production shape.
+            { type = "area", target = "Broken Target", npc_id = 0 },
+            { type = "area", quest_id = 4242, is_complete = true, target = "Broken Target", npc_id = 0 },
+            { type = "talk", quest_id = 4243, target = "Healthy NPC", npc_id = 0 },
+        },
+    }
+    mock._zygor_next_wp = nil
+
+    _G.EaxAutoQuester = _G.EaxAutoQuester or {}
+    _G.EaxAutoQuester._force_vendor_soon = nil
+    local warning_count = 0
+    local old_set_warning = _G.EaxAutoQuester.set_warning
+    _G.EaxAutoQuester.set_warning = function() warning_count = warning_count + 1 end
+
+    local shared = coordinator._test_shared()
+    nav_destination.clear(shared)
+    shared._state = "IDLE"
+    shared._last_step_num = 40
+    shared._action_pause_timer = 0
+    shared._area_wait_timer = 0
+    shared._post_interact_timer = 0
+    shared._at_quest_object_timer = 0
+    shared._respawn_wait_until = 0
+    shared._respawn_last_scan = 0
+    shared._area_fail_count = 0
+    shared._area_last_target_guid = nil
+    shared._last_goal_type = nil
+    shared._last_action_type = nil
+    shared._action_loop_count = 0
+    shared._visited_waypoints = {}
+    shared._sweep_lap_at = 0
+    shared._should_enter_interact = nil
+    shared._interact_cooldown = 0
+    shared._loot_cooldown = 0
+    shared._just_arrived = false
+    shared._last_target_valid = false
+    shared._debug = false
+    shared._combat_override_logged = nil
+
+    -- Seed exactly the production record: the area handler emits this after its repeated
+    -- attempts, and the policy then acts through the ordinary tick path below.
+    blacklist.record_failure(4242, "area_fail")
+
+    local function has_action_input()
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "set_target" or call[1] == "use_object"
+                or call[1] == "interact_with_object" then
+                return true
+            end
+        end
+        return false
+    end
+
+    mock._input_calls = {}
+    coordinator.update()
+    assert(coordinator._test_inspect() == "DO_ACTION",
+        "S11b FAIL: the persistent goal must be skipped during real goal resolution")
+    assert(shared._last_goal_type == "talk",
+        "S11b FAIL: resolution must select the healthy later goal, got " ..
+        tostring(shared._last_goal_type))
+    assert(not has_action_input(),
+        "S11b FAIL: the failed goal must not act while a healthy goal is available")
+
+    -- The coordinator is now in DO_ACTION with the failed goal still first in the step.
+    -- This proves the current-step guard, not just the next IDLE re-evaluation.
+    mock._input_calls = {}
+    coordinator.update()
+    assert(coordinator._test_inspect() == "IDLE",
+        "S11c FAIL: the current failed goal must hand control back to IDLE")
+    assert(not has_action_input(),
+        "S11c FAIL: the current failed goal must not target, use, or interact")
+
+    -- A new step clears progress-tracker state, not the recorded-failure policy. The same
+    -- guide list must still avoid the marked quest on the next real tick.
+    mock._zygor_step.num = 42
+    mock._input_calls = {}
+    coordinator.update()
+    assert(coordinator._test_inspect() == "DO_ACTION",
+        "S11d FAIL: later-step resolution should continue to the healthy goal")
+    assert(shared._last_goal_type == "talk",
+        "S11d FAIL: later-step resolution selected the persistent goal")
+    assert(not has_action_input(),
+        "S11d FAIL: later-step resolution must not act on the persistent goal")
+
+    local abandon_call = "abandon_" .. "quest"
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= abandon_call and call[1] ~= "set_" .. abandon_call,
+            "S11e FAIL: the failure policy must never delete a quest")
+    end
+    assert(warning_count == 0,
+        "S11f FAIL: the quiet policy must not add user-facing warning messaging")
+
+    _G.EaxAutoQuester.set_warning = old_set_warning
+    blacklist.reset()
+    progress.clear_all()
+    print("  S11b-S11f PASS: real coordinator ticks avoid and skip a persistently failing goal")
+end
+
+-- =============================================================================
 -- S12 — the dispatcher contract: a handler must never be able to park the machine. A falsy
 -- return means "stay this tick", and an unusable current state is repaired instead of being
 -- carried into the next tick. Reload the coordinator over a handler that returns false.

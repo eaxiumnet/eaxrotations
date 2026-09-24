@@ -386,7 +386,7 @@ function M.run(shared, ctx)
             -- Item C: class/level/faction filter
             local passes = true
             if goal_filter_ok and goal_filter and goal_filter.passes then
-                local ok, result = pcall(goal_filter.passes, g, ctx.me)
+                local ok, result = pcall(goal_filter.passes, g, ctx.me, nil, step)
                 if ok then passes = result end
             end
             if passes then

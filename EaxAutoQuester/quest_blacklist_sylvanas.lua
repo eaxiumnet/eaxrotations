@@ -1,15 +1,16 @@
--- What: Quest blacklist — tracks quest failures with a 60s sliding window and answers whether a
---       quest has failed often enough to stop retrying it.
--- When: Loaded at startup; record_failure() called by quest interaction handlers
+-- What: Quest failure policy — records failures and marks a persistently failing quest for
+--       session-scoped skipping, while retaining the legacy five-failure abandonment query.
+-- When: Loaded at startup; record_failure() is called by the quest interaction handlers.
 -- Why: Prevent infinite retry loops on broken quests (missing NPC, unsolvable gossip, area fail)
--- Safety: Standalone module; no hard dependencies; clock injection for testing. Reports only —
---         nothing here deletes a quest, and nothing may: the plugin never abandons quests
---         (tests/test_no_quest_abandon.lua fails if any production file calls abandon_quest).
---         `should_abandon`/`mark_abandoned` are queries the caller may use to give up on a
---         target and warn; they have no production caller today.
--- Decision: In-memory only (no persistence); clock via core.time() with documented,
---           same-unit fallbacks. No os.* call: the runtime sandbox does not document
---           os as available (see docs/runtime_sandbox_audit.md).
+--       without deleting player-owned quest progress.
+-- Safety: Standalone module; no hard dependencies; clock injection for testing. The policy is
+--         a quiet skip only: nothing here deletes a quest, and nothing may (the no-abandon
+--         tripwire remains authoritative). `should_abandon` remains an unused query; this
+--         policy never wires it into the quest loop.
+-- Decision: In-memory only (no disk persistence); clock via core.time() with documented,
+--           same-unit fallbacks. The production area path records only after its five-attempt
+--           give-up gate, so one recorded failure is the persistent-policy event. No os.* call:
+--           the runtime sandbox does not document os as available (see docs/runtime_sandbox_audit.md).
 
 -- ============================================================================
 -- Hot-path API Caching at Module Load (Pattern 2 from AGENTS.md)
@@ -30,6 +31,7 @@ local M = {}
 
 local failure_log = {}       -- failure_log[quest_id_str] = { {time, reason}, ... }
 local abandoned_set = {}     -- abandoned_set[quest_id_str] = true
+local persistent_set = {}    -- persistent_set[quest_id_str] = true (session-scoped skip)
 local WINDOW_SECONDS = 60
 local ABANDON_THRESHOLD = 5
 
@@ -112,6 +114,10 @@ function M.record_failure(quest_id, reason)
         failure_log[key] = {}
     end
     failure_log[key][#failure_log[key] + 1] = { time = now, reason = reason or "unknown" }
+    -- The area handler records only after its repeated-attempt gate. Make that recorded
+    -- event actionable without consulting the legacy abandonment query: future goal
+    -- resolution and the current action tick can quietly skip this quest for the session.
+    persistent_set[key] = true
     _trim(key, now)
 end
 
@@ -158,13 +164,25 @@ function M.mark_abandoned(quest_id)
 end
 
 --- Check if a quest is blacklisted in this session.
---- Returns true if mark_abandoned was called OR should_abandon previously returned true.
+--- Returns true for an explicit legacy mark, a prior should_abandon result, or a
+--- recorded persistent failure. The last case is a quiet skip, not quest deletion.
 --- Nil-guarded: returns false if quest_id is nil.
 --- @param quest_id number|nil Quest ID to check
 --- @return boolean true if quest is blacklisted
 function M.is_blacklisted(quest_id)
     if not quest_id then return false end
-    return abandoned_set[tostring(quest_id)] == true
+    local key = tostring(quest_id)
+    return abandoned_set[key] == true or persistent_set[key] == true
+end
+
+--- Check the separate persistent-failure policy without consulting should_abandon.
+--- This is the query consumed by goal resolution and the current action tick.
+--- Nil-guarded: returns false if quest_id is nil.
+--- @param quest_id number|nil Quest ID to check
+--- @return boolean true if a failure has been recorded for this quest
+function M.is_persistent_failure(quest_id)
+    if not quest_id then return false end
+    return persistent_set[tostring(quest_id)] == true
 end
 
 --- Reset blacklist state for one quest_id or all quests.
@@ -174,9 +192,11 @@ function M.reset(quest_id)
         local key = tostring(quest_id)
         failure_log[key] = nil
         abandoned_set[key] = nil
+        persistent_set[key] = nil
     else
         failure_log = {}
         abandoned_set = {}
+        persistent_set = {}
     end
 end
 

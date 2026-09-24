@@ -1,6 +1,7 @@
--- What: Filter Zygor goals against player state (quest progress, level, class, faction)
+-- What: Filter Zygor goals against player state (quest progress, level, class, faction, and
+--       the existing failure-policy blacklists)
 -- When: Before selecting a goal to execute
--- Why: Skip completed, level-gated, class-restricted, or faction-restricted goals
+-- Why: Skip completed, level-gated, class-restricted, faction-restricted, or persistently failing goals
 -- Safety: All API calls pcall-guarded; Pattern 2 (cache APIs at load), Pattern 14 (nil-guards)
 -- API: core.quests.is_quest_flagged_completed, me:get_level(), me:get_class(), me:get_faction_id()
 
@@ -71,20 +72,91 @@ local _t = { n = 0 }
 
 local M = {}
 
+-- The failure policy is deliberately a read-only join of the two existing surfaces:
+-- quest_blacklist carries the recorded interaction failure, while progress_tracker carries
+-- its no-progress blacklist. Neither module is changed here, and should_abandon is not
+-- consulted. The first goal-filter call resolves both once; later ticks reuse the tables.
+local _failure_policy_loaded = false
+local _failure_blacklist = nil
+local _failure_progress = nil
+
+local function is_persistent_failure(quest_id)
+    if not quest_id then return false end
+
+    if not _failure_policy_loaded then
+        _failure_policy_loaded = true
+        local blacklist_ok, blacklist = pcall(require, "quest_blacklist_sylvanas")
+        if blacklist_ok then _failure_blacklist = blacklist end
+        local progress_ok, progress = pcall(require, "progress_tracker_sylvanas")
+        if progress_ok then _failure_progress = progress end
+    end
+
+    if _failure_blacklist then
+        if _failure_blacklist.is_persistent_failure then
+            local ok, result = pcall(_failure_blacklist.is_persistent_failure, quest_id)
+            if ok and result == true then return true end
+        end
+        -- An explicit legacy mark is still a skip, but it does not invoke should_abandon.
+        if _failure_blacklist.is_blacklisted then
+            local ok, result = pcall(_failure_blacklist.is_blacklisted, quest_id)
+            if ok and result == true then return true end
+        end
+    end
+
+    if _failure_progress and _failure_progress.is_blacklisted then
+        local ok, result = pcall(_failure_progress.is_blacklisted, quest_id)
+        if ok and result == true then return true end
+    end
+
+    return false
+end
+
+--- Resolve the quest identity used by the failure policy. Zygor can omit quest_id on
+--- the actionable goal while a sibling goal in the same step carries it; the area
+--- failure recorder already uses that same step-level fallback.
+local function quest_id_for_goal(goal, step)
+    if type(goal) == "table" and goal.quest_id then
+        return goal.quest_id
+    end
+    if type(step) == "table" and type(step.goals) == "table" then
+        for i = 1, #step.goals do
+            local candidate = step.goals[i]
+            if type(candidate) == "table" and candidate.quest_id then
+                return candidate.quest_id
+            end
+        end
+    end
+    return nil
+end
+
+--- Exposed for the DO_ACTION tick so selection and execution share one policy.
+M.is_persistent_failure = is_persistent_failure
+M.quest_id_for_goal = quest_id_for_goal
+
+local function is_persistent_goal(goal, step)
+    return is_persistent_failure(quest_id_for_goal(goal, step))
+end
+M.is_persistent_goal = is_persistent_goal
+
 --- Filter a Zygor goal against player state.
 --- All field reads nil-guarded (Pattern 14). All game_object method calls pcall-guarded.
 --- @param goal table|nil   -- Raw goal table from zygor live API
 --- @param me game_object|nil
 --- @param core_proxy table|nil -- table of probed APIs (see safe_api_wrapper); nil falls back to raw core.*
+--- @param step table|nil -- Current step, used only when the goal omits quest_id
 --- @return boolean passes, string|nil skip_reason
-function M.passes(goal, me, core_proxy)
+function M.passes(goal, me, core_proxy, step)
     -- Pattern 14: nil goal or nil me → pass through (can't filter)
     if not goal or not me then return true, nil end
 
     -- ========================================================================
-    -- 1. Quest completed check
+    -- 1. Failure policy and quest-completed checks
     -- ========================================================================
-    local quest_id = goal.quest_id  -- Pattern 14: nil → handled by > 0 comparsion
+    local quest_id = quest_id_for_goal(goal, step)  -- Pattern 14: nil → handled below
+    if is_persistent_failure(quest_id) then
+        return false, "persistent_failure"
+    end
+
     if quest_id and quest_id > 0 then
         local completed = false
 

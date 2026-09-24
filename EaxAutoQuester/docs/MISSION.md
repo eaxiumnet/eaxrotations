@@ -64,7 +64,16 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `service_gossip_sylvanas.lua`, the `quest_interaction_sylvanas.handle_gossip` caller, and `tests/test_service_gossip.lua` S6-S8.
 
 ### AQ-P1-4 — Failure policy
-Define and wire the non-abandon policy for recorded quest failures; acceptance is a persistent-failure test that skips/notifies without calling `abandon_quest`.
+**Status: complete (2026-09-24).** The existing recorded-failure surface now marks a quest as a session-persistent skip. Goal resolution consults that mark together with the existing progress blacklist, and the current DO_ACTION tick checks it before targeting or interacting. The policy is quiet and non-abandoning: it does not wire `should_abandon`, delete a quest, or add UI or messaging.
+
+**Acceptance criteria met:**
+- A recorded production area failure marks the quest without requiring the legacy five-entry abandonment query.
+- A later step's real goal-resolution tick avoids the marked goal and selects the next eligible goal.
+- If the marked goal was already selected, the real DO_ACTION tick returns to IDLE without targeting, using, or interacting.
+- The existing progress-tracker blacklist remains honored; unmarked goals and their routing, navigation, and combat behavior are unchanged.
+- `test_no_quest_abandon` remains green; no quest-deletion call or new user-facing notice was added.
+
+**Proving surface:** `quest_blacklist_sylvanas.lua`, `goal_filter_sylvanas.lua`, `quest_state/do_action_state.lua`, the real `coordinator.update()` path, and `tests/test_quest_blacklist.lua` S5b plus `tests/test_coordinator.lua` S11b-S11f.
 
 ## P2 — correctness and usability
 
