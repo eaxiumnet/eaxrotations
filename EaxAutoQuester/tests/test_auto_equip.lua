@@ -6,7 +6,9 @@
 --            S6a authoritative client slots and deterministic classifier order, S6b stable paired-slot tie,
 --            S10 auto_equip_best_reward's item-info source, S11 the destination-naming equip call,
 --            S13 real slot override, S14 real deferred tie, S15 the resolved destination (12/14/17/11),
---            S16 a refused placement releases the cursor it loaded, S17 an unowned cursor is left alone
+--            S16 a refused placement releases the cursor it loaded, S17 an unowned cursor is left alone,
+--            S18 the second member of a ring/trinket pair is acquired, S19 no downgrade (pair or
+--            singleton), S20 both pair members empty
 -- S10 fails if that source is an undeclared global again: the equipped quality then reads 0
 -- and the quality-1 downgrade wins.
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
@@ -552,6 +554,141 @@ do
         assert(call[1] ~= "clear_cursor", "S17 FAIL: a player-owned cursor item was cleared")
     end
     print("S17 PASS: a cursor item this module did not load is left alone")
+end
+
+-- S18: the worn member does not beat the reward, so the FREE member of the pair takes it —
+-- the second ring (12) and second trinket (14) the client's destination-less use never
+-- reached. Before the pair rule this reward was discarded as a downgrade.
+do
+    local qi = require("quest_interaction_sylvanas")
+    local cases = {
+        { worn = 11, free = 12, loc = "FINGER" },
+        { worn = 13, free = 14, loc = "TRINKET" },
+    }
+    for index, case in ipairs(cases) do
+        mock.reset()
+        mock.install_inventory_helper()
+
+        local worn = mock.create_object({ name = "Worn Sword", item_id = 6000 + index })
+        mock._item_info[6000 + index] = { name = "Worn Sword", quality = 4, equip_loc = case.loc }
+        mock.create_player({ equipped = { { object = worn, slot_id = case.worn } } })
+
+        local link = "item:" .. tostring(6100 + index)
+        local reward = mock.create_object({ name = "Worn Sword", item_id = 6100 + index })
+        mock._quest_rewards[1] = { link = link }
+        mock._item_info[link] = {
+            item_id = 6100 + index, name = "Worn Sword", quality = 2,
+            equip_loc = case.loc, sell_price = 5,
+        }
+        mock._bag_items[0] = { { object = reward, slot_id = 310 + index } }
+        mock._input_calls = {}
+
+        assert(qi.select_best_reward() == "best_reward:1(5c)",
+            "S18 FAIL: the reward selector changed")
+        assert(qi.process_auto_equip() == true,
+            "S18 FAIL: a reward the worn member beats must fill the free " .. case.loc .. " member")
+
+        local destination
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "equip_container_item" then destination = call[4] end
+            assert(call[1] ~= "use_container_item",
+                "S18 FAIL: a destination-less use must not place the reward")
+        end
+        assert(destination == case.free,
+            "S18 FAIL: expected the free member " .. tostring(case.free) .. ", got " ..
+            tostring(destination) .. " (the worn member " .. tostring(case.worn) .. " must be kept)")
+    end
+    print("S18 PASS: a second ring (12) and second trinket (14) are acquired, never overwritten")
+end
+
+-- S19: no downgrade. A pair with no free member and a singleton both still reject a lower
+-- quality reward, and a member that cannot be proven occupied is never treated as free.
+do
+    local qi = require("quest_interaction_sylvanas")
+    local cases = {
+        {
+            label = "both rings worn",
+            loc = "FINGER",
+            rows = {
+                { slot_id = 11, name = "Worn Sword", quality = 4 },
+                { slot_id = 12, name = "Worn Sword", quality = 2 },
+            },
+        },
+        { label = "singleton chest", loc = "CHEST", rows = { { slot_id = 5, name = "Cured Leather Tunic", quality = 4 } } },
+    }
+    for index, case in ipairs(cases) do
+        mock.reset()
+        mock.install_inventory_helper()
+
+        local worn_rows = {}
+        for row_index, row in ipairs(case.rows) do
+            local worn = mock.create_object({ name = row.name, item_id = 6200 + index * 10 + row_index })
+            mock._item_info[6200 + index * 10 + row_index] = {
+                name = row.name, quality = row.quality, equip_loc = case.loc,
+            }
+            worn_rows[row_index] = { object = worn, slot_id = row.slot_id }
+        end
+        mock.create_player({ equipped = worn_rows })
+
+        local link = "item:" .. tostring(6300 + index)
+        local reward = mock.create_object({ name = "Worn Sword", item_id = 6300 + index })
+        mock._quest_rewards[1] = { link = link }
+        mock._item_info[link] = {
+            item_id = 6300 + index, name = "Worn Sword", quality = 1,
+            equip_loc = case.loc, sell_price = 5,
+        }
+        mock._bag_items[0] = { { object = reward, slot_id = 320 + index } }
+        mock._input_calls = {}
+
+        assert(qi.select_best_reward() == "best_reward:1(5c)", "S19 FAIL: the reward selector changed")
+        assert(qi.process_auto_equip() == false,
+            "S19 FAIL: a lower-quality reward must not be equipped with " .. case.label)
+        for _, call in ipairs(mock._input_calls) do
+            assert(call[1] ~= "equip_container_item",
+                "S19 FAIL: a downgrade was equipped with " .. case.label)
+        end
+    end
+
+    -- A row of the category without a slot_id cannot prove which member is occupied, so the
+    -- free-member rule stays off: an old rejection must never become an equip.
+    assert(eq.should_equip("Worn Sword", 1, { { slot = "FINGER", name = "X", quality = 4 } }, "FINGER") == false,
+        "S19 FAIL: an unprovable pair member must not be treated as free")
+    assert(eq.equip_slot_for("Worn Sword", 1, { { slot = "FINGER", name = "X", quality = 4 } }, "FINGER") == 11,
+        "S19 FAIL: a row without a slot_id still resolves to the category's first slot")
+    print("S19 PASS: no downgrade reaches an occupied pair or a singleton slot")
+end
+
+-- S20: both members empty — the category's first slot is the destination, as before.
+do
+    local qi = require("quest_interaction_sylvanas")
+    for index, case in ipairs({ { loc = "FINGER", first = 11 }, { loc = "TRINKET", first = 13 } }) do
+        mock.reset()
+        mock.install_inventory_helper()
+        mock.create_player({ equipped = {} })
+
+        local link = "item:" .. tostring(6400 + index)
+        local reward = mock.create_object({ name = "Worn Sword", item_id = 6400 + index })
+        mock._quest_rewards[1] = { link = link }
+        mock._item_info[link] = {
+            item_id = 6400 + index, name = "Worn Sword", quality = 1,
+            equip_loc = case.loc, sell_price = 5,
+        }
+        mock._bag_items[0] = { { object = reward, slot_id = 330 + index } }
+        mock._input_calls = {}
+
+        assert(qi.select_best_reward() == "best_reward:1(5c)", "S20 FAIL: the reward selector changed")
+        assert(qi.process_auto_equip() == true,
+            "S20 FAIL: a pair with nothing worn must be filled by the first reward")
+
+        local destination
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "equip_container_item" then destination = call[4] end
+        end
+        assert(destination == case.first,
+            "S20 FAIL: expected the first " .. case.loc .. " slot " .. tostring(case.first) ..
+            ", got " .. tostring(destination))
+    end
+    print("S20 PASS: an empty pair is filled from its first member (11 / 13)")
 end
 
 print("PASS test_auto_equip")

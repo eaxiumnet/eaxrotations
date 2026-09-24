@@ -16,6 +16,7 @@
 | 10 | **AQ-P2-4** | Re-measure the Zygor contract; use documented `target`/`npc` goal evidence without inventing an unsupported `step.text` field. | Real reader/IDLE goal-filter matrix, including the documented in-instance override. |
 | 11 | **AQ-P2-5** | Retire the dead anti-detection members and coordinator hook; retain the separately owned, supported NAV jump and existing action pacing. | Real coordinator/NAV call matrix plus the existing allocation battery. |
 | 12 | **AQ-P2-6** | Make equipment classification deterministic and slot-aware from client `equip_loc`/`slot_id`, preserving the quality/keyword policy. | Equipment-comparison and real deferred reward tests, including an equal-quality slot-order tie. |
+| 13 | **AQ-P2-7** | Treat an empty member of a ring/trinket pair as a destination, so a reward the worn member beats is worn alongside it instead of discarded. | Real reward-path tests for acquiring a second ring/trinket, for no downgrade into an occupied pair or a singleton, and for both members empty; plus a read-only decision matrix against the previous revision. |
 
 ## Current execution state
 
@@ -31,6 +32,7 @@
 - [x] AQ-P2-4 — dungeon step evidence (documented step shape; `target`/`npc` goal labels; unsupported `step.text` not invented)
 - [x] AQ-P2-5 — anti-detection scope (dead module surface retired; supported NAV jump/pacing retained)
 - [x] AQ-P2-6 — deterministic equipment classification, client-slot-aware comparison, and stable paired-slot tie handling
+- [x] AQ-P2-7 — the empty member of a ring/trinket pair is a destination (second ring/trinket acquired; no downgrade into an occupied pair or a singleton)
 
 ## Verification protocol for each execution step
 
@@ -42,4 +44,4 @@
 
 ## Execution complete
 
-All twelve objectives, AQ-P0-1 through AQ-P2-6, are complete. AQ-P2-6 follow-up (2026-09-24): the comparison's resolved slot is now the equip's destination (`core.input.equip_container_item`), so the reward lands where the decision was made instead of wherever the client's destination-less use put it; the call's result is consumed and an abandoned equip hands its cursor back. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.
+All thirteen objectives, AQ-P0-1 through AQ-P2-7, are complete. AQ-P2-6 follow-up (2026-09-24): the comparison's resolved slot is now the equip's destination (`core.input.equip_container_item`), so the reward lands where the decision was made instead of wherever the client's destination-less use put it; the call's result is consumed and an abandoned equip hands its cursor back. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.

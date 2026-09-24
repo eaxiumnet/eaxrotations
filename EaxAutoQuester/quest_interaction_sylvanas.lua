@@ -430,10 +430,11 @@ function M.auto_equip_best_reward()
                 local should = eq.should_equip(
                     info.name, info.quality or 0, equipped_list, info.equip_loc)
                 if not should then clear_auto_equip() return false end
-                -- Name the slot the comparison resolved against. Equipping without a
-                -- destination lets the client pick, and it never picks the second ring
-                -- (12), second trinket (14) or off hand (17).
-                local destination = eq.equip_slot_for(info.name, info.equip_loc, equipped_list)
+                -- Name the slot the comparison resolved. Equipping without a destination lets
+                -- the client pick, and it never picks the second ring (12), second trinket
+                -- (14) or off hand (17).
+                local destination = eq.equip_slot_for(
+                    info.name, info.quality or 0, equipped_list, info.equip_loc)
                 if not destination then clear_auto_equip() return false end
                 _auto_equip.equip_attempted = true
                 _auto_equip.armed_until = _core_time() + _AUTO_EQUIP_WINDOW

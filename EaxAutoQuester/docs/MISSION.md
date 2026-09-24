@@ -162,5 +162,18 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 
 **Proving surface:** `equipment_compare_sylvanas.lua` (`equip_slot_for`), `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S6-S6b, S10, S11, S13-S14, and S15-S17 (resolved destinations 11/12/14/17, a refused placement that releases its own cursor once, and an unowned cursor left alone).
 
+### AQ-P2-7 — Paired-slot fill policy
+**Status: complete (2026-09-24).** An empty member of a ring/trinket pair is now a destination in its own right, so a reward the worn member beats is worn alongside it instead of being discarded — a second ring or trinket can finally be acquired through the destination AQ-P2-6 wired.
+
+**Acceptance criteria met:**
+- Rings (11/12) and trinkets (13/14) only: a candidate that does not beat the worn member is equipped into the free member, exactly as a category that is not worn at all accepts anything; the worn member is never overwritten in that case. A candidate that beats it still goes into the worn member's own slot, unchanged.
+- Every previously unambiguous case is unchanged. A read-only 840-case matrix (10 candidate specs x 6 qualities x 14 equipped-row shapes) against the previous revision shows **800 identical decisions with identical destinations, 40 intended rejections-turned-fills (free pair member), and no other difference, in either direction**.
+- A member that cannot be proven occupied is never treated as free: a row of the category without a client `slot_id` disables the rule, so an old rejection can never silently become an equip.
+- No new stat weighting, scoring model, preference policy, alias-table data, or restructure of the module or the auto-equip lifecycle. Singleton categories are untouched (no pair, no free member).
+
+**Known consequence (recorded, not a defect):** the legacy direct reward scan (`auto_equip_best_reward` called with no recorded selection) takes the first accepted choice, so on an open reward frame it can now take an earlier choice that fills a free pair member where it previously skipped it. `select_best_reward` — the live path — is untouched.
+
+**Proving surface:** `equipment_compare_sylvanas.lua` (`lowest_row_of_category`, `free_pair_member`, `comparison_slots`, `equip_slot_for`), `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S18 (second ring/trinket acquired), S19 (no downgrade into an occupied pair or a singleton, plus the unprovable-member guard), and S20 (both pair members empty).
+
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.
