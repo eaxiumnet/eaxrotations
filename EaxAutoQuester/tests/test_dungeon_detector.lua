@@ -70,5 +70,127 @@ assert(passes == false, "S6a FAIL: dungeon goal should be filtered out")
 assert(reason == "dungeon", "S6b FAIL: reason should be 'dungeon', got " .. tostring(reason))
 print("  S6 PASS: goal_filter integration")
 
+-- ===========================================================================
+-- S7: documented Zygor goal labels and the real reader -> IDLE seam
+-- ===========================================================================
+-- core.addons.zygor documents target/npc on a goal, but no text/name field.
+-- The detector keeps text/name for explicit callers; this matrix proves the
+-- production reader/IDLE path uses the documented labels and the existing
+-- instance short-circuit without pretending that a step.text exists.
+local idle_state = require("quest_state/idle_state")
+local utils = require("utils_sylvanas")
+local zygor_reader = require("zygor_reader_sylvanas")
+
+local function make_goal(target, npc)
+    return {
+        action = "talk",
+        quest_id = nil,
+        npc_id = 0,
+        target_id = 0,
+        target = target,
+        npc = npc,
+        is_complete = false,
+    }
+end
+
+local function fresh_shared(step_num)
+    return {
+        _interact_cooldown = 0,
+        _loot_cooldown = 0,
+        _last_cooldown_log = 0,
+        _nav_destination = nil,
+        _area_wait_timer = 0,
+        _post_interact_timer = 0,
+        _at_quest_object_timer = 0,
+        _action_pause_timer = 0,
+        _respawn_wait_until = 0,
+        _last_step_num = step_num,
+    }
+end
+
+local function set_real_step(goals, step_num)
+    mock.reset()
+    mock._addon_loaded.zygor = true
+    mock._zygor_step = { num = step_num, is_complete = false, goals = goals }
+    mock.set_time(100.0)
+    core.get_instance_type = function() return "none" end
+    return mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+end
+
+local function make_idle_ctx(objects)
+    return {
+        zygor = zygor_reader,
+        nav = { is_navigating = function() return false end, stop = function() end },
+        utils = utils,
+        me = mock._player,
+        now = 100.0,
+        debug_log = function() end,
+        log = function() end,
+        safe = function(value, fallback)
+            if value == nil then return fallback end
+            return value
+        end,
+        detect_open_frame = function() return false end,
+        npc_manager = {
+            find_interactable_objects = function(name)
+                for _, object in ipairs(objects) do
+                    if object:get_name() == name then return { object } end
+                end
+                return {}
+            end,
+        },
+        object_scanner = { get_visible_objects = function() return objects end },
+    }
+end
+
+-- S7a: the documented step shape has no step text. This is the measured
+-- runtime boundary: the reader forwards num/is_complete/goals, nothing else.
+local benign = make_goal("Northshire Combe Boar", nil)
+local dungeon = make_goal("Deadmines Instance", nil)
+local dungeon_npc = make_goal(nil, "Heroic Dungeon Entrance")
+set_real_step({ benign }, 71)
+local observed_step = zygor_reader.get_current_step_info()
+assert(observed_step.step_num == 71, "S7a FAIL: reader did not preserve step number")
+assert(observed_step.text == nil, "S7a FAIL: undocumented step.text was invented")
+print("  S7a PASS: real Zygor reader exposes its documented step shape")
+
+-- S7b: a documented goal target containing dungeon evidence is skipped, and
+-- the next benign goal is the one IDLE acts on. The dungeon object is absent
+-- on purpose, so this cannot pass by accidentally selecting the wrong goal.
+local benign_object = mock.create_object({
+    pos = { x = 0, y = 0, z = 0 }, name = "Northshire Combe Boar",
+    unit = false, valid = true, guid = "dungeon_matrix_benign",
+})
+set_real_step({ dungeon, benign }, 72)
+mock._objects = { benign_object }
+local state = idle_state.run(fresh_shared(72), make_idle_ctx({ benign_object }))
+assert(state == "DO_ACTION", "S7b FAIL: documented target label was not filtered (got " .. tostring(state) .. ")")
+
+-- S7c: npc is the other documented label field and follows the same decision.
+local dungeon_target_object = mock.create_object({
+    pos = { x = 0, y = 0, z = 0 }, name = "Deadmines Instance",
+    unit = false, valid = true, guid = "dungeon_matrix_target",
+})
+set_real_step({ dungeon_npc, benign }, 73)
+mock._objects = { benign_object }
+state = idle_state.run(fresh_shared(73), make_idle_ctx({ benign_object }))
+assert(state == "DO_ACTION", "S7c FAIL: documented npc label was not filtered (got " .. tostring(state) .. ")")
+
+-- S7d: a benign documented goal remains eligible outside an instance.
+set_real_step({ benign }, 74)
+mock._objects = { benign_object }
+state = idle_state.run(fresh_shared(74), make_idle_ctx({ benign_object }))
+assert(state == "DO_ACTION", "S7d FAIL: benign goal was unexpectedly filtered (got " .. tostring(state) .. ")")
+
+-- S7e: the same dungeon evidence is allowed when the client says the player
+-- is already inside an instance. This is the existing short-circuit, not a
+-- new routing or combat policy.
+set_real_step({ dungeon }, 75)
+core.get_instance_type = function() return "party" end
+mock._objects = { dungeon_target_object }
+state = idle_state.run(fresh_shared(75), make_idle_ctx({ dungeon_target_object }))
+assert(state == "DO_ACTION", "S7e FAIL: in-instance dungeon goal was filtered (got " .. tostring(state) .. ")")
+
+print("  S7 PASS: real reader -> goal_filter -> IDLE dungeon decision matrix")
 print("PASS test_dungeon_detector")
 os.exit(0)

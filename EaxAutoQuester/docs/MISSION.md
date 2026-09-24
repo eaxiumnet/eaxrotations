@@ -114,7 +114,16 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `quest_state/do_action_state.lua` and `tests/test_do_action_state.lua` P9a-P9c and S30; `quest_state/nav_state.lua` and `tests/test_nav_state.lua` N6/N6a-N6c/N16; `quest_state/idle_state.lua` and `tests/test_idle_state.lua` P1c-P1d plus the existing hostile P4-P7 contract; alongside the AQ-P1-1 menu-removal contract in `tests/test_menu_pull_gate.lua`.
 
 ### AQ-P2-4 — Dungeon step evidence
-Pass step text into dungeon filtering and prove both goal- and step-text decisions; acceptance is a goal-filter test matrix.
+**Status: complete (2026-09-24).** Re-measurement found that the supported Zygor API does not expose step text: `core.addons.zygor.get_current_step()` is documented as `num`, `is_complete`, and `goals[]`; the reader correctly forwards those as `step_num`, `is_complete`, and `goals[]`. The documented goal fields are `action`, `quest_id`, `npc_id`, `target_id`, `target`, `npc`, and `is_complete`—not `text` or `name`. The old detector therefore had a direct, fixture-only step-text lane and a goal lane that did not inspect the production `target`/`npc` labels.
+
+The production change is limited to the existing dungeon-keyword set: the detector now checks the documented `target` and `npc` labels, while retaining `text`/`name` and the optional `step_text` argument for explicit callers. No new dungeon phrases, zone data, routing, navigation, or combat behavior was added. The quest loop still passes the complete step object to `goal_filter.passes`, but it does not fabricate a `step.text` field that the client contract does not provide.
+
+**Acceptance criteria met:**
+- The real `zygor_reader` → `goal_filter` → `quest_state/idle_state.lua` path proves the documented step shape, `target`/`npc` dungeon decisions, benign-goal allowance, and the existing in-instance override.
+- Existing quest-log dungeon evidence and the explicit step-text detector contract remain covered without claiming unsupported production step text.
+- The step-text half of the original premise is closed as a documented client-only unknown, rather than implemented with a mock-only field.
+
+**Proving surface:** `dungeon_detector_sylvanas.lua`, the real reader/IDLE call chain, and `tests/test_dungeon_detector.lua` S1-S7.
 
 ### AQ-P2-5 — Anti-detection scope
 Wire or deliberately remove destination jitter, action delay, and varied ticks; acceptance is a production-call matrix and an allocation check for retained members.

@@ -1,5 +1,6 @@
 -- dungeon_detector_sylvanas.lua — Detect and skip dungeon/instance quests
--- WHAT:  Scans Zygor step text and quest objectives for dungeon keywords.
+-- WHAT:  Scans documented Zygor goal labels (and an explicitly supplied step-text
+--        string) plus quest objectives for dungeon keywords.
 --        Also checks if the player is currently inside an instance.
 -- WHEN:  goal_filter pass + idle state goal selection.
 -- WHY:   prevents the bot from getting stuck at instance portals or
@@ -96,7 +97,8 @@ end
 
 --- Check if a goal indicates a dungeon quest.
 -- @param goal table|nil Zygor goal table.
--- @param step_text string|nil Current Zygor step text.
+-- @param step_text string|nil Optional step text from a caller that has one.
+--        The documented Zygor step shape does not expose this field.
 -- @return boolean True if dungeon quest detected.
 function M.is_dungeon_goal(goal, step_text)
     if not goal then return false end
@@ -106,12 +108,15 @@ function M.is_dungeon_goal(goal, step_text)
         return true
     end
 
-    -- Check goal text/name
-    local goal_text = nil
-    if type(goal) == "table" then
-        goal_text = goal.text or goal.name or nil
-    end
-    if text_matches_any(goal_text, _DUNGEON_STEP_PATTERNS) then
+    -- The documented Zygor goal shape carries labels in target/npc.  text/name
+    -- are retained for callers that provide them, but are not part of the
+    -- current core.addons.zygor contract.
+    if type(goal) == "table" and (
+        text_matches_any(goal.text, _DUNGEON_STEP_PATTERNS)
+        or text_matches_any(goal.name, _DUNGEON_STEP_PATTERNS)
+        or text_matches_any(goal.target, _DUNGEON_STEP_PATTERNS)
+        or text_matches_any(goal.npc, _DUNGEON_STEP_PATTERNS)
+    ) then
         return true
     end
 
@@ -130,7 +135,7 @@ end
 --- Full check: is this a dungeon quest AND the player is NOT inside an instance?
 -- When inside an instance, we allow dungeon quests (user is presumably grouped).
 -- @param goal table|nil
--- @param step_text string|nil
+-- @param step_text string|nil Optional step text from a caller that has one.
 -- @return boolean True if the bot should SKIP this goal.
 function M.should_skip(goal, step_text)
     -- If already inside an instance, allow all goals
