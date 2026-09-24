@@ -6,6 +6,8 @@
 -- WHY:   regression guard for the eighth DSL adopter (first shadow priest/DoT-tracking spec).
 -- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
+
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
     if cond then _pass = _pass + 1 else _fail = _fail + 1 print("  FAIL: " .. msg) end
@@ -55,6 +57,9 @@ NS.game_time_ms = function() return 0 end
 NS.broken_api_throttled = function() return false end
 NS.cooldown_remains = function() return 0 end
 NS.spell_exists = function() return true end
+NS.get_spell_id = function(spell)
+    return type(spell) == "number" and spell or 8092
+end
 NS.is_item_ready = function() return false end
 NS.is_auto_attacking = function() return false end
 NS.is_threat_safe = function() return true end
@@ -137,6 +142,35 @@ package.loaded["shared/active_fight_tracker_sylvanas"] = {
 }
 package.loaded["shared/ts_helper_sylvanas"] = nil
 package.loaded["shared/aoe_hit_volume_sylvanas"] = { install = function() end }
+-- Mock only the documented spell-helper surface needed by the optional
+-- outgoing-damage estimate; the production module remains optional.
+local mock_mind_blast_damage = 600
+package.loaded["common/utility/spell_helper"] = {
+    get_spell_damage = function(_, spell_id)
+        if type(spell_id) == "number" then return mock_mind_blast_damage end
+        return 0
+    end,
+}
+
+-- Mock the platform's target-aware damage speculator. Production resolves it
+-- through the engine facades the gate must use: NS.health_prediction (published
+-- by main_sylvanas) and NS.GetAPIModule (published by core_sylvanas).
+local mock_speculation_factor = 1    -- simulated "damage taken / tooltip" ratio
+local mock_speculation_result = nil  -- when set, the speculator's literal answer
+local mock_speculation_args = nil    -- last call arguments, for wiring assertions
+local mock_health_prediction = {
+    speculate_spell_damage = function(_, caster, target, damage, spell_id)
+        mock_speculation_args = { caster = caster, target = target, damage = damage, spell_id = spell_id }
+        if mock_speculation_result ~= nil then return mock_speculation_result end
+        if type(damage) ~= "number" or damage <= 0 then return damage end
+        return damage * mock_speculation_factor
+    end,
+}
+NS.health_prediction = mock_health_prediction
+NS.GetAPIModule = function(name)
+    if name == "health_prediction" then return mock_health_prediction end
+    return nil
+end
 
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
@@ -181,7 +215,8 @@ local function make_ctx(overrides)
     local ctx = {
         me = NS.PLAYER_UNIT,
         target = { is_valid = function() return true end, is_dead = function() return false end,
-                   is_casting = function() return false end, get_health_percentage = function() return 100 end,
+                   is_casting = function() return false end, get_health = function() return 1000 end,
+                   get_health_percentage = function() return 100 end,
                    get_creature_type = function() return nil end, get_guid = function() return "target" end,
                    get_target = function() return NS.PLAYER_UNIT end },
         in_combat = true,
@@ -235,6 +270,8 @@ local function make_state(overrides)
         enemy_count = 1,
         combat_mode = "st",
         target_hp_pct = 100,
+        target_health = 1000,
+        mind_blast_damage = 600,
     }
     for k, v in pairs(overrides or {}) do s[k] = v end
     return s
@@ -316,9 +353,266 @@ assert_false(strategies[idx_swp].matches(make_ctx(), make_state({ swp_known = fa
 --            spell ready, not mana low, threat safe, engaged
 -- ============================================================================
 local idx_mb = 12
--- Positive: all conditions met
+-- Positive: all conditions met. make_state's own defaults ARE the gate's pass
+-- case (target_health 1000 vs mind_blast_damage 600), so this assertion also
+-- pins "health above the predicted hit"; an explicit { target_health = 1000,
+-- mind_blast_damage = 600 } override would re-run the identical predicate on
+-- the identical state and prove nothing.
 assert_true(strategies[idx_mb].matches(make_ctx(), make_state()),
     "MindBlast matches when ready + not casting + not moving + mana ok + threat safe")
+assert_true(strategies[idx_mb].matches(make_ctx(), make_state({ target_health = 600, mind_blast_damage = 600 })),
+    "MindBlast matches at the exact predicted-damage boundary")
+-- Negative: the same 600-damage hit is clearly excessive at 100 HP
+assert_false(strategies[idx_mb].matches(make_ctx(), make_state({ target_health = 100, mind_blast_damage = 600 })),
+    "MindBlast skips predictable overkill (100 HP vs 600 damage)")
+-- The real builder must also fail open when the optional estimate is absent.
+assert_true(strategies[idx_mb].matches(make_ctx(), make_state({ target_health = 100, mind_blast_damage = 0 })),
+    "MindBlast matches when damage prediction is unavailable")
+assert_true(strategies[idx_mb].matches(make_ctx(), make_state({ target_health = 0 })),
+    "MindBlast matches when target health is unavailable")
+-- Exercise the production state builder's documented health/damage wiring.
+local normal_built_state = shadow.build_state(make_ctx())
+assert_true(normal_built_state.target_health == 1000 and normal_built_state.mind_blast_damage == 600,
+    "Shadow state reads absolute target health and Mind Blast tooltip damage")
+assert_true(strategies[idx_mb].matches(make_ctx(), normal_built_state),
+    "MindBlast matches through the builder on a healthy target")
+local empty_target_ctx = make_ctx()
+empty_target_ctx.target = nil
+local empty_target_state = shadow.build_state(empty_target_ctx)
+assert_true(empty_target_state.target_health == 0 and empty_target_state.mind_blast_damage == 0,
+    "builder handles an empty target without stale prediction data")
+local overkill_ctx = make_ctx()
+overkill_ctx.target.get_health = function() return 100 end
+local overkill_built_state = shadow.build_state(overkill_ctx)
+assert_false(strategies[idx_mb].matches(overkill_ctx, overkill_built_state),
+    "MindBlast skips builder-derived predictable overkill")
+assert_false(strategies[11].matches(overkill_ctx, overkill_built_state),
+    "InnerFocusMindBlast does not burn Inner Focus for predictable overkill")
+
+-- Exercise the optional adapter's real builder failure paths.
+local missing_health_ctx = make_ctx()
+missing_health_ctx.target.get_health = nil
+local missing_health_state = shadow.build_state(missing_health_ctx)
+assert_true(missing_health_state.target_health == 0 and missing_health_state.mind_blast_damage == 600,
+    "builder fails open when target health is unavailable")
+local invalid_damage = mock_mind_blast_damage
+local previous_get_spell_id = NS.get_spell_id
+mock_mind_blast_damage = math.huge
+NS.get_spell_id = function() return 10947 end
+local invalid_damage_state = shadow.build_state(make_ctx())
+assert_true(invalid_damage_state.mind_blast_damage == 0,
+    "builder rejects an invalid tooltip damage value after a rank change")
+NS.get_spell_id = previous_get_spell_id
+mock_mind_blast_damage = invalid_damage
+
+-- A damage cache must not survive an Inner Focus transition. The next Mind
+-- Blast can have a different tooltip value immediately after the buff changes.
+local previous_buff_up = NS.buff_up
+local previous_damage = mock_mind_blast_damage
+mock_mind_blast_damage = 1200
+NS.buff_up = function(_, ids)
+    if ids and ids[1] == 14751 then return true end
+    return previous_buff_up and previous_buff_up(_, ids) or false
+end
+local inner_focus_ctx = make_ctx()
+local inner_focus_state = shadow.build_state(inner_focus_ctx)
+assert_true(inner_focus_state.has_inner_focus, "state observes Inner Focus activation")
+assert_true(inner_focus_state.mind_blast_damage == 1200,
+    "damage cache refreshes when Inner Focus changes the tooltip estimate")
+NS.buff_up = previous_buff_up
+mock_mind_blast_damage = previous_damage
+
+-- ============================================================================
+-- Target-aware speculation (common/modules/health_prediction)
+-- ============================================================================
+-- The gate's estimate is a documented two-stage pipeline: the spell_helper
+-- tooltip origin, then the platform's target-aware speculator. A tooltip
+-- overestimate must not suppress a Mind Blast the target actually survives.
+-- Each fresh context is a distinct unit (unique guid) unless a guid is supplied,
+-- so cache behavior under test is explicit rather than incidental.
+local low_hp_guid_counter = 0
+local function low_hp_ctx(guid)
+    low_hp_guid_counter = low_hp_guid_counter + 1
+    local ctx = make_ctx()
+    ctx.target.get_health = function() return 100 end
+    local unit_guid = guid or ("low-hp-unit-" .. low_hp_guid_counter)
+    ctx.target.get_guid = function() return unit_guid end
+    return ctx
+end
+
+local previous_factor = mock_speculation_factor
+local previous_result = mock_speculation_result
+
+-- Ratio 1.0: the target takes the full estimate, so behavior is unchanged.
+mock_speculation_factor = 1
+local unmitigated_state = shadow.build_state(low_hp_ctx())
+assert_true(unmitigated_state.target_health == 100 and unmitigated_state.mind_blast_damage == 600,
+    "speculation passes an unmitigated estimate through unchanged")
+assert_true(mock_speculation_args and mock_speculation_args.spell_id == 8092,
+    "speculation receives the resolved Mind Blast spell id")
+assert_true(mock_speculation_args and mock_speculation_args.damage == 600,
+    "speculation receives the raw tooltip estimate as its damage input")
+assert_true(mock_speculation_args and mock_speculation_args.caster == NS.PLAYER_UNIT,
+    "speculation receives the local player as caster")
+assert_false(strategies[idx_mb].matches(low_hp_ctx(), unmitigated_state),
+    "MindBlast still skips overkill when the target takes the full estimate")
+
+-- Ratio 0.1: 600 tooltip damage becomes 60 actually taken, which no longer
+-- overkills 100 HP. This is the audit's "tooltip overestimates" regression.
+mock_speculation_factor = 0.1
+local mitigated_state = shadow.build_state(low_hp_ctx())
+assert_true(mitigated_state.mind_blast_damage == 60,
+    "speculated damage replaces the raw tooltip estimate")
+assert_true(strategies[idx_mb].matches(low_hp_ctx(), mitigated_state),
+    "MindBlast is allowed when the speculated hit no longer overkills")
+assert_true(strategies[11].matches(low_hp_ctx(), mitigated_state),
+    "InnerFocusMindBlast is allowed when the speculated hit no longer overkills")
+assert_true(mitigated_state.target_health == 100,
+    "speculation leaves the absolute target health untouched")
+
+-- The speculator's own answer must be validated before it is trusted.
+mock_speculation_factor = 1
+mock_speculation_result = "not a number"
+local garbage_state = shadow.build_state(low_hp_ctx())
+assert_true(garbage_state.mind_blast_damage == 600,
+    "builder falls back to the raw estimate on a non-numeric speculation")
+mock_speculation_result = 0
+local zero_state = shadow.build_state(low_hp_ctx())
+assert_true(zero_state.mind_blast_damage == 600,
+    "builder falls back to the raw estimate on a zero speculation")
+mock_speculation_result = nil
+mock_speculation_factor = 1
+
+-- A missing speculator member must fail open.
+local speculator = mock_health_prediction.speculate_spell_damage
+mock_health_prediction.speculate_spell_damage = nil
+local absent_state = shadow.build_state(low_hp_ctx())
+assert_true(absent_state.mind_blast_damage == 600,
+    "builder falls back to the raw estimate when the speculator is absent")
+mock_health_prediction.speculate_spell_damage = speculator
+
+-- Resolution goes through the engine's facades, with no private require path:
+-- NS.health_prediction is preferred and NS.GetAPIModule is the fallback.
+mock_speculation_factor = 0.1
+local published_damage = shadow.build_state(low_hp_ctx()).mind_blast_damage
+assert_true(published_damage == 60,
+    "gate resolves the speculator from NS.health_prediction")
+local published_module = NS.health_prediction
+local api_module_lookup = NS.GetAPIModule
+NS.health_prediction = nil
+local module_map_damage = shadow.build_state(low_hp_ctx()).mind_blast_damage
+assert_true(module_map_damage == 60,
+    "gate falls back to the NS.GetAPIModule map for the speculator")
+NS.GetAPIModule = nil
+local unresolved_damage = shadow.build_state(low_hp_ctx()).mind_blast_damage
+assert_true(unresolved_damage == 600,
+    "gate fails open to the raw estimate when neither facade resolves the speculator")
+-- A private package.loaded entry is not a resolution path any more.
+package.loaded["common/modules/health_prediction"] = mock_health_prediction
+local private_only_damage = shadow.build_state(low_hp_ctx()).mind_blast_damage
+assert_true(private_only_damage == 600,
+    "gate does not resolve the speculator through a private require path")
+package.loaded["common/modules/health_prediction"] = nil
+NS.health_prediction = published_module
+NS.GetAPIModule = api_module_lookup
+
+-- The estimate is keyed by the unit's stable identity, not by the wrapper table:
+-- a fresh wrapper for the same unit guid reuses the cached estimate, while a
+-- different unit recomputes. Capture each value before the next build; the
+-- returned state is a live proxy over the shared raw state table.
+mock_speculation_factor = 1
+local recycled_first = shadow.build_state(low_hp_ctx("recycled-unit")).mind_blast_damage
+mock_speculation_factor = 0.5
+local recycled_second = shadow.build_state(low_hp_ctx("recycled-unit")).mind_blast_damage
+-- Pinned on VALUES, not on a speculator call count: under the 0.5 factor a
+-- cache miss would return 300, so 600 both times proves the same unit guid
+-- reused the first estimate. That keeps the observable contract and lets the
+-- cache's internal shape (or how many platform reads it costs) change without
+-- a false red here.
+assert_true(recycled_first == 600 and recycled_second == 600,
+    "a fresh wrapper for the same unit guid reuses the cached estimate")
+local other_unit_damage = shadow.build_state(low_hp_ctx()).mind_blast_damage
+assert_true(other_unit_damage == 300,
+    "a different unit guid does not reuse the cached estimate")
+
+-- Direct helper checks: caster resolution has exactly one path and fails open.
+local _gate_ok, MindBlastGate = pcall(require, "classes/priest/helpers/shadow_mind_blast_gate_sylvanas")
+assert_true(_gate_ok and type(MindBlastGate.read_target_prediction) == "function",
+    "the prediction gate helper is require-able")
+mock_speculation_factor = 0.1
+local no_caster_ns = setmetatable({ GetPlayer = function() return nil end }, { __index = NS })
+local _, no_caster_damage = MindBlastGate.read_target_prediction(no_caster_ns, 8092, make_ctx().target, false)
+assert_true(no_caster_damage == 600,
+    "gate fails open to the raw estimate when no caster can be resolved")
+-- NS.me is never assigned in production, so it must not be a fallback: the module
+-- resolves here, only the caster does not.
+local me_only_ns = { GetPlayer = false, me = function() return NS.PLAYER_UNIT end,
+                     get_spell_id = function() return 8092 end,
+                     health_prediction = mock_health_prediction }
+local _, me_only_damage = MindBlastGate.read_target_prediction(me_only_ns, 8092, make_ctx().target, false)
+assert_true(me_only_damage == 600,
+    "gate does not fall back to NS.me for caster resolution")
+
+mock_speculation_factor = previous_factor
+mock_speculation_result = previous_result
+
+-- ============================================================================
+-- Inner Focus lane: the estimate stays non-crit (documented limitation)
+-- ============================================================================
+-- No documented API exposes a crit chance, a crit damage multiplier, or a
+-- guaranteed-crit flag (grep of .api/ finds only spell_attributes.CANT_CRIT, the
+-- CRITTER creature type, and crit *rating* inputs). health_prediction also takes
+-- the damage to speculate on as an *input*, so applying our own crit multiplier
+-- could double-count a factor the platform may already fold in. The gate therefore
+-- compares the non-crit estimate on the Inner Focus lane too. These assertions pin
+-- that behavior so a future change, or a new platform crit signal, cannot alter it
+-- silently.
+local restore_mind_blast_damage = mock_mind_blast_damage
+local previous_inner_focus_buff_up = NS.buff_up
+NS.buff_up = function(_, ids)
+    if ids and ids[1] == 14751 then return true end
+    return previous_inner_focus_buff_up and previous_inner_focus_buff_up(_, ids) or false
+end
+
+-- Inner Focus guarantees a crit but does not change the tooltip or the speculated
+-- number: the buff's only effect on the gate is the cache-key refresh.
+mock_speculation_factor = 1
+mock_mind_blast_damage = 80
+local inner_focus_small = shadow.build_state(low_hp_ctx())
+assert_true(inner_focus_small.has_inner_focus == true, "Inner Focus is observed on the state")
+assert_true(inner_focus_small.mind_blast_damage == 80,
+    "Inner Focus does not scale the estimate (no documented crit multiplier)")
+
+-- A genuinely small Inner Focus hit must still fire.
+assert_true(strategies[idx_mb].matches(make_ctx(), inner_focus_small),
+    "a small Inner Focus Mind Blast still fires")
+assert_false(strategies[11].matches(make_ctx(), inner_focus_small),
+    "InnerFocusMindBlast does not re-fire while Inner Focus is already active")
+
+-- Known limitation, pinned: when only the crit would overkill, the non-crit
+-- estimate still clears the target's health and the cast is allowed, because no
+-- documented API supplies a crit multiplier to compare against.
+local inner_focus_crit_ctx = low_hp_ctx()
+local inner_focus_crit_state = shadow.build_state(inner_focus_crit_ctx)
+assert_true(inner_focus_crit_state.target_health == 100 and inner_focus_crit_state.mind_blast_damage == 80,
+    "Inner Focus crit case compares the non-crit estimate against target health")
+assert_true(strategies[idx_mb].matches(inner_focus_crit_ctx, inner_focus_crit_state),
+    "gate allows the cast when only the crit would overkill (documented limitation)")
+
+-- The non-crit lane is unchanged.
+NS.buff_up = previous_inner_focus_buff_up
+mock_mind_blast_damage = 600
+local non_crit_overkill_ctx = low_hp_ctx()
+local non_crit_overkill_state = shadow.build_state(non_crit_overkill_ctx)
+assert_false(strategies[idx_mb].matches(non_crit_overkill_ctx, non_crit_overkill_state),
+    "non-crit lane still skips predictable overkill")
+mock_mind_blast_damage = 80
+local non_crit_small_ctx = low_hp_ctx()
+local non_crit_small_state = shadow.build_state(non_crit_small_ctx)
+assert_true(strategies[idx_mb].matches(non_crit_small_ctx, non_crit_small_state),
+    "non-crit lane still fires a Mind Blast that does not overkill")
+mock_mind_blast_damage = restore_mind_blast_damage
+
 -- Negative: casting
 assert_false(strategies[idx_mb].matches(make_ctx({ is_casting = true }), make_state()),
     "MindBlast skips when casting")

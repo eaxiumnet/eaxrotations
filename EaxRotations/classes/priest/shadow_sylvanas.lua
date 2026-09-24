@@ -10,6 +10,9 @@
 --         General: other specs can pcall require shared/active_fight_tracker_sylvanas and call
 --         get_active_fights / find_undotted_target / count for their multidot (engagement safe).
 --         No on_update() allocs.
+-- STRUCTURE: classes/priest/helpers/shadow_mind_blast_gate_sylvanas.lua owns optional API reads/cache/policy;
+-- this file owns shadow_state and strategy wiring.
+-- DATA FLOW: build_state -> read_target_prediction -> shadow_state -> would_overkill.
 local NS = _G.EaxRotations
 if not NS then return nil end
 
@@ -21,6 +24,7 @@ end
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
+local MindBlastGate = require("classes/priest/helpers/shadow_mind_blast_gate_sylvanas")
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
 
@@ -340,6 +344,8 @@ local SHADOW_SCHEMA = {
     in_combat = false,
     enemy_count = 1,
     target_hp_pct = 100,
+    target_health = 0,
+    mind_blast_damage = 0,
     -- Configurable thresholds (populated from settings)
     vt_refresh_window = 3,
     swp_refresh_window = 3,
@@ -414,6 +420,8 @@ local shadow_state = {
     in_combat = false,
     enemy_count = 1,
     target_hp_pct = 100,
+    target_health = 0,
+    mind_blast_damage = 0,
     target_creature_type = nil,
     -- Debuff tracking on target
     weaving_stacks = 0,                     -- Shadow Weaving stacks (0-5)
@@ -456,6 +464,10 @@ local shadow_state = {
 }
 
 local function build_state(context)
+    -- Reset optional prediction data before any early return so a mounted or
+    -- unavailable-player state cannot reuse a previous target's estimate.
+    shadow_state.target_health = 0
+    shadow_state.mind_blast_damage = 0
     local target = context.target
     local me = NS.GetPlayer()
     if not me then return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA) end
@@ -583,6 +595,8 @@ local function build_state(context)
     shadow_state.in_combat = context.in_combat or false
     shadow_state.enemy_count = context.enemy_count or context.enemies_count or 1
     shadow_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
+    shadow_state.target_health, shadow_state.mind_blast_damage =
+        MindBlastGate.read_target_prediction(NS, ACTION.MindBlast, target, shadow_state.has_inner_focus)
     shadow_state.target_creature_type = target_creature_type(target)
     
     -- Wand readiness (Shoot spell - wand training)
@@ -919,6 +933,9 @@ local function inner_focus_matches(context, s)
     if not context.in_combat then return false end
     if s.has_inner_focus then return false end
     if s.mana_low then return false end  -- don't burn IF if MB is gated by mana
+    -- Do not spend Inner Focus on a Mind Blast that is predictably excessive.
+    -- Missing damage/health data fails open and preserves the normal combo.
+    if MindBlastGate.would_overkill(s.target_health, s.mind_blast_damage) then return false end
     -- Inner Focus + Mind Blast combo: hold IF for MB when both are ready or MB is off soon
     local combo_enabled = spec_kit.setting_bool(context, "shadow_if_mb_combo", true)
     if combo_enabled then
@@ -1344,6 +1361,9 @@ local DSL_DEFS = {
             { type = "context", field = "is_moving", op = "falsy" },
             { type = "context", field = "has_valid_enemy_target", op = "truthy" },
             { type = "state", field = "mb_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return not MindBlastGate.would_overkill(state.target_health, state.mind_blast_damage)
+            end },
             { type = "state", field = "mana_low", op = "falsy" },
             { type = "state", field = "threat_safe", op = "truthy" },
             { type = "custom", fn = function(context, state)
