@@ -16,8 +16,8 @@
 --       negative controls (the intentional ask-without-consequences reads — would_refuse,
 --       holding — and the lane's own nav_destination walks stay legal). Mirrors
 --       tests/test_nav_destination_ownership.lua.
--- Safety: read-only source scans (io.open + lfs) and requires of the owner modules; no writes,
---       no execution of scanned code.
+-- Safety: read-only source scans (tests/source_scan.lua) and requires of the owner modules;
+--       no writes, no execution of scanned code.
 
 -- Path setup for standalone run
 package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
@@ -44,105 +44,9 @@ package.loaded["waypoint_fixer_sylvanas"] = {
 local pull_safety = require("shared/pull_safety")
 local nav_destination = require("shared/nav_destination")
 
--- =============================================================================
--- Helpers — plugin root, production discovery, comment-stripping scan
--- =============================================================================
-
---- Locate the plugin root so this suite runs from the repo root or the plugin root.
-local function plugin_root()
-    for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
-        local f = io.open(prefix .. "main.lua", "r")
-        if f then
-            f:close()
-            return prefix
-        end
-    end
-    return nil
-end
-
-local ROOT = plugin_root()
-assert(ROOT, "FAIL: EaxAutoQuester root not found (expected main.lua in ./ or ./EaxAutoQuester/)")
-
-local function read_source(rel)
-    local f = io.open(ROOT .. rel, "r")
-    if not f then return nil end
-    local data = f:read("*a")
-    f:close()
-    return data
-end
-
---- Every production Lua file: everything under the plugin root except the suites, the docs and
---- the throwaway `_`-prefixed probes.
-local function list_production_files()
-    local ok, lfs = pcall(require, "lfs")
-    assert(ok and lfs and lfs.dir,
-        "FAIL: lfs is required — a partial scan of production code must not be able to pass")
-
-    local out = {}
-    local function walk(dir)
-        for entry in lfs.dir(dir) do
-            if entry ~= "." and entry ~= ".." then
-                local path = dir .. "/" .. entry
-                local mode = lfs.attributes(path, "mode")
-                if mode == "directory" then
-                    if entry ~= "tests" and entry ~= "docs" then walk(path) end
-                elseif entry:match("%.lua$") and not entry:match("^_") then
-                    out[#out + 1] = path:sub(#ROOT + 1)
-                end
-            end
-        end
-    end
-    walk(ROOT:sub(1, #ROOT - 1))
-    table.sort(out)
-    return out
-end
-
---- Blank out comments while preserving newlines, so a line number in the stripped source is
---- still a line number in the file. Prose about a bypass must not trip the scan.
---- @param src string
---- @return string
-local function strip_comments(src)
-    local out = {}
-    local i, n = 1, #src
-    while i <= n do
-        if src:sub(i, i + 1) == "--" then
-            local eq = src:match("^%-%-%[(=*)%[", i)
-            if eq then
-                local close = "]" .. eq .. "]"
-                local start = i + 4 + #eq
-                local e = src:find(close, start, true)
-                e = e and (e + #close) or (n + 1)
-                -- Keep the newlines the comment covered, so offsets after it stay aligned.
-                for nl in src:sub(i, e - 1):gmatch("[\r\n]") do out[#out + 1] = nl end
-                i = e
-            else
-                local e = src:find("[\r\n]", i) or (n + 1)
-                i = e
-            end
-        else
-            out[#out + 1] = src:sub(i, i)
-            i = i + 1
-        end
-    end
-    return table.concat(out)
-end
-
---- Byte offsets of every occurrence of a Lua pattern, in order.
-local function find_offsets(s, pat)
-    local out = {}
-    local at = s:find(pat)
-    while at do
-        out[#out + 1] = at
-        at = s:find(pat, at + 1)
-    end
-    return out
-end
-
---- 1-based line number of a byte offset in `s`.
-local function line_at(s, at)
-    local _, count = s:sub(1, at):gsub("\n", "\n")
-    return count + 1
-end
+-- The scans below are tests/source_scan.lua's: one production-file walk, one comment stripper,
+-- one offset->line map for all three tripwires, so they cannot cover different surfaces.
+local scan = require("tests/source_scan")
 
 -- The two vocabularies the lane scan reasons about. The checkpoint ask is one pattern; the
 -- openers are the calls that commit the bot to a fight, and the markers are the calls that
@@ -181,18 +85,18 @@ end
 --- @param src string raw source
 --- @return table[] violations (strings), number ask_count
 local function lane_violations(src)
-    local s = strip_comments(src)
-    local asks = find_offsets(s, ASK_PAT)
+    local s = scan.strip_comments(src)
+    local asks = scan.find_offsets(s, ASK_PAT)
     local first_ask = asks[1]
     local out = {}
 
     for _, call in ipairs(OPENERS) do
-        for _, at in ipairs(find_offsets(s, call.pat)) do
+        for _, at in ipairs(scan.find_offsets(s, call.pat)) do
             if not first_ask or at > first_ask then
                 local sel = last_offset_before(s, MARKERS, at)
                 local ask = last_offset_before(s, { { pat = ASK_PAT } }, at)
                 if (not ask) or (sel and sel > ask) then
-                    out[#out + 1] = "line " .. tostring(line_at(s, at)) .. " (" .. call.label .. ")"
+                    out[#out + 1] = "line " .. tostring(scan.line_at(s, at)) .. " (" .. call.label .. ")"
                 end
             end
         end
@@ -202,7 +106,7 @@ end
 
 --- Direct gate calls in a source string (comments stripped).
 local function gate_calls(src)
-    return #find_offsets(strip_comments(src), GATE_PAT)
+    return #scan.find_offsets(scan.strip_comments(src), GATE_PAT)
 end
 
 local LANE = "quest_state/do_action_state.lua"
@@ -258,7 +162,7 @@ do
     assert(gate_calls("pull_safety.holding(ctx)") == 0, "E2d FAIL")
     assert(gate_calls("nav_destination.engage(shared, unit, pos, 784)") == 0, "E2e FAIL")
 
-    local files = list_production_files()
+    local files = scan.production_files()
     assert(#files >= 40,
         "E2f FAIL: the walk found only " .. tostring(#files) ..
         " production files — a scan this thin proves nothing")
@@ -266,7 +170,7 @@ do
     local offenders = {}
     local scanned = 0
     for _, rel in ipairs(files) do
-        local src = read_source(rel)
+        local src = scan.read(rel)
         assert(src, "E2g FAIL: production file listed but unreadable: " .. rel)
         scanned = scanned + 1
         if rel ~= OWNER and gate_calls(src) > 0 then
@@ -278,7 +182,7 @@ do
         .. "checkpoint (pull_safety.engage) instead; found: " .. table.concat(offenders, ", "))
 
     -- Non-vacuous on real source: a gate call injected into a real production file is caught.
-    local lane_src = read_source(LANE)
+    local lane_src = scan.read(LANE)
     assert(lane_src, "E2i FAIL: could not read " .. LANE)
     local poisoned = lane_src:gsub("local function pull_at_range",
         "local function poisoned() if pull_safety.gate(ctx, shared, e) then return end end\n"
@@ -288,11 +192,11 @@ do
         "E2k FAIL: the gate ban cannot see a gate call added to " .. LANE)
 
     -- And the declared readers really are still there, so this scan is guarding something live.
-    local nav = read_source("quest_state/nav_state.lua")
+    local nav = scan.read("quest_state/nav_state.lua")
     assert(nav and nav:find("pull_safety.would_refuse(", 1, true),
         "E2l FAIL: the en-route pre-tag no longer asks would_refuse — tagging a hostile while "
         .. "walking starts the fight mid-travel")
-    local idle = read_source("quest_state/idle_state.lua")
+    local idle = scan.read("quest_state/idle_state.lua")
     assert(idle and idle:find("pull_safety.holding(", 1, true),
         "E2m FAIL: IDLE no longer honours the hold — it would walk back to the mob the gate "
         .. "just refused")
@@ -305,7 +209,7 @@ end
 -- =============================================================================
 
 do
-    local src = read_source(LANE)
+    local src = scan.read(LANE)
     assert(src and #src > 1000, "E3a FAIL: could not read " .. LANE .. " — the scan would be vacuous")
 
     local violations, asks = lane_violations(src)
@@ -332,7 +236,7 @@ do
 
     -- Negative control: the lane's own walks (nav_destination.engage) are not fights and stay as
     -- they are; what keeps them honest is that they sit inside already-asked regions.
-    assert(#find_offsets(strip_comments(src), "nav_destination%.engage%(") >= 1,
+    assert(#scan.find_offsets(scan.strip_comments(src), "nav_destination%.engage%(") >= 1,
         "E3f FAIL: the lane's own destination writing must keep going through the nav owner")
 
     print("  E3 PASS: all " .. tostring(asks) ..

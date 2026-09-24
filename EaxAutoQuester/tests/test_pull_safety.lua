@@ -36,6 +36,7 @@ _G.EaxAutoQuester.set_warning = function() end   -- the on-screen warning is mai
 
 local pull_safety = require("shared/pull_safety")
 local nav_destination = require("shared/nav_destination")
+local scan = require("tests/source_scan")
 
 -- =============================================================================
 -- Stubs
@@ -1094,10 +1095,10 @@ do
 
     -- P15e: and no lane can restate the rule again. A `stand_off_sq = ...` argument outside the
     -- owner is exactly the drift this pass removed; the detector is proven on samples first, so a
-    -- broken matcher cannot pass by finding nothing. Read-only source scan.
+    -- broken matcher cannot pass by finding nothing. The walk is tests/source_scan.lua's, so this
+    -- scan covers the same production surface as the tripwire suites. Read-only.
     local function restatements(src)
-        src = src:gsub("%-%-%[%[.-%]%]", "")          -- block comments
-        src = src:gsub("%-%-[^\n]*", "")              -- line comments
+        src = scan.strip_comments(src)
         local hits = {}
         for line in src:gmatch("[^\n]+") do
             if not line:find("local stand_off_sq", 1, true)
@@ -1113,39 +1114,16 @@ do
         .. "nd.engage(shared, enemy, p, stand_off_sq)") == 0,
         "P15e FAIL: the owner's own local must not read as a restatement")
 
-    local ok_lfs, lfs = pcall(require, "lfs")
-    assert(ok_lfs and lfs and lfs.dir,
-        "P15e FAIL: lfs is required — a partial scan of production must not be able to pass")
-    local ROOT = nil
-    for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
-        local f = io.open(prefix .. "main.lua", "r")
-        if f then f:close(); ROOT = prefix; break end
-    end
-    assert(ROOT, "P15e FAIL: EaxAutoQuester root not found (expected main.lua)")
     local scanned, offenders = 0, {}
-    local function walk(dir)
-        for entry in lfs.dir(dir) do
-            if entry ~= "." and entry ~= ".." then
-                local path = dir .. "/" .. entry
-                local mode = lfs.attributes(path, "mode")
-                if mode == "directory" then
-                    if entry ~= "tests" and entry ~= "docs" then walk(path) end
-                elseif entry:match("%.lua$") and not entry:match("^_") then
-                    local rel = path:sub(#ROOT + 1)
-                    if rel ~= "shared/pull_safety.lua" then
-                        local f = io.open(path, "r")
-                        if f then
-                            local hits = restatements(f:read("*a") or "")
-                            f:close()
-                            scanned = scanned + 1
-                            if #hits > 0 then offenders[#offenders + 1] = rel .. ": " .. hits[1] end
-                        end
-                    end
-                end
-            end
+    for _, rel in ipairs(scan.production_files()) do
+        if rel ~= "shared/pull_safety.lua" then
+            local src = scan.read(rel)
+            assert(src, "P15e FAIL: production file listed but unreadable: " .. rel)
+            scanned = scanned + 1
+            local hits = restatements(src)
+            if #hits > 0 then offenders[#offenders + 1] = rel .. ": " .. hits[1] end
         end
     end
-    walk(ROOT:sub(1, #ROOT - 1))
     assert(scanned >= 40,
         "P15e FAIL: the scan must cover production (scanned " .. scanned .. " files)")
     assert(#offenders == 0,

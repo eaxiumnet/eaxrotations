@@ -12,94 +12,17 @@
 --       Scope note: scanning the literally-named `shared` is scanning the table — the coordinator
 --       is the only production file that binds the name (`local shared = {`), every other module
 --       receives it as an argument, and no production file rebinds it to a second name.
--- Safety: read-only source scans (io.open + lfs); no requires of the scanned modules, no writes.
+-- Safety: read-only source scans (tests/source_scan.lua); no requires of the scanned modules,
+--         no writes.
 
 -- Path setup for standalone run
 package.path = package.path .. ";./EaxAutoQuester/?.lua;./EaxAutoQuester/?/init.lua"
 
 local DECLARATION_FILE = "quest_state/coordinator.lua"
 
--- =============================================================================
--- Helpers — plugin root, production discovery, comment-stripping scan
--- =============================================================================
-
---- Locate the plugin root so this suite runs from the repo root or the plugin root.
-local function plugin_root()
-    for _, prefix in ipairs({ "EaxAutoQuester/", "" }) do
-        local f = io.open(prefix .. "main.lua", "r")
-        if f then
-            f:close()
-            return prefix
-        end
-    end
-    return nil
-end
-
-local ROOT = plugin_root()
-assert(ROOT, "FAIL: EaxAutoQuester root not found (expected main.lua in ./ or ./EaxAutoQuester/)")
-
-local function read_source(rel)
-    local f = io.open(ROOT .. rel, "r")
-    if not f then return nil end
-    local data = f:read("*a")
-    f:close()
-    return data
-end
-
---- Every production Lua file: everything under the plugin root except the suites, the docs and
---- the throwaway `_`-prefixed probes.
-local function list_production_files()
-    local ok, lfs = pcall(require, "lfs")
-    assert(ok and lfs and lfs.dir,
-        "FAIL: lfs is required — a partial scan of production code must not be able to pass")
-
-    local out = {}
-    local function walk(dir)
-        for entry in lfs.dir(dir) do
-            if entry ~= "." and entry ~= ".." then
-                local path = dir .. "/" .. entry
-                local mode = lfs.attributes(path, "mode")
-                if mode == "directory" then
-                    if entry ~= "tests" and entry ~= "docs" then walk(path) end
-                elseif entry:match("%.lua$") and not entry:match("^_") then
-                    out[#out + 1] = path:sub(#ROOT + 1)
-                end
-            end
-        end
-    end
-    walk(ROOT:sub(1, #ROOT - 1))
-    table.sort(out)
-    return out
-end
-
---- Blank out comments while preserving newlines, so prose about a write cannot trip the scan and
---- a line number in the stripped source is still a line number in the file.
---- @param src string
---- @return string
-local function strip_comments(src)
-    local out = {}
-    local i, n = 1, #src
-    while i <= n do
-        if src:sub(i, i + 1) == "--" then
-            local eq = src:match("^%-%-%[(=*)%[", i)
-            if eq then
-                local close = "]" .. eq .. "]"
-                local start = i + 4 + #eq
-                local e = src:find(close, start, true)
-                e = e and (e + #close) or (n + 1)
-                for nl in src:sub(i, e - 1):gmatch("[\r\n]") do out[#out + 1] = nl end
-                i = e
-            else
-                local e = src:find("[\r\n]", i) or (n + 1)
-                i = e
-            end
-        else
-            out[#out + 1] = src:sub(i, i)
-            i = i + 1
-        end
-    end
-    return table.concat(out)
-end
+-- The scans below are tests/source_scan.lua's: one production-file walk, one comment stripper,
+-- one offset->line map for all three tripwires, so they cannot cover different surfaces.
+local scan = require("tests/source_scan")
 
 --- How many keys a set holds.
 --- @param set table
@@ -108,12 +31,6 @@ local function count(set)
     local n = 0
     for _ in pairs(set) do n = n + 1 end
     return n
-end
-
---- 1-based line number of a byte offset in `s`.
-local function line_at(s, at)
-    local _, count = s:sub(1, at):gsub("\n", "\n")
-    return count + 1
 end
 
 -- =============================================================================
@@ -152,10 +69,8 @@ local function written_field(s, at)
     -- Only whitespace may stand between the field and the '='; otherwise this '=' belongs to some
     -- later statement and the occurrence is a read.
     if s:sub(i, eq - 1):match("^%s*$") == nil then return nil end
-    -- `==` is a comparison; `~=`, `<=`, `>=` are comparisons whose '=' is preceded by an operator.
-    if s:sub(eq + 1, eq + 1) == "=" then return nil end
-    local before = s:sub(eq - 1, eq - 1)
-    if before == "~" or before == "<" or before == ">" then return nil end
+    -- scan.is_assignment tells an assignment from `==`, `~=`, `<=` and `>=`, which are reads.
+    if not scan.is_assignment(s, eq) then return nil end
     return name
 end
 
@@ -165,7 +80,7 @@ end
 --- @param sites table|nil name -> list of "file:line"
 --- @return table set
 local function written_fields(src, rel, sites)
-    local s = strip_comments(src)
+    local s = scan.strip_comments(src)
     local set = {}
     local at = s:find("shared%.")
     while at do
@@ -178,7 +93,7 @@ local function written_fields(src, rel, sites)
                     list = {}
                     sites[name] = list
                 end
-                list[#list + 1] = tostring(rel) .. ":" .. tostring(line_at(s, at))
+                list[#list + 1] = tostring(rel) .. ":" .. tostring(scan.line_at(s, at))
             end
         end
         at = s:find("shared%.", at + 1)
@@ -191,7 +106,7 @@ end
 --- @param src string
 --- @return table|nil set
 local function declared_fields(src)
-    local s = strip_comments(src)
+    local s = scan.strip_comments(src)
     local _, at = s:find("local shared%s*=%s*%{")
     if not at then return nil end
 
@@ -220,7 +135,7 @@ end
 local function undeclared_against(declared, files)
     local written, sites = {}, {}
     for _, rel in ipairs(files) do
-        local src = read_source(rel)
+        local src = scan.read(rel)
         assert(src, "FAIL: production file listed but unreadable: " .. rel)
         local per_file = {}
         local set = written_fields(src, rel, per_file)
@@ -292,7 +207,7 @@ end
 -- =============================================================================
 
 do
-    local coord_src = read_source(DECLARATION_FILE)
+    local coord_src = scan.read(DECLARATION_FILE)
     assert(coord_src, "S2a FAIL: could not read " .. DECLARATION_FILE ..
         " — the declaration set is one half of this check and cannot be missing")
     local declared = declared_fields(coord_src)
@@ -303,7 +218,7 @@ do
     assert(declared_count >= 40, "S2c FAIL: the declaration parse found only " ..
         tostring(declared_count) .. " fields — a parse this thin proves nothing")
 
-    local files = list_production_files()
+    local files = scan.production_files()
     assert(#files >= 40, "S2d FAIL: the walk found only " .. tostring(#files) ..
         " production files — a scan this thin proves nothing")
 
@@ -339,7 +254,7 @@ end
 
 do
     local rel = "quest_state/do_action_state.lua"
-    local src = read_source(rel)
+    local src = scan.read(rel)
     assert(src, "S3a FAIL: could not read " .. rel)
 
     local poisoned = src:gsub("local function ", "shared._declaration_probe = 1\nlocal function ", 1)
@@ -347,21 +262,21 @@ do
     assert(written_fields(poisoned)._declaration_probe,
         "S3c FAIL: the scan cannot see an undeclared write added to real production source")
 
-    local declared = declared_fields(read_source(DECLARATION_FILE))
+    local declared = declared_fields(scan.read(DECLARATION_FILE))
     assert(declared and not declared._declaration_probe,
         "S3d FAIL: the probe field must not be declared — the control proves nothing if it is")
 
     -- The compare step itself, on the real surface: remove one real declaration and the scan must
     -- report the field production still writes. Without this, only the detector is proven — the
     -- comparison could be inverted and every control above would still pass.
-    local coord_src = read_source(DECLARATION_FILE)
+    local coord_src = scan.read(DECLARATION_FILE)
     assert(coord_src, "S3e FAIL: could not read " .. DECLARATION_FILE)
     local mutated_src = coord_src:gsub("%s*_patrol_sweeps%s*=[^\n]*", "\n", 1)
     assert(mutated_src ~= coord_src, "S3f FAIL: the control could not remove a declaration")
     local mutated = declared_fields(mutated_src)
     assert(mutated and not mutated._patrol_sweeps,
         "S3g FAIL: the mutated table still declares the removed field")
-    local reported = undeclared_against(mutated, list_production_files())
+    local reported = undeclared_against(mutated, scan.production_files())
     local flagged = false
     for _, name in ipairs(reported) do
         if name == "_patrol_sweeps" then flagged = true end
