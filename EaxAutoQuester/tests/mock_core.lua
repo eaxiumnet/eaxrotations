@@ -44,6 +44,7 @@ M._party = {}
 -- Every confirm input answers true by default; set false to model a client whose confirm call
 -- was not reached.
 M._confirm_answered = true
+M._pending_equip_slot = nil
 
 -- ============================================================================
 -- Reset
@@ -91,6 +92,7 @@ function M.reset()
     M._game_event_registrations = 0
     M._game_event_raises = false
     M._confirm_answered = true
+    M._pending_equip_slot = nil
     M._helper_capacity = nil
     M._helper_used = nil
 end
@@ -314,6 +316,11 @@ M.input = {
     use_item = function(item_id)
         M._input_calls[#M._input_calls + 1] = { "use_item", item_id }
     end,
+    equip_pending_item = function(inventory_slot)
+        M._input_calls[#M._input_calls + 1] = { "equip_pending_item", inventory_slot }
+        M._pending_equip_slot = nil
+        return M._confirm_answered
+    end,
     use_item_position = function(item_id, position)
         M._input_calls[#M._input_calls + 1] = { "use_item_position", item_id, position }
     end,
@@ -349,9 +356,9 @@ M.game_ui = {
     get_world_pos_from_map_pos = function(map_id, pos)
         return { x = pos.x * 100, y = pos.y * 100 }
     end,
-    get_battlefield_status = function(index)
-        return M._battlefield_status[index] or "none"
-    end,
+    get_battlefield_status = function(index) return M._battlefield_status[index] or "none" end,
+    get_pending_equip_slot = function() return M._pending_equip_slot end,
+
 }
 
 M.quests = {

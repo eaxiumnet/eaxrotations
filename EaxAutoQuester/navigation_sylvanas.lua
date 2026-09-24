@@ -798,22 +798,9 @@ local function stuck_recovery()
         return true
     elseif _stuck_level == 4 then
         -- Hearthstone
-        pcall(function()
-            for bag = 0, 4 do
-                local ok_items, items = pcall(core.inventory.get_items_in_bag, bag)
-                if ok_items and items then
-                    for _, item in ipairs(items) do
-                        if item and item.object and item.object.get_item_id then
-                            local iid = item.object:get_item_id()
-                            if iid == 6948 then
-                                pcall(core.input.use_container_item, bag, item.slot_id)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end)
+        -- Hearthstones are addressed by item ID; a raw inventory slot is not a valid
+        -- container-slot API argument.
+        pcall(core.input.use_item, 6948)
         _stuck_recovery_timer = _core_time() + 8.0
         _core_log("[EaxAutoQuester] Stuck recovery L4: hearthstone")
         return true

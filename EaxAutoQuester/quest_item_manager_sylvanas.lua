@@ -225,8 +225,9 @@ function M.use_quest_item(item, pattern, target, position)
         end
     end
 
-    -- Fallback 3: try use_container_item (bag+slot) — some items only work this way
-    local ok = pcall(core.input.use_container_item, item.bag_id, item.slot_id)
+    -- Item use is addressed by item ID here. Raw core.inventory slot_id values are not
+    -- interchangeable with the container-slot API's inventory-helper slot pair.
+    local ok = pcall(core.input.use_item, item.item_id)
     if ok then return true end
 
     _core_log("[EaxAutoQuester] Failed to use quest item: " .. tostring(item.name))

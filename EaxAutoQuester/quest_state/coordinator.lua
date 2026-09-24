@@ -484,6 +484,10 @@ function M.update()
 
     -- Engine prompts raised by the plugin's own actions (never by the player's).
     answer_own_prompts()
+    local quest_interaction = ensure_quest_interaction()
+    if quest_interaction and quest_interaction.process_auto_equip then
+        pcall(quest_interaction.process_auto_equip)
+    end
 
     -- Refresh debug flag from menu each tick
     local menu = ensure_menu()
@@ -592,23 +596,9 @@ function M.update()
                             log("DEATH LOOP DETECTED in zone " .. tostring(safe_map_id) .. " (" .. tostring(new_count) .. " deaths) — blacklisting, hearthing")
                             local nav = ctx.nav
                             if nav then
-                                -- Use nav's built-in hearthstone mechanism (item 6948)
-                                pcall(function()
-                                    for bag = 0, 4 do
-                                        local ok_items, items = pcall(core.inventory.get_items_in_bag, bag)
-                                        if ok_items and items then
-                                            for _, item in ipairs(items) do
-                                                if item and item.object and item.object.get_item_id then
-                                                    local iid = item.object:get_item_id()
-                                                    if iid == 6948 then
-                                                        pcall(core.input.use_container_item, bag, item.slot_id)
-                                                        break
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end)
+                                -- Hearthstones are addressed by item ID; raw bag slot IDs
+                                -- are not valid arguments to the container-slot API.
+                                pcall(core.input.use_item, 6948)
                             end
                             local ns = _G.EaxAutoQuester
                             if ns and ns.set_warning then

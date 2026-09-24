@@ -205,5 +205,78 @@ do
     print("S10 PASS: auto_equip reads equipped quality from core.quests.get_item_info")
 end
 
+-- S11: the selected reward reaches bags and is equipped with the helper-owned bag pair.
+do
+    mock.install_inventory_helper()
+    local reward = mock.create_object({ name = "Superior Tunic", item_id = 2003 })
+    mock._bag_items[0] = { { object = reward, slot_id = 300 } }
+    mock._input_calls = {}
+
+    local qi = require("quest_interaction_sylvanas")
+    qi.process_auto_equip()
+
+    local equip
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "use_container_item" then equip = call end
+    end
+    assert(equip and equip[2] == 0 and equip[3] == 8,
+        "S11 FAIL: reward equip must use inventory_helper's (bag_id, bag_slot), got " ..
+        tostring(equip and equip[2]) .. "/" .. tostring(equip and equip[3]))
+    print("S11 PASS: selected reward is equipped through the helper bag/slot pair")
+end
+
+-- S12a: the quest-item fallback names the item ID, never a raw inventory slot pair.
+do
+    local qim = require("quest_item_manager_sylvanas")
+    local old_use_item = core.input.use_item
+    local old_use_target = core.input.use_item_target
+    local old_use_position = core.input.use_item_position
+    core.input.use_item = function() error("blocked") end
+    core.input.use_item_target = function() error("blocked") end
+    core.input.use_item_position = function() error("blocked") end
+    mock._input_calls = {}
+    local attempted = qim.use_quest_item({ item_id = 12345, name = "Test Item" }, "target")
+    core.input.use_item = old_use_item
+    core.input.use_item_target = old_use_target
+    core.input.use_item_position = old_use_position
+    assert(attempted == false, "S12a FAIL: a blocked quest-item use must report failure")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "use_container_item",
+            "S12a FAIL: quest-item fallback regressed to raw container-slot use")
+    end
+    print("S12a PASS: quest-item fallback uses the item ID and never raw container slots")
+end
+
+-- S12: a bind-on-equip event is answered only while this module owns the pending equip.
+do
+    local bridge = require("quest_frame_events_sylvanas")
+    local qi = require("quest_interaction_sylvanas")
+    mock._input_calls = {}
+    bridge.on_game_event("AUTOEQUIP_BIND_CONFIRM", { 4 })
+    assert(qi.process_auto_equip() == true,
+        "S12 FAIL: the pending reward equip must release its own bind prompt")
+    local confirmed
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "equip_pending_item" then confirmed = call[2] end
+    end
+    assert(confirmed == 4, "S12 FAIL: expected equip_pending_item(4), got " .. tostring(confirmed))    print("  S12 PASS: bind-on-equip confirmation is owned and released once")
+end
+
+-- S12b: a prompt raised by the player while no reward equip is pending is left alone.
+do
+    local bridge = require("quest_frame_events_sylvanas")
+    local qi = require("quest_interaction_sylvanas")
+    mock._input_calls = {}
+    bridge.on_game_event("AUTOEQUIP_BIND_CONFIRM", { 4 })
+    assert(qi.process_auto_equip() == false,
+        "S12b FAIL: an unowned bind prompt must not be answered")
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "equip_pending_item",
+            "S12b FAIL: player-originated equip prompt was answered")
+    end
+    print("S12b PASS: player-originated bind prompt is left alone")
+end
+
 print("PASS test_auto_equip")
+
 os.exit(0)

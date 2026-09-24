@@ -20,6 +20,48 @@ local _quests = core.quests
 local _game_ui = core.game_ui
 local _inventory = core.inventory
 local _input = core.input
+local _use_container_item = core.input.use_container_item
+local _equip_pending_item = core.input.equip_pending_item
+
+-- Reward selection completes the quest before the client has necessarily placed the item in
+-- bags. Keep one bounded request and resolve it on later coordinator ticks, through the
+-- documented inventory-helper bag/slot pair. The table is reused to keep the tick path clear.
+local _auto_equip = { item_id = nil, link = nil, armed_until = 0, equip_attempted = false }
+local _AUTO_EQUIP_WINDOW = 5.0
+local _inventory_helper = nil
+
+local function get_inventory_helper()
+    if _inventory_helper then return _inventory_helper end
+    local ok, mod = pcall(require, "common/utility/inventory_helper")
+    if ok and type(mod) == "table" then _inventory_helper = mod end
+    return _inventory_helper
+end
+
+local function item_id_from_reward(info, link)
+    if info and tonumber(info.item_id) then return tonumber(info.item_id) end
+    if type(link) == "string" then
+        local id = link:match("item:(%d+)")
+        if id then return tonumber(id) end
+    end
+    return nil
+end
+
+local function clear_auto_equip()
+    _auto_equip.item_id = nil
+    _auto_equip.link = nil
+    _auto_equip.armed_until = 0
+    _auto_equip.equip_attempted = false
+end
+
+--- Record the reward the quest handler actually selected. The item may not be in bags yet.
+local function remember_selected_reward(info, link)
+    local item_id = item_id_from_reward(info, link)
+    if not item_id then clear_auto_equip() return end
+    _auto_equip.item_id = item_id
+    _auto_equip.link = link
+    _auto_equip.armed_until = 0
+    _auto_equip.equip_attempted = false
+end
 
 -- The loot module is the single owner of emptying a loot window (0-based slots, gold
 -- first, a walk that survives the window compacting) — loot_manager_sylvanas.try_loot.
@@ -232,6 +274,14 @@ function M.select_best_reward()
     if best_idx > 0 then
         local ok_select = pcall(function() _quests.get_quest_reward(best_idx) end)
         if ok_select then
+            -- Preserve the selected item, but do not issue a second reward selection from the
+            -- auto-equip path. The actual equip waits until this selected item reaches bags.
+            local selected_link, selected_info
+            pcall(function()
+                selected_link = _quests.get_quest_item_link("choice", best_idx)
+                selected_info = _quests.get_item_info(selected_link)
+            end)
+            remember_selected_reward(selected_info, selected_link)
             return "best_reward:" .. tostring(best_idx) .. "(" .. tostring(best_price) .. "c)"
         end
     end
@@ -266,56 +316,128 @@ local _last_giveup_count = 0    -- how many times that frame has been given up o
 -- auto_equip_best_reward: Equip the selected reward if it's an upgrade
 -- ============================================================================
 
---- After selecting a quest reward, auto-equip it if better than current gear.
---- Uses equipment_compare_sylvanas.lua for slot classification and quality comparison.
+--- Equip the already-selected reward if it is an upgrade. The public function also retains
+--- the historical direct-call behavior used by tests: with no selection recorded, it chooses
+--- the first reward choice that is an upgrade. Once a live reward handler has selected an item,
+--- only that exact reward may be equipped.
 function M.auto_equip_best_reward()
     local eq_ok, eq = pcall(require, "equipment_compare_sylvanas")
-    if not eq_ok or not eq then return end
+    if not eq_ok or not eq then return false end
 
     local me = _get_local_player()
-    if not me then return end
+    if not me then return false end
 
-    -- Get equipped items: returns [{object=game_object, slot_id=integer}]
-    local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
-    if not ok_eq_items or not eq_items then return end
-
-    -- Build equipped item list for comparison
-    local equipped_list = {}
-    for _, entry in ipairs(eq_items) do
-        if entry and entry.object then
-            local ok_name, name = pcall(function() return entry.object:get_name() end)
-            local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
-            if ok_name and ok_id and item_id then
-                -- Documented source: core.quests.get_item_info(item_id_or_link) (.api/core.lua),
-                -- the same cached function this file already uses for reward links. The name
-                -- `_get_item_info` was declared nowhere, so the lookup always failed and every
-                -- equipped item compared as quality 0.
-                local ok_info, info = pcall(function() return _quests.get_item_info(item_id) end)
-                local quality = (ok_info and info and info.quality) or 0
-                local slot = eq.classify_slot(name)
-                if slot then
-                    table.insert(equipped_list, { slot = slot, name = name, quality = quality })
+    local info, link
+    if _auto_equip.item_id then
+        link = _auto_equip.link
+        local ok_info, selected = pcall(function() return _quests.get_item_info(link) end)
+        if not ok_info or not selected then return false end
+        info = selected
+    else
+        local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
+        if not ok_eq_items or not eq_items then return false end
+        local equipped_list = {}
+        for _, entry in ipairs(eq_items) do
+            if entry and entry.object then
+                local ok_name, name = pcall(function() return entry.object:get_name() end)
+                local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
+                if ok_name and ok_id and item_id then
+                    local ok_quality, item_info = pcall(function() return _quests.get_item_info(item_id) end)
+                    local slot = eq.classify_slot(name)
+                    if slot then
+                        equipped_list[#equipped_list + 1] = {
+                            slot = slot, name = name,
+                            quality = (ok_quality and item_info and item_info.quality) or 0,
+                        }
+                    end
+                end
+            end
+        end
+        for i = 1, 6 do
+            local ok_link, candidate_link = pcall(function() return _quests.get_quest_item_link("choice", i) end)
+            if not ok_link or not candidate_link or candidate_link == "" then break end
+            local ok_candidate, candidate = pcall(function() return _quests.get_item_info(candidate_link) end)
+            if ok_candidate and candidate then
+                local should = eq.should_equip(candidate.name, candidate.quality or 0, equipped_list)
+                if should then
+                    local selected = pcall(function() _quests.get_quest_reward(i) end)
+                    if selected then
+                        link = candidate_link
+                        info = candidate
+                        remember_selected_reward(info, link)
+                        break
+                    end
                 end
             end
         end
     end
+    if not info or not info.name or not _auto_equip.item_id then return false end
 
-    -- Scan reward choices and equip the first upgrade
-    for i = 1, 6 do
-        local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", i) end)
-        if not ok_link or not link or link == "" then break end
-
-        local ok_info, info = pcall(function() return _quests.get_item_info(link) end)
-        if ok_info and info then
-            local should, slot = eq.should_equip(info.name, info.quality or 0, equipped_list)
-            if should then
-                pcall(function() _quests.get_quest_reward(i) end)
-                -- Try to equip via use_container_item if item lands in bags
-                -- (The exact bag/slot is unknown at this moment; we'll scan on next tick)
-                break
+    -- Re-evaluate the selected reward when it reaches bags, rather than comparing every choice.
+    local helper = get_inventory_helper()
+    if not helper or type(helper.get_character_bag_slots) ~= "function" then return false end
+    local ok_slots, slots = pcall(helper.get_character_bag_slots)
+    if not ok_slots or not slots then return false end
+    for _, slot_data in ipairs(slots) do
+        local item = slot_data and slot_data.item
+        if item and item.get_item_id then
+            local ok_id, item_id = pcall(item.get_item_id, item)
+            if ok_id and item_id == _auto_equip.item_id then
+                local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
+                if not ok_eq_items or not eq_items then return false end
+                local equipped_list = {}
+                for _, entry in ipairs(eq_items) do
+                    if entry and entry.object then
+                        local ok_name, name = pcall(function() return entry.object:get_name() end)
+                        local ok_eid, eid = pcall(function() return entry.object:get_item_id() end)
+                        if ok_name and ok_eid and eid and eq.classify_slot(name) then
+                            local ok_quality, item_info = pcall(function() return _quests.get_item_info(eid) end)
+                            equipped_list[#equipped_list + 1] = {
+                                slot = eq.classify_slot(name), name = name,
+                                quality = (ok_quality and item_info and item_info.quality) or 0,
+                            }
+                        end
+                    end
+                end
+                local should = eq.should_equip(info.name, info.quality or 0, equipped_list)
+                if not should then clear_auto_equip() return false end
+                _auto_equip.equip_attempted = true
+                _auto_equip.armed_until = _core_time() + _AUTO_EQUIP_WINDOW
+                pcall(_use_container_item, slot_data.bag_id, slot_data.bag_slot)
+                -- A synchronous event is possible in the mock and in some clients.
+                M.process_auto_equip()
+                return true
             end
         end
     end
+    return false
+end
+
+--- Resume a pending selected reward and answer only a bind prompt caused by our own equip.
+--- This is called once per coordinator tick, not just while a reward frame is open.
+function M.process_auto_equip()
+    if not _auto_equip.item_id then return false end
+    local now = _core_time()
+    if _auto_equip.armed_until > 0 and now > _auto_equip.armed_until then
+        clear_auto_equip()
+        return false
+    end
+    if _auto_equip.equip_attempted and now <= _auto_equip.armed_until then
+        local ok_bridge, bridge = pcall(require, "quest_frame_events_sylvanas")
+        if ok_bridge and type(bridge.take_confirm) == "function" then
+            local record = bridge.take_confirm("AUTOEQUIP_BIND_CONFIRM")
+                or bridge.take_confirm("EQUIP_BIND_CONFIRM")
+            if record and record.args and tonumber(record.args[1]) then
+                pcall(_equip_pending_item, tonumber(record.args[1]))
+                clear_auto_equip()
+                return true
+            end
+        end
+        -- The item has already been requested. Do not repeat it while waiting for its
+        -- confirmation event; the coordinator will expire this request if none arrives.
+        return false
+    end
+    return M.auto_equip_best_reward()
 end
 
 -- ============================================================================
