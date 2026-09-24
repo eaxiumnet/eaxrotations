@@ -90,7 +90,15 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `npc_db_sylvanas.lua`, the flight/inn branches in `quest_state/idle_state.lua`, the force-vendor branch in `quest_state/coordinator.lua`, and `tests/test_transport_helper.lua` S8-S12.
 
 ### AQ-P2-2 — Quest-item identity and result tracking
-Replace the remaining quest-item name/word fallback and the false-success `pcall` contract; acceptance is item identity and result-path tests.
+**Status: complete (2026-09-24).** The documented goal shape carries no item ID, so the existing ordered text queries remain the candidate selector. Once an inventory object is selected, its client-owned `get_item_id()` is re-read and pinned across every use attempt; bag-row metadata is never treated as identity. Every `use_item*` call now counts as successful only when `pcall` completes **and** the API returns literal `true`, so `false` and thrown errors continue through the unchanged self/target/position fallbacks.
+
+**Acceptance criteria met:**
+- The real `do_action_state.run` → `handle_goal_item` path sends the first selected inventory object's concrete ID, not a bag row's unrelated fields.
+- A client `true` produces the existing successful-use log and ends the quest-item branch.
+- Client `false` and thrown errors are not reported as success and continue through the same three-attempt target/self/self order before existing routing.
+- No item source, extraction/search query, usage pattern, fallback order, combat behavior, or routing policy was added or changed.
+
+**Proving surface:** `quest_item_manager_sylvanas.lua` and `tests/test_do_action_state.lua` AQ-P2-2 S1-S3; the existing S12a direct fallback regression remains green.
 
 ### AQ-P2-3 — Interact range
 Make the rendered interaction range setting authoritative, or remove it; acceptance is a setting-to-distance test.

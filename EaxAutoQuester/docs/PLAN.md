@@ -11,7 +11,7 @@
 | 5 | **AQ-P1-3** | Supply bank/repair intent to service gossip through its production caller. | Service-gossip and quest-interaction path tests. |
 | 6 | **AQ-P1-4** | Specify and wire the retained-failure policy without quest abandonment. | Blacklist/progress integration tests. |
 | 7 | **AQ-P2-1** | Correct transport locality and remove cross-map service fallback. | NPC database and transport path tests. |
-| 8 | **AQ-P2-2** | Tighten quest-item identity and distinguish issued use from successful use. | Quest-item manager tests. |
+| 8 | **AQ-P2-2** | Pin the selected inventory object's client ID and distinguish issued use from successful use. | Real DO_ACTION quest-item identity/result tests. |
 | 9 | **AQ-P2-3** | Make interact range authoritative or remove the control. | Menu/NPC-manager distance tests. |
 | 10 | **AQ-P2-4** | Preserve and use step text in dungeon filtering. | Dungeon detector/goal-filter matrix. |
 | 11 | **AQ-P2-5** | Wire or remove the unused anti-detection members. | Production-call and allocation tests. |
@@ -26,7 +26,7 @@
 - [x] AQ-P1-3 — bank/repair service gossip
 - [x] AQ-P1-4 — failure policy
 - [x] AQ-P2-1 — transport locality
-- [ ] AQ-P2-2 — quest-item identity and result tracking
+- [x] AQ-P2-2 — quest-item identity and result tracking
 - [ ] AQ-P2-3 — interact range
 - [ ] AQ-P2-4 — dungeon step evidence
 - [ ] AQ-P2-5 — anti-detection scope
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P2-2 — quest-item identity and result tracking — is next. It must replace the remaining quest-item name/word fallback and make item identity and the false-success `pcall` contract explicit.
+AQ-P2-3 — interact range — is next. It must make the rendered interaction-range setting authoritative, or remove the control, and prove the setting-to-distance behavior through the existing menu/NPC-manager surface.

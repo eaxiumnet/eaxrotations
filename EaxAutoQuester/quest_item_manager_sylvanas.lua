@@ -1,10 +1,9 @@
--- What: Quest item usage — scan inventory, match to active quest goals, use items
--- When: Called from do_action_state when goal type suggests item usage
--- Why: ~20% of TBC quests require using an inventory item on a target or ground.
---        Zygor never provides item IDs; we match by name.
--- Safety: All API calls pcall-guarded; 3s cooldown per item; never uses non-quest items
--- Decision: Name-matching heuristic (not perfect, but catches most cases).
---           Uses core.input.use_item / use_item_target / use_item_position.
+-- What: Quest item usage — scan inventory, match active goals, and use concrete item IDs.
+-- When: Called from do_action_state when the existing goal text selects an item.
+-- Why: The goal has no documented item ID, so the existing text fallback stays ordered;
+--        the selected inventory object's get_item_id() is the only use identity.
+-- Safety: Invalid inventory identities are skipped; calls are pcall-guarded; 3s cooldown.
+-- Decision: Only a documented true return from use_item* counts as successful use.
 
 -- ============================================================================
 -- API Caching at Module Load (Pattern 2)
@@ -27,13 +26,26 @@ local M = {}
 local _cooldowns = {}
 local _USE_COOLDOWN = 3.0
 
+-- Bag rows do not carry an item ID. Read the name and concrete identity from the
+-- object the client placed in the row, and reject a missing/non-positive client ID.
+local function read_inventory_item(row)
+    if not row or not row.object then return nil end
+
+    local name_ok, name = pcall(function() return row.object:get_name() end)
+    local id_ok, item_id = pcall(function() return row.object:get_item_id() end)
+    if not name_ok or not id_ok or type(name) ~= "string" or name == "" then return nil end
+    if type(item_id) ~= "number" or item_id <= 0 then return nil end
+
+    return name, item_id
+end
+
 -- ============================================================================
 -- Inventory Scan
 -- ============================================================================
 
 --- Scan all bags for items whose name contains the given substring.
 --- @param substring string Name substring to match (case-insensitive)
---- @return table[]|nil Array of { bag_id, slot_id, item_id, name } or nil
+--- @return table[]|nil Array of { bag_id, slot_id, item_id, name, object } or nil
 function M.find_items_by_name(substring)
     if not substring or substring == "" then return nil end
     local lower = substring:lower()
@@ -42,20 +54,16 @@ function M.find_items_by_name(substring)
     for bag = 0, 4 do
         local ok, items = pcall(_get_items_in_bag, bag)
         if ok and items then
-            for _, item in ipairs(items) do
-                if item and item.object then
-                    local ok_name, name = pcall(function() return item.object:get_name() end)
-                    local ok_id, item_id = pcall(function() return item.object:get_item_id() end)
-                    if ok_name and ok_id and name and item_id then
-                        if name:lower():find(lower, 1, true) then
-                            results[#results + 1] = {
-                                bag_id = bag,
-                                slot_id = item.slot_id,
-                                item_id = item_id,
-                                name = name,
-                            }
-                        end
-                    end
+            for _, row in ipairs(items) do
+                local name, item_id = read_inventory_item(row)
+                if name and name:lower():find(lower, 1, true) then
+                    results[#results + 1] = {
+                        bag_id = bag,
+                        slot_id = row.slot_id,
+                        item_id = item_id,
+                        name = name,
+                        object = row.object,
+                    }
                 end
             end
         end
@@ -66,24 +74,22 @@ function M.find_items_by_name(substring)
 end
 
 --- Scan all bags and return a flat list of ALL items with their IDs and names.
---- @return table[] Array of { bag_id, slot_id, item_id, name }
+--- @return table[] Array of { bag_id, slot_id, item_id, name, object }
 function M.get_all_inventory_items()
     local results = {}
     for bag = 0, 4 do
         local ok, items = pcall(_get_items_in_bag, bag)
         if ok and items then
-            for _, item in ipairs(items) do
-                if item and item.object then
-                    local ok_name, name = pcall(function() return item.object:get_name() end)
-                    local ok_id, item_id = pcall(function() return item.object:get_item_id() end)
-                    if ok_name and ok_id then
-                        results[#results + 1] = {
-                            bag_id = bag,
-                            slot_id = item.slot_id,
-                            item_id = item_id,
-                            name = name or "Unknown",
-                        }
-                    end
+            for _, row in ipairs(items) do
+                local name, item_id = read_inventory_item(row)
+                if name and item_id then
+                    results[#results + 1] = {
+                        bag_id = bag,
+                        slot_id = row.slot_id,
+                        item_id = item_id,
+                        name = name,
+                        object = row.object,
+                    }
                 end
             end
         end
@@ -123,7 +129,7 @@ end
 
 --- Match a quest goal to an inventory item.
 --- @param goal_text string
---- @return table|nil { bag_id, slot_id, item_id, name }
+--- @return table|nil { bag_id, slot_id, item_id, name, object }
 function M.find_item_for_goal(goal_text)
     local item_name = M.extract_item_name_from_goal(goal_text)
     if not item_name then return nil end
@@ -178,39 +184,48 @@ function M.infer_usage_pattern(goal_text)
     return "self"
 end
 
+-- Every use_item* API reports the same boolean contract. pcall only proves that
+-- the call did not raise; both facts are required before claiming success.
+local function use_succeeded(fn, ...)
+    local ok, result = pcall(fn, ...)
+    return ok and result == true
+end
+
 --- Use a quest item. Tries the inferred pattern, falls back through alternatives.
---- @param item table { item_id, bag_id, slot_id }
+--- @param item table { object, item_id, bag_id, slot_id }
 --- @param pattern string "self", "target", "position"
 --- @param target game_object|nil For target-cast
 --- @param position table|nil {x,y,z} For position-cast
---- @return boolean true if usage was attempted
+--- @return boolean true only when a use_item* call reports true
 function M.use_quest_item(item, pattern, target, position)
-    if not item or not item.item_id then return false end
+    if not item or not item.object then return false end
+
+    -- Re-read the concrete client identity immediately before use. The bag row
+    -- itself has no ID, and accepting a caller-supplied name-only record would
+    -- make fuzzy selection look like authoritative item identity.
+    local id_ok, item_id = pcall(function() return item.object:get_item_id() end)
+    if not id_ok or type(item_id) ~= "number" or item_id <= 0 then return false end
 
     -- Cooldown check
-    local last = _cooldowns[item.item_id]
+    local last = _cooldowns[item_id]
     if last and (_core_time() - last) < _USE_COOLDOWN then return false end
-    _cooldowns[item.item_id] = _core_time()
+    _cooldowns[item_id] = _core_time()
 
     -- Throttle: only attempt once per item per 3s
     _core_log("[EaxAutoQuester] Using quest item: " .. tostring(item.name) .. " (" .. tostring(pattern) .. ")")
 
     -- Try inferred pattern first
     if pattern == "self" then
-        local ok = pcall(core.input.use_item, item.item_id)
-        if ok then return true end
+        if use_succeeded(core.input.use_item, item_id) then return true end
     elseif pattern == "target" and target then
-        local ok = pcall(core.input.use_item_target, item.item_id, target)
-        if ok then return true end
+        if use_succeeded(core.input.use_item_target, item_id, target) then return true end
     elseif pattern == "position" and position then
-        local ok = pcall(core.input.use_item_position, item.item_id, position)
-        if ok then return true end
+        if use_succeeded(core.input.use_item_position, item_id, position) then return true end
     end
 
     -- Fallback 1: try self-cast (safest)
     if pattern ~= "self" then
-        local ok = pcall(core.input.use_item, item.item_id)
-        if ok then return true end
+        if use_succeeded(core.input.use_item, item_id) then return true end
     end
 
     -- Fallback 2: try target-cast with current target
@@ -219,16 +234,14 @@ function M.use_quest_item(item, pattern, target, position)
         if me_ok and me then
             local t_ok, t = pcall(function() return me:get_target() end)
             if t_ok and t then
-                local ok = pcall(core.input.use_item_target, item.item_id, t)
-                if ok then return true end
+                if use_succeeded(core.input.use_item_target, item_id, t) then return true end
             end
         end
     end
 
     -- Item use is addressed by item ID here. Raw core.inventory slot_id values are not
     -- interchangeable with the container-slot API's inventory-helper slot pair.
-    local ok = pcall(core.input.use_item, item.item_id)
-    if ok then return true end
+    if use_succeeded(core.input.use_item, item_id) then return true end
 
     _core_log("[EaxAutoQuester] Failed to use quest item: " .. tostring(item.name))
     return false
@@ -238,7 +251,7 @@ end
 --- @param goal_text string The quest goal text (e.g. "Use Bundle of Wood on the bonfire")
 --- @param target game_object|nil Optional target for target-cast
 --- @param position table|nil Optional position for position-cast
---- @return boolean true if an item was found and usage was attempted
+--- @return boolean true only when a matched item was successfully used
 function M.handle_goal_item(goal_text, target, position)
     local item = M.find_item_for_goal(goal_text)
     if not item then return false end

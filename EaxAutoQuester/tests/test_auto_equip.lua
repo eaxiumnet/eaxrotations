@@ -235,7 +235,8 @@ do
     core.input.use_item_target = function() error("blocked") end
     core.input.use_item_position = function() error("blocked") end
     mock._input_calls = {}
-    local attempted = qim.use_quest_item({ item_id = 12345, name = "Test Item" }, "target")
+    local item_object = mock.create_object({ name = "Test Item", item_id = 12345 })
+    local attempted = qim.use_quest_item({ item_id = 12345, name = "Test Item", object = item_object }, "target")
     core.input.use_item = old_use_item
     core.input.use_item_target = old_use_target
     core.input.use_item_position = old_use_position

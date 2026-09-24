@@ -1278,5 +1278,114 @@ do
     print("  S29 PASS: a friendly goal NPC is still interacted with on an empty bar")
 end
 
+-- AQ-P2-2 — Quest-item identity and boolean use-result contract through DO_ACTION.
+-- These scenarios deliberately use the real do_action.run -> handle_goal_item path.
+-- The goal has no concrete item ID, so the existing text search selects the first
+-- matching inventory object; that object's client ID must be the ID sent to use_item*.
+do
+    local do_action = require("quest_state/do_action_state")
+    local old_use_item = core.input.use_item
+    local old_use_target = core.input.use_item_target
+    local old_use_position = core.input.use_item_position
+
+    local function run_item_goal(item, result, should_throw)
+        local step = {
+            num = 201,
+            is_complete = false,
+            waypoint = { map_id = 0, x = 0, y = 0 },
+            goals = { { type = "use", text = "Oil of Fire" } },
+        }
+        local logs = {}
+        local ctx = build_ctx(step, nil, {})
+        local target = mock.create_object({ name = "Emberwing", npc_id = 6001 })
+        ctx.me._target = target
+        mock._bag_items[0] = {
+            { object = item, slot_id = 17, item_id = 99999 },
+            { object = mock.create_object({ name = "Oil of Fire", item_id = 51099 }), slot_id = 18 },
+        }
+        local calls = {}
+        local function answer(kind, item_id, target)
+            calls[#calls + 1] = { kind, item_id, target }
+            if should_throw then error("use failed") end
+            return result
+        end
+        core.input.use_item = function(item_id) return answer("use_item", item_id) end
+        core.input.use_item_target = function(item_id, target)
+            return answer("use_item_target", item_id, target)
+        end
+        core.input.use_item_position = function(item_id, position)
+            return answer("use_item_position", item_id, position)
+        end
+
+        ctx.debug_log = function(message) logs[#logs + 1] = message end
+        local next_state = do_action.run({
+            _area_wait_timer = 0,
+            _action_pause_timer = 0,
+            _last_goal_type = "use",
+            _last_step_num = 201,
+            _nav_destination = nil,
+        }, ctx)
+
+        return calls, logs, next_state
+    end
+
+    -- Identity: the first matching object remains selected, but the bag row's unrelated
+    -- metadata cannot replace the object-backed client ID sent to the use API.
+    do
+        local item = mock.create_object({ name = "Oil of Fire", item_id = 51001 })
+        local calls, logs, next_state = run_item_goal(item, true, false)
+        assert(next_state == "IDLE", "AQ-P2-2 S1 FAIL: successful use must finish the DO_ACTION tick")
+        assert(#calls == 1 and calls[1][1] == "use_item",
+            "AQ-P2-2 S1 FAIL: inferred self use must be the first and only successful call")
+        assert(calls[1][2] == 51001,
+            "AQ-P2-2 S1 FAIL: use must receive the first selected object's client item ID, got "
+                .. tostring(calls[1][2]))
+        assert(logs[1] == "DO_ACTION: used quest item for goal 'Oil of Fire'",
+            "AQ-P2-2 S1 FAIL: client true must produce the successful DO_ACTION log")
+    end
+
+    -- False return: pcall completed, but every attempt failed. The existing object
+    -- fallback must run and the DO_ACTION log must not claim successful item use.
+    do
+        local item = mock.create_object({ name = "Oil of Fire", item_id = 51002 })
+        local calls, logs = run_item_goal(item, false, false)
+        assert(#calls == 3, "AQ-P2-2 S2 FAIL: false must preserve the three self/target/self attempts")
+        assert(calls[1][1] == "use_item" and calls[2][1] == "use_item_target"
+            and calls[3][1] == "use_item", "AQ-P2-2 S2 FAIL: fallback order changed")
+        for _, call in ipairs(calls) do
+            assert(call[2] == 51002, "AQ-P2-2 S2 FAIL: every fallback lost the selected item identity")
+        end
+        local claimed_success = false
+        for _, message in ipairs(logs) do
+            if message:find("used quest item", 1, true) then claimed_success = true end
+        end
+        assert(not claimed_success, "AQ-P2-2 S2 FAIL: a false use return was reported as success")
+        assert(logs[#logs] == "DO_ACTION: no target for use",
+            "AQ-P2-2 S2 FAIL: failed item use must continue through the existing routing fallback")
+    end
+
+    -- Error return: pcall itself must not turn a thrown API call into success.
+    do
+        local item = mock.create_object({ name = "Oil of Fire", item_id = 51003 })
+        local calls, logs = run_item_goal(item, false, true)
+        assert(#calls == 3, "AQ-P2-2 S3 FAIL: an exception must preserve the three existing attempts")
+        for _, call in ipairs(calls) do
+            assert(call[2] == 51003, "AQ-P2-2 S3 FAIL: exception fallback lost the selected item identity")
+        end
+        local claimed_success = false
+        for _, message in ipairs(logs) do
+            if message:find("used quest item", 1, true) then claimed_success = true end
+        end
+        assert(not claimed_success, "AQ-P2-2 S3 FAIL: a thrown use call was reported as success")
+        assert(mock.log_contains("Failed to use quest item: Oil of Fire"),
+            "AQ-P2-2 S3 FAIL: exhausted exception path must report failure")
+    end
+
+    core.input.use_item = old_use_item
+    core.input.use_item_target = old_use_target
+    core.input.use_item_position = old_use_position
+    print("  AQ-P2-2 PASS: DO_ACTION pins the inventory object's ID and trusts only true use results")
+end
+
 print("PASS test_do_action_state")
 os.exit(0)
