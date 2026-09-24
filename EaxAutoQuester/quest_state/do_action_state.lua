@@ -149,6 +149,31 @@ local function unit_is_corpse(obj)
     return false
 end
 
+--- Is the goal's objective visible right now as a quest OBJECT (a non-unit)? A goal's id can only
+--- be swept for spawn points when what it names is a creature: shared/spawn_patrol.lua resolves the
+--- id against the creature spawn index, and a game object has no row in it, so the sweep's
+--- candidates are the step's own waypoints and the leg it publishes outranked the object the bot
+--- was already standing next to (live: "Ogre Remains" — patrol legs at 108yd/113yd, never a
+--- click). Units are deliberately not this: a mob sharing the goal's name keeps the id/patrol
+--- order, which is what kill steps are tuned for.
+--- @param goal table|nil A Zygor goal
+--- @param goal_target string|nil The goal's target string
+--- @param ctx table Per-tick context
+--- @return boolean
+local function visible_quest_object(goal, goal_target, ctx)
+    local npc = ctx.npc_manager
+    if not npc or not goal_target or goal_target == "" then return false end
+    for _, name in ipairs(goal_names.expand(goal_target)) do
+        -- Identity, not similarity: shared/objective_match.lua owns the goal's own objective.
+        local objects = objective_match.only(goal, npc.find_interactable_objects(name, ctx.object_scanner))
+        for _, obj in ipairs(objects or {}) do
+            local ok_unit, is_unit = pcall(function() return obj:is_unit() end)
+            if not (ok_unit and is_unit) and not unit_is_corpse(obj) then return true end
+        end
+    end
+    return false
+end
+
 -- ============================================================================
 -- Talk-target discovery ladder — ported from the monolith's live talk branch
 -- (docs/phase1_port_list.md item 9). The modular talk branch only knew has a
@@ -698,7 +723,10 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             end
         end
 
-        if goal_npc_id then
+        if goal_npc_id and not visible_quest_object(goal, goal_target, ctx) then
+            -- A quest object the goal names answers the question without a sweep, so the sweep
+            -- does not get the tick (shared/visible_quest_object above). Everything else falls
+            -- through to the name path below, which approaches and uses what it finds.
             -- Where to go when the mob is not here: SWEEP its spawn points rather than navigate
             -- to one coordinate. The single-point version (npc_db.find_npc_spawn, first match)
             -- parked the bot on one spawn forever — with the mob's other spawn points, and any

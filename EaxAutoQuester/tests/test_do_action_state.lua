@@ -1431,5 +1431,138 @@ do
     print("  AQ-P2-2 PASS: DO_ACTION pins the inventory object's ID and trusts only true use results")
 end
 
+-- ============================================================================
+-- AQ-P2-10 — a visible quest OBJECT outranks the spawn sweep
+-- Live "Ogre Remains" step: the goal carries a gameobject id (233818) that the creature spawn
+-- index does not know, so shared/spawn_patrol.lua swept the step's waypoints and published a
+-- 108yd destination on the tick after the object had been found 8yd away. The sweep could not
+-- find a game object by construction; it must not get the tick while one is in sight.
+-- ============================================================================
+do
+    local real_zygor = require("zygor_reader_sylvanas")
+    local do_action = require("quest_state/do_action_state")
+    local scanner = require("object_scanner")
+
+    -- The step's own path — the patrol's only candidates for an id the index cannot resolve,
+    -- and the legs the live log showed (108yd, 113yd, plus one underfoot).
+    local STEP_WAYPOINTS = {
+        { x = 108, y = 0, z = 0 },
+        { x = -113, y = 0, z = 0 },
+        { x = 0, y = 0, z = 0 },
+    }
+
+    local function run_area(objects)
+        mock.reset()
+        mock._addon_loaded.zygor = true
+        mock._zygor_step = {
+            num = 7,
+            is_complete = false,
+            waypoint = { map_id = 0, x = 0, y = 0 },
+            goals = { { type = "area", npc_id = 0, target = "Ogre Remains", targetid = 233818 } },
+        }
+        mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+        mock._objects = objects or {}
+        scanner.invalidate()
+
+        local logs = {}
+        local ctx = {
+            -- A proxy, not an override: the real reader cannot convert map coordinates without
+            -- coords_helper, so the step's world waypoints are supplied here and nothing global
+            -- is replaced for the suites that run after this one.
+            zygor = setmetatable({
+                get_step_waypoints_world = function() return STEP_WAYPOINTS end,
+            }, { __index = real_zygor }),
+            npc_manager = require("npc_manager_sylvanas"),
+            combat_helper = nil,
+            utils = require("utils_sylvanas"),
+            menu = { get = function() return false end },
+            me = mock._player,
+            now = 1000,
+            object_scanner = scanner,
+            debug_log = function(m) logs[#logs + 1] = tostring(m) end,
+            log = function() end,
+            safe = function(v, fb) if v == nil then return fb end return v end,
+            detect_open_frame = function() return false end,
+        }
+        local shared = {
+            _area_wait_timer = 0,
+            _action_pause_timer = 0,
+            _area_fail_count = 0,
+            _last_step_num = 7,
+            _last_goal_type = "area",
+            _debug = true,
+        }
+        do_action.run(shared, ctx)
+
+        local used_object = false
+        for _, call in ipairs(mock._input_calls) do
+            if call[1] == "use_object" then used_object = true end
+        end
+        local function headed_to(x, y, tol)
+            local dest = shared._nav_destination
+            if not dest then return false end
+            local dx = (dest.x or 0) - x
+            local dy = (dest.y or 0) - y
+            return dx * dx + dy * dy <= (tol or 1)
+        end
+        local function logged(fragment)
+            for _, message in ipairs(logs) do
+                if message:find(fragment, 1, true) then return true end
+            end
+            return false
+        end
+        return { used_object = used_object, headed_to = headed_to, logged = logged,
+                 logs = logs }
+    end
+
+    -- S31 — the object is 8yd away: the walk to IT is the destination, not a 108yd sweep leg.
+    do
+        local object = mock.create_object({ pos = { x = 0, y = 8, z = 0 },
+            name = "Ogre Remains", unit = false, guid = "ogre_remains_far" })
+        local r = run_area({ object })
+        assert(not r.used_object, "S31 FAIL: a quest object 8yd away must be approached, not used at range")
+        assert(r.logged("approaching 'Ogre Remains'"),
+            "S31 FAIL: expected the object approach, got: " .. table.concat(r.logs, " | "))
+        assert(r.headed_to(0, 8, 4),
+            "S31 FAIL: the destination must be the quest object; the sweep leg was published instead")
+        print("  S31 PASS: visible quest object outranks the spawn sweep (8yd approach, no 108yd leg)")
+    end
+
+    -- S32 — 3yd: the object is used. The click path itself is unchanged.
+    do
+        local object = mock.create_object({ pos = { x = 0, y = 3, z = 0 },
+            name = "Ogre Remains", unit = false, guid = "ogre_remains_near" })
+        local r = run_area({ object })
+        assert(r.used_object, "S32 FAIL: a quest object inside interact range must be used")
+        assert(r.logged("targeted quest object 'Ogre Remains'"),
+            "S32 FAIL: expected the quest-object log, got: " .. table.concat(r.logs, " | "))
+        print("  S32 PASS: quest object inside range is targeted and used (3yd)")
+    end
+
+    -- S33 — a UNIT carrying the same id keeps the id/patrol order. Kill steps must not change.
+    do
+        local mob = mock.create_object({ pos = { x = 0, y = 3, z = 0 }, name = "Ogre Remains",
+            unit = true, npc_id = 233818, guid = "ogre_remains_unit" })
+        local r = run_area({ mob })
+        assert(not r.used_object, "S33 FAIL: a unit must not take the quest-object path")
+        assert(r.logged("searching spawn points for NPC 233818"),
+            "S33 FAIL: a visible unit must keep the patrol order, got: " .. table.concat(r.logs, " | "))
+        assert(r.headed_to(108, 0),
+            "S33 FAIL: the patrol's first walkable candidate (the 108yd waypoint) must be the destination")
+        print("  S33 PASS: a unit with the goal's id keeps the spawn-patrol order")
+    end
+
+    -- S34 — nothing in sight: the sweep is the only answer left, and must still run.
+    do
+        local r = run_area({})
+        assert(r.logged("searching spawn points for NPC 233818"),
+            "S34 FAIL: with no visible objective the sweep must run, got: " .. table.concat(r.logs, " | "))
+        assert(r.headed_to(108, 0), "S34 FAIL: the sweep's first walkable candidate must be the destination")
+        print("  S34 PASS: no visible objective still falls through to the spawn sweep")
+    end
+
+    print("  AQ-P2-10 PASS: a visible quest object outranks the spawn sweep; units do not")
+end
+
 print("PASS test_do_action_state")
 os.exit(0)
