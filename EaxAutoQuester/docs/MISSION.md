@@ -190,5 +190,25 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 
 **Proving surface:** `quest_interaction_sylvanas.lua` (`auto_equip_best_reward`'s scan), `equipment_compare_sylvanas.lua` (`should_equip`'s third return), and `tests/test_auto_equip.lua` S21 (the traded-away reward, driven through `handle_quest_detail`) and S22 (a fill-only frame still takes its first fill; an unusable frame takes nothing).
 
+## P3 — the live objective path
+
+### AQ-P3-1 — A quest object is the destination
+**Status: complete (2026-09-24).** Live log, step 7 of the guide: `DO_ACTION: area goal — npc_id=233818 target=Ogre Remains`, then `SPAWN PATROL: 5 spawn point(s)`, legs at 108yd and 113yd, `spawn point 2 unreachable`, and not one click — the objective was a quest game object and the bot searched for it forever.
+
+**Objective:** a step whose goal names an interactable game object is walked to and used, instead of being handed to a spawn sweep that cannot describe it.
+
+**Acceptance criteria met:**
+- A visible quest object (a non-unit the goal's own name/identity matches) is approached and used before any search leg is published. The approach destination is the object, so the walk is never overwritten by a search point.
+- A UNIT carrying the goal's id keeps the existing id/patrol order, unchanged: kill steps behave exactly as before.
+- With no visible objective the sweep still runs, and its candidates are unchanged.
+- The sweep no longer publishes a leg for a place the player is standing on: arrival is measured on the ground plane, because a guide waypoint arrives from the map conversion with `z=0` and a 3D compare read the waypoint underfoot as hundreds of yards away (`spawning spawn point 5/5 (0yd)`).
+- A place the client has already refused is not offered again, and a leg that merely ended is no longer reported as `unreachable` — the client's word (`shared/nav_destination.lua`) is the only source of that verdict.
+- A turn-in frame that shows MONEY is never claimed with `accept_quest`: money is paid for a quest already handed in, so the dialog is closed and the verb reported is the one actually performed. An offer-shaped frame (choice links, no money) is still claimed.
+- The IDLE goal line reports the goal's id wherever it is carried (`targetid`, `id`, the `{name,id}` pairs) and is logged on a change instead of every tick, so the decisions are readable.
+
+**Proving surface:** `quest_state/do_action_state.lua` (`visible_quest_object`), `shared/spawn_patrol.lua` (`ground_sq`, `choose`, the leg-end verdict), `quest_interaction_sylvanas.lua` (the money/accept gate), `quest_state/idle_state.lua` (the goal line), and `tests/test_do_action_state.lua` S31–S34, `tests/test_spawn_patrol.lua` P16–P18, `tests/test_quest_turnin.lua` S9, `tests/test_idle_state.lua` P17.
+
+**Client-only unknown (explicitly outside this mission):** whether the world object for a given guide id is within the client's object stream at the step's waypoints. The code path is proven; the walk to a coordinate the guide supplies is the client's answer. `docs/quest_object_objectives.md` is the runbook for that check.
+
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.

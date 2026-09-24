@@ -35,6 +35,7 @@
 - [x] AQ-P2-6 — deterministic equipment classification, client-slot-aware comparison, and stable paired-slot tie handling
 - [x] AQ-P2-7 — the empty member of a ring/trinket pair is a destination (second ring/trinket acquired; no downgrade into an occupied pair or a singleton)
 - [x] AQ-P2-8 — the direct reward scan prefers a replacement over an earlier fill (choice re-proved against the pre-AQ-P2-7 revision; `select_best_reward` untouched)
+- [x] AQ-P3-1 — a quest object is the destination (visible object outranks the spawn sweep; ground-plane arrival; refused places not re-offered; a money turn-in is never accepted; the goal line reports the real id once per change)
 
 ## Verification protocol for each execution step
 
@@ -47,3 +48,5 @@
 ## Execution complete
 
 All fourteen objectives, AQ-P0-1 through AQ-P2-8, are complete. AQ-P2-6 follow-up (2026-09-24): the comparison's resolved slot is now the equip's destination (`core.input.equip_container_item`), so the reward lands where the decision was made instead of wherever the client's destination-less use put it; the call's result is consumed and an abandoned equip hands its cursor back. AQ-P2-6 closed the final equipment-comparison gap: the comparator now uses deterministic slot classification and the client's `equip_loc`/`slot_id` data, while the real selected-reward path proves both slot overrides and an equal-quality paired-slot tie without changing reward-selection or quality/keyword policy.
+
+AQ-P3-1 (2026-09-24) closes the live "Ogre Remains" loop: a quest object's goal carried an id the creature spawn index cannot resolve, so `do_action_state` handed every tick to `shared/spawn_patrol.lua`, whose candidates were the step's own waypoints — including one under the player, because arrival was measured in 3D against a waypoint whose height is `z=0`. The object was found and approached in the mock harness and its destination overwritten by the next sweep leg before it was ever walked. The object now outranks the sweep (units do not), arrival is measured on the ground plane, a place the client refused is not offered again, and a refused money turn-in is closed instead of accepted. `docs/quest_object_objectives.md` is the client runbook.
