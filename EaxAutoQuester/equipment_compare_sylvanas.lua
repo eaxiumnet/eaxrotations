@@ -354,6 +354,10 @@ end
 --- @param candidate_equip_loc string|number|nil Optional client item-info location
 --- @return boolean should_equip        true if candidate should replace an equipped item
 --- @return string|nil slot_to_replace  Slot type to replace, or nil if no replacement needed
+--- @return boolean|nil fills_free      true when the candidate was accepted only because a
+---                                      member of a two-slot pair is free (it does not beat
+---                                      the worn member). Callers that rank several choices
+---                                      use it to prefer a replacement over a fill.
 local function should_equip(candidate_name, candidate_quality, equipped_items_list, candidate_equip_loc)
     -- Accept the item-info table as a convenience while preserving the original
     -- (name, quality, equipped_list) call shape.
@@ -382,7 +386,7 @@ local function should_equip(candidate_name, candidate_quality, equipped_items_li
     -- A free member of a pair is an empty slot too: it takes what the comparison against the
     -- worn member would otherwise discard, and the available member is never overwritten.
     if fills_free then
-        return true, candidate_slot
+        return true, candidate_slot, true
     end
 
     -- Compare quality (nil-guard equipped quality)

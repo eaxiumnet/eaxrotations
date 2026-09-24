@@ -375,9 +375,11 @@ local _last_giveup_count = 0    -- how many times that frame has been given up o
 -- ============================================================================
 
 --- Equip the already-selected reward if it is an upgrade. The public function also retains
---- the historical direct-call behavior used by tests: with no selection recorded, it chooses
---- the first reward choice that is an upgrade. Once a live reward handler has selected an item,
---- only that exact reward may be equipped.
+--- the historical direct-call behavior used by tests: with no selection recorded it scans the
+--- offered choices, and that scan answers with the first choice that REPLACES what is worn —
+--- a choice that only fills a free pair member (AQ-P2-7) is kept as the fallback, so widening
+--- what may be equipped can never trade away a better reward. Once a live reward handler has
+--- selected an item, only that exact reward may be equipped.
 function M.auto_equip_best_reward()
     local eq_ok, eq = pcall(require, "equipment_compare_sylvanas")
     if not eq_ok or not eq then return false end
@@ -394,14 +396,22 @@ function M.auto_equip_best_reward()
     else
         local equipped_list = build_equipped_comparison_list(me, eq)
         if not equipped_list then return false end
+        -- Held in case no choice replaces what is worn (see the loop below).
+        local fill_index, fill_link, fill_info
         for i = 1, 6 do
             local ok_link, candidate_link = pcall(function() return _quests.get_quest_item_link("choice", i) end)
             if not ok_link or not candidate_link or candidate_link == "" then break end
             local ok_candidate, candidate = pcall(function() return _quests.get_item_info(candidate_link) end)
             if ok_candidate and candidate then
-                local should = eq.should_equip(
+                local should, _, fills_free = eq.should_equip(
                     candidate.name, candidate.quality or 0, equipped_list, candidate.equip_loc)
-                if should then
+                if should and fills_free then
+                    -- Accepted only because a pair member is free: hold it as the fallback so a
+                    -- later choice that replaces something can still win, and never select two.
+                    if not fill_index then
+                        fill_index, fill_link, fill_info = i, candidate_link, candidate
+                    end
+                elseif should then
                     local selected = pcall(function() _quests.get_quest_reward(i) end)
                     if selected then
                         link = candidate_link
@@ -410,6 +420,17 @@ function M.auto_equip_best_reward()
                         break
                     end
                 end
+            end
+        end
+
+        -- Nothing replaced anything: the held fill is still a real upgrade over an empty pair
+        -- member, so take it now rather than leaving the frame unselected.
+        if not info and fill_index then
+            local selected = pcall(function() _quests.get_quest_reward(fill_index) end)
+            if selected then
+                link = fill_link
+                info = fill_info
+                remember_selected_reward(info, link)
             end
         end
     end

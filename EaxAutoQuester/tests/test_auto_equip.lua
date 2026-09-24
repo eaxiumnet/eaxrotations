@@ -8,7 +8,9 @@
 --            S13 real slot override, S14 real deferred tie, S15 the resolved destination (12/14/17/11),
 --            S16 a refused placement releases the cursor it loaded, S17 an unowned cursor is left alone,
 --            S18 the second member of a ring/trinket pair is acquired, S19 no downgrade (pair or
---            singleton), S20 both pair members empty
+--            singleton), S20 both pair members empty, S21 the direct scan prefers a replacement
+--            over an earlier fill (the traded-away-better-reward regression), S22 a fill-only
+--            frame still selects its first fill and an unusable frame selects nothing
 -- S10 fails if that source is an undeclared global again: the equipped quality then reads 0
 -- and the quality-1 downgrade wins.
 -- Safety: No io.popen, os.execute, ffi.C, debug.*, or math.sqrt
@@ -689,6 +691,137 @@ do
             ", got " .. tostring(destination))
     end
     print("S20 PASS: an empty pair is filled from its first member (11 / 13)")
+end
+
+-- S21: the production reward path. handle_quest_detail() reaches the direct scan whenever
+-- select_best_reward() does not record a choice (here: no choice publishes a sell price and
+-- there is no money reward), and that scan used to take the FIRST acceptable choice. Choice 1
+-- only fills the free ring member (quality 2 vs the worn 4); choice 2 replaces it (quality 5).
+-- Taking choice 1 would trade away the better reward, so the scan must answer with choice 2.
+do
+    mock.reset()
+    mock.install_inventory_helper()
+    mock.set_time(1000000)   -- clear handle_quest_detail's once-per-second throttle
+
+    local worn = mock.create_object({ name = "Worn Sword", item_id = 7001 })
+    mock._item_info[7001] = { name = "Worn Sword", quality = 4, equip_loc = "FINGER" }
+    mock.create_player({ equipped = { { object = worn, slot_id = 11 } } })
+
+    -- Neither choice publishes a sell price, so select_best_reward() records nothing and the
+    -- scan below is the only thing that can pick a reward — exactly the reachable case.
+    mock._quest_rewards[1] = { link = "item:7101" }
+    mock._item_info["item:7101"] = {
+        item_id = 7101, name = "Worn Sword", quality = 2, equip_loc = "FINGER",
+    }
+    mock._quest_rewards[2] = { link = "item:7102" }
+    mock._item_info["item:7102"] = {
+        item_id = 7102, name = "Worn Sword", quality = 5, equip_loc = "FINGER",
+    }
+    mock._quest_money = 0
+
+    local filler = mock.create_object({ name = "Worn Sword", item_id = 7101 })
+    local better = mock.create_object({ name = "Worn Sword", item_id = 7102 })
+    mock._bag_items[0] = { { object = filler, slot_id = 340 }, { object = better, slot_id = 341 } }
+    mock._input_calls = {}
+
+    local qi = require("quest_interaction_sylvanas")
+    qi.handle_quest_detail()
+
+    local taken = 0
+    local destination, bag_slot
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "get_quest_reward" then
+            taken = taken + 1
+            assert(call[2] == 2,
+                "S21 FAIL: the first replacement must win, not the earlier fill (took choice " ..
+                tostring(call[2]) .. ")")
+        end
+        if call[1] == "equip_container_item" then bag_slot, destination = call[3], call[4] end
+        assert(call[1] ~= "use_container_item",
+            "S21 FAIL: a destination-less use must not place the reward")
+    end
+    assert(taken == 1, "S21 FAIL: exactly one reward choice may be selected, got " .. tostring(taken))
+    assert(bag_slot == 9 and destination == 11,
+        "S21 FAIL: choice 2 replaces the worn ring in 11, so the equip must name (9, 11), got (" ..
+        tostring(bag_slot) .. ", " .. tostring(destination) .. ")")
+    print("S21 PASS: the direct scan prefers a replacement over an earlier fill")
+end
+
+-- S22: a frame whose only acceptable choices are fills still selects its first fill — and a
+-- frame where nothing is acceptable selects no reward at all.
+do
+    local qi = require("quest_interaction_sylvanas")
+
+    -- (a) worn ring (quality 5) in 11 with 12 free: both choices only fill, so choice 1 wins.
+    mock.reset()
+    mock.install_inventory_helper()
+    mock.set_time(2000000)
+
+    local worn = mock.create_object({ name = "Worn Sword", item_id = 7200 })
+    mock._item_info[7200] = { name = "Worn Sword", quality = 5, equip_loc = "FINGER" }
+    mock.create_player({ equipped = { { object = worn, slot_id = 11 } } })
+
+    mock._quest_rewards[1] = { link = "item:7201" }
+    mock._item_info["item:7201"] = {
+        item_id = 7201, name = "Worn Sword", quality = 1, equip_loc = "FINGER",
+    }
+    mock._quest_rewards[2] = { link = "item:7202" }
+    mock._item_info["item:7202"] = {
+        item_id = 7202, name = "Worn Sword", quality = 2, equip_loc = "FINGER",
+    }
+    mock._quest_money = 0
+
+    local first = mock.create_object({ name = "Worn Sword", item_id = 7201 })
+    local second = mock.create_object({ name = "Worn Sword", item_id = 7202 })
+    mock._bag_items[0] = { { object = first, slot_id = 342 }, { object = second, slot_id = 343 } }
+    mock._input_calls = {}
+
+    qi.handle_quest_detail()
+
+    local taken
+    local destination
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "get_quest_reward" then taken = call[2] end
+        if call[1] == "equip_container_item" then destination = call[4] end
+    end
+    assert(taken == 1, "S22 FAIL: a fill-only frame must still take its first fill, got " ..
+        tostring(taken))
+    assert(destination == 12, "S22 FAIL: the fill belongs in the free member 12, got " ..
+        tostring(destination))
+
+    -- (b) both ring slots worn (quality 5): nothing is acceptable, so nothing is selected.
+    mock.reset()
+    mock.install_inventory_helper()
+    mock.set_time(3000000)
+
+    local ring_a = mock.create_object({ name = "Worn Sword", item_id = 7301 })
+    local ring_b = mock.create_object({ name = "Worn Sword", item_id = 7302 })
+    mock._item_info[7301] = { name = "Worn Sword", quality = 5, equip_loc = "FINGER" }
+    mock._item_info[7302] = { name = "Worn Sword", quality = 5, equip_loc = "FINGER" }
+    mock.create_player({
+        equipped = { { object = ring_a, slot_id = 11 }, { object = ring_b, slot_id = 12 } },
+    })
+
+    mock._quest_rewards[1] = { link = "item:7303" }
+    mock._item_info["item:7303"] = {
+        item_id = 7303, name = "Worn Sword", quality = 1, equip_loc = "FINGER",
+    }
+    mock._quest_money = 0
+    mock._bag_items[0] = { { object = mock.create_object({ name = "Worn Sword", item_id = 7303 }), slot_id = 344 } }
+    mock._input_calls = {}
+
+    -- The frame is finished with a verb ("complete_quest", or the offer claim "accept_quest"
+    -- when the probe still answers afterwards) — what must not happen is a reward selection.
+    local action = qi.handle_quest_detail()
+    assert(action == "complete_quest" or action == "accept_quest",
+        "S22 FAIL: an unusable reward frame is still finished with a verb, got " .. tostring(action))
+    for _, call in ipairs(mock._input_calls) do
+        assert(call[1] ~= "get_quest_reward",
+            "S22 FAIL: a reward no comparison accepts must not be selected")
+        assert(call[1] ~= "equip_container_item",
+            "S22 FAIL: a rejected reward must not be equipped")
+    end
+    print("S22 PASS: a fill-only frame takes its first fill, an unusable one takes nothing")
 end
 
 print("PASS test_auto_equip")

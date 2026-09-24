@@ -171,9 +171,24 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 - A member that cannot be proven occupied is never treated as free: a row of the category without a client `slot_id` disables the rule, so an old rejection can never silently become an equip.
 - No new stat weighting, scoring model, preference policy, alias-table data, or restructure of the module or the auto-equip lifecycle. Singleton categories are untouched (no pair, no free member).
 
-**Known consequence (recorded, not a defect):** the legacy direct reward scan (`auto_equip_best_reward` called with no recorded selection) takes the first accepted choice, so on an open reward frame it can now take an earlier choice that fills a free pair member where it previously skipped it. `select_best_reward` — the live path — is untouched.
+**Known consequence (closed by AQ-P2-8).** The legacy direct reward scan (`auto_equip_best_reward` with no recorded selection) took the first accepted choice, so on an open reward frame it could take an earlier choice that only filled a free pair member where it previously skipped it and took a better reward later — a real change to an existing selection outcome. AQ-P2-8 gave that scan its replacement-before-fill order and re-proved the choice against the pre-AQ-P2-7 revision.
 
 **Proving surface:** `equipment_compare_sylvanas.lua` (`lowest_row_of_category`, `free_pair_member`, `comparison_slots`, `equip_slot_for`), `quest_interaction_sylvanas.lua`, and `tests/test_auto_equip.lua` S18 (second ring/trinket acquired), S19 (no downgrade into an occupied pair or a singleton, plus the unprovable-member guard), and S20 (both pair members empty).
+
+### AQ-P2-8 — Direct reward-scan preference order
+**Status: complete (2026-09-24).** The direct scan answers with the first choice that REPLACES what is worn, holding a choice that only fills a free pair member as the fallback, so AQ-P2-7's wider accept set can no longer trade away a better reward.
+
+**Reachability (measured, not assumed):** the scan is the branch of `auto_equip_best_reward` taken when no selection is recorded. Production reaches it from `handle_quest_detail`'s reward-frame branch, which calls `select_best_reward()` and then `auto_equip_best_reward()` in the same tick on a frame that publishes choices. `select_best_reward` records nothing when no choice publishes a sell price (`best_idx == 0`), when its own `get_quest_reward` call fails, or when the selected reward carries no resolvable item id — each leaves a live reward frame with an unrecorded selection, which is the state the scan runs in. The coordinator tick reaches it only through `process_auto_equip`, which returns before the scan while nothing is pending.
+
+**Acceptance criteria met:**
+- The scan keeps the first choice that replaces something (including a category that is not worn at all) exactly as it did before AQ-P2-7, and falls back to the first fill only when no choice replaces anything.
+- Exactly one reward choice is ever selected: a held fill is selected only if nothing replaced something.
+- `select_best_reward` — the live, sell-price-based selection path — is untouched.
+- No new stat weighting or scoring model: the order is the accept decision's own kind, which the comparison already computes and now reports as its third return.
+
+**Proof:** a read-only 264-frame matrix driving both revisions' real scan against the pre-AQ-P2-7 revision (`95731203e`) shows **246 identical selections, 18 intended selections where the old revision chose nothing (fills), and no unexplained difference** — including the traded-away-better-reward frame (a fill at choice 1, a replacement at choice 2), which answers choice 2 again as it did before AQ-P2-7. The decision layer is re-proven against the same revision: 840 cases, **800 identical decisions (identical slot returns), 40 intended fills, 0 unexplained**.
+
+**Proving surface:** `quest_interaction_sylvanas.lua` (`auto_equip_best_reward`'s scan), `equipment_compare_sylvanas.lua` (`should_equip`'s third return), and `tests/test_auto_equip.lua` S21 (the traded-away reward, driven through `handle_quest_detail`) and S22 (a fill-only frame still takes its first fill; an unusable frame takes nothing).
 
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.
