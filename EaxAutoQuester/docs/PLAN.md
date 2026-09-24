@@ -23,7 +23,7 @@
 - [x] AQ-P0-2 — three invalid item-use call sites
 - [x] AQ-P1-1 — menu contract
 - [x] AQ-P1-2 — live autoloot/vendor pressure
-- [ ] AQ-P1-3 — bank/repair service gossip
+- [x] AQ-P1-3 — bank/repair service gossip
 - [ ] AQ-P1-4 — failure policy
 - [ ] AQ-P2-1 — transport locality
 - [ ] AQ-P2-2 — quest-item identity and result tracking
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P1-3 — bank/repair service gossip — is next. It must make bank and repair reachable through the existing service-gossip surface without adding a menu capability.
+AQ-P1-4 — failure policy — is next. It must define and wire a non-abandon policy for recorded quest failures without adding a new capability.

@@ -614,7 +614,9 @@ function M.handle_gossip(step_text)
     -- Priority 3: Service gossip (innkeeper hearth, bank, repair)
     local svc_ok, svc = pcall(require, "service_gossip_sylvanas")
     if svc_ok and svc then
-        local svc_result = svc.handle_service_gossip(step_text)
+        local wanted_services = svc.wanted_services_for_step
+            and svc.wanted_services_for_step(step_text) or nil
+        local svc_result = svc.handle_service_gossip(step_text, wanted_services)
         if svc_result then return svc_result end
     end
 

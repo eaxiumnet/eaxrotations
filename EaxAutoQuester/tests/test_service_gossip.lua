@@ -79,5 +79,55 @@ result = sg.handle_service_gossip(nil)
 assert(result == nil, "S5 FAIL: no wanted services → nil")
 print("  S5 PASS: no wanted services → nil")
 
+-- ============================================================================
+-- S6: normal quest step text supplies the existing bank service selection
+-- ============================================================================
+mock.reset()
+mock.set_time(10.0)
+set_gossip({
+    { name = "I would like to check my deposit box", gossip_option_id = 9 },
+})
+result = sg.handle_service_gossip("Visit the bank in Ironforge")
+assert(result == "service:bank", "S6a FAIL: expected service:bank, got " .. tostring(result))
+local bank_selected = false
+for _, call in ipairs(mock._input_calls) do
+    if call[1] == "select_gossip_option" and call[2] == 9 then bank_selected = true end
+end
+assert(bank_selected, "S6b FAIL: bank step must select the existing bank gossip option")
+print("  S6 PASS: bank is reachable from a normal quest step")
+
+-- ============================================================================
+-- S7: normal quest step text supplies the existing repair service selection
+-- ============================================================================
+mock.reset()
+mock.set_time(10.0)
+set_gossip({
+    { name = "I would like to repair my gear", gossip_option_id = 11 },
+})
+result = sg.handle_service_gossip("Repair your equipment")
+assert(result == "service:repair", "S7a FAIL: expected service:repair, got " .. tostring(result))
+local repair_selected = false
+for _, call in ipairs(mock._input_calls) do
+    if call[1] == "select_gossip_option" and call[2] == 11 then repair_selected = true end
+end
+assert(repair_selected, "S7b FAIL: repair step must select the existing repair gossip option")
+print("  S7 PASS: repair is reachable from a normal quest step")
+
+-- ============================================================================
+-- S8: the real quest-interaction caller supplies the step-derived services
+-- ============================================================================
+local interaction = require("quest_interaction_sylvanas")
+mock.reset()
+mock.set_time(10.0)
+set_gossip({
+    { name = "I would like to check my deposit box", gossip_option_id = 9 },
+})
+result = interaction.handle_gossip("Visit the bank in Ironforge")
+assert(result == "service:bank", "S8a FAIL: the loop must pass bank intent to service gossip")
+assert(#mock._input_calls > 0 and mock._input_calls[#mock._input_calls][1] == "select_gossip_option"
+    and mock._input_calls[#mock._input_calls][2] == 9,
+    "S8b FAIL: the loop must select the existing bank gossip option")
+print("  S8 PASS: quest-interaction supplies bank service intent from the step")
+
 print("PASS test_service_gossip")
 os.exit(0)

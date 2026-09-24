@@ -71,6 +71,32 @@ function M.step_requires_hearth(step_text)
     return false
 end
 
+--- Derive the existing service selection from the current Zygor step.
+--- This does not add a service action: it only supplies the wanted-service list that
+--- handle_service_gossip already knows how to resolve against its existing patterns.
+--- @param step_text string|nil
+--- @return table Array containing any of "inn", "bank", and "repair"
+function M.wanted_services_for_step(step_text)
+    local wanted = {}
+    if not step_text then return wanted end
+    if M.step_requires_hearth(step_text) then
+        wanted[#wanted + 1] = "inn"
+    end
+    local function mentions(patterns)
+        for _, pattern in ipairs(patterns) do
+            if step_text:find(pattern) then return true end
+        end
+        return false
+    end
+    if mentions(_BANK_PATTERNS) then
+        wanted[#wanted + 1] = "bank"
+    end
+    if mentions(_REPAIR_PATTERNS) then
+        wanted[#wanted + 1] = "repair"
+    end
+    return wanted
+end
+
 --- Score how well a gossip option name matches service patterns.
 -- @param option_name string
 -- @param patterns table Array of Lua patterns.
@@ -137,13 +163,10 @@ function M.handle_service_gossip(step_text, wanted_services)
     local ok2, options = pcall(core.quests.get_gossip_options)
     if not ok2 or not options or #options == 0 then return nil end
 
-    -- Default wanted services based on step text
+    -- Default wanted services based on the existing step-text patterns. Explicit callers
+    -- (including tests and future step-specific callers) still retain full control.
     if not wanted_services then
-        wanted_services = {}
-        if M.step_requires_hearth(step_text) then
-            wanted_services[#wanted_services + 1] = "inn"
-        end
-        -- Bank/repair could be added via menu flags or step text in future
+        wanted_services = M.wanted_services_for_step(step_text)
     end
 
     if #wanted_services == 0 then return nil end

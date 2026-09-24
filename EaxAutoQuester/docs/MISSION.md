@@ -52,7 +52,16 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `shared/corpse_loot.lua`, `loot_manager_sylvanas.lua`, and `tests/test_vendor_bag_trigger.lua` S1b/S3.
 
 ### AQ-P1-3 — Bank/repair service gossip
-Make bank and repair reachable from the quest-loop path while retaining inn handling; acceptance is a service-gossip path test without manually supplied service flags.
+**Status: complete (2026-09-24).** Re-measurement found existing Bank and Repair pattern matching and option selection in `service_gossip_sylvanas.lua`; only the quest-loop caller was omitting the wanted-services list. The loop now derives the existing service intent from the current step text and passes it into the existing handler.
+
+**Acceptance criteria met:**
+- A normal bank step selects the existing Bank gossip option.
+- A normal repair step selects the existing Repair gossip option.
+- The existing automatic inn request remains unchanged.
+- Steps with no service intent still produce no service selection.
+- No menu, vendoring, repair, or new service capability was added.
+
+**Proving surface:** `service_gossip_sylvanas.lua`, the `quest_interaction_sylvanas.handle_gossip` caller, and `tests/test_service_gossip.lua` S6-S8.
 
 ### AQ-P1-4 — Failure policy
 Define and wire the non-abandon policy for recorded quest failures; acceptance is a persistent-failure test that skips/notifies without calling `abandon_quest`.
