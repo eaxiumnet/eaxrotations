@@ -195,6 +195,20 @@ local function get_bag_fullness_pct()
     return math.floor((used_slots / total_slots) * 100)
 end
 
+--- Refresh the existing force-vendor state after any production loot action.
+--- The corpse path calls this after requesting a corpse loot; auto_loot_all uses the same
+--- owner, so the threshold and flag semantics cannot drift.
+--- @return boolean forced true when the flag was raised
+function M.refresh_force_vendor_state()
+    local fullness = get_bag_fullness_pct()
+    if fullness < 80 then return false end
+    local ns = _G.EaxAutoQuester
+    if not ns then return false end
+    ns._force_vendor_soon = true
+    _core_log("[EaxAutoQuester] Bags " .. tostring(fullness) .. "% full — forcing vendor visit")
+    return true
+end
+
 -- ============================================================================
 -- auto_loot_all — find and loot all nearby lootable objects
 -- ============================================================================
@@ -280,15 +294,8 @@ function M.auto_loot_all(range)
         end
     end
 
-    -- Bag-fullness check: if bags >= 80% full after looting, trigger vendor run
-    local fullness = get_bag_fullness_pct()
-    if fullness >= 80 then
-        local ns = _G.EaxAutoQuester
-        if ns then
-            ns._force_vendor_soon = true
-            _core_log("[EaxAutoQuester] Bags " .. tostring(fullness) .. "% full — forcing vendor visit")
-        end
-    end
+    -- Bag-fullness check: the live force-vendor owner is shared with the corpse path.
+    M.refresh_force_vendor_state()
 
     return _t.n > 0
 end

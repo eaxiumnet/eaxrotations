@@ -68,6 +68,43 @@ do
 end
 
 -- ============================================================================
+-- S1b: the live corpse-loot path reaches the same force-vendor owner
+-- ============================================================================
+do
+    mock.reset()
+    mock.install_inventory_helper()
+    _G.EaxAutoQuester = _G.EaxAutoQuester or {}
+    _G.EaxAutoQuester._force_vendor_soon = nil
+    mock._bag_slots = { [0] = 16, [1] = 16, [2] = 16, [3] = 16, [4] = 16 }
+    fill_bags(13)
+
+    local player = mock.create_player({ pos = { x = 0, y = 0, z = 0 } })
+    local corpse = mock.create_object({
+        pos = { x = 2, y = 0, z = 0 }, name = "Fresh Corpse",
+        unit = true, valid = true, dead = true, lootable = true,
+    })
+    mock._objects = { corpse }
+    local corpse_loot = require("shared/corpse_loot")
+    local utils = require("utils_sylvanas")
+    local shared = { _loot_cooldown = 0 }
+    local ctx = {
+        me = player, now = 10.0, utils = utils, debug_log = function() end,
+        object_scanner = { get_visible_objects = function() return mock._objects end },
+    }
+
+    assert(corpse_loot.try_loot_nearest_corpse(shared, ctx) == "IDLE",
+        "S1b FAIL: the live corpse path must loot a nearby corpse")
+    assert(_G.EaxAutoQuester._force_vendor_soon == true,
+        "S1b FAIL: live corpse loot must reach the existing force-vendor state")
+    local looted = false
+    for _, call in ipairs(mock._input_calls) do
+        if call[1] == "loot_object" and call[2] == corpse then looted = true end
+    end
+    assert(looted, "S1b FAIL: the live corpse path did not issue the corpse loot request")
+    print("  S1b PASS: live corpse loot raises the existing force-vendor state")
+end
+
+-- ============================================================================
 -- S2: bag 50% full → no flag
 -- ============================================================================
 do

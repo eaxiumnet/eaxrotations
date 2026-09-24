@@ -36,6 +36,19 @@ local M = {}
 -- The destination fields belong to shared/nav_destination.lua; a corpse walk is one of its
 -- plain point destinations.
 local nav_destination = require("shared/nav_destination")
+local _loot_manager = nil
+
+--- Let the existing loot manager evaluate bag fullness after this live corpse action.
+--- Keeping the refresh there preserves its threshold, logging, and force-vendor flag owner.
+local function refresh_force_vendor_state()
+    if not _loot_manager then
+        local ok, mod = pcall(require, "loot_manager_sylvanas")
+        if ok and mod then _loot_manager = mod end
+    end
+    if _loot_manager and _loot_manager.refresh_force_vendor_state then
+        pcall(_loot_manager.refresh_force_vendor_state)
+    end
+end
 
 -- ============================================================================
 -- Constants
@@ -153,6 +166,7 @@ function M.try_loot_nearest_corpse(shared, ctx, max_nav_dist_sq, debug_tag)
         end
         pcall(core.input.set_target, best_loot)
         pcall(core.input.loot_object, best_loot)
+        refresh_force_vendor_state()
         shared._loot_cooldown = ctx.now + 2.0
         ctx.debug_log("IDLE: looting corpse (" .. tostring(dist_yds) .. "yd)")
         return "IDLE"

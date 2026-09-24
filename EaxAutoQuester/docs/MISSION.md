@@ -41,7 +41,15 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 **Proving surface:** `menu_sylvanas.lua` and `tests/test_menu_pull_gate.lua` M4/M5.
 
 ### AQ-P1-2 — Live autoloot/vendor pressure
-Make normal corpse looting set the documented force-vendor state; acceptance is a real idle/corpse-loot path test for the flag and navigation response.
+**Status: complete (2026-09-24).** The live `shared/corpse_loot.lua` path now calls the existing loot-manager fullness owner after requesting a nearby corpse loot. No menu, vendor feature, threshold, or navigation policy was added.
+
+**Acceptance criteria met:**
+- A real corpse-loot request at 80%+ bag fullness raises `_G.EaxAutoQuester._force_vendor_soon` through `loot_manager_sylvanas.lua`.
+- The existing coordinator test still proves that flag transitions IDLE to vendor NAV.
+- Below-threshold corpse loot does not raise the flag.
+- `auto_loot_all` and the live corpse path share one fullness/flag implementation.
+
+**Proving surface:** `shared/corpse_loot.lua`, `loot_manager_sylvanas.lua`, and `tests/test_vendor_bag_trigger.lua` S1b/S3.
 
 ### AQ-P1-3 — Bank/repair service gossip
 Make bank and repair reachable from the quest-loop path while retaining inn handling; acceptance is a service-gossip path test without manually supplied service flags.
