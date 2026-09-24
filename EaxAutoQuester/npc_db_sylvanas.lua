@@ -6,6 +6,8 @@
 local M = {}
 
 local _spawn_data = nil
+local _get_local_player = core and core.object_manager and core.object_manager.get_local_player
+local _get_map_id = core and core.get_map_id
 
 -- Lazy-load spawn index JSON from scripts_data/tbc_db/ via json_loader
 local function ensure_data()
@@ -107,18 +109,54 @@ local TRANSPORT_KEYWORDS = {
     inn     = { "innkeeper", "barkeep", "bartender" },
 }
 
---- Find the nearest NPC of a given transport type on the current map.
+local function normalize_position(pos)
+    if type(pos) ~= "table" then return nil end
+    local x = tonumber(pos.x)
+    local y = tonumber(pos.y)
+    if x == nil or y == nil then return nil end
+    return { x = x, y = y, z = tonumber(pos.z) or 0 }
+end
+
+local function resolve_map_id(player_map_id)
+    if player_map_id ~= nil then return tonumber(player_map_id) end
+    if _get_map_id then
+        local ok, current_map = pcall(_get_map_id)
+        if ok then return tonumber(current_map) end
+    end
+    return nil
+end
+
+local function resolve_player_position(player_pos)
+    local position = normalize_position(player_pos)
+    if position then return position end
+    if _get_local_player then
+        local ok, player = pcall(_get_local_player)
+        if ok and player then
+            local pos_ok, current_pos = pcall(player.get_position, player)
+            if pos_ok then return normalize_position(current_pos) end
+        end
+    end
+    return nil
+end
+
+--- Find the nearest NPC of a given transport type on the player's current map.
+--- Another-map spawns are unreachable and are never used as a fallback. If a position is
+--- unavailable, the first valid local spawn is retained for compatibility with older callers.
 --- @param type_hint string One of: "vendor", "repair", "flight", "inn"
---- @param player_map_id integer|nil Current map ID for filtering
+--- @param player_map_id integer|nil Current map ID; resolved from core when omitted
+--- @param player_pos table|nil Optional player position used for nearest selection
 --- @return table|nil { x, y, z, map_id, name, npc_id } or nil
-function M.find_transport_npc(type_hint, player_map_id)
+function M.find_transport_npc(type_hint, player_map_id, player_pos)
     if not ensure_data() or not type_hint then return nil end
 
     local keywords = TRANSPORT_KEYWORDS[type_hint:lower()]
     if not keywords then return nil end
 
+    local map_id = resolve_map_id(player_map_id)
+    if map_id == nil then return nil end
+    local origin = resolve_player_position(player_pos)
     local best = nil
-    local best_dist_sq = math.huge
+    local best_dist_sq = origin and math.huge or nil
 
     for id_str, entry in pairs(_spawn_data) do
         if entry.name then
@@ -133,29 +171,27 @@ function M.find_transport_npc(type_hint, player_map_id)
             if matched and entry.maps and #entry.maps > 0 then
                 for i = 1, #entry.maps do
                     local m = entry.maps[i]
-                    if m and m.x and m.y then
-                        local on_map = (not player_map_id) or (m.map_id == player_map_id)
-                        -- Prefer same-map; if none found, allow cross-map fallback
-                        if on_map or not best then
-                            local dist_sq = 0
-                            if player_map_id and m.map_id == player_map_id then
-                                -- Same-map: compute rough distance if we had player pos;
-                                -- we don't here, so just prefer same-map and first match
-                                dist_sq = 0
-                            else
-                                dist_sq = math.huge
-                            end
-                            if not best or dist_sq < best_dist_sq then
-                                best = {
-                                    npc_id = tonumber(id_str),
-                                    name = entry.name,
-                                    map_id = m.map_id,
-                                    x = m.x,
-                                    y = m.y,
-                                    z = m.z or 0,
-                                }
-                                best_dist_sq = dist_sq
-                            end
+                    local x = tonumber(m and m.x)
+                    local y = tonumber(m and m.y)
+                    if tonumber(m and m.map_id) == map_id and x and y then
+                        local z = tonumber(m.z) or 0
+                        local dist_sq = nil
+                        if origin then
+                            local dx = x - origin.x
+                            local dy = y - origin.y
+                            local dz = z - origin.z
+                            dist_sq = dx * dx + dy * dy + dz * dz
+                        end
+                        if not best or (origin and dist_sq < best_dist_sq) then
+                            best = {
+                                npc_id = tonumber(id_str),
+                                name = entry.name,
+                                map_id = map_id,
+                                x = x,
+                                y = y,
+                                z = z,
+                            }
+                            best_dist_sq = dist_sq
                         end
                     end
                 end

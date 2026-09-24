@@ -345,6 +345,7 @@ end
 
 local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_target(u) return u:get_target() end
+local function unit_get_position(u) return u:get_position() end
 local function unit_is_dead(u) return u:is_dead() end
 local function unit_get_health(u) return u:get_health() end
 local function unit_is_casting_spell(u) return u:is_casting_spell() end
@@ -645,7 +646,15 @@ function M.update()
         if ns and ns._force_vendor_soon then
             local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
             if npc_db_ok and npc_db and npc_db.find_transport_npc then
-                local vendor_pos = npc_db.find_transport_npc("vendor")
+                local map_id = nil
+                local map_ok, current_map = pcall(core.get_map_id)
+                if map_ok then map_id = current_map end
+                local player_pos = nil
+                if ctx.me then
+                    local pos_ok, current_pos = pcall(unit_get_position, ctx.me)
+                    if pos_ok then player_pos = current_pos end
+                end
+                local vendor_pos = npc_db.find_transport_npc("vendor", map_id, player_pos)
                 if vendor_pos then
                     nav_destination.point(shared, vendor_pos)
                     next_state = "NAV"

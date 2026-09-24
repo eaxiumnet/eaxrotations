@@ -78,7 +78,16 @@ Close the P0/P1/P2 gaps identified in the autoquester audit, without changing be
 ## P2 — correctness and usability
 
 ### AQ-P2-1 — Transport locality
-Make transport selection truly nearest and prevent cross-map fallback for flight/inn/vendor navigation; acceptance is map-and-distance path tests.
+**Status: complete (2026-09-24).** Transport lookup now resolves the player's current map, ranks valid same-map spawns by 3D squared distance, and returns nil when only another-map candidates exist. The flight and inn IDLE callers plus the coordinator's force-vendor caller all pass the current map and player position through the existing lookup surface.
+
+**Acceptance criteria met:**
+- The real flight caller selects the nearest local flight master and does not NAV when only another-map candidates exist.
+- The real inn caller selects the nearest local innkeeper and does not NAV when only another-map candidates exist.
+- The real force-vendor caller selects the nearest local vendor and does not NAV when only another-map candidates exist.
+- No local candidate preserves the existing caller-visible no-navigation outcome; no new error state or UI was added.
+- Combat, quest routing, and unrelated navigation policy remain unchanged.
+
+**Proving surface:** `npc_db_sylvanas.lua`, the flight/inn branches in `quest_state/idle_state.lua`, the force-vendor branch in `quest_state/coordinator.lua`, and `tests/test_transport_helper.lua` S8-S12.
 
 ### AQ-P2-2 — Quest-item identity and result tracking
 Replace the remaining quest-item name/word fallback and the false-success `pcall` contract; acceptance is item identity and result-path tests.

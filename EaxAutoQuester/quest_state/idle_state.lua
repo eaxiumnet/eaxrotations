@@ -38,6 +38,27 @@ local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_target(u) return u:get_target() end
 local function unit_can_attack(u, other) return u:can_attack(other) end
 local function unit_get_position(u) return u:get_position() end
+
+-- Resolve transport against the live player context. Keeping the map and position at
+-- the caller makes the locality contract explicit: the DB can rank local spawns, but
+-- it never gets to choose a destination on another map.
+local function find_current_transport(type_hint, ctx)
+    local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
+    if not npc_db_ok or not npc_db or not npc_db.find_transport_npc then return nil end
+
+    local map_id = nil
+    local map_ok, current_map = pcall(core.get_map_id)
+    if map_ok then map_id = current_map end
+
+    local player_pos = nil
+    if ctx and ctx.me then
+        local pos_ok, current_pos = pcall(unit_get_position, ctx.me)
+        if pos_ok then player_pos = current_pos end
+    end
+
+    return npc_db.find_transport_npc(type_hint, map_id, player_pos)
+end
+
 -- (The movement_handler look-at/pause probes that used to live here are gone: shared/facing.lua
 --  owns the look-at lock, and a second caller issuing its own was the spin it exists to stop.)
 
@@ -483,24 +504,18 @@ function M.run(shared, ctx)
         if fp_ok and fp and step and step.text then
             local dest = fp.extract_destination(step.text)
             if dest then
-                local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
-                if npc_db_ok and npc_db and npc_db.find_transport_npc then
-                    local map_id = 0
-                    local ok_map, mid = pcall(core.get_map_id)
-                    if ok_map then map_id = mid or 0 end
-                    local fm = npc_db.find_transport_npc("flight", map_id)
-                    if fm then
-                        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-                        if wf_ok and wf and wf.fix_z then
-                            fm = wf.fix_z(fm) or fm
-                        end
-                        -- Straight to the destination record: the `wp` local is declared much
-                        -- further down this function, so this used to write and read a global
-                        -- `wp` (a leak that also collided with any sibling plugin using the name).
-                        ctx.debug_log("IDLE: flight step to " .. dest .. " → NAV to flight master " .. tostring(fm.name or "?"))
-                        nav_destination.point(shared, fm)
-                        return "NAV"
+                local fm = find_current_transport("flight", ctx)
+                if fm then
+                    local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+                    if wf_ok and wf and wf.fix_z then
+                        fm = wf.fix_z(fm) or fm
                     end
+                    -- Straight to the destination record: the `wp` local is declared much
+                    -- further down this function, so this used to write and read a global
+                    -- `wp` (a leak that also collided with any sibling plugin using the name).
+                    ctx.debug_log("IDLE: flight step to " .. dest .. " → NAV to flight master " .. tostring(fm.name or "?"))
+                    nav_destination.point(shared, fm)
+                    return "NAV"
                 end
             end
         end
@@ -511,21 +526,15 @@ function M.run(shared, ctx)
     do
         local svc_ok, svc = pcall(require, "service_gossip_sylvanas")
         if svc_ok and svc and step and step.text and svc.step_requires_hearth(step.text) then
-            local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
-            if npc_db_ok and npc_db and npc_db.find_transport_npc then
-                local map_id = 0
-                local ok_map, mid = pcall(core.get_map_id)
-                if ok_map then map_id = mid or 0 end
-                local inn = npc_db.find_transport_npc("inn", map_id)
-                if inn then
-                    local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-                    if wf_ok and wf and wf.fix_z then
-                        inn = wf.fix_z(inn) or inn
-                    end
-                    ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
-                    nav_destination.point(shared, inn)
-                    return "NAV"
+            local inn = find_current_transport("inn", ctx)
+            if inn then
+                local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+                if wf_ok and wf and wf.fix_z then
+                    inn = wf.fix_z(inn) or inn
                 end
+                ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
+                nav_destination.point(shared, inn)
+                return "NAV"
             end
         end
     end

@@ -25,7 +25,7 @@
 - [x] AQ-P1-2 — live autoloot/vendor pressure
 - [x] AQ-P1-3 — bank/repair service gossip
 - [x] AQ-P1-4 — failure policy
-- [ ] AQ-P2-1 — transport locality
+- [x] AQ-P2-1 — transport locality
 - [ ] AQ-P2-2 — quest-item identity and result tracking
 - [ ] AQ-P2-3 — interact range
 - [ ] AQ-P2-4 — dungeon step evidence
@@ -42,4 +42,4 @@
 
 ## Next objective
 
-AQ-P2-1 — transport locality — is next. It must make transport selection nearest and prevent cross-map service fallback for flight, inn, and vendor navigation.
+AQ-P2-2 — quest-item identity and result tracking — is next. It must replace the remaining quest-item name/word fallback and make item identity and the false-success `pcall` contract explicit.
