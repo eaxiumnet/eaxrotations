@@ -23,6 +23,13 @@ local IDs = {
     pull_gate       = "eaxaq_pull_gate",
     pull_gate_min_hp = "eaxaq_pull_gate_min_hp",
     pull_gate_min_mana = "eaxaq_pull_gate_min_mana",
+    profile_gather_herbalism = "eaxaq_profile_gather_herbalism",
+    profile_gather_mining = "eaxaq_profile_gather_mining",
+    profile_gather_skinning = "eaxaq_profile_gather_skinning",
+    profile_gather_fishing = "eaxaq_profile_gather_fishing",
+    profile_gather_min_free_slots = "eaxaq_profile_gather_min_free_slots",
+    profile_vendor_bag_threshold = "eaxaq_profile_vendor_bag_threshold",
+    profile_mount_use = "eaxaq_profile_mount_use",
     toggle_keybind  = "eaxaq_toggle_keybind",
 }
 
@@ -51,6 +58,21 @@ M.nav_tolerance   = _core_menu.slider_int(1, 10, 3, IDs.nav_tolerance)
 M.pull_gate          = _core_menu.checkbox(true, IDs.pull_gate)
 M.pull_gate_min_hp   = _core_menu.slider_int(0, 100, 50, IDs.pull_gate_min_hp)
 M.pull_gate_min_mana = _core_menu.slider_int(0, 100, 30, IDs.pull_gate_min_mana)
+
+-- Per-character profile values. The profile module restores these widgets when the character
+-- changes. A new profile seeds the four gathering rows from the client's learned professions;
+-- these widget defaults keep a no-identity or API-less client on the established manual behavior.
+M.profile_gather_herbalism = _core_menu.checkbox(false, IDs.profile_gather_herbalism)
+M.profile_gather_mining = _core_menu.checkbox(false, IDs.profile_gather_mining)
+M.profile_gather_skinning = _core_menu.checkbox(false, IDs.profile_gather_skinning)
+M.profile_gather_fishing = _core_menu.checkbox(false, IDs.profile_gather_fishing)
+-- The free-slot reserve the gathering route needs before it takes another node. 0 turns the bag
+-- gate off entirely (the vendor threshold remains the backstop); the default matches the loot
+-- gate's own "< 4 free slots" rule so the two gates agree until the user moves this one.
+M.profile_gather_min_free_slots =
+    _core_menu.slider_int(0, 16, 4, IDs.profile_gather_min_free_slots)
+M.profile_vendor_bag_threshold = _core_menu.slider_int(50, 100, 80, IDs.profile_vendor_bag_threshold)
+M.profile_mount_use = _core_menu.checkbox(true, IDs.profile_mount_use)
 
 -- Keybind — toggle plugin on/off (Ctrl+Shift+T = key 7, shift=true)
 M.toggle_keybind  = _core_menu.keybind(7, true, IDs.toggle_keybind)
@@ -90,6 +112,17 @@ function M.get(key, fallback)
     end
 
     return fallback
+end
+
+--- Set a widget when the profile owner restores a character's values. This is deliberately
+--- separate from get(): user settings still flow through the widgets, while a character switch
+--- is the only caller that writes them programmatically.
+function M.set(key, value)
+    if not key then return false end
+    local widget = M[key]
+    if not widget or type(widget.set) ~= "function" then return false end
+    local ok = pcall(widget.set, widget, value)
+    return ok
 end
 
 -- ============================================================================
@@ -132,6 +165,31 @@ local function render_tree_body()
 
     if M.pull_gate_min_mana then
         M.pull_gate_min_mana:render("Pull Safety: Min Mana %", "Do not pull below this mana — a caster needs enough for one more kill (0 = this rule off)")
+    end
+
+    -- Per-character profile. Gathering rows are seeded from learned professions and remain manual
+    -- overrides; the nearby-node route runs only while the guide has no active goal, and quest
+    -- objectives and combat always remain authoritative.
+    if M.profile_gather_herbalism then
+        M.profile_gather_herbalism:render("Profile: Gather Herbalism", "Auto-enabled when this character has Herbalism; uncheck to keep it off. Uses nearby nodes only while no quest goal is active")
+    end
+    if M.profile_gather_mining then
+        M.profile_gather_mining:render("Profile: Gather Mining", "Auto-enabled when this character has Mining; uncheck to keep it off. Uses nearby nodes only while no quest goal is active")
+    end
+    if M.profile_gather_skinning then
+        M.profile_gather_skinning:render("Profile: Gather Skinning", "Auto-enabled when this character has Skinning; uncheck to keep it off. Uses nearby nodes only while no quest goal is active")
+    end
+    if M.profile_gather_fishing then
+        M.profile_gather_fishing:render("Profile: Gather Fishing", "Auto-enabled when this character has Fishing; uncheck to keep it off. Uses nearby nodes only while no quest goal is active")
+    end
+    if M.profile_gather_min_free_slots then
+        M.profile_gather_min_free_slots:render("Profile: Gather Min Free Slots", "Stop gathering below this many free bag slots for this character (0 = never block on bag space; default 4, matching the loot rule)")
+    end
+    if M.profile_vendor_bag_threshold then
+        M.profile_vendor_bag_threshold:render("Profile: Vendor at Bag %", "Visit a vendor when bags reach this fullness for this character (50-100%)")
+    end
+    if M.profile_mount_use then
+        M.profile_mount_use:render("Profile: Use Mounts", "Allow automatic mounting for long walks for this character; dismount safety remains unconditional")
     end
 
     -- Keybind

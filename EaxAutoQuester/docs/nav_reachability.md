@@ -148,10 +148,13 @@ each time, so a snap shows up as a recurring non-zero `dist` on the same `dest`.
 What to look for in game: `dist=` persistently non-zero on one `dest=` identifies the
 off-mesh point (check its `z` against the player's — the doc names wrong/unknown `z` as the
 common cause); `progress_index` stuck at the same value says the client considered its
-snapped path finished. Note that the idle_state area sweep does **not** run `fix_z` on the
-waypoints it publishes (only the retreat point and other producers do), so area waypoints
-are the likeliest snap candidates.
+snapped path finished. The movement-only `idle_state` sweep now runs every step waypoint
+through the same terrain-height owner before selection and caches the repaired vec3 by
+place, so a guide point is not published with its raw `z=0`. A persistent shortfall after
+that is evidence about the source coordinates or the client's navmesh, not an un-fixed
+area waypoint.
 
 Pinned by C14–C14d in `tests/test_nav_client_contract.lua` (probe fires on all three
 arrival paths with the right source label, records dest/player/dist, stays silent on a
-failed navigation); M1 mutant confirms the suite fails when the probe is removed.
+failed navigation) and P18 in `tests/test_idle_state.lua` (terrain-fixed publication and
+one-query caching); M1 mutant confirms the suite fails when the probe is removed.

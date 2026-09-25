@@ -269,6 +269,61 @@ do
     print("  M5 PASS: the real menu row drives the real gate — 60% mana pulls, unticked refuses nothing")
 end
 
+-- =============================================================================
+-- M6 — profile rows are real, rendered settings rather than dead labels
+-- =============================================================================
+
+do
+    calls.rendered = {}
+    menu.render()
+    assert(calls.tree_body, "M6a FAIL: the profile rows need the real menu render body")
+    calls.tree_body()
+
+    local function drawn(id)
+        for i = 1, #calls.rendered do
+            if calls.rendered[i][3] == id then return calls.rendered[i][1] end
+        end
+        return nil
+    end
+
+    local profile_rows = {
+        "eaxaq_profile_gather_herbalism", "eaxaq_profile_gather_mining",
+        "eaxaq_profile_gather_skinning", "eaxaq_profile_gather_fishing",
+        "eaxaq_profile_gather_min_free_slots",
+        "eaxaq_profile_vendor_bag_threshold", "eaxaq_profile_mount_use",
+    }
+    for _, id in ipairs(profile_rows) do
+        assert(find(id), "M6b FAIL: profile control was not created: " .. id)
+        assert(drawn(id), "M6c FAIL: profile control was not rendered: " .. id)
+    end
+    assert(menu.get("profile_vendor_bag_threshold") == 80,
+        "M6d FAIL: vendor threshold must default to the existing 80% behavior")
+    assert(menu.get("profile_mount_use") == true,
+        "M6e FAIL: mount use must default on so existing travel behavior is preserved")
+    print("  M6 PASS: profile-backed vendor, mount, and gathering rows are created and rendered")
+end
+
+-- =============================================================================
+-- M7 — the gathering free-slot reserve is a real slider, not a dead label, and its
+--       range/default are the ones the gathering route documents.
+-- =============================================================================
+
+do
+    local widget = find("eaxaq_profile_gather_min_free_slots")
+    assert(widget, "M7a FAIL: the free-slot reserve control was not created")
+    assert(widget.kind == "slider",
+        "M7b FAIL: the free-slot reserve must be a slider, got " .. tostring(widget.kind))
+    assert(widget.min == 0 and widget.max == 16,
+        "M7c FAIL: the reserve slider must span 0..16, got " ..
+        tostring(widget.min) .. ".." .. tostring(widget.max))
+    assert(widget.default == 4,
+        "M7d FAIL: the reserve must default to 4 (the loot gate's own rule), got " ..
+        tostring(widget.default))
+    assert(menu.get("profile_gather_min_free_slots") == 4,
+        "M7e FAIL: a fresh character must see the reserve default of 4")
+    print("  M7 PASS: the gathering free-slot reserve is a real 0-16 slider defaulting to 4")
+end
+
 package.loaded["menu_sylvanas"] = nil
 _G.EaxAutoQuester.menu = nil
 

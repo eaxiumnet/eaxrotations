@@ -1,8 +1,10 @@
 -- shared/spawn_patrol.lua — where the bot walks to look for the mobs its goal asks for.
 -- WHAT:  next_point(shared, ctx, goal) -> the point to search next, or nil. Candidates are the
---        goal mob's own spawn points from the local cMaNGOS spawn index (npc_spawns), which is
---        every individual spawn, falling back to the Zygor step's waypoints when the goal names
---        nothing the index knows (a quest object, an unknown name, spawn data absent).
+--        goal's own spawn points, from BOTH local cMaNGOS indexes: creature spawns (npc_spawns)
+--        and quest game-object spawns (object_spawns), because a Zygor goal's id names an entry in
+--        one namespace or the other and does not say which. Each index is every individual spawn;
+--        the Zygor step's waypoints join them on every goal, and are the whole candidate list when
+--        no index knows the goal.
 -- WHEN:  while the bot is waiting for its objective to exist — idle_state's respawn wait — and
 --        from do_action_state's "no enemy found, go to where the mob lives" path.
 -- WHY:   The wait used to be a park: one 50yd enemy probe fired every 5s from wherever the last
@@ -32,6 +34,8 @@
 -- DECISION: a shared module rather than logic inside idle_state, because do_action_state needs the
 --        same walk and a second copy would drift. The point is RETURNED, not written: the states
 --        that own navigation apply it (see shared/nav_destination.lua for who owns the fields).
+--        The object index is OPTIONAL BY CONTRACT: it ships without its generated data, and with
+--        no data the candidate build is the one it always was — waypoints, then nothing.
 -- NOTE:   Whether SentinelNavClient accepts a spawn point as a destination is the client's answer,
 --        not this module's: what is asserted here is that the point published is the mob's own
 --        spawn coordinate with a terrain-fixed Z, and that the next point is chosen when it has
@@ -66,6 +70,34 @@ local function spawns()
         if ok and s then _spawns = s else _spawns_failed = true end
     end
     return _spawns
+end
+
+--- The game-object index (object_spawns.lua). Same lazy shape as the creature handle, and a
+--- SEPARATE index because a quest object's entry and a creature's entry are different namespaces
+--- that happen to share one id field on the goal. `available` is the accessor's own answer to "is
+--- there data at all": the accessor ships without its generated chunks, and no data is a normal
+--- state, not a miss worth latching.
+local _object_spawns = nil
+local _object_spawns_failed = false
+local function object_spawns()
+    if not _object_spawns and not _object_spawns_failed then
+        local ok, s = pcall(require, "object_spawns")
+        if ok and s then _object_spawns = s else _object_spawns_failed = true end
+    end
+    if _object_spawns and not _object_spawns.available then return nil end
+    return _object_spawns
+end
+
+--- Append an id unless the list already has it. Hoisted rather than a closure so the candidate
+--- build allocates nothing beyond the points themselves.
+--- @param ids table[] Destination list
+--- @param id integer|nil
+local function add_id(ids, id)
+    if not id then return end
+    for k = 1, #ids do
+        if ids[k] == id then return end
+    end
+    ids[#ids + 1] = id
 end
 
 local _fixer = nil
@@ -148,9 +180,11 @@ end
 --- @param goal table|nil
 --- @param me_pos table Player position
 --- @return table[] Array of { x, y, z } (may be empty)
+--- @return number Count of candidates supplied by the game-object index
 local function build_points(ctx, goal, me_pos)
     local target, npc_id = identity(goal)
     local points = {}
+    local object_point_count = 0
     -- Which grid cells already hold a candidate, for the step-waypoint merge below. Built once
     -- per rebuild (the same cadence as `points`), never per tick. 0.1yd cells: the key must
     -- merge exact duplicates (the same coordinates from both sources) and nothing coarser —
@@ -165,53 +199,65 @@ local function build_points(ctx, goal, me_pos)
     end
 
     local db = spawns()
-    if db and db.find_npc_spawns then
+    local obj_db = object_spawns()
+    if db or obj_db then
         -- Which entries to look up. The goal's own ids are the goal telling us exactly which mobs
         -- it means — every one of them, since a multi-target kill goal names several — and only
         -- when it carries none does the target name get resolved against the spawn index.
         local ids = {}
         local goal_ids, goal_id_count = objective_match.mob_ids(goal)
         for i = 1, goal_id_count do ids[i] = goal_ids[i] end
-        if #ids == 0 and target and db.find_npc_ids_by_name then
+        if #ids == 0 and target then
             local names = goal_names.expand(target)
             for i = 1, #names do
-                local matches = db.find_npc_ids_by_name(names[i])
-                for j = 1, #matches do
-                    local id = matches[j].npc_id
-                    if id then
-                        local dup = false
-                        for k = 1, #ids do
-                            if ids[k] == id then dup = true break end
-                        end
-                        if not dup then ids[#ids + 1] = id end
-                    end
+                if db and db.find_npc_ids_by_name then
+                    local matches = db.find_npc_ids_by_name(names[i])
+                    for j = 1, #matches do add_id(ids, matches[j].npc_id) end
+                end
+                -- The same name, asked of the OBJECT index too: a guide writes one name for the
+                -- thing, and the goal does not say which namespace its entry lives in.
+                if obj_db and obj_db.find_object_ids_by_name then
+                    local objects = obj_db.find_object_ids_by_name(names[i])
+                    for j = 1, #objects do add_id(ids, objects[j].object_id) end
                 end
             end
         end
 
         local nearest_far, nearest_far_sq = nil, nil
         for i = 1, #ids do
-            local maps = db.find_npc_spawns(ids[i])
-            if maps then
-                for j = 1, #maps do
-                    local m = maps[j]
-                    if m and m.x and m.y and (map_id == nil or m.map_id == map_id) then
-                        local d_sq = utils and utils.squared_distance(me_pos, m) or 0
-                        if d_sq <= BUILD_RADIUS_SQ then
-                            points[#points + 1] = { x = m.x, y = m.y, z = m.z or 0 }
-                            -- Record the place for dedup: spawn points are added first, so a
-                            -- guide waypoint standing on the same spot is dropped (spawn data
-                            -- carries the real terrain height; a converted waypoint may not).
-                            local gx = math.floor(m.x * 10)
-                            local gy = math.floor(m.y * 10)
-                            added[gx] = added[gx] or {}
-                            added[gx][gy] = true
-                            if #points >= MAX_POINTS then break end
-                        elseif nearest_far_sq == nil or d_sq < nearest_far_sq then
-                            -- Remember the closest point outside the search range: it is the way
-                            -- back to the camp when nothing is nearby.
-                            nearest_far_sq = d_sq
-                            nearest_far = m
+            -- Both indexes, one body. A creature entry answers the first and nothing the second;
+            -- a quest-object entry the other way round. Before AQ-P4-1 the second answer did not
+            -- exist, so a quest-object goal's candidates were the step's own waypoints — 108yd and
+            -- 113yd legs and never a click (live: "Ogre Remains", step 7). The two-element table
+            -- is allocated on the rebuild cadence (5s), never per tick.
+            local by_entry = {
+                (db and db.find_npc_spawns) and db.find_npc_spawns(ids[i]) or nil,
+                (obj_db and obj_db.find_object_spawns) and obj_db.find_object_spawns(ids[i]) or nil,
+            }
+            for s = 1, 2 do
+                local maps = by_entry[s]
+                if maps then
+                    for j = 1, #maps do
+                        local m = maps[j]
+                        if m and m.x and m.y and (map_id == nil or m.map_id == map_id) then
+                            local d_sq = utils and utils.squared_distance(me_pos, m) or 0
+                            if d_sq <= BUILD_RADIUS_SQ then
+                                points[#points + 1] = { x = m.x, y = m.y, z = m.z or 0 }
+                                if s == 2 then object_point_count = object_point_count + 1 end
+                                -- Record the place for dedup: spawn points are added first, so a
+                                -- guide waypoint standing on the same spot is dropped (spawn data
+                                -- carries the real terrain height; a converted waypoint may not).
+                                local gx = math.floor(m.x * 10)
+                                local gy = math.floor(m.y * 10)
+                                added[gx] = added[gx] or {}
+                                added[gx][gy] = true
+                                if #points >= MAX_POINTS then break end
+                            elseif nearest_far_sq == nil or d_sq < nearest_far_sq then
+                                -- Remember the closest point outside the search range: it is the
+                                -- way back to the camp when nothing is nearby.
+                                nearest_far_sq = d_sq
+                                nearest_far = m
+                            end
                         end
                     end
                 end
@@ -254,7 +300,7 @@ local function build_points(ctx, goal, me_pos)
         end
     end
 
-    return points
+    return points, object_point_count
 end
 
 -- ============================================================================
@@ -288,7 +334,15 @@ local function ensure_points(shared, ctx, goal, me_pos)
     if points == false then return false end       -- already established: nothing to search
     if points then return true end
 
-    points = build_points(ctx, goal, me_pos)
+    local object_point_count
+    points, object_point_count = build_points(ctx, goal, me_pos)
+    if object_point_count > 0 then
+        -- The first candidate build is where an operator can tell data-backed coordinates from the
+        -- guide-only fallback. It is deliberately not repeated on every five-second rebuild: the
+        -- sweep already logs its rescan there, and a missing index is a normal state, not a fault.
+        ctx.debug_log("SPAWN PATROL: object spawn index supplied " .. tostring(object_point_count) ..
+            " point(s) for '" .. tostring(shared._patrol_name or "goal") .. "'")
+    end
     if #points == 0 then
         -- Latched, not retried: a goal the index and the guide both know nothing about would
         -- otherwise walk the whole spawn index again on every tick of the wait.

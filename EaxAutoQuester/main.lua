@@ -34,6 +34,7 @@ local state = {
 local _utils = nil
 local _menu = nil
 local _quest_state = nil
+local _character_profile = nil
 local _t = { n = 0 }
 
 -- ============================================================================
@@ -75,10 +76,29 @@ local _prev_enabled = nil  -- track transitions for hard stop
 --- when a button is actually clicked).
 local function keybind_toggle_state(widget) return widget:get_toggle_state() end
 
+local function ensure_character_profile()
+    if not _character_profile then
+        local ok, profile = pcall(require, "character_profile_sylvanas")
+        if ok then _character_profile = profile end
+    end
+    return _character_profile
+end
+
 --- Read menu checkbox for enabled state, handle keybind toggle.
 --- When disabled, immediately stop all navigation.
 local function check_enabled()
     if not _menu then return end
+
+    -- Character settings are synchronized even while the quester is disabled, so a profile
+    -- edited in the menu is captured before a character switch and safe defaults remain visible
+    -- on the next character. The profile module does no file I/O and allocates nothing here.
+    local profile = ensure_character_profile()
+    if profile and profile.activate_for then
+        local player_ok, player = pcall(_get_local_player)
+        if player_ok and player then
+            pcall(profile.activate_for, player, _menu)
+        end
+    end
 
     -- Read the enable checkbox
     local cb = _menu.get and _menu.get("enable", false)

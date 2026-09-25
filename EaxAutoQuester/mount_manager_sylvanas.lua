@@ -56,6 +56,27 @@ local _input_dismount = core.input.dismount
 local _input_use_item = core.input.use_item
 local _get_items_in_bag = core.inventory and core.inventory.get_items_in_bag
 local _quests_get_item_info = core.quests and core.quests.get_item_info
+local _character_profile = nil
+local _character_profile_failed = false
+
+--- The active character's mount preference, if the profile owner is available.
+--- A missing optional module keeps the established mount behavior; the failed require is latched
+--- so a broken profile cannot allocate an error string on every long-walk attempt.
+local function profile_mounts_enabled()
+    if not _character_profile and not _character_profile_failed then
+        local ok, profile = pcall(require, "character_profile_sylvanas")
+        if ok and profile then
+            _character_profile = profile
+        else
+            _character_profile_failed = true
+        end
+    end
+    if _character_profile and _character_profile.mount_use_enabled then
+        local ok, enabled = pcall(_character_profile.mount_use_enabled)
+        if ok and type(enabled) == "boolean" then return enabled end
+    end
+    return true
+end
 
 --- The client's mount list, read through core.spell_book at call time rather than cached at load
 --- (Pattern 2's exception): this is not a hot path — it runs only on a gated mount attempt — and
@@ -389,6 +410,7 @@ end
 --- @return boolean allowed, string|nil reason
 local function mount_allowed(me, dest, now)
     if is_mounted(me) then return false, "already mounted" end
+    if not profile_mounts_enabled() then return false, "mount use disabled" end
     if is_in_combat(me) then return false, "in combat" end
     if is_indoors(me) then return false, "indoors" end
     if is_dead_or_ghost(me) then return false, "dead" end

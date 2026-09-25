@@ -373,8 +373,28 @@ function M.run(shared, ctx)
                 if dist_sq > (stand_off_sq(shared) or 9) then
                     local dist_yds = math.floor(math.sqrt(dist_sq))
                     shared._nav_retries = shared._nav_retries + 1
+                    if ctx.record_event then
+                        local dest = shared._nav_destination
+                        ctx.record_event("nav_short_arrival", {
+                            x = dest.x,
+                            y = dest.y,
+                            z = dest.z,
+                            distance_yds = dist_yds,
+                            retry = shared._nav_retries,
+                        }, ctx.now)
+                    end
                     ctx.debug_log("NAV: arrived callback but still " .. tostring(dist_yds) .. "yd away (retry " .. tostring(shared._nav_retries) .. "/3)")
                     if shared._nav_retries >= 3 then
+                        if ctx.record_event then
+                            local dest = shared._nav_destination
+                            ctx.record_event("nav_abandoned", {
+                                x = dest.x,
+                                y = dest.y,
+                                z = dest.z,
+                                retry = shared._nav_retries,
+                                reason = "arrived_far",
+                            }, ctx.now)
+                        end
                         ctx.log("Navigation arrived but still far after 3 retries — giving up")
                         -- Remember the PLACE, not just this attempt: the producer that chose it is
                         -- about to run again, and without the memory it offers the same coordinates
@@ -394,6 +414,14 @@ function M.run(shared, ctx)
                     return "NAV"
                 end
             end
+        end
+        if ctx.record_event and shared._nav_destination then
+            local dest = shared._nav_destination
+            ctx.record_event("nav_arrived", {
+                x = dest.x,
+                y = dest.y,
+                z = dest.z,
+            }, ctx.now)
         end
         ctx.debug_log("NAV: arrived")
         nav_dest_clear(shared)
@@ -417,6 +445,16 @@ function M.run(shared, ctx)
         ctx.debug_log("NAV: failed (retry " .. ctx.safe(shared._nav_retries, 0) .. "/3)")
 
         if shared._nav_retries >= 3 then
+            if ctx.record_event and shared._nav_destination then
+                local dest = shared._nav_destination
+                ctx.record_event("nav_abandoned", {
+                    x = dest.x,
+                    y = dest.y,
+                    z = dest.z,
+                    retry = shared._nav_retries,
+                    reason = "failed",
+                }, ctx.now)
+            end
             ctx.log("Navigation failed after 3 retries")
             local failed_point = shared._nav_destination
             if not shared._nav_wp_fallback then

@@ -34,6 +34,26 @@ local _t_is_container = { n = 0 }
 -- Module Table
 -- ============================================================================
 local M = {}
+local _character_profile = nil
+local _character_profile_failed = false
+
+local function profile_vendor_threshold()
+    if not _character_profile and not _character_profile_failed then
+        local ok, profile = pcall(require, "character_profile_sylvanas")
+        if ok and profile then
+            _character_profile = profile
+        else
+            _character_profile_failed = true
+        end
+    end
+    if _character_profile and _character_profile.vendor_threshold then
+        local ok, threshold = pcall(_character_profile.vendor_threshold)
+        if ok and type(threshold) == "number" and threshold >= 0 and threshold <= 100 then
+            return threshold
+        end
+    end
+    return 80
+end
 
 -- ============================================================================
 -- Internal: utils reference (lazy-loaded)
@@ -188,6 +208,17 @@ local function get_bag_space()
     return free_slots, total_slots, used_slots
 end
 
+--- Public accessor for the shared bag-space snapshot (free, total, used), read from the
+--- documented inventory-helper owner. The IDLE gathering gate consumes THIS reader so the
+--- loot gate and the gather gate can never disagree on how full the bags are. Returns nil when
+--- the inventory cannot be read, letting callers tell "unknown" from "known empty".
+--- @return integer|nil free_slots
+--- @return integer|nil total_slots
+--- @return integer|nil used_slots
+function M.get_bag_space()
+    return get_bag_space()
+end
+
 --- Internal: compute bag fullness percentage (0-100)
 local function get_bag_fullness_pct()
     local _, total_slots, used_slots = get_bag_space()
@@ -201,11 +232,18 @@ end
 --- @return boolean forced true when the flag was raised
 function M.refresh_force_vendor_state()
     local fullness = get_bag_fullness_pct()
-    if fullness < 80 then return false end
+    local threshold = profile_vendor_threshold()
+    if fullness < threshold then return false end
     local ns = _G.EaxAutoQuester
     if not ns then return false end
     ns._force_vendor_soon = true
-    _core_log("[EaxAutoQuester] Bags " .. tostring(fullness) .. "% full — forcing vendor visit")
+    -- The reason travels with the flag so the coordinator can report what actually asked for
+    -- the visit. The other caller is the gathering route, which raises the same flag for a
+    -- different cause; see quest_state/idle_state.lua request_vendor_for_space.
+    ns._force_vendor_reason = "bags " .. tostring(fullness) .. "% full (profile threshold " ..
+        tostring(threshold) .. "%)"
+    _core_log("[EaxAutoQuester] Bags " .. tostring(fullness) .. "% full — forcing vendor visit (profile threshold " ..
+        tostring(threshold) .. "%)")
     return true
 end
 

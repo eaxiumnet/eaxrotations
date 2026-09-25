@@ -72,6 +72,7 @@ local _navigation = nil
 local _quest_interaction = nil
 local _npc_manager = nil
 local _combat_helper = nil
+local _session_recorder = nil
 
 -- ============================================================================
 -- Shared State — all mutable state variables (nil-guarded defaults)
@@ -114,11 +115,19 @@ local shared = {
     _loot_cooldown = 0,             -- don't re-loot until this time
     _post_interact_timer = 0,      -- core_time when post-interact pause expires (0.3s after click)
     _at_quest_object_timer = 0,     -- core_time when "stay at quest object" flag expires (30s after click)
+    -- Optional profile-driven gathering: the current node, its profession, scan clock, and
+    -- post-use cooldown. IDLE owns the route; the profile owner owns profession detection, so no
+    -- extra shared object is invented here.
+    _gather_target = nil,
+    _gather_target_profession = nil,
+    _gather_scan_at = 0,
+    _gather_cooldown = 0,
     _questie_fallback_time = 0,     -- core_time when Questie fallback last fired (5s cooldown to prevent spam)
     _debug_goal = nil,              -- last goal table the debug line logged (idle_state): the line is logged on a change, not per tick
     _debug_goal_step = nil,         -- step number the debug line last logged (idle_state)
     _questie_last_guid = nil,       -- GUID of last Questie fallback target (reserved for future GUID-based cooldown)
     _visited_waypoints = {},        -- indices of visited waypoints for movement-only area goals
+    _area_waypoint_fixes = {},      -- terrain-repaired step waypoints, indexed with the fresh reader list
     _was_alive_last_tick = true,    -- tracks alive→dead transitions for death counting (prevents per-tick spam)
     _respawn_wait_until = 0,        -- core_time when respawn wait expires (3 min)
     _respawn_last_scan = 0,         -- core_time of last respawn scan during wait
@@ -148,6 +157,17 @@ local shared = {
     -- Where the step's waypoint sweep has got to (owned by quest_state/idle_state.lua): core_time
     -- the last pass over the step's waypoints ended; the next pass waits SWEEP_RELAP_SECONDS.
     _sweep_lap_at = nil,            -- nil = no pass has finished yet
+    -- The session's reached-path memory (owned by quest_state/idle_state.lua): the places the
+    -- character has actually stood on, as rounded x/y pairs bounded to REACHED_PLACE_LIMIT.
+    -- Unlike _visited_waypoints (per pass) and _step_wp_retired (per step) this deliberately
+    -- SURVIVES a step change and a new pass, so ground the route already covered is not walked
+    -- again. Session-scoped: there is no file-write API, so it is never persisted.
+    _reached_places = nil,
+    -- When the gathering route last asked for a vendor visit because its bag reserve was not met
+    -- (owned by quest_state/idle_state.lua). Paces the proactive request so a visit that freed
+    -- nothing is not re-requested on every blocked tick; the force-vendor flag itself is the
+    -- shared routing signal and is cleared by the vendor after the visit.
+    _gather_vendor_request_at = nil,
     -- The spawn search for the current goal (owned by shared/spawn_patrol.lua): which NPC it
     -- belongs to, the candidate points, which of them have been searched, and the leg in flight.
     -- Cleared together by spawn_patrol.clear() when the goal changes or the step ends.
@@ -257,6 +277,14 @@ local function ensure_combat_helper()
     return _combat_helper
 end
 
+local function ensure_session_recorder()
+    if not _session_recorder then
+        local ok, recorder = pcall(require, "session_recorder_sylvanas")
+        if ok and recorder then _session_recorder = recorder end
+    end
+    return _session_recorder
+end
+
 -- ============================================================================
 -- Logging
 -- ============================================================================
@@ -264,6 +292,11 @@ end
 --- Conditional debug log — only logs when shared._debug flag is true.
 --- @param msg string Message to log
 local function debug_log(msg)
+    -- Recording is opt-in inside the recorder; this call is therefore a cheap no-op until a
+    -- developer starts a session. It happens before the debug gate so a reproduction does not
+    -- depend on the menu's display-only debug setting.
+    local recorder = ensure_session_recorder()
+    if recorder and recorder.record_log then recorder.record_log(msg) end
     if not shared._debug then return end
     local utils = ensure_utils()
     if utils then
@@ -414,6 +447,9 @@ local function build_context()
     _ctx.me = _get_local_player()
     _ctx.now = _core_time()
     _ctx.debug_log = debug_log
+    local recorder = ensure_session_recorder()
+    local recording = recorder and recorder.is_enabled and recorder.is_enabled()
+    _ctx.record_event = recording and recorder.record_event or nil
     _ctx.log = log
     _ctx.safe = safe
     _ctx.detect_open_frame = idle_state.detect_open_frame
@@ -648,7 +684,20 @@ function M.update()
                 if vendor_pos then
                     nav_destination.point(shared, vendor_pos)
                     next_state = "NAV"
-                    debug_log("Coordinator: force vendor — bags > 80% full")
+                    -- The reason travels with the flag, because two different callers raise it:
+                    -- the loot manager when bags pass the fullness threshold, and the gathering
+                    -- route when its own free-slot reserve is not met. Reporting the threshold for
+                    -- both sent anyone reading this line to the wrong cause — a gather-blocked
+                    -- request at 6 free slots used to print "bags >= 80% full".
+                    local reason = ns._force_vendor_reason
+                    if type(reason) ~= "string" or reason == "" then
+                        -- No reason recorded (the flag was raised directly): fall back to the
+                        -- threshold this character vendors at.
+                        local vendor_threshold = menu and menu.get
+                            and menu.get("profile_vendor_bag_threshold", 80) or 80
+                        reason = "bags >= " .. tostring(vendor_threshold) .. "% full"
+                    end
+                    debug_log("Coordinator: force vendor — " .. reason)
                 end
             end
         end
@@ -656,6 +705,13 @@ function M.update()
 
     -- Log transitions
     if next_state ~= shared._state then
+        local recorder = ensure_session_recorder()
+        if recorder and recorder.record_event then
+            recorder.record_event("state_transition", {
+                from = shared._state,
+                to = next_state,
+            }, ctx.now)
+        end
         debug_log("State: " .. shared._state .. " → " .. next_state)
         shared._state = next_state
     end
@@ -663,6 +719,29 @@ end
 
 --- Hard stop: called from main.lua when plugin is disabled.
 --- Immediately stops all navigation and resets state.
+--- Start an opt-in in-memory session recording. The returned JSONL is intentionally not written
+--- by the plugin: the supported runtime surface has no file-write API, so the developer exports it
+--- to the replay tool or console without adding a second persistence mechanism.
+function M.start_session_recording()
+    local recorder = ensure_session_recorder()
+    if recorder and recorder.start then return recorder.start() end
+    return false
+end
+
+--- Stop recording and return the complete JSONL session, including the stop marker.
+function M.stop_session_recording()
+    local recorder = ensure_session_recorder()
+    if recorder and recorder.stop then return recorder.stop() end
+    return ""
+end
+
+--- Export the current session without stopping it.
+function M.export_session_log()
+    local recorder = ensure_session_recorder()
+    if recorder and recorder.export_jsonl then return recorder.export_jsonl() end
+    return ""
+end
+
 function M.stop_navigation()
     -- A frame event that arrived while the plugin was parked must not be acted on at
     -- resume, so the unread pulse is dropped along with the navigation.

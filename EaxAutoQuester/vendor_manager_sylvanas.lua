@@ -264,6 +264,11 @@ local function handle_vendor(quest_items)
     if ns and ns._force_vendor_soon then
         ns._force_vendor_soon = nil
     end
+    -- The reason belongs to the flag. Clearing one without the other would leave this visit's
+    -- cause behind and make the NEXT request report it.
+    if ns then
+        ns._force_vendor_reason = nil
+    end
 
     -- 3. Buy quest items from vendor
     if quest_items and #quest_items > 0 then

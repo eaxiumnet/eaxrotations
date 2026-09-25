@@ -571,6 +571,37 @@ assert(mm.why_not() == "too close",
     tostring(mm.why_not()))
 print("  H15 PASS: the mount floor holds at 80yd and an unmeasurable walk stays on foot")
 
+-- H16: a character's profile can disable automatic mounting without disabling dismount safety.
+-- The profile owner is session-scoped; this proves the mount manager asks it before every cast.
+-- ============================================================================
+local character_profile = require("character_profile_sylvanas")
+local profile_menu = { _values = {} }
+function profile_menu.get(key, fallback)
+    local value = profile_menu._values[key]
+    if value == nil then return fallback end
+    return value
+end
+function profile_menu.set(key, value) profile_menu._values[key] = value end
+
+character_profile.reset()
+local profile_me = make_me({ x = 0, y = 0, z = 0 })
+profile_me.get_name = function() return "MountProfileHero" end
+profile_me.get_realm_name = function() return "TestRealm" end
+assert(character_profile.activate_for(profile_me, profile_menu),
+    "H16a FAIL: mount profile fixture did not activate")
+profile_menu.set("profile_mount_use", false)
+assert(character_profile.sync_active(profile_menu), "H16b FAIL: mount profile was not synchronized")
+
+local meH16 = fresh(false, false, false)
+setup_mounts()
+hold, why = mm.begin_travel(meH16, FAR, 10.0)
+assert(hold == false and #_mount_calls == 0,
+    "H16c FAIL: mount use disabled must walk on foot without a cast")
+assert(why == "mount use disabled",
+    "H16d FAIL: disabled mount use must publish its reason, got " .. tostring(why))
+print("  H16 PASS: profile mount use gates automatic casts only")
+character_profile.reset()
+
 -- ============================================================================
 -- S15: the generated list itself. It is data, so what is worth pinning is the RULE behind it:
 -- the counting-crystal and event-broom mounts carry "Mount" as their item type WITHOUT the

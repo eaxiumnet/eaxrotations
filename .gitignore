@@ -1,6 +1,10 @@
 /*
 !/EaxRotations/
 !/EaxAutoQuester/
+# The quest game-object spawn index is BUILD OUTPUT: tools/generate_object_spawns.py writes
+# it from the cMaNGOS tables and --check fails when it drifts. The accessor (object_spawns.lua)
+# is tracked; the chunks and the manifest are not.
+/EaxAutoQuester/object_spawns/
 !/README.md
 !/.github/
 !/.github/workflows/

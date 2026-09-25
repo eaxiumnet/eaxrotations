@@ -18,6 +18,8 @@
 --        P9 the spawn index is asked once per goal, not per tick
 --        P10 a completed sweep rebuilds on a throttle, not on every tick
 --        P11 a leg in flight is published once per interval, not every tick
+--        P19-P22 the optional game-object index: no data leaves the sweep unchanged; an objective's
+--           entry or name adds its coordinates, and the two entry namespaces merge
 -- Safety: pure module + stubs; no client, no network, no file writes. The spawn index is the real
 --      tracked one (EaxAutoQuester/npc_spawns), wrapped in counters.
 
@@ -65,7 +67,9 @@ package.loaded["waypoint_fixer_sylvanas"] = {
 }
 
 -- The real spawn index, wrapped in counters so "asked once per goal, not once per tick" is
--- observable.
+-- observable. The optional object index is explicitly unavailable for the pre-AQ-P4-1 scenarios:
+-- a developer who has generated the ignored build output must still get the same old contract.
+package.loaded["object_spawns"] = { available = false }
 local real_spawns = require("npc_spawns")
 local _spawn_queries = 0
 local _name_queries = 0
@@ -886,6 +890,152 @@ do
     assert(logged:find("walk ended short", 1, true),
         "P18b FAIL: a leg with no refusal on record must not be reported unreachable, got: " .. logged)
     print("  P18 PASS: a leg that ended short is reported as such, not as a nav failure")
+end
+
+-- =============================================================================
+-- AQ-P4-1 — the quest OBJECT index, in both of its states.
+-- The accessor ships without its generated data, so P19 pins the state a fresh checkout is in:
+-- an object-shaped goal knows nothing but the guide's waypoints, exactly as before. P20-P22 then
+-- install the data and pin the capability that was missing: an objective game's entry resolves to
+-- the coordinates it spawns at, so the sweep walks to the objective instead of around the camp.
+-- =============================================================================
+
+-- P19 — no object data: unchanged behaviour, and the precondition is asserted rather than assumed
+do
+    _time = 2100
+    _waypoints = { { x = 0, y = 0, z = 0 }, { x = 50, y = 0, z = 0 } }
+    local me = player({ pos = { x = 0, y = 0, z = 250 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 233818 }
+    local ctx = ctx_for({ me = me, now = _time })
+
+    assert(package.loaded["object_spawns"].available == false,
+        "P19a FAIL: scene error — this scenario is the no-data state, so the index must be " ..
+        "unavailable (did an earlier scenario install a fixture?)")
+    local first = spawn_patrol.next_point(shared, ctx, goal)
+    assert(first and math.abs(first.x - 50) < 0.01,
+        "P19b FAIL: without object data the sweep must be the one it always was — the step's " ..
+        "waypoints — got x=" .. tostring(first and first.x))
+    assert(#shared._patrol_points == 2,
+        "P19c FAIL: only the two step waypoints may be candidates with no index data, got " ..
+        tostring(#shared._patrol_points))
+    print("  P19 PASS: with no object data the sweep is unchanged (step waypoints only)")
+end
+
+-- The generated data, at a size a test can read: the live entry, a lookalike name, and one entry
+-- that deliberately shares a number with a creature — the two namespaces are separate, which is
+-- why the sweep has to ask both.
+package.loaded["object_spawns/manifest"] = {
+    chunk_count = 1,
+    entry_count = 3,
+    generated_from = "test fixture",
+}
+package.loaded["object_spawns/chunk_000"] = {
+    by_entry = {
+        ["233818"] = {
+            name = "Ogre Remains",
+            maps = {
+                { map_id = 0, x = 60, y = 0, z = 5 },
+                { map_id = 0, x = 90, y = 0, z = 5 },
+            },
+        },
+        ["190000"] = {
+            name = "Ogre Remains Cache",
+            maps = { { map_id = 0, x = 70, y = 40, z = 5 } },
+        },
+        ["2735"] = {
+            name = "Rock Elemental Cache",
+            maps = { { map_id = 0, x = LESSER_CAMP.x + 300, y = LESSER_CAMP.y, z = 5 } },
+        },
+    },
+}
+package.loaded["object_spawns"] = nil
+local object_spawns = require("object_spawns")
+assert(object_spawns.reload() == true, "P20a FAIL: scene error — the fixture must load")
+package.loaded["shared/spawn_patrol"] = nil
+spawn_patrol = require("shared/spawn_patrol")
+
+-- P20 — the goal's own id, asked of the object index, is the sweep's candidate list
+do
+    _time = 2200
+    _waypoints = nil
+    local me = player({ pos = { x = 0, y = 0, z = 0 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 233818 }   -- the live goal shape
+    local ctx = ctx_for({ me = me, now = _time })
+
+    local first = spawn_patrol.next_point(shared, ctx, goal)
+    assert(first and math.abs(first.x - 60) < 0.01,
+        "P20b FAIL: the nearest of the objective's own spawn points must be the first leg, got " ..
+        "x=" .. tostring(first and first.x))
+    assert(#shared._patrol_points == 2,
+        "P20c FAIL: the candidate list must be exactly the object's two spawn points, got " ..
+        tostring(#shared._patrol_points))
+    local object_log = false
+    for i = 1, #_logs do
+        if _logs[i]:find("object spawn index supplied 2 point(s)", 1, true) then object_log = true end
+    end
+    assert(object_log,
+        "P20d FAIL: the first build must say when object-index coordinates supplied candidates")
+    print("  P20 PASS: an objective game's entry resolves to the coordinates it spawns at")
+end
+
+-- P21 — one id, two namespaces: both answers belong in one search
+do
+    _time = 2300
+    _waypoints = nil
+    local me = player({ pos = { x = LESSER_CAMP.x, y = LESSER_CAMP.y, z = LESSER_CAMP.z } })
+    local shared = {}
+    local goal = { type = "kill", target = "Lesser Rock Elemental", npc_id = LESSER_ROCK_ELEMENTAL }
+    local ctx = ctx_for({ me = me, now = _time })
+    local expected = expected_points(LESSER_ROCK_ELEMENTAL, LESSER_CAMP, _map_id)
+
+    assert(spawn_patrol.next_point(shared, ctx, goal) ~= nil,
+        "P21a FAIL: scene error — the creature camp must still answer")
+    assert(#shared._patrol_points == #expected + 1,
+        "P21b FAIL: the search must hold the mob's own spawns AND the object that shares the " ..
+        "entry number: expected " .. tostring(#expected + 1) .. ", got " ..
+        tostring(#shared._patrol_points))
+    local has_object_point = false
+    for i = 1, #shared._patrol_points do
+        local p = shared._patrol_points[i]
+        if math.abs(p.x - (LESSER_CAMP.x + 300)) < 0.01 then has_object_point = true end
+    end
+    assert(has_object_point,
+        "P21c FAIL: the object index's answer for the same id must reach the candidate list")
+    print("  P21 PASS: one id resolved in both namespaces merges both sets of spawn points")
+end
+
+-- P22 — a goal with no id at all still finds the object, by name
+do
+    _time = 2400
+    _waypoints = nil
+    local me = player({ pos = { x = 0, y = 0, z = 0 } })
+    local shared = {}
+    local goal = { type = "area", target = "Ogre Remains", npc_id = 0 }
+    local ctx = ctx_for({ me = me, now = _time })
+
+    local first = spawn_patrol.next_point(shared, ctx, goal)
+    assert(first and math.abs(first.x - 60) < 0.01,
+        "P22a FAIL: a name-only goal must resolve through the object name index, and the nearest " ..
+        "candidate wins — got x=" .. tostring(first and first.x))
+    local exact_points, lookalike = 0, false
+    for i = 1, #shared._patrol_points do
+        local p = shared._patrol_points[i]
+        if p.x == 60 or p.x == 90 then exact_points = exact_points + 1 end
+        if p.x == 70 then lookalike = true end
+    end
+    assert(exact_points == 2,
+        "P22b FAIL: both spawn points of the exactly named entry must be candidates, got " ..
+        tostring(exact_points))
+    -- The third candidate is goal_names.expand's singular variant at work: "Ogre Remains" ends in
+    -- "s", so "Ogre Remain" is searched too, and that partial name also matches the fixture's
+    -- lookalike entry. Pre-existing, documented name behaviour, harmless here because the exact
+    -- entry is in the list and candidates are nearest-first — pinned so a future change to the
+    -- expansion is a deliberate decision rather than a silent one.
+    assert(lookalike,
+        "P22c FAIL: scene error — the lookalike's point is expected from the singular variant")
+    print("  P22 PASS: a name-only objective resolves through the object name index")
 end
 
 _waypoints = nil

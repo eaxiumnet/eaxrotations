@@ -1443,6 +1443,57 @@ do
 end
 
 -- =============================================================================
+-- P18 — the movement-only area sweep publishes terrain-fixed waypoints.
+-- A raw z=0 guide waypoint is not a safe navigation destination: the client can snap it to an
+-- off-mesh point, report arrived 13yd away, and the sweep then retires the guide's real place.
+-- The fixer is called once per waypoint and its result is cached against the fresh reader list;
+-- the second pass proves the repair is not re-raycast on every tick.
+-- =============================================================================
+do
+    local old_fixer = package.loaded["waypoint_fixer_sylvanas"]
+    local old_idle = package.loaded["quest_state/idle_state"]
+    local fix_calls = 0
+    package.loaded["waypoint_fixer_sylvanas"] = {
+        fix_z = function(pos)
+            fix_calls = fix_calls + 1
+            return { x = pos.x, y = pos.y, z = 91.5 }
+        end,
+    }
+    package.loaded["quest_state/idle_state"] = nil
+    local fixed_idle = require("quest_state/idle_state")
+
+    local ctx = build_goal_ctx({ type = "area", npc_id = 0 }, {})
+    ctx.zygor.get_current_waypoint_world = function() return nil end
+    ctx.zygor.get_step_waypoints_world = function()
+        return { { x = 30, y = 0, z = 0 }, { x = 60, y = 0, z = 0 } }
+    end
+    local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+        _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+        _at_quest_object_timer = 0, _last_step_num = 7, _respawn_wait_until = 0,
+        _action_pause_timer = 0 }
+
+    assert(fixed_idle.run(shared, ctx) == "NAV", "P18a FAIL: scene error — the area sweep must walk")
+    assert(shared._nav_destination and shared._nav_destination.z == 91.5,
+        "P18b FAIL: the published area waypoint must carry the terrain-fixed Z, got " ..
+        tostring(shared._nav_destination and shared._nav_destination.z))
+    assert(fix_calls == 2,
+        "P18c FAIL: each waypoint must be fixed once on the first pass, got " .. tostring(fix_calls))
+
+    -- The reader returns fresh tables every tick. Once NAV has handed the point off, clear only
+    -- the destination so the area branch is reached again; the fixed cache must prevent a second
+    -- terrain query for the same x/y places.
+    shared._nav_destination = nil
+    ctx.now = 101.0
+    assert(fixed_idle.run(shared, ctx) == "NAV", "P18d FAIL: the cached sweep must still walk")
+    assert(fix_calls == 2,
+        "P18e FAIL: the same waypoint places were re-fixed on the next tick, got " .. tostring(fix_calls))
+
+    package.loaded["waypoint_fixer_sylvanas"] = old_fixer
+    package.loaded["quest_state/idle_state"] = old_idle
+    print("  P18 PASS: the area sweep publishes cached terrain-fixed waypoints")
+end
+
+-- =============================================================================
 -- P17 — the goal line tells the truth: the id, and once per change.
 -- Live: "IDLE: goal[7] text=nil npc_id=0 target=Ogre Remains", repeated about forty times a
 -- second for as long as the step was open. The id WAS there (233818, carried under `targetid`),
@@ -1494,6 +1545,111 @@ do
     assert(line:find("goal[8]", 1, true) and line:find("target=Bonfire Ash", 1, true),
         "P17f FAIL: the new step's goal must be the logged one, got: " .. line)
     print("  P17 PASS: the goal line carries the goal's real id and is logged on change, not per tick")
+end
+
+-- =============================================================================
+-- P19 — AQ-P4-6 reached-path memory: ground already covered is not walked again.
+-- The sweep's `visited` marks are per-pass and its retirement is per-step, so a route the bot
+-- had already covered came back in full on the next lap. The session memory is keyed by PLACE
+-- (rounded x/y), not by the slot the guide returned, and survives both a new pass and a step
+-- change. Arriving at a waypoint marks it reached and returns IDLE; the pass only hands over
+-- (DO_ACTION) on the following tick once nothing unvisited is left. The relap / new-pass branch
+-- is reached only when no fresh candidate exists, so the sequencing below is deliberate.
+-- =============================================================================
+do
+    local w1 = { x = 20, y = 0, z = 5 }
+    local w2 = { x = 60, y = 0, z = 5 }
+    local wps = { w1, w2 }
+
+    local function reached_scene(step_num)
+        local ctx = build_goal_ctx({ type = "area", npc_id = 0 }, {})
+        ctx.zygor.get_step_waypoints_world = function() return wps end
+        if step_num then
+            ctx.zygor.get_current_step_info = function()
+                return { is_complete = false, goals = { { type = "area", npc_id = 0 } },
+                         step_num = step_num }
+            end
+        end
+        local shared = { _interact_cooldown = 0, _loot_cooldown = 0, _last_cooldown_log = 0,
+            _nav_destination = nil, _area_wait_timer = 0, _post_interact_timer = 0,
+            _at_quest_object_timer = 0, _last_step_num = 7, _respawn_wait_until = 0,
+            _action_pause_timer = 0 }
+        return shared, ctx
+    end
+
+    -- One tick, then hand the walk back as nav_state would on arrival: the player ends up on the
+    -- destination it was given.
+    local function tick(shared, ctx, now)
+        ctx.now = now
+        local state = idle_state.run(shared, ctx)
+        local chosen = shared._nav_destination
+        if chosen then ctx.me._pos = { x = chosen.x, y = chosen.y, z = chosen.z } end
+        shared._nav_destination = nil
+        shared._just_arrived = false
+        return state, chosen
+    end
+
+    local function navigating(state, dest)
+        return state == "NAV" and dest ~= nil
+    end
+
+    -- Control: with no memory at all, the first pass walks and then reaches both waypoints.
+    local shared, ctx = reached_scene()
+    local s1, d1 = tick(shared, ctx, 100.0)
+    assert(navigating(s1, d1) and d1.x == 20,
+        "P19a FAIL: scene error — the first pass must walk the nearest waypoint")
+    local s2 = tick(shared, ctx, 101.0)
+    assert(s2 == "IDLE", "P19b FAIL: arriving must mark the waypoint reached, got " .. tostring(s2))
+    local s3, d3 = tick(shared, ctx, 102.0)
+    assert(navigating(s3, d3) and d3.x == 60,
+        "P19c FAIL: scene error — the pass must continue to the second waypoint")
+    local s4 = tick(shared, ctx, 103.0)
+    assert(s4 == "IDLE", "P19d FAIL: arriving at the second waypoint must mark it reached, got " .. tostring(s4))
+    local s5 = tick(shared, ctx, 104.0)
+    assert(s5 == "DO_ACTION", "P19e FAIL: a fully covered pass must hand over, got " .. tostring(s5))
+
+    -- P19f — after the relap window a FRESH pass begins (per-pass marks cleared), and on the
+    -- NEXT tick the reached-path memory is what stops it re-walking the two covered places.
+    local s6 = tick(shared, ctx, 200.0)
+    assert(s6 == "DO_ACTION", "P19f FAIL: after the cooldown a new pass must begin, got " .. tostring(s6))
+    local s7, d7 = tick(shared, ctx, 201.0)
+    assert(not navigating(s7, d7),
+        "P19g FAIL: the new pass re-walked ground already reached this session (got " .. tostring(s7) .. ")")
+
+    -- P19h — memory is by PLACE, not slot: a re-ordered list that adds one genuinely new
+    -- waypoint still walks only the new one.
+    local w3 = { x = 100, y = 0, z = 5 }
+    wps = { w3, w2, w1 }
+    local s8, d8 = tick(shared, ctx, 300.0)
+    assert(navigating(s8, d8) and d8.x == 100,
+        "P19h FAIL: only the not-yet-reached waypoint may be walked (got " .. tostring(s8) .. ")")
+
+    -- P19i — a NEW STEP does not resurrect covered ground: the memory is session-scoped.
+    ctx.zygor.get_current_step_info = function()
+        return { is_complete = false, goals = { { type = "area", npc_id = 0 } }, step_num = 8 }
+    end
+    wps = { w1, w2 }
+    local s9, d9 = tick(shared, ctx, 400.0)
+    assert(not navigating(s9, d9),
+        "P19i FAIL: a new step re-walked ground already reached this session (got " .. tostring(s9) .. ")")
+
+    -- P19j — bounded: reaching far more places than the cap must not grow the table.
+    local big, big_ctx = reached_scene()
+    for i = 1, 90 do
+        local wp = { x = 500 + i * 7, y = 0, z = 5 }
+        big_ctx.zygor.get_step_waypoints_world = function() return { wp } end
+        big_ctx.me._pos = { x = wp.x - 30, y = 0, z = 5 }
+        tick(big, big_ctx, 1000.0 + i)      -- walk to it
+        big_ctx.me._pos = { x = wp.x, y = 0, z = 5 }
+        tick(big, big_ctx, 1000.5 + i)      -- arrive: remembered
+    end
+    local total = 0
+    for _, column in pairs(big._reached_places or {}) do
+        for _ in pairs(column) do total = total + 1 end
+    end
+    assert(total <= 64, "P19j FAIL: reached-path memory grew to " .. tostring(total) ..
+        " places, past the 64 cap")
+    print("  P19 PASS: reached-path memory is keyed by place, survives pass and step, and stays bounded")
 end
 
 print("PASS test_idle_state")

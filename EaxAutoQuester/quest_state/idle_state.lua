@@ -25,6 +25,34 @@ local spawn_patrol = require("shared/spawn_patrol")
 local facing = require("shared/facing")
 local pull_safety = require("shared/pull_safety")
 
+local _look_at = core.input.look_at
+local _set_target = core.input.set_target
+local _use_object = core.input.use_object
+
+-- Every waypoint-like destination produced by IDLE goes through the same terrain-height owner.
+-- The area sweep used to publish its step list raw: a z=0 waypoint could be treated as a valid point,
+-- snap to an off-mesh location, arrive 13yd away, and then be retired as if the client had
+-- refused the guide's real place. The handle is lazy and cached so the fixer is not required on
+-- every tick and a missing optional module remains a no-op.
+local _waypoint_fixer = nil
+local _waypoint_fixer_failed = false
+local function fix_destination_z(pos)
+    if not pos then return pos end
+    if not _waypoint_fixer and not _waypoint_fixer_failed then
+        local ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+        if ok and wf then
+            _waypoint_fixer = wf
+        else
+            _waypoint_fixer_failed = true
+        end
+    end
+    if _waypoint_fixer and _waypoint_fixer.fix_z then
+        local ok, fixed = pcall(_waypoint_fixer.fix_z, pos)
+        if ok and fixed then return fixed, true end
+    end
+    return pos, false
+end
+
 -- Hoisted unit probes (perf pass): every one of these was an inline `pcall(function() ... end)`
 -- on the tick path, which built a closure per call — the death check alone cost three per tick,
 -- plus one per ghost-aura method it scanned. The probes are module-level, handed their unit as
@@ -38,6 +66,8 @@ local function unit_is_in_combat(u) return u:is_in_combat() end
 local function unit_get_target(u) return u:get_target() end
 local function unit_can_attack(u, other) return u:can_attack(other) end
 local function unit_is_unit(u) return u:is_unit() end
+local function unit_is_valid(u) return u:is_valid() end
+local function unit_get_name(u) return u:get_name() end
 local function unit_get_position(u) return u:get_position() end
 
 -- Resolve transport against the live player context. Keeping the map and position at
@@ -80,6 +110,380 @@ local RESPAWN_WAIT_SECONDS = 60
 -- How long a covered pass over a movement-only step's waypoints is left alone before the sweep
 -- starts another one. Without it a completed pass re-issued its whole path on the next tick.
 local SWEEP_RELAP_SECONDS = 60
+
+-- Reached-path memory (AQ-P4-6): the places this character has actually stood on during the
+-- current client session. The sweep's `visited` marks are per-pass and nav_destination's
+-- retirement is per-step, so ground the bot had already covered came back in full on the next
+-- lap. This set is session-scoped and monotonic, so a later pass - or a later step that crosses
+-- the same ground - walks only what has not been covered yet.
+--
+-- Keyed by PLACE, never by the slot the guide returned: the reader hands back a fresh table on
+-- every tick, so a slot index says nothing about which piece of ground it names. The key is a
+-- pair of rounded numeric coordinates rather than a formatted string, so the sweep's
+-- per-candidate check allocates nothing on the tick path.
+--
+-- Session-only, exactly like the per-character profiles: the runtime has no file-write API, so
+-- this dies with the client and claims nothing across a restart. Bounded so a long session
+-- cannot grow it without limit; the oldest insertion is dropped first.
+local REACHED_PLACE_LIMIT = 64
+local _reached_seq = 0
+
+--- Rounded x/y for a point, or nil when it carries no usable coordinates.
+local function place_coords(point)
+    if type(point) ~= "table" then return nil end
+    local x, y = point.x, point.y
+    if type(x) ~= "number" or type(y) ~= "number" then return nil end
+    return math.floor(x * 10 + 0.5), math.floor(y * 10 + 0.5)
+end
+
+--- Whether the character has already stood on this place this session.
+local function place_reached(shared, point)
+    local cx, cy = place_coords(point)
+    if not cx then return false end
+    local set = shared._reached_places
+    if not set then return false end
+    local column = set[cx]
+    return column ~= nil and column[cy] ~= nil
+end
+
+--- Record a place the character actually reached. True only the first time, so the caller logs
+--- and records the event once instead of on every later pass over the same ground.
+local function remember_reached_place(shared, point)
+    local cx, cy = place_coords(point)
+    if not cx then return false end
+    local set = shared._reached_places
+    if not set then
+        set = {}
+        shared._reached_places = set
+    end
+    local column = set[cx]
+    if not column then
+        column = {}
+        set[cx] = column
+    end
+    if column[cy] ~= nil then return false end
+
+    _reached_seq = _reached_seq + 1
+    column[cy] = _reached_seq
+
+    -- Bound the table. The lowest sequence number is the oldest insertion, and a column left
+    -- empty by the eviction is dropped with it.
+    local count, oldest_x, oldest_y, oldest_seq = 0, nil, nil, nil
+    for x, entries in pairs(set) do
+        for y, seq in pairs(entries) do
+            count = count + 1
+            if oldest_seq == nil or seq < oldest_seq then
+                oldest_seq, oldest_x, oldest_y = seq, x, y
+            end
+        end
+    end
+    if count > REACHED_PLACE_LIMIT and oldest_x ~= nil then
+        local evicted = set[oldest_x]
+        evicted[oldest_y] = nil
+        if next(evicted) == nil then set[oldest_x] = nil end
+    end
+    return true
+end
+
+-- Optional profession gathering is deliberately conservative: it runs only when the guide has
+-- no active goal, scans a bounded nearby set, recognizes nodes by the names the client exposes,
+-- and requires the character profile to enable that profession (detected once when the profile is
+-- created, or set by hand). It never changes quest-object handling, combat, or the guide route.
+local GATHER_SCAN_SECONDS = 1.0
+local GATHER_SCAN_RANGE_SQ = 2500 -- 50yd
+local GATHER_INTERACT_SQ = 25     -- 5yd
+local GATHER_COOLDOWN_SECONDS = 2.0
+local GATHER_SCAN_LIMIT = 50
+-- Fallback free-slot reserve for gathering, used ONLY when the character profile owner cannot be
+-- reached. The live value is the per-character slider `eaxaq_profile_gather_min_free_slots`; its
+-- default matches the loot gate's "< 4 free slots" rule in loot_manager_sylvanas.auto_loot_all so
+-- the two gates agree until the user moves this one.
+local GATHER_MIN_FREE_SLOTS_FALLBACK = 4
+
+-- How long the gathering route waits before asking for another vendor visit after one that freed
+-- nothing. Selling is not guaranteed to free a slot (a bag of quest items sells nothing), so
+-- without this a blocked route would request, walk to the vendor, sell nothing, and request again
+-- on the very next blocked tick.
+local GATHER_VENDOR_RETRY_SECONDS = 180
+local GATHER_PROFESSION_KEYWORDS = {
+    { key = "herbalism", words = {
+        "herb", "bloom", "root", "mushroom", "plant", "flower", "vine", "lily", "lotus",
+        "clover", "thistle", "shrub", "moss", "silverleaf", "golden sansa", "whispweed",
+        "sonsing", "crimsoncap", "nightbloom", "starfall", "marsh lotus", "arrowhead", "briar",
+    } },
+    { key = "mining", words = {
+        "ore", "vein", "deposit", "copper vein", "tin vein", "iron vein", "silver vein",
+        "gold vein", "truesilver vein", "mithril deposit", "fel iron deposit", "thorium deposit",
+        "cobalt deposit", "adamantite deposit", "indurium deposit",
+    } },
+    { key = "skinning", words = {
+        "carcass", "hide", "pelt", "leather", "skinning",
+    } },
+    { key = "fishing", words = {
+        "fish", "fishing", "bobber", "school",
+    } },
+}
+
+local _character_profile = nil
+local _character_profile_failed = false
+
+--- The character profile owner, resolved once: a successful require is cached, a failure is
+--- latched so a broken module cannot allocate an error string on every probe.
+local function character_profile_module()
+    if not _character_profile and not _character_profile_failed then
+        local ok, profile = pcall(require, "character_profile_sylvanas")
+        if ok and profile then
+            _character_profile = profile
+        else
+            _character_profile_failed = true
+        end
+    end
+    return _character_profile
+end
+
+local function profile_gathering_enabled(profession)
+    local profile = character_profile_module()
+    if profile and profile.gathering_enabled then
+        local ok, enabled = pcall(profile.gathering_enabled, profession)
+        if ok and enabled == true then return true end
+    end
+    return false
+end
+
+--- The free-slot reserve this character chose on their profile slider. Read only where the bag
+--- gate actually runs, never per candidate.
+local function profile_gather_min_free_slots()
+    local profile = character_profile_module()
+    if profile and profile.gather_min_free_slots then
+        local ok, reserve = pcall(profile.gather_min_free_slots)
+        if ok and type(reserve) == "number" and reserve >= 0 then return reserve end
+    end
+    return GATHER_MIN_FREE_SLOTS_FALLBACK
+end
+
+local function classify_gathering_name(name)
+    if type(name) ~= "string" then return nil end
+    local lower = name:lower()
+    for i = 1, #GATHER_PROFESSION_KEYWORDS do
+        local entry = GATHER_PROFESSION_KEYWORDS[i]
+        for j = 1, #entry.words do
+            if lower:find(entry.words[j], 1, true) then return entry.key end
+        end
+    end
+    return nil
+end
+
+local function gathering_visible_objects(ctx)
+    if ctx.object_scanner and ctx.object_scanner.get_visible_objects then
+        local ok, objects = pcall(ctx.object_scanner.get_visible_objects)
+        if ok and objects then return objects end
+    end
+    local ok, objects = pcall(core.object_manager.get_visible_objects)
+    if ok and objects then return objects end
+    return nil
+end
+
+-- Find the nearest visible non-unit object whose client name identifies an enabled profession.
+-- The profile owner owns learned-profession detection; this scan only classifies the already
+-- documented object name/position surface and never probes a profession API on the tick path.
+local function find_gathering_target(ctx)
+    if not ctx.me or not ctx.utils then return nil end
+    local pos_ok, player_pos = pcall(unit_get_position, ctx.me)
+    if not pos_ok or not player_pos then return nil end
+    local objects = gathering_visible_objects(ctx)
+    if not objects then return nil end
+
+    local limit = #objects
+    if limit > GATHER_SCAN_LIMIT then limit = GATHER_SCAN_LIMIT end
+    local best, best_pos, best_name, best_profession, best_dist_sq
+    for i = 1, limit do
+        local obj = objects[i]
+        if obj then
+            local valid_ok, valid = pcall(unit_is_valid, obj)
+            local unit_ok, is_unit = pcall(unit_is_unit, obj)
+            if valid_ok and valid and unit_ok and not is_unit then
+                local name_ok, name = pcall(unit_get_name, obj)
+                local profession = name_ok and classify_gathering_name(name) or nil
+                if profession and profile_gathering_enabled(profession) then
+                    local opos_ok, opos = pcall(unit_get_position, obj)
+                    if opos_ok and opos then
+                        local dist_sq = ctx.utils.squared_distance(player_pos, opos)
+                        if dist_sq <= GATHER_SCAN_RANGE_SQ
+                            and (not best_dist_sq or dist_sq < best_dist_sq) then
+                            best, best_pos, best_name = obj, opos, name
+                            best_profession, best_dist_sq = profession, dist_sq
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best, best_pos, best_name, best_profession, best_dist_sq
+end
+
+local function clear_gathering_target(shared)
+    shared._gather_target = nil
+    shared._gather_target_profession = nil
+end
+
+local function use_gathering_target(shared, ctx, obj, pos, name, profession)
+    if _look_at then pcall(_look_at, pos) end
+    if _set_target then pcall(_set_target, obj) end
+    if _use_object then pcall(_use_object, obj) end
+    clear_gathering_target(shared)
+    nav_destination.clear(shared)
+    shared._post_interact_timer = (ctx.now or 0) + 0.3
+    shared._gather_cooldown = (ctx.now or 0) + GATHER_COOLDOWN_SECONDS
+    ctx.debug_log("IDLE: gathering " .. tostring(name or "node") .. " [" .. tostring(profession) .. "] — used")
+    return "IDLE"
+end
+
+--- The shared bag-space reader, resolved lazily once and only cached on success. The loot
+--- manager owns the inventory-helper read (free/total/used); going through it keeps the loot
+--- gate and the gather gate on the same numbers and the same reserve.
+local _loot_manager = nil
+local _loot_manager_failed = false
+
+--- Free bag slots for the gathering reserve, or nil when the inventory cannot be read.
+local function gather_free_slots()
+    if not _loot_manager and not _loot_manager_failed then
+        local ok, mod = pcall(require, "loot_manager_sylvanas")
+        if ok and mod and type(mod.get_bag_space) == "function" then
+            _loot_manager = mod
+        else
+            _loot_manager_failed = true
+        end
+    end
+    if _loot_manager then
+        local ok, free = pcall(_loot_manager.get_bag_space)
+        if ok and type(free) == "number" and free >= 0 then return free end
+    end
+    return nil
+end
+
+--- Ask for a vendor visit because the gathering route has no room to work in. The force-vendor
+--- flag is the existing routing owner: the coordinator walks to the vendor whenever the flag is
+--- set while the state is IDLE, and vendor_manager.handle_vendor clears it after the visit. The
+--- same flag also makes the vendor sell up to green, which is what actually frees the slots — so a
+--- blocked route that has NOT tripped the fullness threshold still gets space freed. This is
+--- idempotent (a pending visit is left alone) and paced by GATHER_VENDOR_RETRY_SECONDS so a visit
+--- that freed nothing is not requested again immediately.
+--- @return boolean requested true when the flag is set (pending or just raised)
+local function request_vendor_for_space(shared, ctx, now, free, reserve)
+    local ns = rawget(_G, "EaxAutoQuester")
+    if type(ns) ~= "table" then return false end
+    if ns._force_vendor_soon then return true end
+    local last = shared._gather_vendor_request_at
+    if type(last) == "number" and now - last < GATHER_VENDOR_RETRY_SECONDS then return false end
+    shared._gather_vendor_request_at = now
+    ns._force_vendor_soon = true
+    -- The reason travels with the flag so the coordinator reports THIS cause rather than the
+    -- fullness threshold, which is not what asked for the visit.
+    ns._force_vendor_reason = "gathering blocked: " .. tostring(free) ..
+        " free bag slot(s), reserve " .. tostring(reserve)
+    ctx.debug_log("IDLE: gathering blocked — requesting a vendor visit (" ..
+        tostring(free) .. " free, reserve " .. tostring(reserve) .. ")")
+    return true
+end
+
+--- Decide whether the bag reserve blocks the gathering route, and if so what the caller should do.
+--- Returns nil when the route may run, "IDLE" when a vendor visit is pending or was just raised
+--- (the caller stays IDLE so the coordinator routes to the vendor on the flag), or true when the
+--- route is blocked with no vendor request (the caller waits).
+--- An in-progress target is abandoned (and its NAV destination cleared) so the bot does not keep
+--- walking to a node it must not loot. A blocked check re-arms the scan clock so a full bag is
+--- re-checked on the scan cadence, not every tick. A reserve of 0 is the slider's "off" position
+--- and skips the inventory read entirely. An unreadable inventory (nil) does NOT block — that is
+--- the established "unknown = proceed" policy of the loot gate, and the vendor threshold remains
+--- the backstop.
+local function bags_block_gathering(shared, ctx, now)
+    local reserve = profile_gather_min_free_slots()
+    if reserve <= 0 then return nil end
+    local free = gather_free_slots()
+    if not free or free >= reserve then return nil end
+    if shared._gather_target then
+        clear_gathering_target(shared)
+        nav_destination.clear(shared)
+        ctx.debug_log("IDLE: gathering stopped — " .. tostring(free) ..
+            " free bag slot(s), this character reserves " .. tostring(reserve))
+    end
+    shared._gather_scan_at = now + GATHER_SCAN_SECONDS
+    if request_vendor_for_space(shared, ctx, now, free, reserve) then return "IDLE" end
+    return true
+end
+
+-- Run one optional gathering decision. The caller invokes this only when no quest goal is active.
+local function run_gathering(shared, ctx)
+    local now = ctx.now or 0
+    if (shared._action_pause_timer or 0) > now
+        or (shared._post_interact_timer or 0) > now
+        or (shared._at_quest_object_timer or 0) > now then
+        return nil
+    end
+
+    local target = shared._gather_target
+    local profession = shared._gather_target_profession
+    if target and (not profession or not profile_gathering_enabled(profession)) then
+        clear_gathering_target(shared)
+        target = nil
+    end
+
+    -- Inventory gate. Read only when a target is live or a new scan is due, so an idle bot
+    -- without gathering work never touches the inventory; a blocked check re-arms the scan
+    -- clock (see bags_block_gathering) so the read costs once per second, not once per tick.
+    -- A block that raised (or found pending) a vendor visit returns "IDLE" so the coordinator's
+    -- force-vendor route — which only fires while the state is IDLE — actually sends us to the
+    -- vendor; a paced block just waits.
+    local scan_due = (shared._gather_cooldown or 0) <= now and (shared._gather_scan_at or 0) <= now
+    if target or scan_due then
+        local blocked = bags_block_gathering(shared, ctx, now)
+        if blocked == "IDLE" then return "IDLE" end
+        if blocked then return nil end
+    end
+
+    if target then
+        local valid_ok, valid = pcall(unit_is_valid, target)
+        if not (valid_ok and valid) then
+            clear_gathering_target(shared)
+            target = nil
+        else
+            local pos_ok, pos = pcall(unit_get_position, target)
+            if not pos_ok or not pos then
+                clear_gathering_target(shared)
+                return "IDLE"
+            end
+            local player_ok, player_pos = pcall(unit_get_position, ctx.me)
+            if player_ok and player_pos and ctx.utils then
+                local dist_sq = ctx.utils.squared_distance(player_pos, pos)
+                if dist_sq > GATHER_INTERACT_SQ then
+                    nav_destination.point(shared, pos)
+                    return "NAV"
+                end
+                local name_ok, name = pcall(unit_get_name, target)
+                return use_gathering_target(shared, ctx, target, pos,
+                    name_ok and name or "node", profession)
+            end
+            clear_gathering_target(shared)
+            return "IDLE"
+        end
+    end
+
+    if (shared._gather_cooldown or 0) > now then return nil end
+    if (shared._gather_scan_at or 0) > now then return nil end
+    shared._gather_scan_at = now + GATHER_SCAN_SECONDS
+
+    local obj, pos, name, found_profession, dist_sq = find_gathering_target(ctx)
+    if not obj then return nil end
+    if dist_sq <= GATHER_INTERACT_SQ then
+        return use_gathering_target(shared, ctx, obj, pos, name, found_profession)
+    end
+    shared._gather_target = obj
+    shared._gather_target_profession = found_profession
+    nav_destination.point(shared, pos)
+    ctx.debug_log("IDLE: gathering " .. tostring(name or "node") .. " [" .. tostring(found_profession) ..
+        "] — NAV")
+    return "NAV"
+end
 
 -- ============================================================================
 -- Frame Detection — lightweight probe without handling
@@ -362,10 +766,12 @@ function M.run(shared, ctx)
         return "WAITING"
     end
 
-    -- Step already complete → WAITING (wait for next step)
+    -- Step already complete → optionally gather, otherwise WAITING (wait for next step)
     if step.is_complete then
         shared._respawn_wait_until = 0
         shared._respawn_target_name = nil
+        local gathering_result = run_gathering(shared, ctx)
+        if gathering_result then return gathering_result end
         ctx.debug_log("IDLE: step complete → WAITING")
         return "WAITING"
     end
@@ -379,6 +785,11 @@ function M.run(shared, ctx)
         shared._area_fail_count = 0
         shared._area_last_target_guid = nil
         shared._visited_waypoints = {}
+        shared._area_waypoint_fixes = {}
+        shared._gather_target = nil
+        shared._gather_target_profession = nil
+        shared._gather_scan_at = 0
+        shared._gather_cooldown = 0
         -- A new step is a new path: a waypoint of the old one that the client could not reach says
         -- nothing about the new one, and the sweep starts from scratch (cleared through the owner,
         -- so the retirement stays one field).
@@ -518,10 +929,7 @@ function M.run(shared, ctx)
             if dest then
                 local fm = find_current_transport("flight", ctx)
                 if fm then
-                    local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-                    if wf_ok and wf and wf.fix_z then
-                        fm = wf.fix_z(fm) or fm
-                    end
+                    fm = fix_destination_z(fm)
                     -- Straight to the destination record: the `wp` local is declared much
                     -- further down this function, so this used to write and read a global
                     -- `wp` (a leak that also collided with any sibling plugin using the name).
@@ -540,10 +948,7 @@ function M.run(shared, ctx)
         if svc_ok and svc and step and step.text and svc.step_requires_hearth(step.text) then
             local inn = find_current_transport("inn", ctx)
             if inn then
-                local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-                if wf_ok and wf and wf.fix_z then
-                    inn = wf.fix_z(inn) or inn
-                end
+                inn = fix_destination_z(inn)
                 ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
                 nav_destination.point(shared, inn)
                 return "NAV"
@@ -619,15 +1024,6 @@ function M.run(shared, ctx)
     -- Determine if player needs to move to goal position first
     local wp = zygor.get_current_waypoint_world()
 
-    -- Fix Z on waypoint: map→world conversion often returns z=0 (underground).
-    -- Use waypoint_fixer to raycast the real terrain height.
-    if wp then
-        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
-        if wf_ok and wf and wf.fix_z then
-            wp = wf.fix_z(wp) or wp
-        end
-    end
-
     -- Item A: goal_resolver integration - use NPC DB position if available
     if current_goal and goal_resolver_ok and goal_resolver and goal_resolver.resolve_goal then
         local ok, res = pcall(goal_resolver.resolve_goal, current_goal, step_num, ctx.me)
@@ -636,6 +1032,10 @@ function M.run(shared, ctx)
             ctx.debug_log("IDLE: using resolved position from " .. tostring(res.source))
         end
     end
+
+    -- Fix the final destination after goal resolution, not only the reader's original waypoint:
+    -- a resolver position is another producer and must obey the same terrain contract.
+    wp = fix_destination_z(wp)
 
     -- Z sanity check: if destination Z is 0 (likely underground) and player is
     -- at a non-zero Z, the waypoint is probably broken. Use player Z as fallback.
@@ -851,6 +1251,11 @@ function M.run(shared, ctx)
                 local all_wps = zygor_module and zygor_module.get_step_waypoints_world and zygor_module.get_step_waypoints_world()
                 if all_wps and #all_wps > 0 and ctx.me then
                     local visited = shared._visited_waypoints or {}
+                    local fixed_waypoints = shared._area_waypoint_fixes
+                    if not fixed_waypoints then
+                        fixed_waypoints = {}
+                        shared._area_waypoint_fixes = fixed_waypoints
+                    end
                     local pos_ok, pos = pcall(unit_get_position, ctx.me)
                     if pos_ok and pos and ctx.utils then
                         local best_wp = nil
@@ -858,6 +1263,30 @@ function M.run(shared, ctx)
                         local best_idx = nil
                         for i = 1, #all_wps do
                             local candidate = all_wps[i]
+                            -- The reader returns a fresh table each tick. Cache the repaired point
+                            -- by slot and x/y, so the sweep pays for one terrain query per waypoint,
+                            -- not one per candidate per tick, while still publishing a fixed vec3.
+                            local fixed_entry = candidate and fixed_waypoints[i]
+                            local fixed, terrain_fixed
+                            if candidate and candidate.x and candidate.y then
+                                if fixed_entry and fixed_entry.point
+                                    and fixed_entry.point.x == candidate.x
+                                    and fixed_entry.point.y == candidate.y then
+                                    fixed = fixed_entry.point
+                                    terrain_fixed = fixed_entry.terrain_fixed
+                                else
+                                    local raw_z = candidate.z
+                                    fixed, terrain_fixed = fix_destination_z(candidate)
+                                    fixed_waypoints[i] = {
+                                        point = fixed,
+                                        raw_z = raw_z,
+                                        terrain_fixed = terrain_fixed,
+                                    }
+                                    candidate = fixed
+                                end
+                                if not fixed then fixed = candidate end
+                                candidate = fixed
+                            end
                             -- A waypoint the client could not walk to is skipped and retired FOR THE
                             -- STEP (shared/nav_destination.lua owns the set) instead of being offered
                             -- again. Without this the producer re-issued the same coordinates every
@@ -866,7 +1295,15 @@ function M.run(shared, ctx)
                             -- between the one or two points the navmesh actually reaches. The 60s
                             -- memory behind it expires; the retirement is what keeps the skip alive
                             -- for this pass, and a new step (or a new pass) clears it.
-                            if not visited[i] and not nav_destination.place_retired(shared, candidate) then
+                            --
+                            -- A place the character has already stood on this session is skipped too,
+                            -- and that memory is NOT cleared with the pass or the step: re-walking
+                            -- ground the route already covers is exactly what the reached-path memory
+                            -- exists to stop. The sweep is movement-only (it runs only when there is no
+                            -- target), so a covered waypoint carries no trigger the bot still owes.
+                            if not visited[i]
+                                and not nav_destination.place_retired(shared, candidate)
+                                and not place_reached(shared, candidate) then
                                 if nav_destination.recently_unreachable(shared, ctx.now, candidate) then
                                     -- The refusal is recorded against the PLACE and nothing else:
                                     -- `visited` is keyed by the slot the reader happened to return, and
@@ -875,6 +1312,15 @@ function M.run(shared, ctx)
                                     if nav_destination.retire_place(shared, candidate) then
                                         ctx.debug_log("IDLE: area goal — wp " .. tostring(i) .. "/" ..
                                             tostring(#all_wps) .. " is unreachable — retiring it for this step")
+                                        if ctx.record_event then
+                                            ctx.record_event("waypoint_retired", {
+                                                index = i,
+                                                x = candidate.x,
+                                                y = candidate.y,
+                                                z = candidate.z,
+                                                reason = "unreachable",
+                                            }, ctx.now)
+                                        end
                                     end
                                 else
                                     local d_sq = ctx.utils.squared_distance(pos, candidate)
@@ -891,13 +1337,36 @@ function M.run(shared, ctx)
                         shared._visited_waypoints = visited
                         if best_wp then
                             if best_dist_sq > 100 then
+                                if ctx.record_event then
+                                    local selected = fixed_waypoints[best_idx]
+                                    ctx.record_event("waypoint_selected", {
+                                        index = best_idx,
+                                        x = best_wp.x,
+                                        y = best_wp.y,
+                                        z = best_wp.z,
+                                        raw_z = selected and selected.raw_z,
+                                        terrain_fixed = selected and selected.terrain_fixed,
+                                    }, ctx.now)
+                                end
                                 nav_destination.point(shared, best_wp)
                                 ctx.debug_log("IDLE: area goal — navigating to wp " .. tostring(best_idx) .. "/" .. tostring(#all_wps) .. " (" .. tostring(math.floor(math.sqrt(best_dist_sq))) .. "yd)")
                                 return "NAV"
                             else
                                 visited[best_idx] = true
                                 shared._visited_waypoints = visited
-                                ctx.debug_log("IDLE: area goal - reached wp " .. tostring(best_idx) .. "/" .. tostring(#all_wps))
+                                -- AQ-P4-6: remember the PLACE, not the slot, so the next pass (or a
+                                -- later step over the same ground) does not walk it again.
+                                local remembered = remember_reached_place(shared, best_wp)
+                                if remembered and ctx.record_event then
+                                    ctx.record_event("waypoint_reached", {
+                                        index = best_idx,
+                                        x = best_wp.x,
+                                        y = best_wp.y,
+                                        z = best_wp.z,
+                                    }, ctx.now)
+                                end
+                                ctx.debug_log("IDLE: area goal - reached wp " .. tostring(best_idx) ..
+                                    "/" .. tostring(#all_wps) .. (remembered and " (remembered)" or ""))
                                 return "IDLE"
                             end
                         elseif (shared._sweep_lap_at or 0) == 0 then
@@ -977,6 +1446,13 @@ function M.run(shared, ctx)
     if not in_combat then
         local result = corpse_loot.try_loot_nearest_corpse(shared, ctx)
         if result then return result end
+    end
+
+    -- A loaded guide with no active goal and no waypoint may use the character's opted-in
+    -- profession route. With a waypoint present, the guide remains authoritative.
+    if not current_goal and not wp then
+        local gathering_result = run_gathering(shared, ctx)
+        if gathering_result then return gathering_result end
     end
 
     -- No uncompleted goal found — navigate to waypoint if available

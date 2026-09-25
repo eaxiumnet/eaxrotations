@@ -39,6 +39,11 @@ M._questie_npcs = {}
 M._frames = {}
 M._graphics_calls = {}
 M._input_calls = {}
+-- Documented client profession surface (.api/core.lua:3345): spell-tab slots the character
+-- actually has, per-index detail, and call counts so a suite can prove discovery stays one-shot.
+M._professions = {}
+M._profession_info = {}
+M._profession_calls = { get_professions = 0, get_profession_info = 0 }
 -- Party roster as the client reports it (see object_manager.get_party_members below).
 M._party = {}
 -- Every confirm input answers true by default; set false to model a client whose confirm call
@@ -83,6 +88,9 @@ function M.reset()
     M._frames = {}
     M._graphics_calls = {}
     M._input_calls = {}
+    M._professions = {}
+    M._profession_info = {}
+    M._profession_calls = { get_professions = 0, get_profession_info = 0 }
     M._player_buffs = {}
     M._logs = {}
     M._dungeon_proposal = false
@@ -480,6 +488,15 @@ M.quests = {
 M.spell_book = {
     get_mount_count = function() return 0 end,
     get_mount_info = function(index) return nil end,
+    -- Only learned slots are present in the fixture, exactly as GetProfessions reports them.
+    get_professions = function()
+        M._profession_calls.get_professions = M._profession_calls.get_professions + 1
+        return M._professions
+    end,
+    get_profession_info = function(index)
+        M._profession_calls.get_profession_info = M._profession_calls.get_profession_info + 1
+        return M._profession_info[index]
+    end,
 }
 
 M._bag_slots = { [0] = 16, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }  -- backpack 16, others default 0 (no bag equipped)

@@ -210,5 +210,90 @@ The separate random recovery actions in `navigation_sylvanas.lua` were measured 
 
 **Client-only unknown (explicitly outside this mission):** whether the world object for a given guide id is within the client's object stream at the step's waypoints. The code path is proven; the walk to a coordinate the guide supplies is the client's answer. `docs/quest_object_objectives.md` is the runbook for that check.
 
+## P4 — quest-object coordinates
+
+### AQ-P4-1 — Game-object spawn index with a no-data fallback
+**Status: complete (2026-09-24).** A Zygor objective's one id field can name either a creature entry or a `gameobject_template` entry. The existing creature index could answer only the former, so a named game object had no coordinates beyond the guide's own waypoints.
+
+**Objective:** resolve a game-object goal's entry, or its whole name when no entry is usable, to the coordinates it spawns at, while retaining the pre-index sweep whenever the generated data is absent.
+
+**Acceptance criteria met:**
+- `object_spawns.lua` exposes the same two-question shape as `npc_spawns.lua`: spawn rows by entry, and ids by world name. Exact whole-name matches win; substring matching is the bounded fallback.
+- `shared/spawn_patrol.lua` asks both namespaces for each goal id and merges their rows before adding the step waypoints. A visible objective still outranks the sweep; a UNIT kill goal retains its existing creature-patrol order.
+- The first build logs `object spawn index supplied N point(s)` only when object-index coordinates actually supplied candidates. No index, an unknown entry, and an absent chunk are silent: the candidate list is exactly the step waypoints it was before this work.
+- The generated chunks and manifest are build output, not tracked source. `tools/generate_object_spawns.py` makes them reproducibly from cMaNGOS SQL or CSV, with type filtering, optional named-entry overrides, dedup, `--check`, and an embedded `--self-test`.
+- No destination, map conversion, visible-object interaction, combat rule, or menu setting is invented when the extract is missing.
+
+**Proving surface:** `object_spawns.lua`, `shared/spawn_patrol.lua`, `tools/generate_object_spawns.py`, `tests/test_object_spawns.lua` O1-O8, and `tests/test_spawn_patrol.lua` P19-P22. The operator procedure is in `docs/objective_coordinates.md`; the live interpretation is in `docs/quest_object_objectives.md`.
+
+**Client-only unknown (explicitly outside this mission):** the source dump is not in this checkout, so the shipped index intentionally has no generated data and the real Ogre Remains coordinates are not locally verified. Even with the extract, the client alone decides whether a recorded object is loaded, spawned, and interactable at that coordinate.
+
+### AQ-P4-2 — Terrain-fixed movement-only area sweep
+**Status: complete (2026-09-24).** The live reachability loop reported `arrived` while the player remained 13yd from a step waypoint, then IDLE offered the same place again. A guide conversion can carry `z=0`; publishing that raw point lets the client snap to an off-mesh location and the sweep can retire a waypoint that was never actually tested at its terrain position.
+
+**Objective:** make every movement-only area-sweep waypoint pass through the existing terrain-height owner before distance selection, retirement checks, and NAV publication, without adding a per-tick raycast storm.
+
+**Acceptance criteria met:**
+- `quest_state/idle_state.lua` owns one cached `waypoint_fixer` handle and applies it to the final current waypoint, goal-resolver replacement, flight/inn destinations, and each movement-only step waypoint.
+- The area sweep repairs each waypoint once per step/place, keyed against the fresh reader list, and reuses the repaired vec3 on later ticks. A changed x/y invalidates the cached repair.
+- Arrival, nearest-waypoint selection, unreachable/retired checks, and the destination handed to NAV all use the same repaired point; a raw `z=0` list is never the area sweep's publication source.
+- A new step clears the repair cache. The existing no-fix graceful fallback remains: a missing fixer returns the original point rather than crashing or inventing a height.
+- No combat, interaction, menu, or navigation policy changes; the client still decides whether a repaired point is on its reachable mesh.
+
+**Proving surface:** `quest_state/idle_state.lua` (`fix_destination_z`, movement-only sweep), `quest_state/coordinator.lua` (`_area_waypoint_fixes` declaration), and `tests/test_idle_state.lua` P18. The existing arrival probe remains in `tests/test_nav_client_contract.lua` C14-C14d.
+
+**Client-only unknown (explicitly outside this mission):** whether the repaired coordinate is on the client's current navmesh, and whether a source waypoint is stale for the live quest. The fix removes the known raw-height publication path; it cannot make an off-mesh or stale source point reachable.
+
+### AQ-P4-3 — Session recorder and replay contract
+**Status: complete (2026-09-24).** The quester could print a live failure but could not preserve the decision sequence that produced it. A log line was evidence, not a reproducible regression input.
+
+**Objective:** capture a bounded live quester session, export it without an unsupported file-write dependency, and replay it as a deterministic failing test when the named navigation symptoms recur.
+
+**Acceptance criteria met:**
+- `session_recorder_sylvanas.lua` is opt-in, preallocated, bounded to 2,048 events, and exports chronological JSONL without `io`, network, or client mutation.
+- The coordinator captures existing log lines before the debug-display gate and adds structured state, area-waypoint, short-arrival, arrival, retirement, and abandonment events. Existing debug output and state behavior are unchanged when recording is off.
+- The recorder is explicitly startable/stoppable/exportable through `quest_state`, so a developer can capture a reproduction without a new menu or persistence API.
+- `tools/replay_session.py` accepts recorder JSONL and raw client logs, never executes recorded content, prints line/rule/place findings, and exits non-zero for short arrivals, unrepaired raw-height waypoints, retired waypoints, or abandoned destinations.
+- A passing replay means only that the named symptoms did not occur; it does not claim the live client is correct.
+
+**Proving surface:** `session_recorder_sylvanas.lua`, `quest_state/coordinator.lua` (capture seam and public session API), `quest_state/idle_state.lua` / `quest_state/nav_state.lua` (structured event producers), `tests/test_session_recorder.lua` R1-R4, and `tools/replay_session.py --self-test`. The operator guide is `docs/session_replay.md`.
+
+**Client-only unknown (explicitly outside this mission):** whether a developer's client console can persist the returned JSONL string in their particular tooling. The recorder and replay formats are complete without inventing an API the client does not document.
+
+### AQ-P4-5 — Per-character profile system
+**Status: complete (2026-09-24); profession-detection follow-up complete (2026-09-25).** Character settings are now isolated by name and realm for the current client session, with safe defaults for a first character and no cross-character leakage. A new profile also seeds its four supported gathering routes from the client's learned professions.
+
+**Acceptance criteria met:**
+- `character_profile_sylvanas.lua` captures and restores the four gathering-profession preferences, the vendor bag threshold, the existing three pull-policy controls, and the mount-use choice when the active character changes.
+- For each newly created profile it reads the documented `core.spell_book.get_professions()` and `core.spell_book.get_profession_info(index)` surface once and maps the reported `skill_line` id into the four existing checkboxes, so detection is independent of the client language. The four ids (182 Herbalism, 186 Mining, 356 Fishing, 393 Skinning) are derived from this repo's 2.5.5 DBC `SkillLineAbility` rows, not guessed; localized names remain only as a fallback for a build that leaves `skill_line` empty. The checkboxes stay the manual override afterward, detection never repeats on later activations, and it never runs on the tick path.
+- The same one-shot pass emits one `core.log` line per new profile listing every present profession slot with its skill level, the supported professions it unlocked, and — when detection is unavailable — the reason, so the in-game smoke check is a single glance.
+- `main.lua` activates and synchronizes the active profile before the enable/state path, including while the quester is disabled, so menu edits are captured before a character switch.
+- The real pull gate continues to read the existing menu rows; the real vendor fullness owner reads the profile threshold; the real mount manager refuses automatic casts when mount use is off while keeping dismount safety unconditional.
+- A nameless or unreadable player stays on the established defaults and is never assigned another character's profile.
+- Profiles are explicitly session-scoped because the supported runtime has no documented file-write API; no unsupported persistence mechanism is introduced.
+- A missing/failing/tableless profession surface, an unsupported profession such as Alchemy, or an unrecognized localized name leaves the route off. The side-effecting `core.profession.open_profession` opener is never called, and the `core.profession` enum is never treated as discovery data.
+- Gathering preferences now drive a bounded IDLE route: it runs only with no active guide goal/waypoint, scans at most 50 visible non-unit objects within 50yd once per second, recognizes a conservative client-name vocabulary, NAVs to enabled nodes, and uses the existing `use_object` plus cast/channel pause. Active quests, combat, frames, and casts always outrank it.
+- Gathering also stops when the bags hold fewer than this character's reserve, read through the exported `loot_manager_sylvanas.get_bag_space()` — the single inventory-helper owner the loot gate already uses, so both gates share one set of free/total/used numbers. The reserve is a per-character slider (`eaxaq_profile_gather_min_free_slots`, 0-16, default 4 to match the loot gate; 0 turns the bag gate off), clamped on capture and on read. An in-progress node is abandoned and its NAV cleared; a blocked check is throttled to the scan cadence. An unreadable inventory does not block, and the profile vendor threshold remains the backstop.
+- A bag-blocked route raises the same `_force_vendor_soon` flag the fullness trigger uses and stays `IDLE`, so the coordinator's force-vendor route actually sends it to a vendor — the reserve is a slots rule that bites long before the fullness percentage, and without this the bot would simply stop gathering and stand there. The flag also makes the vendor sell up to green, which is what frees the slots. The request is idempotent and paced by a 180s retry so a visit that freed nothing cannot become a vendor trip loop; the vendor clears the flag when it handles the visit.
+- Both raisers record **why** in `_force_vendor_reason` and the vendor clears the reason with the flag, so the coordinator's `force vendor` log line names the cause that actually asked for the visit. It previously always printed the fullness threshold, which sent a reader looking at nearly-empty bags after a gather block. A request that arrives with no recorded cause falls back to the character threshold rather than a hardcoded 80.
+
+**Proving surface:** `character_profile_sylvanas.lua`, `main.lua`, `menu_sylvanas.lua`, `loot_manager_sylvanas.lua`, `mount_manager_sylvanas.lua`, `quest_state/idle_state.lua`, `quest_state/coordinator.lua`, `tests/mock_core.lua`, `tests/test_character_profiles.lua` P1h-P1j/P5d/P6-P10, `tests/test_gathering_profile.lua` G1-G14, `tests/test_menu_pull_gate.lua` M7, `tests/test_vendor_bag_trigger.lua` S1c/S5b/S6e-S6f/S7/S8, and the in-game verification steps in `docs/client_runbook.md`, `loot_manager_sylvanas.lua` `M.get_bag_space`, `tests/test_menu_pull_gate.lua` M6, `tests/test_vendor_bag_trigger.lua` S2b-S2d, and `tests/test_mount_manager.lua` H16. The behavior, gathering limits, profession-detection boundary, and persistence boundary are documented in `docs/character_profiles.md`.
+
+**Client-only unknown (explicitly outside this mission):** whether the target Sylvanas client returns populated `get_professions()`/`get_profession_info()` results at the moment the first character profile is created, and whether it populates `skill_line` on that info table. The Lua battery proves the wiring against the documented contract, not that runtime answer; the startup diagnostic's `[skill N]` field shows which path fired. An empty, late, or unsupported result is safe — the four checkboxes stay at their manual off defaults and no profession is assumed — but the in-game result still needs one smoke check.
+
+### AQ-P4-6 — Reached-path memory
+**Status: complete (2026-09-25).** Within a client session, ground the quester has already stood on is not walked again.
+
+**Acceptance criteria met:**
+- The area sweep records the PLACE it reaches — not the slot the guide returned — in a session-scoped bounded table (`shared._reached_places`, owned by `quest_state/idle_state.lua`, declared in the coordinator). The reader hands back a fresh table every tick, so a slot index says nothing about which ground it names.
+- A candidate the character has already stood on is skipped for selection exactly like a retired or visited waypoint, so a later pass — or a later step crossing the same route — walks only what has not been covered.
+- The memory deliberately SURVIVES a step change and a new sweep pass, which is the whole point: `visited` is per-pass and retirement is per-step, so both used to let a covered route come back in full. The per-step retirement contract (P15) is untouched — a place the client refused is still retried once per pass, because a refusal is never a "reached" place.
+- Keyed by rounded numeric coordinates, so the per-candidate check on the tick path allocates nothing (the tick-allocation bound is unchanged at 0.00 B in IDLE).
+- Bounded to `REACHED_PLACE_LIMIT = 64` places; the oldest insertion is dropped first, so a long session cannot grow the table without limit.
+- Session-scoped only, exactly like the per-character profiles: the runtime has no file-write API, so nothing is persisted across a restart and none is claimed.
+- The sweep is movement-only (it runs only when there is no target), so skipping a covered waypoint forfeits no trigger the bot still owes — a kill/loot/interact goal is handled by the goal path, not the sweep.
+
+**Proving surface:** `quest_state/idle_state.lua` (the `place_reached` / `remember_reached_place` owners and the sweep call sites), `quest_state/coordinator.lua` (`_reached_places` declaration), `tests/test_idle_state.lua` P19a-P19j: first pass still walks and reaches both waypoints (memory never blocks first-time walking), a post-relap pass re-walks nothing, a re-ordered list still walks only a genuinely new waypoint, a new step does not resurrect covered ground, and the 64-place cap holds under 90 distinct reached places. The in-game verification steps are in `docs/client_runbook.md`.
+
 ## Completion rule
 An objective is complete only after its production surface, focused tests, Lua syntax check, and full EaxAutoQuester battery are green. Client-only unknowns remain explicitly outside this mission.

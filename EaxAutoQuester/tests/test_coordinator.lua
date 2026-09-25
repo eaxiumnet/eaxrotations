@@ -17,6 +17,17 @@ assert(type(coordinator.update) == "function", "coordinator.update is function")
 assert(type(coordinator.stop_navigation) == "function", "coordinator.stop_navigation is function")
 assert(type(coordinator.render_debug) == "function", "coordinator.render_debug is function")
 
+-- The live capture seam is public and inert after the session is stopped. This proves the
+-- coordinator owns the start/stop/export contract rather than only the recorder in isolation.
+assert(type(coordinator.start_session_recording) == "function", "coordinator session start is function")
+assert(type(coordinator.stop_session_recording) == "function", "coordinator session stop is function")
+assert(type(coordinator.export_session_log) == "function", "coordinator session export is function")
+assert(coordinator.start_session_recording() == true, "S4a FAIL: session recording must start")
+local session_jsonl = coordinator.stop_session_recording()
+assert(session_jsonl:find('"kind":"session_start"', 1, true) and
+    session_jsonl:find('"kind":"session_stop"', 1, true),
+    "S4b FAIL: the coordinator session API must return start/stop JSONL markers")
+
 -- Test stop_navigation
 coordinator.stop_navigation()
 
